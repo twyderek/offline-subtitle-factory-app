@@ -1,0 +1,55 @@
+# 字幕清理規則檔
+# 每一行定義一條規則，以 # 開頭的行為註解會被忽略
+# 支援的規則類型如下：
+
+# ── 繁體中文輸出 ──
+# 格式：FORCE_TRADITIONAL: true / false
+# 任務語言選「繁體中文」時預設啟用，可在特殊專案中設為 false 關閉。
+FORCE_TRADITIONAL: true
+
+# ── 口語詞移除 ──
+# 格式：REMOVE_FILLER: 用 | 分隔的口語詞清單
+# 這些詞會在字幕生成後被移除
+REMOVE_FILLER: 呃|啊|嗯|那個|這個|然後|就是|你知道吧|對吧
+
+# ── 專有名詞標準化 ──
+# 格式：NORMALIZE_TERM: 原詞 -> 標準化形式
+# 大小寫不敏感比對，常見於品牌、系統、模型名稱
+NORMALIZE_TERM: whisper -> WHISPER
+NORMALIZE_TERM: whisper desktop -> WHISPERDESKTOP
+NORMALIZE_TERM: evercam -> EVERCAM
+NORMALIZE_TERM: open ai -> OPENAI
+NORMALIZE_TERM: gpt-4 -> GPT-4
+NORMALIZE_TERM: dall-e -> DALL-E
+NORMALIZE_TERM: token -> TOKEN
+NORMALIZE_TERM: moodle -> MOODLE
+NORMALIZE_TERM: ai -> AI
+NORMALIZE_TERM: api -> API
+NORMALIZE_TERM: km plus -> KMPLUS
+
+# ── 自訂文字替換 ──
+# 格式：CUSTOM_REPLACE: 原文 -> 替換文
+# 精確文字比對（不區分大小寫）
+CUSTOM_REPLACE: 所以呢 -> 所以
+CUSTOM_REPLACE: 之後呢 -> 之後
+CUSTOM_REPLACE: 的話呢 -> 的話
+CUSTOM_REPLACE: 時候呢 -> 時候
+CUSTOM_REPLACE: 這邊呢 -> 這邊
+CUSTOM_REPLACE: 老師呢 -> 老師
+
+# ── 標點符號移除 ──
+# 格式：REMOVE_PUNCTUATION: 要移除的標點字元清單
+# 預設會移除：，。,.、：;「」『』（）《》〈〉【】"'"
+# 此處可額外指定
+REMOVE_PUNCTUATION: ！？
+
+# ── 正規表示式替換 ──
+# 格式：REGEX_REPLACE: 正則表達式 -> 替換文
+# 支援完整的 JavaScript 正規表示式語法
+# REGEX_REPLACE: \btest\b -> TEST
+
+# ── 其他 ──
+# 任何不符合上述格式的 "原文 -> 替換文" 行，
+# 都會被視為一般文字替換規則（literal replacement）
+# 例如：
+# 舊版軟體 -> 新版軟體

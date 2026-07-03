@@ -1,0 +1,75 @@
+{
+  "name": "offline-subtitle-factory",
+  "version": "0.20.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first offline subtitle generation frontend MVP.",
+  "author": "Offline Subtitle Factory",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "electron:start": "electron .",
+    "electron:dev": "node scripts/start-electron-dev.mjs",
+    "electron:build": "electron-builder"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.offline-subtitle-factory.app",
+    "productName": "\u96e2\u7dda\u5b57\u5e55\u5de5\u5ee0",
+    "directories": {
+      "output": "../dist"
+    },
+    "asar": false,
+    "npmRebuild": false,
+    "files": [
+      "server.mjs",
+      "electron/**/*",
+      "public/**/*",
+      "tools/**/*",
+      "!tools/_downloads/**/*",
+      "scripts/**/*",
+      "!scripts/verify-electron-renderer.mjs",
+      "start-offline-subtitle-factory.bat",
+      "start-offline-subtitle-factory.ps1",
+      "setup-local-tools.bat",
+      "README.md",
+      "FINAL-VERSION-LOG.md",
+      "package.json",
+      ".gitignore"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/icons/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "\u96e2\u7dda\u5b57\u5e55\u5de5\u5ee0",
+      "installerIcon": "electron/icons/icon.ico",
+      "uninstallerIcon": "electron/icons/icon.ico",
+      "installerHeaderIcon": "electron/icons/icon.ico"
+    }
+  }
+}
