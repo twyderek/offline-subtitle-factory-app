@@ -8,10 +8,6 @@ import path from 'node:path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(__dirname, '..');
 const serverPath = path.join(appDir, 'server.mjs');
-const bundledNodePath = path.join(appDir, 'tools', 'node', 'node.exe');
-const bundledPythonPath = path.join(appDir, 'tools', 'python-venv', 'Scripts', 'python.exe');
-const bundledFfmpegPath = path.join(appDir, 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe');
-const bundledWhisperPath = path.join(appDir, 'tools', 'python-venv', 'Scripts', 'whisper.exe');
 const setupBatPath = path.join(appDir, 'setup-local-tools.bat');
 
 let serverProcess = null;
@@ -287,14 +283,86 @@ function formatHealthToolStatus(name, value) {
   return value ? '可用' : '未找到';
 }
 
+function resolveToolsInfo() {
+  const candidates = [
+    process.env.OFFLINE_SUBTITLE_TOOLS_DIR,
+    path.join(app.getPath('userData'), 'tools'),
+    path.join(appDir, 'tools'),
+    path.resolve(appDir, '..', 'tools'),
+  ]
+    .filter(Boolean)
+    .map((candidate) => path.resolve(candidate));
+  const uniqueCandidates = [...new Set(candidates)];
+  const toolsDir = uniqueCandidates.find((candidate) => hasAnyTool(candidate)) || uniqueCandidates[0];
+  return buildToolsInfo(toolsDir, uniqueCandidates);
+}
+
+function hasAnyTool(candidate) {
+  return [
+    path.join(candidate, 'python', 'python.exe'),
+    path.join(candidate, 'python-embed', 'python.exe'),
+    path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
+    path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(candidate, 'node', 'node.exe'),
+  ].some((filePath) => fs.existsSync(filePath));
+}
+
+function firstExisting(paths, fallback = paths[0]) {
+  return paths.find((filePath) => fs.existsSync(filePath)) || fallback;
+}
+
+function isFileCommand(command) {
+  return Boolean(command) && (
+    path.isAbsolute(command)
+    || command.includes('\\')
+    || command.includes('/')
+  );
+}
+
+function commandDir(command) {
+  return isFileCommand(command) ? path.dirname(command) : null;
+}
+
+function buildToolsInfo(toolsDir, candidates) {
+  const paths = {
+    node: firstExisting([
+      path.join(toolsDir, 'node', 'node.exe'),
+      process.execPath,
+    ]),
+    ffmpeg: firstExisting([
+      path.join(toolsDir, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+      'ffmpeg',
+    ]),
+    python: firstExisting([
+      path.join(toolsDir, 'python', 'python.exe'),
+      path.join(toolsDir, 'python-embed', 'python.exe'),
+      path.join(toolsDir, 'python-venv', 'Scripts', 'python.exe'),
+    ]),
+    whisperModels: path.join(toolsDir, 'whisper-models'),
+    manifest: path.join(toolsDir, 'manifest.json'),
+  };
+  return { toolsDir, candidates, paths };
+}
+
 // ── Pre-flight tool check before starting server ─────────────────────────────
-function checkToolExists(path) {
-  return fs.existsSync(path);
+function checkToolExists(exePath) {
+  if (!exePath) return false;
+  return isFileCommand(exePath) ? fs.existsSync(exePath) : true;
 }
 
 function checkToolRunnable(exePath, args = []) {
+  if (!checkToolExists(exePath)) return false;
   try {
-    const result = spawnSync(exePath, args, { timeout: 5000, encoding: 'utf8' });
+    const result = spawnSync(exePath, args, {
+      timeout: 8000,
+      encoding: 'utf8',
+      windowsHide: true,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+      },
+    });
     return result.error == null && result.status === 0;
   } catch {
     return false;
@@ -302,28 +370,30 @@ function checkToolRunnable(exePath, args = []) {
 }
 
 async function preFlightCheck() {
+  const toolInfo = resolveToolsInfo();
+  const { paths } = toolInfo;
   const checks = {
     node: {
-      exists: checkToolExists(bundledNodePath),
-      exe: bundledNodePath,
+      exists: checkToolExists(paths.node),
+      exe: paths.node,
       args: ['--version'],
       label: 'Node.js',
     },
     ffmpeg: {
-      exists: checkToolExists(bundledFfmpegPath),
-      exe: bundledFfmpegPath,
+      exists: checkToolExists(paths.ffmpeg),
+      exe: paths.ffmpeg,
       args: ['-version'],
       label: 'FFmpeg',
     },
     python: {
-      exists: checkToolExists(bundledPythonPath),
-      exe: bundledPythonPath,
+      exists: checkToolExists(paths.python),
+      exe: paths.python,
       args: ['--version'],
       label: 'Python',
     },
     whisper: {
-      exists: checkToolExists(bundledWhisperPath),
-      exe: bundledPythonPath,
+      exists: checkToolExists(paths.python),
+      exe: paths.python,
       args: ['-c', 'import whisper; print("ok")'],
       label: 'Whisper',
     },
@@ -342,7 +412,7 @@ async function preFlightCheck() {
     }
   }
 
-  return { results, missing, setupScript: setupBatPath };
+  return { results, missing, setupScript: setupBatPath, toolInfo };
 }
 
 async function showStartupError(title, detail) {
@@ -385,13 +455,20 @@ async function showPreFlightWarning(win, preflight) {
 }
 
 async function startServer(effectivePort) {
+  const toolInfo = resolveToolsInfo();
+  const pathEntries = [
+    commandDir(toolInfo.paths.ffmpeg),
+    commandDir(toolInfo.paths.python),
+    commandDir(toolInfo.paths.node),
+  ].filter(Boolean);
+  const nodeCommand = checkToolExists(toolInfo.paths.node) ? toolInfo.paths.node : 'node';
+
   console.log('[main] Starting server...');
   console.log('[main] appDir:', appDir);
   console.log('[main] serverPath:', serverPath);
-  console.log('[main] bundledNodePath:', bundledNodePath);
-  console.log('[main] fs.existsSync(bundledNodePath):', fs.existsSync(bundledNodePath));
+  console.log('[main] toolsDir:', toolInfo.toolsDir);
+  console.log('[main] nodeCommand:', nodeCommand);
   console.log('[main] Expected port:', effectivePort);
-  const nodeCommand = fs.existsSync(bundledNodePath) ? bundledNodePath : 'node';
   const dataDir = path.join(app.getPath('userData'), 'jobs');
   const settingsDir = path.join(app.getPath('userData'), 'config');
 
@@ -402,6 +479,12 @@ async function startServer(effectivePort) {
       PORT: String(effectivePort),
       OFFLINE_SUBTITLE_DATA_DIR: dataDir,
       OFFLINE_SUBTITLE_SETTINGS_DIR: settingsDir,
+      OFFLINE_SUBTITLE_TOOLS_DIR: toolInfo.toolsDir,
+      XDG_CACHE_HOME: toolInfo.toolsDir,
+      WHISPER_CACHE: toolInfo.paths.whisperModels,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1',
+      PATH: `${pathEntries.join(';')}${pathEntries.length ? ';' : ''}${process.env.PATH || ''}`,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,

@@ -4,9 +4,14 @@ setlocal EnableExtensions
 set "APP_DIR=%~dp0"
 set "PORT=8790"
 set "URL=http://127.0.0.1:%PORT%"
-set "NODE_EXE=%APP_DIR%tools\node\node.exe"
-set "PYTHON_EXE=%APP_DIR%tools\python-venv\Scripts\python.exe"
-set "FFMPEG_EXE=%APP_DIR%tools\ffmpeg\bin\ffmpeg.exe"
+if not defined OFFLINE_SUBTITLE_TOOLS_DIR set "OFFLINE_SUBTITLE_TOOLS_DIR=%APP_DIR%tools"
+set "TOOLS_DIR=%OFFLINE_SUBTITLE_TOOLS_DIR%"
+set "NODE_EXE=%TOOLS_DIR%\node\node.exe"
+set "PYTHON_EXE="
+if exist "%TOOLS_DIR%\python\python.exe" set "PYTHON_EXE=%TOOLS_DIR%\python\python.exe"
+if not defined PYTHON_EXE if exist "%TOOLS_DIR%\python-embed\python.exe" set "PYTHON_EXE=%TOOLS_DIR%\python-embed\python.exe"
+if not defined PYTHON_EXE if exist "%TOOLS_DIR%\python-venv\Scripts\python.exe" set "PYTHON_EXE=%TOOLS_DIR%\python-venv\Scripts\python.exe"
+set "FFMPEG_EXE=%TOOLS_DIR%\ffmpeg\bin\ffmpeg.exe"
 set "SETUP_BAT=%APP_DIR%setup-local-tools.bat"
 set "SERVER_FILE=%APP_DIR%server.mjs"
 
@@ -21,7 +26,10 @@ if not exist "%NODE_EXE%" (
 if not exist "%FFMPEG_EXE%" (
   set "MISSING_TOOLS=!MISSING_TOOLS!FFmpeg "
 )
-if not exist "%PYTHON_EXE%" (
+if not defined PYTHON_EXE (
+  set "MISSING_TOOLS=!MISSING_TOOLS!Python "
+)
+if defined PYTHON_EXE if not exist "%PYTHON_EXE%" (
   set "MISSING_TOOLS=!MISSING_TOOLS!Python "
 )
 
@@ -65,9 +73,13 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr "127.0.0.1:%PORT%" ^| findstr
   taskkill /PID %%P /F >nul 2>nul
 )
 
-set "PATH=%APP_DIR%tools\ffmpeg\bin;%APP_DIR%tools\python-venv\Scripts;%PATH%"
-set "XDG_CACHE_HOME=%APP_DIR%tools"
-set "WHISPER_CACHE=%APP_DIR%tools\whisper-models"
+for %%I in ("%FFMPEG_EXE%") do set "FFMPEG_DIR=%%~dpI"
+for %%I in ("%PYTHON_EXE%") do set "PYTHON_DIR=%%~dpI"
+set "PATH=%FFMPEG_DIR%;%PYTHON_DIR%;%PATH%"
+set "XDG_CACHE_HOME=%TOOLS_DIR%"
+set "WHISPER_CACHE=%TOOLS_DIR%\whisper-models"
+set "PYTHONIOENCODING=utf-8"
+set "PYTHONUTF8=1"
 
 start "" "%URL%"
 "%NODE_EXE%" "%SERVER_FILE%"

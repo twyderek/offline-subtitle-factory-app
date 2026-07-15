@@ -10,20 +10,18 @@ const publicDir = path.join(appDir, 'public');
 const defaultJobsDir = process.env.OFFLINE_SUBTITLE_DATA_DIR
   ? path.resolve(process.env.OFFLINE_SUBTITLE_DATA_DIR)
   : path.join(appDir, 'jobs');
-const toolsDir = path.join(appDir, 'tools');
+const defaultToolsDir = process.env.OFFLINE_SUBTITLE_TOOLS_DIR
+  ? path.resolve(process.env.OFFLINE_SUBTITLE_TOOLS_DIR)
+  : path.join(appDir, 'tools');
 const settingsDir = process.env.OFFLINE_SUBTITLE_SETTINGS_DIR
   ? path.resolve(process.env.OFFLINE_SUBTITLE_SETTINGS_DIR)
   : path.join(appDir, 'config');
 const settingsPath = path.join(settingsDir, 'settings.json');
 const port = Number(process.env.PORT || 8790);
 
-const toolPaths = {
-  node: path.join(toolsDir, 'node', 'node.exe'),
-  ffmpeg: path.join(toolsDir, 'ffmpeg', 'bin', 'ffmpeg.exe'),
-  python: path.join(toolsDir, 'python-venv', 'Scripts', 'python.exe'),
-  whisper: path.join(toolsDir, 'python-venv', 'Scripts', 'whisper.exe'),
-  whisperModels: path.join(toolsDir, 'whisper-models'),
-};
+const toolsInfo = resolveToolsInfo();
+const toolsDir = toolsInfo.toolsDir;
+const toolPaths = toolsInfo.paths;
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -107,6 +105,75 @@ function writeJson(filePath, value) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
+}
+
+function resolveToolsInfo() {
+  const candidates = [
+    process.env.OFFLINE_SUBTITLE_TOOLS_DIR,
+    path.join(appDir, 'tools'),
+    path.resolve(appDir, '..', 'tools'),
+  ]
+    .filter(Boolean)
+    .map((candidate) => path.resolve(candidate));
+
+  const uniqueCandidates = [...new Set(candidates)];
+  const selected = uniqueCandidates.find((candidate) => hasAnyTool(candidate)) || uniqueCandidates[0] || defaultToolsDir;
+  return buildToolsInfo(selected, uniqueCandidates);
+}
+
+function hasAnyTool(candidate) {
+  return [
+    path.join(candidate, 'python', 'python.exe'),
+    path.join(candidate, 'python-embed', 'python.exe'),
+    path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
+    path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(candidate, 'node', 'node.exe'),
+  ].some((filePath) => fs.existsSync(filePath));
+}
+
+function firstExisting(paths, fallback = paths[0]) {
+  return paths.find((filePath) => fs.existsSync(filePath)) || fallback;
+}
+
+function buildToolsInfo(selectedToolsDir, candidates) {
+  const pythonCandidates = [
+    path.join(selectedToolsDir, 'python', 'python.exe'),
+    path.join(selectedToolsDir, 'python-embed', 'python.exe'),
+    path.join(selectedToolsDir, 'python-venv', 'Scripts', 'python.exe'),
+  ];
+  const paths = {
+    node: firstExisting([
+      path.join(selectedToolsDir, 'node', 'node.exe'),
+      process.execPath,
+    ]),
+    ffmpeg: firstExisting([
+      path.join(selectedToolsDir, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+      'ffmpeg',
+    ]),
+    ffprobe: firstExisting([
+      path.join(selectedToolsDir, 'ffmpeg', 'bin', 'ffprobe.exe'),
+      'ffprobe',
+    ]),
+    python: firstExisting(pythonCandidates),
+    whisper: 'python -m whisper',
+    whisperModels: process.env.WHISPER_CACHE || path.join(selectedToolsDir, 'whisper-models'),
+    manifest: path.join(selectedToolsDir, 'manifest.json'),
+  };
+  return {
+    toolsDir: selectedToolsDir,
+    candidates,
+    paths,
+    manifest: loadToolsManifest(path.join(selectedToolsDir, 'manifest.json')),
+  };
+}
+
+function loadToolsManifest(manifestPath) {
+  try {
+    if (!fs.existsSync(manifestPath)) return null;
+    return readJson(manifestPath);
+  } catch {
+    return null;
+  }
 }
 
 function normalizeFolder(value) {
@@ -291,11 +358,16 @@ function createJob({ fields, files }) {
 
 function commandExists(command, args = ['--version']) {
   return new Promise((resolve) => {
-    if (!fs.existsSync(command)) {
+    if (!command) {
       resolve(false);
       return;
     }
-    const child = spawn(command, args, { shell: false, stdio: 'ignore' });
+    const needsFileCheck = path.isAbsolute(command) || command.includes('\\') || command.includes('/');
+    if (needsFileCheck && !fs.existsSync(command)) {
+      resolve(false);
+      return;
+    }
+    const child = spawn(command, args, { shell: false, stdio: 'ignore', windowsHide: true });
     child.on('exit', (code) => resolve(code === 0));
     child.on('error', () => resolve(false));
   });
@@ -434,6 +506,12 @@ async function healthCheck() {
     canProcessJobs,
     node: process.version,
     localToolsDir: toolsDir,
+    toolsInfo: {
+      selectedToolsDir: toolsInfo.toolsDir,
+      candidates: toolsInfo.candidates,
+      manifest: toolsInfo.manifest,
+      manifestPath: toolPaths.manifest,
+    },
     settings: {
       settingsFile: settingsPath,
       projectFolder: getJobsDir(),
@@ -544,6 +622,7 @@ function runWhisper(job, inputDir, workingDir) {
   return new Promise((resolve, reject) => {
     const videoFile = path.join(inputDir, job.config.files.video);
     const args = [
+      '-m', 'whisper',
       videoFile,
       '--language', job.config.language.startsWith('zh') ? 'Chinese' : job.config.language,
       '--output_format', 'srt',
@@ -552,16 +631,17 @@ function runWhisper(job, inputDir, workingDir) {
     ];
     if (job.config.modelName) args.push('--model', job.config.modelName);
     let lastProgressLogAt = 0;
-    const child = spawn(toolPaths.whisper, args, {
+    const child = spawn(toolPaths.python, args, {
       shell: false,
       env: {
         ...process.env,
-        PATH: `${path.dirname(toolPaths.ffmpeg)};${path.dirname(toolPaths.whisper)};${process.env.PATH || ''}`,
+        PATH: `${path.dirname(toolPaths.ffmpeg)};${path.dirname(toolPaths.python)};${process.env.PATH || ''}`,
         XDG_CACHE_HOME: toolsDir,
         WHISPER_CACHE: toolPaths.whisperModels,
         PYTHONIOENCODING: 'utf-8',
         PYTHONUTF8: '1',
       },
+      windowsHide: true,
     });
     child.stdout.on('data', (data) => {
       const log = normalizeWhisperLog(data);
@@ -1483,7 +1563,7 @@ function parseFfmpegProgressMs(text) {
 
 function probeDurationSeconds(videoPath) {
   return new Promise((resolve) => {
-    const ffprobe = path.join(toolsDir, 'ffmpeg', 'bin', 'ffprobe.exe');
+    const ffprobe = toolPaths.ffprobe;
     const child = spawn(ffprobe, [
       '-v', 'error',
       '-show_entries', 'format=duration',
@@ -1772,7 +1852,20 @@ async function handleApi(req, res) {
       installGuide = { missingTools: missing, steps, setupScript: 'setup-local-tools.bat' };
     }
 
-    sendJson(res, 200, { ready, canProcessJobs: canProcess, missingTools: missing, installGuide });
+    sendJson(res, 200, {
+      ready,
+      canProcessJobs: canProcess,
+      missingTools: missing,
+      installGuide,
+      localToolsDir: toolsDir,
+      toolsInfo: {
+        selectedToolsDir: toolsInfo.toolsDir,
+        candidates: toolsInfo.candidates,
+        manifest: toolsInfo.manifest,
+        manifestPath: toolPaths.manifest,
+      },
+      paths: toolPaths,
+    });
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/settings') {
@@ -1809,7 +1902,7 @@ async function handleApi(req, res) {
       const tempPath = path.join(tempDir, safeName);
       fs.writeFileSync(tempPath, files.video.buffer);
 
-      const probeCmd = path.join(toolsDir, 'ffmpeg', 'bin', 'ffprobe.exe');
+      const probeCmd = toolPaths.ffprobe;
       const probeArgs = [
         '-v', 'quiet',
         '-print_format', 'json',

@@ -1,7 +1,15 @@
+param(
+  [string]$ToolsDirOverride = $env:OFFLINE_SUBTITLE_TOOLS_DIR
+)
+
 $ErrorActionPreference = "Continue"
 
 $AppDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$ToolsDir = Join-Path $AppDir "tools"
+if ($ToolsDirOverride) {
+  $ToolsDir = [System.IO.Path]::GetFullPath($ToolsDirOverride)
+} else {
+  $ToolsDir = Join-Path $AppDir "tools"
+}
 $DownloadsDir = Join-Path $ToolsDir "_downloads"
 $NodeDir = Join-Path $ToolsDir "node"
 $FfmpegDir = Join-Path $ToolsDir "ffmpeg"
@@ -227,6 +235,26 @@ if ($PythonExe -and (Test-Path $PythonExe)) {
   $Missing += "Python"
   $AllOk = $false
 }
+
+Write-Step "Write tools manifest"
+$ManifestPath = Join-Path $ToolsDir "manifest.json"
+$Manifest = [ordered]@{
+  schema = 1
+  app = "offline-subtitle-factory"
+  generatedAt = (Get-Date).ToString("o")
+  toolsDir = $ToolsDir
+  strategy = "setup-local-tools"
+  installed = $Installed
+  missing = $Missing
+  paths = [ordered]@{
+    node = $NodeExe
+    ffmpeg = $FfmpegExe
+    python = $PythonExe
+    whisperModels = $WhisperModelsDir
+  }
+}
+$Manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ManifestPath -Encoding UTF8
+Write-Host "Manifest written: $ManifestPath" -ForegroundColor Green
 
 # Summary
 Write-Host ""

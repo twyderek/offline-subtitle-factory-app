@@ -4,8 +4,11 @@ config/
 .tmp-packaged-data/
 tools/node/
 tools/ffmpeg/
+tools/python/
+tools/python-embed/
 tools/python-venv/
 tools/whisper-models/
+tools/manifest.json
 tools/_downloads/
 dist/
 *.log

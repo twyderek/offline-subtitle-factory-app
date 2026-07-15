@@ -10,7 +10,8 @@
     "start": "node server.mjs",
     "electron:start": "electron .",
     "electron:dev": "node scripts/start-electron-dev.mjs",
-    "electron:build": "electron-builder"
+    "runtime:verify": "node scripts/verify-runtime-package.mjs",
+    "electron:build": "npm run runtime:verify && electron-builder"
   },
   "engines": {
     "node": ">=20"
@@ -33,6 +34,7 @@
       "public/**/*",
       "tools/**/*",
       "!tools/_downloads/**/*",
+      "!tools/python-venv/**/*",
       "scripts/**/*",
       "!scripts/verify-electron-renderer.mjs",
       "start-offline-subtitle-factory.bat",
@@ -40,6 +42,7 @@
       "setup-local-tools.bat",
       "README.md",
       "FINAL-VERSION-LOG.md",
+      "NEXT-VERSION-FIX-LOG.md",
       "package.json",
       ".gitignore"
     ],

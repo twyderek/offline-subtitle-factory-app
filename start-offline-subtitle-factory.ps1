@@ -3,23 +3,44 @@ $ErrorActionPreference = "Stop"
 $AppDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Port = if ($env:PORT) { $env:PORT } else { "8790" }
 $Url = "http://127.0.0.1:$Port"
-$NodeExe = Join-Path $AppDir "tools\node\node.exe"
-$PythonExe = Join-Path $AppDir "tools\python-venv\Scripts\python.exe"
-$FfmpegExe = Join-Path $AppDir "tools\ffmpeg\bin\ffmpeg.exe"
+$ToolsDir = if ($env:OFFLINE_SUBTITLE_TOOLS_DIR) { [System.IO.Path]::GetFullPath($env:OFFLINE_SUBTITLE_TOOLS_DIR) } else { Join-Path $AppDir "tools" }
 $SetupScript = Join-Path $AppDir "setup-local-tools.bat"
 
 Set-Location $AppDir
 
+function First-Existing($Candidates, $Fallback = $null) {
+  foreach ($Candidate in $Candidates) {
+    if ($Candidate -and (Test-Path $Candidate)) {
+      return $Candidate
+    }
+  }
+  return $Fallback
+}
+
+$NodeExe = First-Existing @(
+  (Join-Path $ToolsDir "node\node.exe")
+) "node"
+$PythonExe = First-Existing @(
+  (Join-Path $ToolsDir "python\python.exe"),
+  (Join-Path $ToolsDir "python-embed\python.exe"),
+  (Join-Path $ToolsDir "python-venv\Scripts\python.exe")
+)
+$FfmpegExe = First-Existing @(
+  (Join-Path $ToolsDir "ffmpeg\bin\ffmpeg.exe")
+) "ffmpeg"
+$FfmpegDir = Split-Path -Parent $FfmpegExe
+$PythonDir = if ($PythonExe) { Split-Path -Parent $PythonExe } else { "" }
+
 # ── Pre-flight: check all critical tools before starting ──────────────────────
 $MissingTools = @()
 
-if (-not (Test-Path $NodeExe)) {
+if (-not $NodeExe -or ($NodeExe -ne "node" -and -not (Test-Path $NodeExe))) {
   $MissingTools += "Node.js"
 }
-if (-not (Test-Path $FfmpegExe)) {
+if (-not $FfmpegExe -or ($FfmpegExe -ne "ffmpeg" -and -not (Test-Path $FfmpegExe))) {
   $MissingTools += "FFmpeg"
 }
-if (-not (Test-Path $PythonExe)) {
+if (-not $PythonExe -or -not (Test-Path $PythonExe)) {
   $MissingTools += "Python"
 }
 
@@ -71,9 +92,12 @@ foreach ($connection in $existing) {
   Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
 }
 
-$env:PATH = "$AppDir\tools\ffmpeg\bin;$AppDir\tools\python-venv\Scripts;$env:PATH"
-$env:XDG_CACHE_HOME = Join-Path $AppDir "tools"
-$env:WHISPER_CACHE = Join-Path $AppDir "tools\whisper-models"
+$env:PATH = "$FfmpegDir;$PythonDir;$env:PATH"
+$env:OFFLINE_SUBTITLE_TOOLS_DIR = $ToolsDir
+$env:XDG_CACHE_HOME = $ToolsDir
+$env:WHISPER_CACHE = Join-Path $ToolsDir "whisper-models"
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
 
 Start-Process $Url
 & $NodeExe server.mjs
