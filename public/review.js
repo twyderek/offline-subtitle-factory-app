@@ -41,6 +41,8 @@ const state = {
   searchTimer: null,
   waveformPeaks: [],
   waveformDuration: 0,
+  aiSuggestions: new Map(),
+  aiPolling: false,
 };
 
 const ids = [
@@ -52,6 +54,7 @@ const ids = [
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
+const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiTimeoutSeconds', 'aiInstructions'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -61,6 +64,20 @@ document.getElementById('openTrim').addEventListener('click', () => {
   location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
 });
 document.getElementById('applyRules').addEventListener('click', applyRulesToAll);
+document.getElementById('openAiSettings').addEventListener('click', openAiSettings);
+document.getElementById('closeAiSettings').addEventListener('click', closeAiSettings);
+document.getElementById('saveAiSettings').addEventListener('click', saveAiSettings);
+document.getElementById('testAiConnection').addEventListener('click', testAiConnection);
+document.getElementById('runAiOptimize').addEventListener('click', runAiOptimize);
+document.getElementById('cancelAiOptimize').addEventListener('click', cancelAiOptimize);
+document.getElementById('acceptAllAiSuggestions').addEventListener('click', acceptAllAiSuggestions);
+document.getElementById('rejectAllAiSuggestions').addEventListener('click', rejectAllAiSuggestions);
+document.getElementById('aiSettingsModal').addEventListener('click', (event) => {
+  if (event.target.id === 'aiSettingsModal') closeAiSettings();
+});
+document.querySelectorAll('.ai-mode').forEach((button) => button.addEventListener('click', () => {
+  document.querySelectorAll('.ai-mode').forEach((item) => item.classList.toggle('active', item === button));
+}));
 document.getElementById('downloadSrt').addEventListener('click', downloadSrt);
 document.getElementById('downloadVtt').addEventListener('click', downloadVtt);
 document.getElementById('saveSrt').addEventListener('click', saveSrt);
@@ -130,6 +147,248 @@ if (el.reviewVideo?.parentElement && 'ResizeObserver' in window) {
 loadProjectPreset();
 updateBurnPreview();
 applyInitialStage();
+loadAiSettings();
+
+function openAiSettings() {
+  const modal = document.getElementById('aiSettingsModal');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeAiSettings() {
+  const modal = document.getElementById('aiSettingsModal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function setAiSettingsStatus(message) {
+  document.getElementById('aiSettingsStatus').textContent = message;
+}
+
+function applyAiSettings(settings) {
+  document.getElementById('aiEnabled').checked = Boolean(settings.enabled);
+  document.getElementById('aiProvider').value = settings.provider || 'openai-compatible';
+  document.getElementById('aiBaseUrl').value = settings.baseUrl || '';
+  document.getElementById('aiModel').value = settings.model || '';
+  document.getElementById('aiBatchSize').value = settings.batchSize || 30;
+  document.getElementById('aiApiKey').value = '';
+  document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
+  document.getElementById('aiLanguage').value = settings.language || 'zh-TW';
+  document.getElementById('aiTimeoutSeconds').value = settings.timeoutSeconds || 60;
+  document.getElementById('aiInstructions').value = settings.instructions || '';
+  const badge = document.getElementById('aiConnectionBadge');
+  const ready = Boolean(settings.enabled && settings.model && settings.hasApiKey);
+  badge.textContent = ready ? 'AI 已設定' : '尚未設定';
+  badge.classList.toggle('offline', !ready);
+}
+
+async function loadAiSettings() {
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/settings`, { cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    applyAiSettings(result.settings);
+    setAiSettingsStatus('設定已載入');
+  } catch (error) {
+    setAiSettingsStatus(`載入失敗：${error.message}`);
+  }
+}
+
+function collectAiSettings() {
+  return {
+    enabled: document.getElementById('aiEnabled').checked,
+    provider: document.getElementById('aiProvider').value,
+    baseUrl: document.getElementById('aiBaseUrl').value.trim(),
+    model: document.getElementById('aiModel').value.trim(),
+    batchSize: Number(document.getElementById('aiBatchSize').value),
+    apiKey: document.getElementById('aiApiKey').value.trim(),
+    language: document.getElementById('aiLanguage').value,
+    timeoutSeconds: Number(document.getElementById('aiTimeoutSeconds').value),
+    instructions: document.getElementById('aiInstructions').value.trim(),
+  };
+}
+
+async function saveAiSettings() {
+  const button = document.getElementById('saveAiSettings');
+  button.disabled = true;
+  setAiSettingsStatus('正在儲存…');
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectAiSettings()),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    applyAiSettings(result.settings);
+    setAiSettingsStatus('設定已儲存；API Key 不會回傳到畫面');
+  } catch (error) {
+    setAiSettingsStatus(`儲存失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function testAiConnection() {
+  const button = document.getElementById('testAiConnection');
+  button.disabled = true;
+  setAiSettingsStatus('正在測試 AI 服務…');
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/test`, { method: 'POST' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const modelMessage = result.modelAvailable ? '指定模型可用' : '已連線，但模型清單中找不到指定模型';
+    setAiSettingsStatus(`連線成功：${modelMessage}`);
+    const badge = document.getElementById('aiConnectionBadge');
+    badge.textContent = 'AI 已連線';
+    badge.classList.remove('offline');
+  } catch (error) {
+    setAiSettingsStatus(`連線失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function setAiProgress(progress, message) {
+  const wrap = document.getElementById('aiProgressWrap');
+  const percent = progress?.totalCues ? Math.round((progress.processedCues / progress.totalCues) * 100) : 0;
+  wrap.hidden = false;
+  document.getElementById('aiProgress').value = percent;
+  document.getElementById('aiProgressPercent').textContent = `${percent}%`;
+  document.getElementById('aiProgressText').textContent = message || `第 ${progress?.completedBatches || 0}／${progress?.totalBatches || 0} 批`;
+}
+
+function setAiRunning(running) {
+  state.aiPolling = running;
+  document.getElementById('runAiOptimize').disabled = running;
+  document.getElementById('cancelAiOptimize').hidden = !running;
+}
+
+function aiRequestCues() {
+  const scope = document.getElementById('aiScope').value;
+  const source = scope === 'selected' ? [state.cues[state.activeIndex]].filter(Boolean) : state.cues;
+  return source.map((cue) => ({ id: cue.id, start: cue.startRaw, end: cue.endRaw, text: cue.text }));
+}
+
+async function runAiOptimize() {
+  const cues = aiRequestCues();
+  if (!cues.length) {
+    statusMessage(document.getElementById('aiScope').value === 'selected' ? '請先選取一段字幕' : '沒有可優化的字幕');
+    return;
+  }
+  const mode = document.querySelector('.ai-mode.active')?.dataset.aiMode || 'proofread';
+  setAiRunning(true);
+  setAiProgress({ processedCues: 0, totalCues: cues.length, completedBatches: 0, totalBatches: 1 }, '正在啟動 AI 優化…');
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cues,
+        mode,
+        preserveTiming: document.getElementById('aiPreserveTiming').checked,
+        language: document.getElementById('aiLanguage').value,
+        instructions: document.getElementById('aiInstructions').value.trim(),
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    await pollAiOptimization();
+  } catch (error) {
+    setAiRunning(false);
+    setAiProgress(null, `AI 優化失敗：${error.message}`);
+    statusMessage(`AI 優化失敗：${error.message}`);
+  }
+}
+
+async function pollAiOptimization() {
+  while (state.aiPolling) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, { cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    setAiProgress(result.progress, result.status === 'running' ? undefined : `AI 任務：${result.status}`);
+    if (result.status === 'running') continue;
+    setAiRunning(false);
+    if (result.status === 'completed') {
+      state.aiSuggestions = new Map((result.result?.suggestions || []).map((item) => [String(item.id), item]));
+      updateAiSuggestionActions();
+      renderCueList();
+      statusMessage(`AI 優化完成：${state.aiSuggestions.size} 段有修改建議，請逐項確認`);
+      return;
+    }
+    if (result.status === 'cancelled') {
+      statusMessage('AI 優化已取消，原字幕未變更');
+      return;
+    }
+    throw new Error(result.error || 'AI 優化失敗');
+  }
+}
+
+async function cancelAiOptimize() {
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/cancel-ai-optimize`, { method: 'POST' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    setAiRunning(false);
+    setAiProgress(null, 'AI 優化已取消');
+    statusMessage('AI 優化已取消，原字幕未變更');
+  } catch (error) {
+    statusMessage(`取消失敗：${error.message}`);
+  }
+}
+
+function acceptAiSuggestion(index) {
+  const cue = state.cues[index];
+  const suggestion = cue ? state.aiSuggestions.get(String(cue.id)) : null;
+  if (!cue || !suggestion) return;
+  state.aiSuggestions.delete(String(cue.id));
+  updateCue(index, suggestion.text);
+  updateAiSuggestionActions();
+  renderCueList();
+  statusMessage(`已接受第 ${index + 1} 段 AI 建議，時間碼未變更`);
+}
+
+function rejectAiSuggestion(index) {
+  const cue = state.cues[index];
+  if (!cue) return;
+  state.aiSuggestions.delete(String(cue.id));
+  updateAiSuggestionActions();
+  renderCueList();
+  statusMessage(`已略過第 ${index + 1} 段 AI 建議`);
+}
+
+function updateAiSuggestionActions() {
+  const count = state.aiSuggestions.size;
+  document.getElementById('aiSuggestionActions').hidden = count === 0;
+  document.getElementById('aiSuggestionSummary').textContent = `${count} 段 AI 建議等待確認`;
+}
+
+function acceptAllAiSuggestions() {
+  let accepted = 0;
+  state.cues.forEach((cue, index) => {
+    const suggestion = state.aiSuggestions.get(String(cue.id));
+    if (!suggestion) return;
+    cue.text = suggestion.text;
+    syncChangedState(index);
+    accepted += 1;
+  });
+  state.aiSuggestions.clear();
+  updateAiSuggestionActions();
+  renderCueList();
+  updateStats();
+  updateActiveCue(true);
+  if (accepted) markReviewDirty();
+  statusMessage(`已接受 ${accepted} 段 AI 建議，所有時間碼維持不變`);
+}
+
+function rejectAllAiSuggestions() {
+  const rejected = state.aiSuggestions.size;
+  state.aiSuggestions.clear();
+  updateAiSuggestionActions();
+  renderCueList();
+  statusMessage(`已略過 ${rejected} 段 AI 建議，原字幕未變更`);
+}
 
 async function loadProjectPreset() {
   if (!jobId) {
@@ -283,6 +542,7 @@ function handleRuleFile(event) {
 
 function loadSrtText(text, message) {
   state.cues = parseSrt(text);
+  state.aiSuggestions.clear();
   state.activeIndex = -1;
   state.changed.clear();
   state.dirty = false;
@@ -349,6 +609,7 @@ function renderCueList() {
     item.dataset.index = String(index);
     item.classList.toggle('active', index === state.activeIndex);
     item.classList.toggle('changed', state.changed.has(index));
+    const aiSuggestion = state.aiSuggestions.get(String(cue.id));
     item.innerHTML = `
       <div class="review-cue-number">${index + 1}</div>
       <div class="review-cue-content">
@@ -358,6 +619,11 @@ function renderCueList() {
           <button class="jump cue-more" type="button" title="跳到此字幕">•••</button>
         </div>
         <textarea aria-label="字幕 ${index + 1}">${escapeHtml(cue.text)}</textarea>
+        ${aiSuggestion ? `<div class="review-ai-suggestion">
+          <div><strong>AI 建議</strong><span>${escapeHtml(aiSuggestion.reason || '文字優化')}</span></div>
+          <p>${escapeHtml(aiSuggestion.text)}</p>
+          <div><button class="accept-ai-suggestion" type="button">接受</button><button class="reject-ai-suggestion" type="button">略過</button></div>
+        </div>` : ''}
         <div class="cue-advanced-actions">
           <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${formatDuration(cue.end - cue.start)}"></label>
           <div class="cue-mini-buttons"><button class="shorten-cue" type="button">縮短</button><button class="extend-cue" type="button">延長</button></div>
@@ -388,6 +654,8 @@ function handleCueListClick(event) {
   else if (event.target.closest('.split-cue')) splitCue(index, event.target.closest('.review-cue')?.querySelector('textarea'));
   else if (event.target.closest('.merge-next')) mergeCueWithNext(index);
   else if (event.target.closest('.delete-cue')) deleteCue(index);
+  else if (event.target.closest('.accept-ai-suggestion')) acceptAiSuggestion(index);
+  else if (event.target.closest('.reject-ai-suggestion')) rejectAiSuggestion(index);
 }
 
 function handleCueListInput(event) {

@@ -16,6 +16,107 @@
 
 ## 修正紀錄
 
+### 2026-07-16 — AI 字幕優化項目 1：建立工具列與設定介面骨架
+
+- 狀態：完成
+- 修改檔案：
+  - `public/review.html`
+  - `public/styles.css`
+- 內容：
+  - 在字幕校閱頁加入 AI 工具列，包含錯字標點、斷句、術語、贅詞與翻譯模式。
+  - 加入全部／目前字幕範圍、鎖定時間碼、開始、取消與進度元件。
+  - 加入 AI 服務設定視窗，包含供應商、Base URL、模型、API Key、批次大小、語言、逾時與自訂指令。
+  - 加入桌面與窄螢幕響應式樣式。
+- 驗證：
+  - HTML 控制項 ID 與表單標籤已建立，後續項目將接入前後端行為。
+
+### 2026-07-16 — AI 字幕優化項目 2：設定讀寫與金鑰隔離
+
+- 狀態：完成
+- 修改檔案：
+  - `server.mjs`
+  - `public/review.js`
+- 內容：
+  - 新增 `GET /api/ai/settings` 與 `POST /api/ai/settings`。
+  - AI 一般設定整合至應用程式設定，API Key 則獨立存入權限設為 `0600` 的 secrets 檔案，亦支援 `SUBTITLE_AI_API_KEY` 環境變數。
+  - API 回應僅提供 `hasApiKey`，不會把金鑰原文送回瀏覽器。
+  - 完成設定視窗開關、載入、表單回填、儲存與狀態提示。
+- 驗證：
+  - 後端會正規化供應商、批次大小、語言、逾時與 Base URL。
+  - 啟用 AI 時會要求 Base URL 與模型名稱。
+
+### 2026-07-16 — AI 字幕優化項目 3：OpenAI-compatible 連線層
+
+- 狀態：完成
+- 修改檔案：
+  - `lib/ai/openai-compatible.mjs`
+  - `server.mjs`
+  - `public/review.js`
+- 內容：
+  - 建立供應商 adapter，統一處理 Base URL、Bearer 驗證、JSON、逾時、取消與錯誤訊息。
+  - 新增 `POST /api/ai/test`，透過模型清單端點驗證服務與金鑰。
+  - 設定視窗的「測試連線」會顯示連線結果，成功後更新工具列狀態。
+  - 預留 chat completions 呼叫函式供字幕優化流程使用。
+- 驗證：
+  - Base URL 僅接受 HTTP／HTTPS。
+  - 外部錯誤只回傳整理後訊息，不記錄 Authorization header 或 API Key。
+
+### 2026-07-16 — AI 字幕優化項目 4：分批優化、驗證、進度與取消
+
+- 狀態：完成
+- 修改檔案：
+  - `lib/ai/subtitle-optimizer.mjs`
+  - `server.mjs`
+- 內容：
+  - 新增 `POST/GET /api/jobs/:id/ai-optimize` 與 `POST /api/jobs/:id/cancel-ai-optimize`。
+  - 字幕依設定批次送出，支援錯字標點、斷句、術語、贅詞與翻譯指令。
+  - Prompt 強制 AI 保留 cue ID、段落數、順序與時間碼。
+  - 後端再次驗證回傳 JSON、cue ID、段落數、重複 ID、空白文字與異常長度。
+  - 任務狀態提供批次數、已處理字幕數、完成、失敗與取消狀態。
+- 驗證：
+  - AI 只回傳文字建議，不直接寫入 `reviewed.srt`。
+  - 任一批次驗證失敗時會停止任務並保留原字幕。
+
+### 2026-07-16 — AI 字幕優化項目 5：修改建議確認與自動儲存整合
+
+- 狀態：完成
+- 修改檔案：
+  - `public/review.js`
+  - `public/styles.css`
+  - `scripts/test-ai-optimizer.mjs`
+  - `package.json`
+- 內容：
+  - 校閱頁可啟動全部字幕或目前字幕的 AI 優化，並輪詢批次進度。
+  - 每段 AI 建議會顯示修改後文字與原因，使用者可逐項接受或略過。
+  - 工具列提供「全部接受」與「全部略過」，並即時顯示剩餘待確認數量。
+  - 接受建議只更新文字，沿用現有 dirty state 與自動儲存，不修改時間碼。
+  - 取消或失敗時不套用任何 AI 建議。
+  - 新增不需外部 API 的 optimizer 測試，驗證差異、進度、固定 ID 與錯誤回應拒絕。
+- 驗證：
+  - `scripts/test-ai-optimizer.mjs` 覆蓋有效建議與段落數不符案例。
+  - `node --check`、`git diff --check` 與完整 `npm test` 通過。
+  - 既有影片修剪、核心 API、聲波、字幕重算、任務取消與輸出相關回歸測試皆通過。
+
+### 2026-07-16 — AI 字幕優化項目 6：0.40.0 發布版本整理
+
+- 狀態：完成
+- 內容：
+  - 建立 `codex/0.40-ai-subtitle` 發布分支。
+  - `package.json` 與 `package-lock.json` 版本更新為 `0.40.0`。
+  - 首頁、專案資料與影片修剪頁版本標示更新為 0.40。
+  - 新增 `RELEASE-NOTES-0.40.0.md`，README 加入功能、隱私與安裝說明。
+  - Windows GitHub Actions 更新為 0.40.0 分支、標籤與 artifact 名稱。
+
+### 2026-07-16 — AI 字幕優化項目 7：發布前金鑰與停用狀態回歸測試
+
+- 狀態：完成
+- 修改檔案：
+  - `scripts/test-core.mjs`
+- 內容：
+  - 驗證 API Key 不會出現在 AI 設定 POST／GET 回應。
+  - 驗證一般 `settings.json` 不會包含 API Key。
+  - 驗證 UI 未啟用 AI 時，後端拒絕啟動外部優化請求。
+
 ### 2026-07-14 — 項目 1：建立下一版修正紀錄
 
 - 狀態：完成

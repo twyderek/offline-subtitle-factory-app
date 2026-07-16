@@ -8,6 +8,8 @@ import os from 'node:os';
 import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
+import { createChatCompletion, testOpenAiCompatible } from './lib/ai/openai-compatible.mjs';
+import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(appDir, 'public');
@@ -21,6 +23,7 @@ const settingsDir = process.env.OFFLINE_SUBTITLE_SETTINGS_DIR
   ? path.resolve(process.env.OFFLINE_SUBTITLE_SETTINGS_DIR)
   : path.join(appDir, 'config');
 const settingsPath = path.join(settingsDir, 'settings.json');
+const aiSecretsPath = path.join(settingsDir, 'ai-secrets.json');
 const port = Number(process.env.PORT || 8790);
 const apiToken = process.env.OFFLINE_SUBTITLE_API_TOKEN || '';
 
@@ -55,6 +58,7 @@ const runningBurns = new Map();
 const runningWaveforms = new Map();
 const runningThumbnails = new Map();
 const runningTrims = new Map();
+const aiOptimizationJobs = new Map();
 const jobQueue = [];
 const configuredMaxConcurrentJobs = Number(process.env.OFFLINE_SUBTITLE_MAX_JOBS || 1);
 const maxConcurrentJobs = Number.isFinite(configuredMaxConcurrentJobs)
@@ -76,6 +80,16 @@ const defaultSettings = {
   projectFolder: defaultJobsDir,
   importFolder: '',
   exportFolder: '',
+  ai: {
+    enabled: false,
+    provider: 'openai-compatible',
+    baseUrl: 'https://api.openai.com/v1',
+    model: '',
+    batchSize: 30,
+    language: 'zh-TW',
+    timeoutSeconds: 60,
+    instructions: '修正錯字與標點，保留原意；專有名詞使用一致寫法，不確定的內容不要自行補寫。',
+  },
 };
 
 let appSettings = loadSettings();
@@ -344,7 +358,47 @@ function normalizeSettings(value = {}) {
     projectFolder: normalizeFolder(value.projectFolder) || defaultSettings.projectFolder,
     importFolder: normalizeFolder(value.importFolder),
     exportFolder: normalizeFolder(value.exportFolder),
+    ai: normalizeAiSettings(value.ai),
   };
+}
+
+function normalizeAiSettings(value = {}) {
+  const baseUrl = String(value.baseUrl || defaultSettings.ai.baseUrl).trim().replace(/\/+$/, '');
+  return {
+    enabled: Boolean(value.enabled),
+    provider: ['openai', 'openai-compatible'].includes(value.provider) ? value.provider : defaultSettings.ai.provider,
+    baseUrl,
+    model: String(value.model || '').trim(),
+    batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
+    language: ['zh-TW', 'zh-CN', 'en'].includes(value.language) ? value.language : defaultSettings.ai.language,
+    timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),
+    instructions: String(value.instructions || defaultSettings.ai.instructions).trim(),
+  };
+}
+
+function readAiApiKey() {
+  const environmentKey = String(process.env.SUBTITLE_AI_API_KEY || '').trim();
+  if (environmentKey) return environmentKey;
+  try {
+    return String(readJson(aiSecretsPath).apiKey || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function saveAiApiKey(apiKey) {
+  const value = String(apiKey || '').trim();
+  if (!value) return;
+  writeJson(aiSecretsPath, { apiKey: value });
+  try { fs.chmodSync(aiSecretsPath, 0o600); } catch {}
+}
+
+function publicAiSettings() {
+  return { ...appSettings.ai, hasApiKey: Boolean(readAiApiKey()) };
+}
+
+function aiProviderConfig() {
+  return { ...appSettings.ai, apiKey: readAiApiKey() };
 }
 
 function saveSettings(nextSettings) {
@@ -2886,6 +2940,36 @@ async function handleApi(req, res) {
     }
     return;
   }
+  if (req.method === 'GET' && url.pathname === '/api/ai/settings') {
+    sendJson(res, 200, { ok: true, settings: publicAiSettings() });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/ai/settings') {
+    try {
+      const payload = await readJsonBody(req);
+      const nextAi = normalizeAiSettings(payload);
+      if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
+      if (nextAi.baseUrl) new URL(nextAi.baseUrl);
+      appSettings = { ...appSettings, ai: nextAi };
+      writeJson(settingsPath, appSettings);
+      saveAiApiKey(payload.apiKey);
+      sendJson(res, 200, { ok: true, settings: publicAiSettings() });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/ai/test') {
+    try {
+      const config = aiProviderConfig();
+      if (!config.baseUrl || !config.model) throw new Error('請先儲存 Base URL 與模型名稱');
+      const result = await testOpenAiCompatible(config);
+      sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      sendJson(res, 422, { ok: false, error: error.message });
+    }
+    return;
+  }
   // ── /api/video/probe (FormData: 直接上傳檔案 probing) ──
   if (req.method === 'POST' && url.pathname === '/api/video/probe') {
     let upload = null;
@@ -3178,6 +3262,60 @@ async function handleApi(req, res) {
       sendJson(res, 400, { ok: false, error: error.message });
     } finally {
       upload?.cleanup();
+    }
+    return;
+  }
+  if (req.method === 'POST' && action === 'ai-optimize') {
+    try {
+      if (aiOptimizationJobs.get(jobId)?.status === 'running') throw new Error('此任務已有 AI 優化正在進行');
+      const payload = await readJsonBody(req);
+      if (!Array.isArray(payload.cues) || payload.cues.length === 0) throw new Error('Missing subtitle cues');
+      const config = aiProviderConfig();
+      if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
+      if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
+      const controller = new AbortController();
+      const record = { status: 'running', progress: { completedBatches: 0, totalBatches: Math.ceil(payload.cues.length / config.batchSize), processedCues: 0, totalCues: payload.cues.length }, controller, startedAt: new Date().toISOString() };
+      aiOptimizationJobs.set(jobId, record);
+      const complete = (body, signal) => createChatCompletion(config, body, signal);
+      complete.progress = (progress) => { record.progress = progress; };
+      optimizeSubtitleCues({
+        cues: payload.cues,
+        config,
+        mode: payload.mode,
+        instructions: payload.instructions,
+        language: payload.language || config.language,
+        signal: controller.signal,
+        complete,
+      }).then((result) => {
+        record.status = 'completed';
+        record.result = result;
+        record.completedAt = new Date().toISOString();
+        delete record.controller;
+      }).catch((error) => {
+        record.status = controller.signal.aborted ? 'cancelled' : 'failed';
+        record.error = error.message;
+        delete record.controller;
+      });
+      sendJson(res, 202, { ok: true, status: record.status, progress: record.progress });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'GET' && action === 'ai-optimize') {
+    const record = aiOptimizationJobs.get(jobId);
+    if (!record) sendJson(res, 404, { ok: false, error: '找不到 AI 優化任務' });
+    else sendJson(res, 200, { ok: true, status: record.status, progress: record.progress, result: record.result, error: record.error });
+    return;
+  }
+  if (req.method === 'POST' && action === 'cancel-ai-optimize') {
+    const record = aiOptimizationJobs.get(jobId);
+    if (!record || record.status !== 'running') {
+      sendJson(res, 409, { ok: false, error: '目前沒有進行中的 AI 優化任務' });
+    } else {
+      record.controller.abort(new Error('使用者取消 AI 優化'));
+      record.status = 'cancelled';
+      sendJson(res, 200, { ok: true, cancelled: true });
     }
     return;
   }

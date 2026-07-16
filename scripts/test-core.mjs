@@ -108,6 +108,30 @@ try {
   });
   assert.equal(badOrigin.status, 403, '非本機 Origin 應被拒絕');
 
+  const aiSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      enabled: false,
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.test/v1',
+      model: 'test-model',
+      batchSize: 12,
+      language: 'zh-TW',
+      timeoutSeconds: 30,
+      instructions: '測試設定',
+      apiKey: 'test-secret-must-not-leak',
+    }),
+  });
+  assert.equal(aiSettingsResponse.status, 200, 'AI 設定應可儲存');
+  const savedAiSettings = await aiSettingsResponse.json();
+  assert.equal(savedAiSettings.settings.hasApiKey, true, 'AI 設定應回報已有金鑰');
+  assert.equal(JSON.stringify(savedAiSettings).includes('test-secret-must-not-leak'), false, 'AI Key 不可出現在設定 API 回應');
+  const aiSettingsGetResponse = await api('/api/ai/settings');
+  const loadedAiSettings = await aiSettingsGetResponse.json();
+  assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
+  assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
+
   const form = new FormData();
   form.set('video', new Blob(['fake-video']), 'sample.mp4');
   form.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\n測試字幕\n']), 'sample.srt');
@@ -116,6 +140,13 @@ try {
   const createdResponse = await api('/api/jobs', { method: 'POST', body: form });
   if (createdResponse.status !== 201) throw new Error(await createdResponse.text());
   const created = await createdResponse.json();
+
+  const disabledAiResponse = await api(`/api/jobs/${created.jobId}/ai-optimize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cues: [{ id: 1, start: '00:00:00,000', end: '00:00:01,000', text: '測試字幕' }] }),
+  });
+  assert.equal(disabledAiResponse.status, 400, 'AI 未啟用時不可啟動外部優化請求');
 
   const inputVideo = path.join(dataDir, created.jobId, 'input', 'sample.mp4');
   assert.equal(fs.readFileSync(inputVideo, 'utf8'), 'fake-video', '串流上傳檔案內容應一致');

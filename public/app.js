@@ -1108,7 +1108,7 @@ function bindProjectMenuControls() {
 
 function collectProjectData() {
   return {
-    appVersion: '0.30.1',
+    appVersion: '0.40.0',
     jobId: currentJobId,
     projectPath: currentProjectPath,
     form: {
