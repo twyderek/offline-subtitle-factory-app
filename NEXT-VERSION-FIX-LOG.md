@@ -117,6 +117,23 @@
   - 驗證一般 `settings.json` 不會包含 API Key。
   - 驗證 UI 未啟用 AI 時，後端拒絕啟動外部優化請求。
 
+### 2026-07-17 — AI 字幕優化項目 8：完成 macOS 0.40.0 DMG／ZIP
+
+- 狀態：完成
+- 平台：macOS Apple Silicon（arm64）
+- 產出：
+  - `離線字幕工廠 0.40.0 macOS-arm64.dmg`，約 204 MB。
+  - `離線字幕工廠 0.40.0 macOS-arm64.zip`，約 209 MB。
+  - `離線字幕工廠 0.40.0 macOS-arm64.dmg.blockmap`。
+- 驗證：
+  - `hdiutil verify` 回報 DMG checksum valid。
+  - `.app` 通過 `codesign --verify --deep --strict`。
+  - DMG SHA-256：`f64a1c8b74e29c43b02e809f0dbfdc7ee244bd3502d20ac37b3c72a0284fa3d6`。
+  - ZIP SHA-256：`227233dd9f7ec146232aa90fd60bf85ae01eb67c3a8b035f56f0e5275515e135`。
+- 說明：
+  - 初次 DMG 建立因受限環境無法執行 `hdiutil`；改以授權模式重跑 DMG 目標後成功。
+  - 本版未使用 Apple Developer ID 公證，屬可供內部測試的 ad-hoc 簽章版本。
+
 ### 2026-07-14 — 項目 1：建立下一版修正紀錄
 
 - 狀態：完成
