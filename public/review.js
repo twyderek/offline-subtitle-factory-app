@@ -32,6 +32,7 @@ const state = {
   loopActive: false,
   videoFileName: '',
   subtitleFileName: '',
+  ruleFile: null,
   dirty: false,
   saveInFlight: false,
   autosaveTimer: null,
@@ -54,12 +55,14 @@ const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outl
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
+document.getElementById('reviewRuleFile').addEventListener('change', handleRuleFile);
 document.getElementById('loadProjectPreset').addEventListener('click', loadProjectPreset);
 document.getElementById('openTrim').addEventListener('click', () => {
   location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
 });
 document.getElementById('applyRules').addEventListener('click', applyRulesToAll);
 document.getElementById('downloadSrt').addEventListener('click', downloadSrt);
+document.getElementById('downloadVtt').addEventListener('click', downloadVtt);
 document.getElementById('saveSrt').addEventListener('click', saveSrt);
 document.getElementById('saveReviewPackage').addEventListener('click', saveReviewPackage);
 document.getElementById('burnExport').addEventListener('click', burnExport);
@@ -272,6 +275,12 @@ async function handleSrtFile(event) {
   loadSrtText(await file.text(), `已載入字幕：${file.name}`);
 }
 
+function handleRuleFile(event) {
+  const file = event.target.files[0];
+  state.ruleFile = file || null;
+  statusMessage(file ? `已載入規則檔：${file.name}` : '已清除規則檔');
+}
+
 function loadSrtText(text, message) {
   state.cues = parseSrt(text);
   state.activeIndex = -1;
@@ -352,6 +361,7 @@ function renderCueList() {
         <div class="cue-advanced-actions">
           <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${formatDuration(cue.end - cue.start)}"></label>
           <div class="cue-mini-buttons"><button class="shorten-cue" type="button">縮短</button><button class="extend-cue" type="button">延長</button></div>
+          <button class="split-cue" type="button">分割</button>
           <button class="merge-next" type="button">合併下段</button>
           <button class="delete-cue" type="button">刪除</button>
         </div>
@@ -375,6 +385,7 @@ function handleCueListClick(event) {
   if (event.target.closest('.jump')) jumpToCue(index);
   else if (event.target.closest('.shorten-cue')) adjustCueDuration(index, -getTimeAdjustSeconds());
   else if (event.target.closest('.extend-cue')) adjustCueDuration(index, getTimeAdjustSeconds());
+  else if (event.target.closest('.split-cue')) splitCue(index, event.target.closest('.review-cue')?.querySelector('textarea'));
   else if (event.target.closest('.merge-next')) mergeCueWithNext(index);
   else if (event.target.closest('.delete-cue')) deleteCue(index);
 }
@@ -471,18 +482,34 @@ function setActiveCue(index) {
   updateBurnPreview();
 }
 
-function applyRulesToAll() {
-  state.cues = state.cues.map((cue, index) => {
-    const text = cleanSubtitleText(cue.text);
-    if (text !== cue.text) state.changed.add(index);
-    return { ...cue, text };
-  }).filter((cue) => cue.text.trim());
-  state.cues.forEach((cue, index) => cue.id = index + 1);
-  renderCueList();
-  updateStats();
-  updateActiveCue(true);
-  statusMessage('已套用清理規則');
-  markReviewDirty();
+async function applyRulesToAll() {
+  if (!state.cues.length) {
+    statusMessage('請先載入字幕後再套用規則');
+    return;
+  }
+  if (!state.ruleFile) {
+    statusMessage('請先在上方載入規則檔，再按「套用規則」');
+    return;
+  }
+  const button = document.getElementById('applyRules');
+  button.disabled = true;
+  statusMessage('正在套用規則檔...');
+  try {
+    const form = new FormData();
+    form.set('ruleFile', state.ruleFile, state.ruleFile.name || 'review-rule.txt');
+    form.set('subtitle', new Blob([buildSrt()], { type: 'text/plain;charset=utf-8' }), 'current-review.srt');
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/apply-rules`, {
+      method: 'POST',
+      body: form,
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    loadSrtText(result.subtitle, `已套用規則：${result.changedCues}/${result.totalCues} 段字幕有修改`);
+  } catch (error) {
+    statusMessage(`套用規則失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function deleteCue(index) {
@@ -499,6 +526,71 @@ function deleteCue(index) {
   setActiveCue(state.activeIndex);
   statusMessage(`已刪除第 ${index + 1} 段字幕`);
   markReviewDirty();
+}
+
+function splitCue(index, textarea) {
+  const cue = state.cues[index];
+  if (!cue) return;
+  const splitAt = getCueSplitIndex(cue.text, textarea);
+  if (splitAt <= 0 || splitAt >= cue.text.length) {
+    statusMessage('這段字幕太短，無法分割');
+    return;
+  }
+  const firstText = cue.text.slice(0, splitAt).trim();
+  const secondText = cue.text.slice(splitAt).trim();
+  if (!firstText || !secondText) {
+    statusMessage('分割點前後都需要有文字');
+    return;
+  }
+  const midpoint = cue.start + Math.max(0.1, (cue.end - cue.start) / 2);
+  const splitTime = Math.min(cue.end - 0.1, Math.max(cue.start + 0.1, midpoint));
+  if (splitTime <= cue.start || splitTime >= cue.end) {
+    statusMessage('這段字幕時間太短，無法分割');
+    return;
+  }
+  const firstCue = {
+    ...cue,
+    end: splitTime,
+    endRaw: formatSrtTime(splitTime),
+    text: firstText,
+  };
+  const secondCue = {
+    ...cue,
+    id: cue.id + 1,
+    start: splitTime,
+    startRaw: formatSrtTime(splitTime),
+    text: secondText,
+    originalText: cue.originalText,
+    originalStartRaw: cue.originalStartRaw,
+    originalEndRaw: cue.originalEndRaw,
+  };
+  state.cues.splice(index, 1, firstCue, secondCue);
+  rebuildCueIds();
+  rebuildChangedSet();
+  renderCueList();
+  updateStats();
+  setActiveCue(index);
+  statusMessage(`已將第 ${index + 1} 段字幕分割成兩段`);
+  markReviewDirty();
+}
+
+function getCueSplitIndex(text, textarea) {
+  const value = String(text || '');
+  const cursor = textarea && document.activeElement === textarea
+    ? Number(textarea.selectionStart)
+    : -1;
+  if (Number.isInteger(cursor) && cursor > 0 && cursor < value.length) return cursor;
+  const middle = Math.floor(value.length / 2);
+  const candidates = [];
+  for (let distance = 0; distance < value.length; distance += 1) {
+    for (const pos of [middle - distance, middle + distance]) {
+      if (pos <= 0 || pos >= value.length) continue;
+      const char = value[pos];
+      if (/[，。！？；、,.!?;\s\n]/.test(char)) candidates.push(pos + (/\s|\n/.test(char) ? 0 : 1));
+    }
+    if (candidates.length) break;
+  }
+  return candidates[0] || middle;
 }
 
 function mergeCueWithNext(index) {
@@ -694,14 +786,44 @@ function buildSrt() {
   return state.cues.map((cue, index) => `${index + 1}\n${cue.startRaw} --> ${cue.endRaw}\n${cue.text.trim()}`).join('\n\n') + '\n';
 }
 
-function downloadSrt() {
-  const blob = new Blob([buildSrt()], { type: 'text/plain;charset=utf-8' });
+function buildVtt() {
+  const body = state.cues.map((cue) => [
+    `${cue.startRaw.replace(',', '.')} --> ${cue.endRaw.replace(',', '.')}`,
+    cue.text.trim(),
+  ].join('\n')).join('\n\n');
+  return `WEBVTT\n\n${body}${body ? '\n' : ''}`;
+}
+
+async function downloadSubtitle(format) {
+  if (state.dirty) await saveSrt({ silent: true });
+  if (jobId) {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/subtitle?format=${encodeURIComponent(format)}`, { cache: 'no-store' });
+    if (response.ok) {
+      const blob = await response.blob();
+      downloadBlob(blob, `${state.videoFileName || 'media'}.edited.${format}`);
+      return;
+    }
+  }
+  const text = format === 'vtt' ? buildVtt() : buildSrt();
+  const type = format === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8';
+  downloadBlob(new Blob([text], { type }), `media.edited.${format}`);
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = 'media.edited.srt';
+  anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadSrt() {
+  downloadSubtitle('srt');
+}
+
+function downloadVtt() {
+  downloadSubtitle('vtt');
 }
 
 async function saveSrt(options = {}) {
@@ -835,11 +957,13 @@ function parseTime(value) {
 }
 
 function formatSrtTime(seconds) {
-  const safeSeconds = Math.max(0, seconds);
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  const wholeSeconds = Math.floor(safeSeconds % 60);
-  const milliseconds = Math.round((safeSeconds - Math.floor(safeSeconds)) * 1000);
+  const totalMs = Math.max(0, Math.round(seconds * 1000));
+  const milliseconds = totalMs % 1000;
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const wholeSeconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
   return `${pad(hours)}:${pad(minutes)}:${pad(wholeSeconds)},${String(milliseconds).padStart(3, '0')}`;
 }
 

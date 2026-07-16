@@ -147,10 +147,29 @@ try {
   const completed = await waitForJob(created.jobId, ['completed']);
   assert.equal(completed.stage, 'ready-review');
 
+  const vttResponse = await api(`/api/jobs/${created.jobId}/subtitle?format=vtt`);
+  assert.equal(vttResponse.status, 200, '已完成任務應可下載 VTT');
+  const vttText = await vttResponse.text();
+  assert.ok(vttText.startsWith('WEBVTT'), 'VTT 內容應包含 WEBVTT header');
+  assert.ok(vttText.includes('00:00:00.000 --> 00:00:01.000'), 'VTT 時間格式應使用小數點');
+
+  const reruleForm = new FormData();
+  reruleForm.set('ruleFile', new Blob(['NORMALIZE_TERM: 測試 -> 完成\n'], { type: 'text/plain' }), 'review-rule.txt');
+  reruleForm.set('subtitle', new Blob(['1\n00:00:00,000 --> 00:00:01,000\n測試字幕\n'], { type: 'text/plain' }), 'current-review.srt');
+  const reruleResponse = await api(`/api/jobs/${created.jobId}/apply-rules`, { method: 'POST', body: reruleForm });
+  assert.equal(reruleResponse.status, 200, '校閱階段應可二次套用規則');
+  const reruleResult = await reruleResponse.json();
+  assert.equal(reruleResult.changedCues, 1, '二次規則應回報修改段落');
+  assert.ok(reruleResult.subtitle.includes('完成字幕'), '二次規則應更新字幕內容');
+
   const pagedResponse = await api('/api/jobs?offset=0&limit=1');
   const paged = await pagedResponse.json();
   assert.equal(paged.jobs.length, 1);
   assert.ok(paged.total >= 3);
+
+  const deleteResponse = await api(`/api/jobs/${mojibakeNameJob.jobId}`, { method: 'DELETE' });
+  assert.equal(deleteResponse.status, 200, '歷史任務應可刪除');
+  assert.equal(fs.existsSync(path.join(dataDir, mojibakeNameJob.jobId)), false, '刪除任務後資料夾應移除');
 
   const cancelIdle = await api(`/api/jobs/${created.jobId}/cancel`, { method: 'POST' });
   assert.equal(cancelIdle.status, 409, '非執行中任務不可取消');

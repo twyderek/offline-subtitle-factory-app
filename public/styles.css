@@ -782,6 +782,16 @@ select:focus {
   color: var(--ink);
 }
 
+.small-button.danger-button {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff7f7;
+}
+
+.small-button.danger-button:hover {
+  background: #fee2e2;
+}
+
 .secondary:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -1489,6 +1499,7 @@ code {
 
 .cue-mini-buttons button,
 .review-cue .jump,
+.review-cue .split-cue,
 .review-cue .merge-next,
 .review-cue .delete-cue {
   min-height: 30px;
@@ -1509,6 +1520,12 @@ code {
   border-color: #cce6ff;
   background: #edf7ff;
   color: var(--blue);
+}
+
+.review-cue .split-cue {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
 }
 
 .review-cue textarea {
@@ -1969,6 +1986,7 @@ code {
 .review-pro-title strong { color: #102b50; font-size: 22px; }
 .review-pro-title .review-status { margin: 5px 0 0; min-width: 0; text-align: left; color: #2d9c67; }
 .review-top-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.review-top-actions input[type="file"] { display: none; }
 .review-button,
 .review-file-button { min-height: 40px; border-radius: 8px; font-weight: 700; }
 .review-button.primary { background: linear-gradient(135deg, #126ce8, #1d83f5); }

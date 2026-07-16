@@ -866,3 +866,70 @@
 - CI 更新：Windows GitHub Actions workflow 名稱與 artifact 名稱更新為 0.30.1，並保留簽章 secrets 接入。
 - 簽章驗證：`scripts/verify-windows-signatures.ps1` 改為依最新 Setup/Portable EXE 搜尋，不再綁定 0.30.0 檔名。
 - 發布內容：包含校閱字幕預覽比例修正、中文檔名亂碼修正、Windows 簽章流程強制檢查與回歸測試補強。
+
+### 2026-07-16 項目 44：重新打包 0.30.1 Windows x64 成品
+
+- 執行狀態：完成。
+- 執行資料夾：`APP-PROJECT/0.30版`。
+- 步驟 1：確認版本與工作樹，完成。
+  - 版本：`0.30.1`。
+  - Git 工作樹：打包前為乾淨狀態。
+- 步驟 2：打包前檢查，完成。
+  - `npm run check` 通過。
+  - `npm run runtime:manifest` 與 `npm run runtime:verify` 通過，Windows x64 FFmpeg、FFprobe、Whisper.cpp 與 ggml-tiny model 均驗證成功。
+- 步驟 3：正式簽章打包嘗試，完成但中止。
+  - 指令：`npm run electron:build`。
+  - 結果：因本機未提供 Windows Code Signing 憑證，`codesign:windows:assert` 正確中止，避免產生誤以為正式簽章的成品。
+- 步驟 4：內部未簽章測試包打包，完成。
+  - 一般 `electron:build:unsigned` 仍因本機沒有 symbolic link 權限，electron-builder 解壓 winCodeSign cache 時失敗。
+  - 改用一次性 CLI 覆寫：`npx electron-builder --win --x64 --publish never --config.win.signAndEditExecutable=false`。
+  - 版控設定仍保留 `signAndEditExecutable=true`；這次覆寫僅用於本機未簽章測試包。
+- 步驟 5：封包驗證與整理輸出，完成。
+  - 7-Zip 對 Setup 與 Portable 均回報 `Everything is Ok`。
+  - 輸出整理至 `APP-PROJECT/dist-0.30.1`。
+  - Setup：`離線字幕工廠 Setup 0.30.1.exe`，206,747,868 bytes。
+  - Portable：`離線字幕工廠 0.30.1.exe`，206,042,778 bytes。
+  - SHA-256：
+    - Setup：`b6a57c89e3bffd62a8e522f1743e7d857db201a403421b7f79dfd5af92298430`。
+    - Portable：`a2a885732b26a7ffd1679c4b524103c10ae8b226dca4fdb2e4d3a0253d61eb3b`。
+- 簽章狀態：本機成品為 `NotSigned`；需匯入正式 Windows Code Signing 憑證或設定 `CSC_LINK`/`CSC_KEY_PASSWORD` 後，才能重新產生可信簽章安裝版。
+
+### 2026-07-16 項目 45：歷史刪除、校閱二次套規則與 VTT 下載補齊
+
+- 執行狀態：完成。
+- 歷史紀錄刪除：新增 `DELETE /api/jobs/:id`，會取消相關執行狀態並安全刪除任務資料夾；歷史任務列表新增「刪除」按鈕，刪除前會提示不可復原，完成後重新整理任務列表與首頁最近專案。
+- 校閱二次套規則：新增 `POST /api/jobs/:id/apply-rules`，支援上傳規則檔與目前校閱中的 SRT，後端使用既有 `parseRules()` / `applyRulesToSrt()` 套用規則，輸出新的 `review-output/reviewed.srt`、`secondary-rule.txt` 與 `secondary-correction-report.md`。
+- 校閱頁規則 UI：上方工具列新增「載入規則」與「套用規則」，套用成功後直接刷新字幕列表，方便已完成專案在校閱前再次依規則修正字幕。
+- VTT 輸出補齊：新增 `GET /api/jobs/:id/subtitle?format=srt|vtt`，支援由現有 SRT 轉成 WebVTT；校閱頁底部新增「下載 VTT」，並讓「下載 SRT」也優先使用後端最新字幕下載。
+- 下載檔名：SRT/VTT 下載使用 UTF-8 `filename*`，避免中文影片名造成 HTTP header 編碼問題。
+- 回歸測試：`scripts/test-core.mjs` 新增 VTT 下載、校閱二次套規則、刪除任務資料夾案例。
+- 驗證結果：`npm run check` 通過，包含語法檢查、影片修剪資料層測試與核心 API 回歸測試。
+- Smoke test：短暫啟動 `node server.mjs`，首頁 `/` 與校閱頁 `/review/test-job` 均回傳 HTTP 200。
+
+### 2026-07-16 項目 46：校閱字幕新增分割段落功能
+
+- 執行狀態：完成。
+- 功能：校閱工作區每段字幕的進階操作列新增「分割」按鈕，與既有「合併下段」搭配使用。
+- 分割規則：若使用者在字幕文字框內有游標位置，會以游標位置切分；若沒有明確游標，系統會自動找接近中間的標點、空白或換行，找不到時以文字中點分割。
+- 時間處理：分割後兩段字幕共用原本時間範圍，並以原段落起訖時間中點切成前後兩段；太短且無法保留有效時間的段落會提示無法分割。
+- 狀態處理：分割後會重建字幕序號、標記為已修改、更新目前字幕與自動儲存狀態。
+- UI：分割按鈕使用淡綠色樣式，和合併、刪除按鈕區分。
+- 驗證結果：`npm run check` 通過，包含語法檢查、影片修剪資料層測試與核心 API 回歸測試。
+
+### 2026-07-16 項目 47：0.30.1 補充修正版重新打包與 GitHub 同步
+
+- 執行狀態：完成。
+- 發布範圍：包含歷史刪除、校閱二次套規則、VTT 下載、字幕段落分割、UTF-8 下載檔名與相關測試。
+- 版本說明：`RELEASE-NOTES-0.30.1.md` 與 `README.md` 已補上本次 0.30.1 補充修正內容。
+- 驗證：`npm run check` 通過；`npm run runtime:manifest` 與 `npm run runtime:verify` 通過。
+- 正式簽章打包：`npm run electron:build` 因本機未提供 Windows Code Signing 憑證而正確中止，避免誤產未簽章正式包。
+- 本機測試包：使用一次性覆寫 `npx electron-builder --win --x64 --publish never --config.win.signAndEditExecutable=false` 重新產出 0.30.1 未簽章測試包；版控設定仍保留正式簽章檢查。
+- 封包驗證：7-Zip 對 Setup 與 Portable 均回報 `Everything is Ok`。
+- 輸出資料夾：`APP-PROJECT/dist-0.30.1`。
+- Setup：`離線字幕工廠 Setup 0.30.1.exe`，206,751,684 bytes。
+- Portable：`離線字幕工廠 0.30.1.exe`，206,046,623 bytes。
+- SHA-256：
+  - Setup：`6692accd8433066b77c43a53bd2e217be6f70eccf622ec0bb47dbdbfc75879ae`。
+  - Portable：`7d6a36afa30d9230c5297796f5438090812d26c88039907a6f83f52a34b17322`。
+- 簽章狀態：本機成品為 `NotSigned`；需提供正式憑證後才能產生可信簽章安裝版。
+- GitHub 注意：既有 `v0.30.1` tag 已存在並指向先前 commit，本次同步更新分支與版本說明，不強制移動既有 tag。

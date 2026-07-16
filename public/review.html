@@ -46,7 +46,9 @@
         <div class="review-top-actions">
           <label class="review-file-button" for="reviewSrtFile">載入 SRT</label>
           <input id="reviewSrtFile" type="file" accept=".srt,text/plain">
-          <button id="applyRules" class="review-button">批次工具</button>
+          <label class="review-file-button" for="reviewRuleFile">載入規則</label>
+          <input id="reviewRuleFile" type="file" accept=".txt,.md,text/plain">
+          <button id="applyRules" class="review-button">套用規則</button>
           <button id="saveReviewPackage" class="review-button">儲存</button>
           <button id="burnExport" class="review-button primary">匯出</button>
         </div>
@@ -86,6 +88,7 @@
 
           <div class="review-bottom-controls">
             <button id="downloadSrt" class="review-button" type="button">下載 SRT</button>
+            <button id="downloadVtt" class="review-button" type="button">下載 VTT</button>
             <button id="saveSrt" class="review-button" type="button">另存 SRT</button>
             <span>空白鍵播放・⌥←/→ 快退快進・⌘↑/↓ 切換字幕</span>
           </div>

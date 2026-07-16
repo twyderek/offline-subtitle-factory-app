@@ -9,11 +9,19 @@
 - 修正 Windows 簽章流程：正式 `npm run electron:build` 會先檢查 Code Signing 憑證，打包後驗證 Setup 與 Portable EXE 的 Authenticode 簽章；內部未簽章測試包請改用 `npm run electron:build:unsigned`。
 - 更新 Windows GitHub Actions artifact 名稱為 `offline-subtitle-factory-0.30.1-windows-x64`。
 
+## 0.30.1 補充修正
+
+- 歷史任務列表新增刪除專案功能，可移除任務資料夾、字幕與輸出檔，刪除前會顯示不可復原確認。
+- 已完成專案可在校閱工作區載入規則檔並再次套用規則，方便校閱前做第二次字幕清理。
+- 校閱頁新增 VTT 下載，與 SRT 下載共用後端最新字幕來源。
+- 校閱字幕段落新增分割功能，可依文字游標或自動中點切成兩段，避免過長段落漏掉規則修正。
+- SRT/VTT 下載檔名使用 UTF-8 filename header，降低中文影片名下載時的亂碼風險。
+
 ## 驗證
 
 - `npm run check`
 - 語法檢查：`server.mjs`、`public/app.js`、`public/review.js`、`public/trim.js`、`electron/main.mjs`
-- 測試：影片修剪資料層測試、核心 API 回歸測試、中文檔名與 mojibake 檔名案例
+- 測試：影片修剪資料層測試、核心 API 回歸測試、中文檔名與 mojibake 檔名案例、VTT 下載、校閱二次套規則、刪除任務
 
 ## 發布注意
 

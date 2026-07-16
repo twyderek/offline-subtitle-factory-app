@@ -917,6 +917,7 @@ function renderTaskList() {
           <button type="button" class="small-button" data-task-action="trim">修剪</button>
           <button type="button" class="small-button" data-task-action="review">校閱</button>
           <button type="button" class="small-button" data-task-action="folder">資料夾</button>
+          <button type="button" class="small-button danger-button" data-task-action="delete">刪除</button>
         </div>
       </article>`;
   }).join('');
@@ -943,6 +944,28 @@ async function handleTaskAction(event) {
     currentJobId = jobId;
     await openFolder('job');
     currentJobId = previousJobId;
+    return;
+  }
+  if (action === 'delete') {
+    const task = allTasks.find((item) => item.jobId === jobId);
+    const label = task?.files?.video || jobId;
+    if (!confirm(`確定刪除專案「${label}」？\n\n此操作會移除任務資料夾、字幕與輸出檔，無法復原。`)) return;
+    event.currentTarget.disabled = true;
+    try {
+      const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      if (currentJobId === jobId) {
+        currentJobId = null;
+        localStorage.removeItem('offlineSubtitleFactory.currentJobId');
+        resetFormForNewJob();
+      }
+      await loadTaskList();
+      await loadRecentProjects();
+    } catch (error) {
+      alert(`刪除失敗：${error.message}`);
+      event.currentTarget.disabled = false;
+    }
     return;
   }
   currentJobId = jobId;

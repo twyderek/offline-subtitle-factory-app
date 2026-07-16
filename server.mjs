@@ -1921,6 +1921,77 @@ function getBaseSubtitlePath(job) {
   return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null;
 }
 
+function formatVttTime(seconds) {
+  const totalMs = Math.max(0, Math.round(Number(seconds || 0) * 1000));
+  const ms = totalMs % 1000;
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const s = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const m = totalMinutes % 60;
+  const h = Math.floor(totalMinutes / 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+function buildVttFromSrt(srtContent) {
+  const cues = parseSrtCues(srtContent);
+  const body = cues.map((cue) => [
+    `${formatVttTime(cue.start)} --> ${formatVttTime(cue.end)}`,
+    cue.text,
+  ].join('\n')).join('\n\n');
+  return `WEBVTT\n\n${body}${body ? '\n' : ''}`;
+}
+
+function applyRulesToReviewSubtitle(job, subtitleText, ruleText, ruleFileName = 'review-rule.txt') {
+  const rules = parseRules(ruleText || '');
+  const forceTraditional = rules.forceTraditional ?? job.config.language === 'zh-TW';
+  const ruleResults = applyRulesToSrt(subtitleText, rules, { forceTraditional });
+  const reviewOutputDir = path.join(job.jobRoot, 'review-output');
+  fs.mkdirSync(reviewOutputDir, { recursive: true });
+  const subtitlePath = path.join(reviewOutputDir, 'reviewed.srt');
+  const rulePath = path.join(reviewOutputDir, 'secondary-rule.txt');
+  const reportPath = path.join(reviewOutputDir, 'secondary-correction-report.md');
+  fs.writeFileSync(subtitlePath, ruleResults.cleanedSrt.replace(/\r?\n/g, '\r\n'), 'utf8');
+  fs.writeFileSync(rulePath, ruleText || '', 'utf8');
+  fs.writeFileSync(reportPath, buildCorrectionReport(job, ruleResults), 'utf8');
+  updateJob(job, {
+    status: 'completed',
+    stage: 'ready-review',
+    progress: 100,
+    message: `二次規則套用完成（${ruleResults.changedCues}/${ruleResults.totalCues} 段落有修改）`,
+    files: {
+      ...(job.status.files || {}),
+      reviewedSrt: subtitlePath,
+      secondaryRule: rulePath,
+      secondaryReport: reportPath,
+    },
+  }, `套用校閱規則檔：${displayFileName(ruleFileName)}`);
+  return { ruleResults, subtitlePath, rulePath, reportPath };
+}
+
+function deleteJob(job) {
+  const jobsDir = path.resolve(getJobsDir());
+  const jobRoot = path.resolve(job.jobRoot);
+  if (jobRoot === jobsDir || !jobRoot.startsWith(`${jobsDir}${path.sep}`)) {
+    throw new Error('Refusing to delete a path outside the jobs directory.');
+  }
+  const jobId = job.config.jobId;
+  cancelJob(jobId);
+  cancelTrim(jobId);
+  cancelBurn(jobId);
+  runningJobs.delete(jobId);
+  runningTrims.delete(jobId);
+  runningBurns.delete(jobId);
+  for (const key of [...runningWaveforms.keys()]) {
+    if (key.startsWith(`${jobId}:`)) runningWaveforms.delete(key);
+  }
+  for (const key of [...runningThumbnails.keys()]) {
+    if (key === jobId) runningThumbnails.delete(key);
+  }
+  fs.rmSync(jobRoot, { recursive: true, force: true });
+  jobsListCache = null;
+  return { ok: true, deleted: true, jobId };
+}
+
 function getOriginalVideoPath(job) {
   if (!job.config.files.video) return null;
   const videoPath = path.join(job.jobRoot, 'input', job.config.files.video);
@@ -2916,6 +2987,15 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (req.method === 'DELETE' && !action) {
+    try {
+      sendJson(res, 200, deleteJob(job));
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+
   if (req.method === 'POST' && action === 'start') {
     const result = startJob(jobId);
     if (result.error) sendJson(res, 400, { ok: false, error: result.error });
@@ -2943,6 +3023,37 @@ async function handleApi(req, res) {
   }
   if (req.method === 'GET' && action === 'files') {
     sendJson(res, 200, job.status.files || {});
+    return;
+  }
+  if (req.method === 'GET' && action === 'subtitle') {
+    try {
+      const subtitlePath = getReviewSubtitlePath(job);
+      if (!subtitlePath) throw new Error('No subtitle is available for this job.');
+      const format = String(url.searchParams.get('format') || 'srt').toLowerCase();
+      const srtContent = fs.readFileSync(subtitlePath, 'utf8');
+      const baseName = path.parse(displayFileName(job.config.files.video || jobId)).name || 'subtitle';
+      const encodedBaseName = encodeURIComponent(baseName);
+      if (format === 'vtt') {
+        const body = buildVttFromSrt(srtContent);
+        res.writeHead(200, {
+          'Content-Type': 'text/vtt; charset=utf-8',
+          'Content-Disposition': `attachment; filename="subtitle.vtt"; filename*=UTF-8''${encodedBaseName}.vtt`,
+          'Content-Length': Buffer.byteLength(body),
+        });
+        res.end(body);
+        return;
+      }
+      if (format !== 'srt') throw new Error('Unsupported subtitle format.');
+      const body = srtContent.replace(/\r?\n/g, '\r\n');
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Disposition': `attachment; filename="subtitle.srt"; filename*=UTF-8''${encodedBaseName}.srt`,
+        'Content-Length': Buffer.byteLength(body),
+      });
+      res.end(body);
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
     return;
   }
   if (req.method === 'GET' && action === 'edit-plan') {
@@ -3031,6 +3142,43 @@ async function handleApi(req, res) {
       videoUrl: jobMediaUrl(job, videoPath),
       subtitle: fs.readFileSync(subtitlePath, 'utf8'),
     });
+    return;
+  }
+  if (req.method === 'POST' && action === 'apply-rules') {
+    let upload = null;
+    try {
+      upload = await streamMultipart(req, path.join(getJobsDir(), '.temp-upload'));
+      const ruleFile = upload.files.ruleFile;
+      const subtitleFile = upload.files.subtitle;
+      const ruleText = ruleFile
+        ? fs.readFileSync(ruleFile.path, 'utf8')
+        : String(upload.fields.ruleText || '');
+      if (!ruleText.trim()) throw new Error('Missing rule file or rule text.');
+      const subtitleText = subtitleFile
+        ? fs.readFileSync(subtitleFile.path, 'utf8')
+        : String(upload.fields.subtitle || '');
+      const existingSubtitlePath = getReviewSubtitlePath(job);
+      const sourceSubtitle = subtitleText.trim()
+        ? subtitleText
+        : (existingSubtitlePath ? fs.readFileSync(existingSubtitlePath, 'utf8') : '');
+      if (!sourceSubtitle.trim()) throw new Error('No subtitle is available for rule cleanup.');
+      const result = applyRulesToReviewSubtitle(job, sourceSubtitle, ruleText, ruleFile?.filename || 'review-rule.txt');
+      sendJson(res, 200, {
+        ok: true,
+        subtitle: result.ruleResults.cleanedSrt,
+        totalCues: result.ruleResults.totalCues,
+        changedCues: result.ruleResults.changedCues,
+        files: {
+          subtitle: relativeToApp(result.subtitlePath),
+          rule: relativeToApp(result.rulePath),
+          report: relativeToApp(result.reportPath),
+        },
+      });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    } finally {
+      upload?.cleanup();
+    }
     return;
   }
   if (req.method === 'GET' && action === 'thumbnail') {
