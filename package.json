@@ -16,8 +16,8 @@
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
     "runtime:verify": "node scripts/verify-runtime-package.mjs --target=win32-x64",
     "runtime:verify:mac": "node scripts/verify-runtime-package.mjs --target=darwin-arm64",
-    "electron:build:dir": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --dir",
-    "electron:build": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64",
+    "electron:build:dir": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --dir --publish never",
+    "electron:build": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --publish never",
     "electron:build:mac:dir": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64 --dir",
     "electron:build:mac": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64"
   },

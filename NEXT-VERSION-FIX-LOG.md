@@ -782,4 +782,5 @@
 - 新增 `scripts/prepare-windows-runtime.ps1`：下載固定版本 FFmpeg 8.1.2、Whisper.cpp 1.9.1 與 ggml-tiny multilingual，逐一比對 SHA-256，僅放入專案 `tools`，不安裝 Python、不修改系統 PATH。
 - 新增 `WINDOWS-11-TEST-CHECKLIST.md`：涵蓋乾淨 Windows 11 環境、免安裝目錄、Setup／Portable、中文路徑、離線轉錄、影片修剪、字幕同步、輸出與解除安裝驗收。
 - workflow 成品包含 Setup EXE、Portable EXE、blockmap、`latest.yml` 與 `SHA256SUMS-windows-x64.txt`，保留 14 天供測試。
+- 首次 GitHub runner 實測確認 runtime 與回歸測試通過，但 electron-builder 因偵測 CI 而嘗試自動發布、缺少 `GH_TOKEN` 後中止；Windows build 指令已明確加入 `--publish never`，讓工作流只產生並上傳測試 artifact，不建立 GitHub Release，也不需要額外權杖。
 - 發布注意：GitHub runner 可驗證 Windows x64 建置流程，但仍需在實體 Windows 11 測試機完成 GUI、SmartScreen、安裝／升級／解除安裝與 Defender 最終驗收；預覽成品尚未使用 Windows 程式碼簽章憑證。
