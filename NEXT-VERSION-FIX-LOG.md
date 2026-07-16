@@ -785,3 +785,84 @@
 - 首次 GitHub runner 實測確認 runtime 與回歸測試通過，但 electron-builder 因偵測 CI 而嘗試自動發布、缺少 `GH_TOKEN` 後中止；Windows build 指令已明確加入 `--publish never`，讓工作流只產生並上傳測試 artifact，不建立 GitHub Release，也不需要額外權杖。
 - 第二次 runner 實測已完成 Setup、Portable 與兩個 EXE 的 7-Zip 完整性檢查；最後因 `upload-artifact` 禁止 `../dist` 相對路徑而未上傳。工作流已改為先複製成品至儲存庫內 `.artifacts/windows-x64`，再由該安全路徑上傳。
 - 發布注意：GitHub runner 可驗證 Windows x64 建置流程，但仍需在實體 Windows 11 測試機完成 GUI、SmartScreen、安裝／升級／解除安裝與 Defender 最終驗收；預覽成品尚未使用 Windows 程式碼簽章憑證。
+### 2026-07-16 — 項目 40：0.30.0 Windows x64 本機打包執行紀錄
+
+- 狀態：完成。
+- 執行資料夾：`APP-PROJECT/0.30版`。
+- 目標：依 Windows 安裝版規範完成依賴安裝、runtime 準備、回歸檢查、unpacked 測試包、NSIS Setup、Portable、封裝驗證與 `dist-0.30` 整理。
+- 開始時間：2026-07-16 12:34:38 +08:00。
+- 完成時間：2026-07-16 12:41:18 +08:00。
+- 步驟 1：建立本機打包開發日誌，完成。
+- 步驟 2：安裝 npm 依賴，完成。
+  - 指令：`npm ci`。
+  - 結果：新增 406 個 packages，audit 407 個 packages。
+  - 注意：npm audit 回報 10 個 high severity vulnerabilities；本次依發版鎖檔執行，未自動 `npm audit fix`，避免破壞 0.30.0 打包可重現性。
+- 步驟 3：準備並驗證 Windows x64 離線 runtime，完成。
+  - 指令：`powershell -ExecutionPolicy Bypass -File scripts/prepare-windows-runtime.ps1`。
+  - 下載並驗證：FFmpeg 8.1.2 essentials、Whisper.cpp 1.9.1 x64、Whisper.cpp license、ggml-tiny multilingual model。
+  - 產生 manifest：`tools/manifests/win32-x64.json` 與 `tools/manifest.json`。
+  - 驗證結果：`npm run runtime:verify` 通過；FFmpeg、FFprobe、Whisper.cpp CLI、Whisper DLL、ggml-tiny model 均存在且 SHA-256 符合 manifest。
+- 步驟 4：執行 source 檢查與回歸測試，完成。
+  - 指令：`npm run check`。
+  - 語法檢查：`server.mjs`、`public/app.js`、`public/review.js`、`public/trim.js`、`electron/main.mjs` 通過。
+  - 測試結果：影片修剪資料層測試通過；核心回歸測試通過，涵蓋 API token、Origin、串流上傳、任務執行、真實聲波、精準修剪、字幕重算、還原、分頁與取消狀態。
+- 步驟 5：產生 Windows unpacked 測試包，完成。
+  - 指令：`npm run electron:build:dir`。
+  - 輸出：`APP-PROJECT/dist/win-unpacked`。
+  - 驗證：主程式 `離線字幕工廠.exe` 存在；封裝內容包含 `resources/app/public/trim.html` 與 `resources/tools/whisper-models/ggml-tiny.bin`。
+  - 注意：electron-builder 顯示 asar disabled 警告；本版依既有設定保留未封裝 asar，以利內建工具與資源直接存取。
+- 步驟 6：產生 Windows NSIS Setup 與 Portable，完成。
+  - 指令：`npm run electron:build`。
+  - 輸出：
+    - `APP-PROJECT/dist/離線字幕工廠 Setup 0.30.0.exe`，206,744,867 bytes。
+    - `APP-PROJECT/dist/離線字幕工廠 0.30.0.exe`，206,039,786 bytes。
+    - `APP-PROJECT/dist/離線字幕工廠 Setup 0.30.0.exe.blockmap`。
+    - `APP-PROJECT/dist/latest.yml`。
+  - 注意：本次未提供 Windows 程式碼簽章憑證，electron-builder 顯示 no signing info，簽章已略過；SmartScreen 可能顯示未知發行者。
+- 步驟 7：驗證封裝檔並整理 `dist-0.30`，完成。
+  - 完整性驗證：NanaZip/7-Zip 對 Setup 與 Portable 均回報 `Everything is Ok`。
+  - SHA-256：
+    - Setup：`5158ad725b53945af3531324c9cbc47394fd66598d5fe8f2be6504347781a8f2`。
+    - Portable：`ee4a0c82572356a6e3be49e4cda4be7ba26a868736bfcb6032d94212a4a5d931`。
+  - 清單：`APP-PROJECT/dist/SHA256SUMS-windows-x64.txt` 已產生。
+  - 整理輸出：`APP-PROJECT/dist-0.30` 已建立，包含 Setup、Portable、blockmap、`latest.yml`、`SHA256SUMS-windows-x64.txt`、`WINDOWS-11-TEST-CHECKLIST.md`、`THIRD-PARTY-NOTICES.md`。
+  - 狀態：0.30.0 Windows x64 本機打包完成，仍待實體 Windows GUI 安裝、解除安裝、SmartScreen/Defender 與真實影片工作流最終驗收。
+### 2026-07-16 — 項目 41：修正 Windows 成品未簽章風險
+
+- 狀態：完成。
+- 時間：2026-07-16 12:51:09 +08:00。
+- 問題：0.30.0 Windows `package.json` 內 `win.signAndEditExecutable` 設為 `false`，導致 electron-builder 即使有憑證也不會簽章；本機目前也沒有可用 Code Signing 憑證，因此先前成品為 `NotSigned`。
+- 修正：
+  - `package.json` 將 `win.signAndEditExecutable` 改為 `true`。
+  - 新增 `scripts/assert-windows-codesign.ps1`，正式打包前檢查 `CSC_LINK`/`CSC_KEY_PASSWORD`、`WIN_CSC_LINK`/`WIN_CSC_KEY_PASSWORD`、`CSC_NAME` 或 Windows 憑證庫中的 Code Signing 憑證。
+  - 新增 `scripts/verify-windows-signatures.ps1`，打包後以 `Get-AuthenticodeSignature` 驗證 Setup 與 Portable 必須為 `Valid`。
+  - `npm run electron:build` 改為簽章強制流程：runtime manifest、runtime verify、簽章憑證 preflight、electron-builder、簽章驗證。
+  - 新增 `npm run electron:build:unsigned`，僅供內部測試未簽章包使用。
+  - `.github/workflows/windows-preview.yml` 的 Windows build 已接入 `WINDOWS_CODESIGN_PFX_BASE64` 與 `WINDOWS_CODESIGN_PASSWORD` secrets。
+- 驗證：
+  - `package.json` 解析確認 `signAndEditExecutable=true`。
+  - 兩個 PowerShell 腳本 parse 通過。
+  - 對既有 0.30.0 EXE 執行驗章，正確回報 `NotSigned` 並失敗。
+  - 未設定憑證時執行簽章 preflight，正確停止並提示需設定 PFX 或 Windows 憑證庫憑證。
+- 待辦：需提供正式 Windows Code Signing PFX 與密碼後，重新執行 `npm run electron:build` 才能產生可信簽章成品。
+### 2026-07-16 修正 42：校閱字幕預覽比例與中文檔名亂碼
+
+- 執行狀態：完成。
+- 問題 1：校閱畫面把 ASS `FontSize` 直接當成 CSS px 顯示，沒有依照實際燒錄使用的 ASS PlayRes 1920x1080 縮放，因此 24 字級在小尺寸預覽播放器中看起來比燒錄成品大很多。
+- 修正 1：`public/review.js` 新增 ASS 預覽縮放計算，依據影片實際顯示高度、letterbox/pillarbox 偏移與 PlayResY=1080 換算字級、外框粗細與垂直邊距；影片 metadata 載入與播放器尺寸變化時會重新更新預覽。
+- 修正 1：`public/styles.css` 將校閱影片設為 `object-fit: contain`，讓字幕 overlay 的縮放基準與實際可視影片框一致。
+- 問題 2：Windows/Electron 上傳 multipart 檔名時，中文檔名可能被 Busboy/瀏覽器以 Latin-1 字串呈現，造成最近專案、任務設定與輸出檔名顯示成亂碼。
+- 修正 2：`server.mjs` 新增中文檔名還原與清理流程，對一般 UTF-8 中文檔名保留原字，對 UTF-8 bytes 被誤解成 Latin-1 的 mojibake 進行最多三層還原，並套用於串流上傳、舊 multipart 解析、最近專案列表、review-data 與燒錄輸出基底檔名。
+- 修正 2：`server.mjs` 將 ASS `PlayResX/PlayResY` 改為共用常數，避免前後端預覽比例與燒錄設定各自漂移。
+- 回歸測試：`scripts/test-core.mjs` 新增中文檔名與刻意 mojibake 檔名案例，確認 `課程影片測試.mp4`、`課程字幕測試.srt`、`亂碼影片測試.mp4`、`亂碼字幕測試.srt` 都能正確寫入 `job-config.json`。
+- 驗證結果：`npm run check` 通過，包含語法檢查、影片修剪資料層測試與核心 API 回歸測試。
+
+### 2026-07-16 項目 43：發布 0.30.1 版本說明與 GitHub 同步準備
+
+- 執行狀態：完成。
+- 版本更新：`package.json` 與 `package-lock.json` 由 `0.30.0` 升為 `0.30.1`。
+- 版本標示：首頁側欄版本改為 `0.30.1・影片修剪預覽版`，前端關於資訊 `appVersion` 改為 `0.30.1`。
+- 發布說明：新增 `RELEASE-NOTES-0.30.1.md`，並在 `README.md` 首段加入 0.30.1 發布重點。
+- CI 更新：Windows GitHub Actions workflow 名稱與 artifact 名稱更新為 0.30.1，並保留簽章 secrets 接入。
+- 簽章驗證：`scripts/verify-windows-signatures.ps1` 改為依最新 Setup/Portable EXE 搜尋，不再綁定 0.30.0 檔名。
+- 發布內容：包含校閱字幕預覽比例修正、中文檔名亂碼修正、Windows 簽章流程強制檢查與回歸測試補強。

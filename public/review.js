@@ -2,6 +2,7 @@
 const API_BASE = window.location.origin.startsWith('http')
   ? window.location.origin
   : 'http://127.0.0.1:8790';
+const ASS_PLAY_RES_Y = 1080;
 const API_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
 const nativeFetch = window.fetch.bind(window);
 window.fetch = (input, init = {}) => {
@@ -108,6 +109,7 @@ el.reviewVideo.addEventListener('loadedmetadata', () => {
   updateTimelineRuler(el.reviewVideo.duration);
   drawWaveform();
   updateTimelinePlayhead();
+  updateBurnPreview();
 });
 el.reviewTimeline?.addEventListener('click', (event) => {
   if (!Number.isFinite(el.reviewVideo.duration) || el.reviewVideo.duration <= 0) return;
@@ -117,6 +119,9 @@ el.reviewTimeline?.addEventListener('click', (event) => {
 });
 if (el.reviewTimeline && 'ResizeObserver' in window) {
   new ResizeObserver(() => drawWaveform()).observe(el.reviewTimeline);
+}
+if (el.reviewVideo?.parentElement && 'ResizeObserver' in window) {
+  new ResizeObserver(() => updateBurnPreview()).observe(el.reviewVideo.parentElement);
 }
 
 loadProjectPreset();
@@ -579,17 +584,56 @@ function getBurnSettings() {
 function updateBurnPreview() {
   const settings = getBurnSettings();
   const cue = state.activeIndex >= 0 ? state.cues[state.activeIndex] : null;
+  const preview = getAssPreviewMetrics();
   el.burnCaption.textContent = cue?.text || '字幕燒錄樣式預覽';
   el.burnCaption.style.fontFamily = settings.fontFamily;
-  el.burnCaption.style.fontSize = `${settings.fontSize}px`;
+  el.burnCaption.style.fontSize = `${Math.max(1, settings.fontSize * preview.scale)}px`;
   el.burnCaption.style.fontWeight = settings.bold ? '800' : '400';
   el.burnCaption.style.color = settings.fontColor;
-  el.burnCaption.style.webkitTextStroke = `${settings.outlineWidth}px ${settings.outlineColor}`;
-  el.burnOverlay.style.top = settings.position === 'top' ? `${settings.marginV}px` : 'auto';
-  el.burnOverlay.style.bottom = settings.position === 'bottom' ? `${settings.marginV}px` : 'auto';
+  el.burnCaption.style.webkitTextStroke = `${Math.max(0, settings.outlineWidth * preview.scale)}px ${settings.outlineColor}`;
+  el.burnOverlay.style.left = `${preview.left}px`;
+  el.burnOverlay.style.right = `${preview.right}px`;
+  el.burnOverlay.style.top = settings.position === 'top'
+    ? `${Math.max(0, preview.top + settings.marginV * preview.scale)}px`
+    : (settings.position === 'middle' ? `${Math.max(0, preview.top)}px` : 'auto');
+  el.burnOverlay.style.bottom = settings.position === 'bottom'
+    ? `${Math.max(0, preview.bottom + settings.marginV * preview.scale)}px`
+    : (settings.position === 'middle' ? `${Math.max(0, preview.bottom)}px` : 'auto');
   el.burnOverlay.style.alignItems = settings.position === 'middle' ? 'center' : 'flex-start';
-  el.burnOverlay.style.height = settings.position === 'middle' ? '100%' : 'auto';
+  el.burnOverlay.style.height = 'auto';
   el.commandBox.textContent = buildFfmpegStyle(settings);
+}
+
+function getAssPreviewMetrics() {
+  const rect = el.reviewVideo?.getBoundingClientRect();
+  const renderedHeight = rect?.height || el.reviewVideo?.clientHeight || 0;
+  const renderedWidth = rect?.width || el.reviewVideo?.clientWidth || 0;
+  if (!Number.isFinite(renderedHeight) || renderedHeight <= 0 || !Number.isFinite(renderedWidth) || renderedWidth <= 0) {
+    return { scale: 1, left: 0, right: 0, top: 0, bottom: 0 };
+  }
+  const mediaWidth = el.reviewVideo.videoWidth || renderedWidth;
+  const mediaHeight = el.reviewVideo.videoHeight || renderedHeight;
+  const mediaAspect = mediaWidth > 0 && mediaHeight > 0 ? mediaWidth / mediaHeight : renderedWidth / renderedHeight;
+  const containerAspect = renderedWidth / renderedHeight;
+  let boxWidth = renderedWidth;
+  let boxHeight = renderedHeight;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (containerAspect > mediaAspect) {
+    boxWidth = renderedHeight * mediaAspect;
+    offsetX = (renderedWidth - boxWidth) / 2;
+  } else if (containerAspect < mediaAspect) {
+    boxHeight = renderedWidth / mediaAspect;
+    offsetY = (renderedHeight - boxHeight) / 2;
+  }
+  const horizontalInset = boxWidth * 0.05;
+  return {
+    scale: boxHeight / ASS_PLAY_RES_Y,
+    left: offsetX + horizontalInset,
+    right: offsetX + horizontalInset,
+    top: offsetY,
+    bottom: offsetY,
+  };
 }
 
 async function saveReviewPackage() {

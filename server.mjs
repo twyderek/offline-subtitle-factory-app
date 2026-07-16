@@ -68,6 +68,8 @@ let gpuCache = null;
 let gpuPromise = null;
 const basicToolsCacheTtlMs = 60000;
 const gpuCacheTtlMs = 5 * 60000;
+const ASS_PLAY_RES_X = 1920;
+const ASS_PLAY_RES_Y = 1080;
 
 const defaultSettings = {
   appLanguage: 'zh-TW',
@@ -160,7 +162,7 @@ function streamMultipart(req, tempDir) {
         file.resume();
         return;
       }
-      const filename = path.basename(submittedName);
+      const filename = uploadedFileName(submittedName);
       const tempPath = path.join(tempDir, `${crypto.randomUUID()}-${filename}`);
       const output = fs.createWriteStream(tempPath, { flags: 'wx' });
       tempPaths.push(tempPath);
@@ -207,6 +209,42 @@ function writeJson(filePath, value) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
+}
+
+function looksLikeMojibake(value) {
+  return /[\u0080-\u00ff]/.test(String(value || ''));
+}
+
+function cjkCount(value) {
+  return (String(value || '').match(/[\u3400-\u9fff]/g) || []).length;
+}
+
+function decodeMojibakeText(value) {
+  let current = String(value || '');
+  for (let attempt = 0; attempt < 3 && looksLikeMojibake(current); attempt += 1) {
+    const decoded = Buffer.from(current, 'latin1').toString('utf8');
+    if (decoded.includes('\uFFFD')) break;
+    const currentScore = cjkCount(current) * 4 - (current.match(/[\u0080-\u00ff]/g) || []).length;
+    const decodedScore = cjkCount(decoded) * 4 - (decoded.match(/[\u0080-\u00ff]/g) || []).length;
+    if (decodedScore <= currentScore) break;
+    current = decoded;
+  }
+  return current;
+}
+
+function displayFileName(value) {
+  return decodeMojibakeText(String(value || ''));
+}
+
+function uploadedFileName(value, fallback = 'upload.bin') {
+  const rawName = String(value || '').trim().split(/[\\/]/).filter(Boolean).pop() || fallback;
+  const decoded = decodeMojibakeText(rawName);
+  const cleaned = decoded
+    .replace(/[\u0000-\u001f<>:"/\\|?*]+/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '');
+  return cleaned || fallback;
 }
 
 function resolveToolsInfo() {
@@ -342,7 +380,7 @@ function parseMultipart(buffer, contentType = '') {
     const body = Buffer.from(bodyLatin1, 'latin1');
     const value = body.subarray(0, body.length >= 2 && body.at(-2) === 13 && body.at(-1) === 10 ? body.length - 2 : body.length);
     if (filename) {
-      files[name] = { filename: path.basename(filename), buffer: value };
+      files[name] = { filename: uploadedFileName(filename), buffer: value };
     } else {
       fields[name] = value.toString('utf8').trim();
     }
@@ -385,9 +423,9 @@ function listJobs() {
         updatedAt: job.status.updatedAt || job.config.createdAt || '',
         language: job.config.language || '',
         files: {
-          video: videoName,
-          ruleFile: ruleName,
-          existingSrt: job.config.files?.existingSrt || null,
+          video: displayFileName(videoName),
+          ruleFile: displayFileName(ruleName),
+          existingSrt: job.config.files?.existingSrt ? displayFileName(job.config.files.existingSrt) : null,
         },
         hasReviewed: fs.existsSync(path.join(reviewOutputDir, 'reviewed.srt')),
         hasTrim: Boolean(readEditPlan(job.jobRoot)?.appliedAt && fs.existsSync(getEditPaths(job.jobRoot).trimmed)),
@@ -2257,7 +2295,7 @@ async function burnSubtitle(job, options = {}, signal) {
   const mode = ['hardsub', 'softsub', 'both'].includes(options.mode) ? options.mode : 'hardsub';
   const outputFormat = ['mp4', 'mkv'].includes(options.outputFormat) ? options.outputFormat : 'mp4';
   const quality = ['h264-fast', 'h264-medium', 'original'].includes(options.quality) ? options.quality : 'h264-medium';
-  const safeBaseName = path.parse(job.config.files.video || job.config.jobId).name.replace(/[^\w\u4e00-\u9fff-]+/g, '_') || job.config.jobId;
+  const safeBaseName = path.parse(displayFileName(job.config.files.video || job.config.jobId)).name.replace(/[^\w\u4e00-\u9fff-]+/g, '_') || job.config.jobId;
   const duration = await probeDurationSeconds(videoPath);
   const settings = loadBurnSettings(job);
   const assPath = path.join(outputDir, 'subtitle.ass');
@@ -2479,8 +2517,8 @@ function buildAssFromSrt(srtContent, settings) {
     'ScriptType: v4.00+',
     'WrapStyle: 0',
     'ScaledBorderAndShadow: yes',
-    'PlayResX: 1920',
-    'PlayResY: 1080',
+    `PlayResX: ${ASS_PLAY_RES_X}`,
+    `PlayResY: ${ASS_PLAY_RES_Y}`,
     '',
     '[V4+ Styles]',
     'Format: Name, FontName, FontSize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
@@ -2919,7 +2957,7 @@ async function handleApi(req, res) {
         plan: readEditPlan(job.jobRoot),
         sourceDuration,
         effectiveDuration,
-        sourceFileName: path.basename(original),
+        sourceFileName: displayFileName(path.basename(original)),
         effectiveVideoUrl: jobMediaUrl(job, effective),
         originalVideoUrl: jobMediaUrl(job, original),
         trimStatus: readTrimStatus(job),
@@ -2988,8 +3026,8 @@ async function handleApi(req, res) {
     }
     sendJson(res, 200, {
       jobId,
-      videoFileName: path.basename(videoPath),
-      subtitleFileName: path.basename(subtitlePath),
+      videoFileName: displayFileName(path.basename(videoPath)),
+      subtitleFileName: displayFileName(path.basename(subtitlePath)),
       videoUrl: jobMediaUrl(job, videoPath),
       subtitle: fs.readFileSync(subtitlePath, 'utf8'),
     });

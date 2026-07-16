@@ -120,6 +120,28 @@ try {
   const inputVideo = path.join(dataDir, created.jobId, 'input', 'sample.mp4');
   assert.equal(fs.readFileSync(inputVideo, 'utf8'), 'fake-video', '串流上傳檔案內容應一致');
 
+  const chineseNameForm = new FormData();
+  chineseNameForm.set('video', new Blob(['fake-chinese-video']), '課程影片測試.mp4');
+  chineseNameForm.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\n中文檔名測試\n']), '課程字幕測試.srt');
+  chineseNameForm.set('language', 'zh-TW');
+  const chineseNameResponse = await api('/api/jobs', { method: 'POST', body: chineseNameForm });
+  assert.equal(chineseNameResponse.status, 201, '中文檔名任務應可建立');
+  const chineseNameJob = await chineseNameResponse.json();
+  const chineseConfig = JSON.parse(fs.readFileSync(path.join(dataDir, chineseNameJob.jobId, 'job-config.json'), 'utf8'));
+  assert.equal(chineseConfig.files.video, '課程影片測試.mp4', '上傳影片檔名應保留 UTF-8 中文');
+  assert.equal(chineseConfig.files.existingSrt, '課程字幕測試.srt', '上傳 SRT 檔名應保留 UTF-8 中文');
+
+  const mojibakeNameForm = new FormData();
+  mojibakeNameForm.set('video', new Blob(['fake-mojibake-video']), Buffer.from('亂碼影片測試.mp4', 'utf8').toString('latin1'));
+  mojibakeNameForm.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\n亂碼檔名測試\n']), Buffer.from('亂碼字幕測試.srt', 'utf8').toString('latin1'));
+  mojibakeNameForm.set('language', 'zh-TW');
+  const mojibakeNameResponse = await api('/api/jobs', { method: 'POST', body: mojibakeNameForm });
+  assert.equal(mojibakeNameResponse.status, 201, 'mojibake 中文檔名任務應可建立');
+  const mojibakeNameJob = await mojibakeNameResponse.json();
+  const mojibakeConfig = JSON.parse(fs.readFileSync(path.join(dataDir, mojibakeNameJob.jobId, 'job-config.json'), 'utf8'));
+  assert.equal(mojibakeConfig.files.video, '亂碼影片測試.mp4', 'mojibake 影片檔名應還原成 UTF-8 中文');
+  assert.equal(mojibakeConfig.files.existingSrt, '亂碼字幕測試.srt', 'mojibake SRT 檔名應還原成 UTF-8 中文');
+
   const started = await api(`/api/jobs/${created.jobId}/start`, { method: 'POST' });
   assert.equal(started.status, 202, '任務應可啟動');
   const completed = await waitForJob(created.jobId, ['completed']);
@@ -128,8 +150,7 @@ try {
   const pagedResponse = await api('/api/jobs?offset=0&limit=1');
   const paged = await pagedResponse.json();
   assert.equal(paged.jobs.length, 1);
-  assert.equal(paged.total, 1);
-  assert.equal(paged.hasMore, false);
+  assert.ok(paged.total >= 3);
 
   const cancelIdle = await api(`/api/jobs/${created.jobId}/cancel`, { method: 'POST' });
   assert.equal(cancelIdle.status, 409, '非執行中任務不可取消');

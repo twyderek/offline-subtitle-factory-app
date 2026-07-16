@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.30.0",
+  "version": "0.30.1",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -16,8 +16,11 @@
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
     "runtime:verify": "node scripts/verify-runtime-package.mjs --target=win32-x64",
     "runtime:verify:mac": "node scripts/verify-runtime-package.mjs --target=darwin-arm64",
+    "codesign:windows:assert": "powershell -ExecutionPolicy Bypass -File scripts/assert-windows-codesign.ps1",
+    "codesign:windows:verify": "powershell -ExecutionPolicy Bypass -File scripts/verify-windows-signatures.ps1",
     "electron:build:dir": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --dir --publish never",
-    "electron:build": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --publish never",
+    "electron:build:unsigned": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --publish never",
+    "electron:build": "npm run runtime:manifest && npm run runtime:verify && npm run codesign:windows:assert && electron-builder --win --x64 --publish never && npm run codesign:windows:verify",
     "electron:build:mac:dir": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64 --dir",
     "electron:build:mac": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64"
   },
@@ -66,17 +69,25 @@
         }
       ],
       "icon": "electron/icons/icon.ico",
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "extraResources": [
         {
           "from": "tools/ffmpeg",
           "to": "tools/ffmpeg",
-          "filter": ["bin/*.exe", "LICENSE", "README.txt"]
+          "filter": [
+            "bin/*.exe",
+            "LICENSE",
+            "README.txt"
+          ]
         },
         {
           "from": "tools/whisper-cpp",
           "to": "tools/whisper-cpp",
-          "filter": ["*.exe", "*.dll", "LICENSE"]
+          "filter": [
+            "*.exe",
+            "*.dll",
+            "LICENSE"
+          ]
         },
         {
           "from": "tools/whisper-models/ggml-tiny.bin",
@@ -92,11 +103,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "icon": "electron/icons/icon.icns",
@@ -110,12 +125,20 @@
         {
           "from": "tools/ffmpeg",
           "to": "tools/ffmpeg",
-          "filter": ["bin/ffmpeg", "bin/ffprobe", "LICENSE-macos", "README-macos.txt"]
+          "filter": [
+            "bin/ffmpeg",
+            "bin/ffprobe",
+            "LICENSE-macos",
+            "README-macos.txt"
+          ]
         },
         {
           "from": "tools/whisper-cpp",
           "to": "tools/whisper-cpp",
-          "filter": ["whisper-cli", "LICENSE"]
+          "filter": [
+            "whisper-cli",
+            "LICENSE"
+          ]
         },
         {
           "from": "tools/whisper-models/ggml-tiny.bin",

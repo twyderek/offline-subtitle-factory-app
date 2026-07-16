@@ -1,5 +1,14 @@
 # 離線字幕工廠
 
+## 0.30.1 發布重點
+
+0.30.1 是 0.30 預覽版的修正版，重點修正校閱畫面字幕樣式預覽與實際 FFmpeg/ASS 燒錄結果的比例落差，並修正 Windows/Electron 匯入中文影片檔名時可能顯示成亂碼的問題。
+
+- 校閱字幕預覽會依照 ASS PlayRes 1920x1080、影片實際顯示尺寸與黑邊偏移縮放字級、外框與垂直邊距，讓 24 字級等設定更接近實際燒錄成品。
+- 上傳影片、匯入 SRT、最近專案、review-data 與燒錄輸出檔名會保留正常 UTF-8 中文，並修復 UTF-8 被誤解成 Latin-1 造成的 mojibake。
+- Windows 正式打包流程改為強制檢查 Code Signing 憑證，打包後驗證 Setup 與 Portable EXE 必須為有效簽章；未設定憑證時請使用 `npm run electron:build:unsigned` 產生內部測試包。
+- 已通過 `npm run check`，包含影片修剪資料層測試、核心 API 回歸測試、中文檔名與亂碼檔名案例。
+
 ## 0.30.0 影片修剪功能預覽版
 
 此預覽版在核定的深藍側欄首頁與字幕校對工作區上，新增單一區間、非破壞式影片修剪。macOS 版使用內建 Whisper.cpp、Apple Metal、FFmpeg 與多語模型，不需要另外安裝 Python。
