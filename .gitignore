@@ -2,6 +2,7 @@ node_modules/
 jobs/
 config/
 .tmp-packaged-data/
+.artifacts/
 tools/node/
 tools/ffmpeg/
 tools/python/

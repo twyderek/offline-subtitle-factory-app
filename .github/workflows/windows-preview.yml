@@ -51,14 +51,18 @@ jobs:
             ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } |
             Set-Content ../dist/SHA256SUMS-windows-x64.txt -Encoding utf8
 
+          $uploadDir = Join-Path $PWD '.artifacts/windows-x64'
+          New-Item -ItemType Directory -Force -Path $uploadDir | Out-Null
+          Copy-Item ../dist/*.exe -Destination $uploadDir
+          Copy-Item ../dist/*.blockmap -Destination $uploadDir
+          Copy-Item ../dist/latest.yml -Destination $uploadDir
+          Copy-Item ../dist/SHA256SUMS-windows-x64.txt -Destination $uploadDir
+
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v4
         with:
           name: offline-subtitle-factory-0.30.0-windows-x64
           path: |
-            ../dist/*.exe
-            ../dist/*.blockmap
-            ../dist/latest.yml
-            ../dist/SHA256SUMS-windows-x64.txt
+            .artifacts/windows-x64/*
           if-no-files-found: error
           retention-days: 14
