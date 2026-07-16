@@ -7,9 +7,12 @@ tools/ffmpeg/
 tools/python/
 tools/python-embed/
 tools/python-venv/
+tools/whisper-cpp/
 tools/whisper-models/
 tools/manifest.json
+tools/manifests/
 tools/_downloads/
+tools/_runtime-temp/
 dist/
 *.log
 .env

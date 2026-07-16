@@ -2,6 +2,24 @@
 const API_BASE = window.location.origin.startsWith('http')
   ? window.location.origin
   : 'http://127.0.0.1:8790';
+const API_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init = {}) => {
+  const requestUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+  if (!API_TOKEN || requestUrl.origin !== API_BASE || !requestUrl.pathname.startsWith('/api/')) {
+    return nativeFetch(input, init);
+  }
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
+  headers.set('X-Offline-Subtitle-Token', API_TOKEN);
+  return nativeFetch(input, { ...init, headers });
+};
+
+function appUrl(pathname) {
+  const url = new URL(pathname, `${API_BASE}/`);
+  if (API_TOKEN) url.searchParams.set('token', API_TOKEN);
+  return url.toString();
+}
 
 const jobId = location.pathname.split('/').filter(Boolean).at(-1);
 
@@ -13,13 +31,22 @@ const state = {
   loopActive: false,
   videoFileName: '',
   subtitleFileName: '',
+  dirty: false,
+  saveInFlight: false,
+  autosaveTimer: null,
+  followCue: true,
+  changeVersion: 0,
+  searchTimer: null,
+  waveformPeaks: [],
+  waveformDuration: 0,
 };
 
 const ids = [
   'reviewVideo', 'reviewStatus', 'cueList', 'currentText', 'currentMeta', 'currentRuleState',
   'cueCount', 'changedCount', 'warningCount', 'clock', 'burnCaption', 'burnOverlay',
   'proofreadPanel', 'burnPanel', 'stageProofread', 'stageBurn', 'cueSearch', 'commandBox',
-  'timeAdjustSeconds', 'shortenAllCues', 'extendAllCues',
+  'timeAdjustSeconds', 'shortenAllCues', 'extendAllCues', 'followCue',
+  'reviewTimeline', 'timelineRuler', 'reviewWaveform', 'waveformStatus', 'timelinePlayhead',
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
@@ -27,6 +54,9 @@ const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outl
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
 document.getElementById('loadProjectPreset').addEventListener('click', loadProjectPreset);
+document.getElementById('openTrim').addEventListener('click', () => {
+  location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
+});
 document.getElementById('applyRules').addEventListener('click', applyRulesToAll);
 document.getElementById('downloadSrt').addEventListener('click', downloadSrt);
 document.getElementById('saveSrt').addEventListener('click', saveSrt);
@@ -43,20 +73,51 @@ el.stageProofread.addEventListener('click', () => setStage('proofread'));
 el.stageBurn.addEventListener('click', () => setStage('burn'));
 el.cueSearch.addEventListener('input', (event) => {
   state.search = event.target.value.trim();
-  renderCueList();
+  clearTimeout(state.searchTimer);
+  state.searchTimer = setTimeout(renderCueList, 120);
 });
 el.shortenAllCues.addEventListener('click', () => adjustAllCueDurations(-getTimeAdjustSeconds()));
 el.extendAllCues.addEventListener('click', () => adjustAllCueDurations(getTimeAdjustSeconds()));
+el.followCue.addEventListener('click', () => setFollowCue(!state.followCue, true));
 settingIds.forEach((id) => document.getElementById(id).addEventListener('input', updateBurnPreview));
+
+el.cueList.addEventListener('wheel', () => setFollowCue(false), { passive: true });
+el.cueList.addEventListener('pointerdown', (event) => {
+  if (event.target.closest('textarea, input')) setFollowCue(false);
+});
+el.cueList.addEventListener('click', handleCueListClick);
+el.cueList.addEventListener('input', handleCueListInput);
+el.cueList.addEventListener('change', handleCueListChange);
+window.addEventListener('keydown', handleReviewShortcut);
+window.addEventListener('beforeunload', (event) => {
+  if (!state.dirty && !state.saveInFlight) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 el.reviewVideo.addEventListener('timeupdate', () => {
   updateActiveCue();
   el.clock.textContent = formatClock(el.reviewVideo.currentTime);
+  updateTimelinePlayhead();
   if (state.loopActive && state.activeIndex >= 0) {
     const cue = state.cues[state.activeIndex];
     if (el.reviewVideo.currentTime > cue.end) el.reviewVideo.currentTime = cue.start;
   }
 });
+el.reviewVideo.addEventListener('loadedmetadata', () => {
+  updateTimelineRuler(el.reviewVideo.duration);
+  drawWaveform();
+  updateTimelinePlayhead();
+});
+el.reviewTimeline?.addEventListener('click', (event) => {
+  if (!Number.isFinite(el.reviewVideo.duration) || el.reviewVideo.duration <= 0) return;
+  const rect = el.reviewTimeline.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+  el.reviewVideo.currentTime = ratio * el.reviewVideo.duration;
+});
+if (el.reviewTimeline && 'ResizeObserver' in window) {
+  new ResizeObserver(() => drawWaveform()).observe(el.reviewTimeline);
+}
 
 loadProjectPreset();
 updateBurnPreview();
@@ -77,6 +138,7 @@ async function loadProjectPreset() {
     state.subtitleFileName = data.subtitleFileName || '';
     el.reviewVideo.src = data.videoUrl;
     loadSrtText(data.subtitle, `已載入任務 ${jobId}`);
+    loadJobWaveform();
   } catch (error) {
     statusMessage(`載入失敗：${error.message}`);
   }
@@ -88,6 +150,114 @@ function handleVideoFile(event) {
   el.reviewVideo.src = URL.createObjectURL(file);
   state.videoFileName = file.name;
   statusMessage(`已載入影片：${file.name}`);
+  loadLocalFileWaveform(file);
+}
+
+async function loadJobWaveform() {
+  if (!el.reviewWaveform) return;
+  setWaveformStatus('正在從影片音軌產生真實聲波…');
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/waveform?points=640`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || !Array.isArray(data.peaks)) throw new Error(data.error || `HTTP ${response.status}`);
+    state.waveformPeaks = data.peaks;
+    state.waveformDuration = Number(data.duration) || 0;
+    el.reviewTimeline?.classList.add('is-ready');
+    updateTimelineRuler(state.waveformDuration || el.reviewVideo.duration);
+    drawWaveform();
+  } catch (error) {
+    state.waveformPeaks = [];
+    el.reviewTimeline?.classList.remove('is-ready');
+    setWaveformStatus(`聲波無法產生：${error.message}`);
+    drawWaveform();
+  }
+}
+
+async function loadLocalFileWaveform(file) {
+  if (!el.reviewWaveform) return;
+  setWaveformStatus('正在分析本機影片音軌…');
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error('此系統不支援音訊解碼');
+    const context = new AudioContextClass();
+    try {
+      const audioBuffer = await context.decodeAudioData(await file.arrayBuffer());
+      state.waveformPeaks = downsampleAudioBuffer(audioBuffer, 640);
+      state.waveformDuration = audioBuffer.duration;
+    } finally {
+      await context.close();
+    }
+    el.reviewTimeline?.classList.add('is-ready');
+    updateTimelineRuler(state.waveformDuration);
+    drawWaveform();
+  } catch (error) {
+    state.waveformPeaks = [];
+    el.reviewTimeline?.classList.remove('is-ready');
+    setWaveformStatus(`聲波無法產生：${error.message}`);
+    drawWaveform();
+  }
+}
+
+function downsampleAudioBuffer(audioBuffer, pointCount) {
+  const peaks = new Array(pointCount).fill(0);
+  const samples = audioBuffer.length;
+  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, index) => audioBuffer.getChannelData(index));
+  for (let point = 0; point < pointCount; point += 1) {
+    const start = Math.floor((point * samples) / pointCount);
+    const end = Math.max(start + 1, Math.floor(((point + 1) * samples) / pointCount));
+    let peak = 0;
+    for (const channel of channels) {
+      for (let sample = start; sample < end; sample += 1) peak = Math.max(peak, Math.abs(channel[sample] || 0));
+    }
+    peaks[point] = peak;
+  }
+  const high = Math.max(...peaks, 0.01);
+  return peaks.map((value) => Math.min(1, Math.pow(value / high, 0.68)));
+}
+
+function setWaveformStatus(message) {
+  el.reviewTimeline?.classList.remove('is-ready');
+  if (el.waveformStatus) el.waveformStatus.textContent = message;
+}
+
+function drawWaveform() {
+  const canvas = el.reviewWaveform;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  const context = canvas.getContext('2d');
+  context.scale(ratio, ratio);
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = '#f8fafc';
+  context.fillRect(0, 0, width, height);
+  if (!state.waveformPeaks.length) return;
+  const center = height / 2;
+  const barWidth = Math.max(1, width / state.waveformPeaks.length * 0.7);
+  context.fillStyle = '#9dafc3';
+  state.waveformPeaks.forEach((peak, index) => {
+    const x = (index / state.waveformPeaks.length) * width;
+    const barHeight = Math.max(2, peak * (height - 8));
+    context.fillRect(x, center - barHeight / 2, barWidth, barHeight);
+  });
+  context.fillStyle = '#d2dce7';
+  context.fillRect(0, center, width, 1);
+}
+
+function updateTimelineRuler(duration) {
+  if (!el.timelineRuler || !Number.isFinite(duration) || duration <= 0) return;
+  const values = [0, .25, .5, .75, 1].map((ratio) => formatClock(duration * ratio));
+  el.timelineRuler.innerHTML = values.map((value) => `<span>${value}</span>`).join('');
+}
+
+function updateTimelinePlayhead() {
+  if (!el.timelinePlayhead) return;
+  const duration = el.reviewVideo.duration || state.waveformDuration;
+  const ratio = Number.isFinite(duration) && duration > 0 ? el.reviewVideo.currentTime / duration : 0;
+  el.timelinePlayhead.style.left = `${Math.max(0, Math.min(100, ratio * 100))}%`;
 }
 
 async function handleSrtFile(event) {
@@ -101,9 +271,12 @@ function loadSrtText(text, message) {
   state.cues = parseSrt(text);
   state.activeIndex = -1;
   state.changed.clear();
+  state.dirty = false;
+  state.changeVersion = 0;
+  clearTimeout(state.autosaveTimer);
   renderCueList();
   updateStats();
-  setActiveCue(-1);
+  updateActiveCue(true);
   statusMessage(message);
 }
 
@@ -163,28 +336,54 @@ function renderCueList() {
     item.classList.toggle('active', index === state.activeIndex);
     item.classList.toggle('changed', state.changed.has(index));
     item.innerHTML = `
-      <div class="review-cue-meta">
-        <div class="review-cue-number">#${index + 1}</div>
-        <div class="review-time">${cue.startRaw}<br>${cue.endRaw}</div>
-        <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${formatDuration(cue.end - cue.start)}"></label>
-        <div class="cue-mini-buttons"><button class="shorten-cue" type="button">-</button><button class="extend-cue" type="button">+</button></div>
-        <button class="jump" type="button">跳轉</button>
-        <button class="merge-next" type="button">合併下段</button>
-        <button class="delete-cue" type="button">刪除</button>
-        <span class="${hasRuleWarning(cue.text) ? 'review-chip warn' : 'review-chip'}">${hasRuleWarning(cue.text) ? '待檢查' : 'OK'}</span>
+      <div class="review-cue-number">${index + 1}</div>
+      <div class="review-cue-content">
+        <div class="review-cue-meta">
+          <div class="review-time">${cue.startRaw} <span>→</span> ${cue.endRaw}</div>
+          <span class="${hasRuleWarning(cue.text) ? 'review-chip warn' : 'review-chip'}">${hasRuleWarning(cue.text) ? '待檢查' : '已確認'}</span>
+          <button class="jump cue-more" type="button" title="跳到此字幕">•••</button>
+        </div>
+        <textarea aria-label="字幕 ${index + 1}">${escapeHtml(cue.text)}</textarea>
+        <div class="cue-advanced-actions">
+          <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${formatDuration(cue.end - cue.start)}"></label>
+          <div class="cue-mini-buttons"><button class="shorten-cue" type="button">縮短</button><button class="extend-cue" type="button">延長</button></div>
+          <button class="merge-next" type="button">合併下段</button>
+          <button class="delete-cue" type="button">刪除</button>
+        </div>
       </div>
-      <textarea aria-label="字幕 ${index + 1}">${escapeHtml(cue.text)}</textarea>
     `;
-    item.querySelector('.jump').addEventListener('click', () => jumpToCue(index));
-    item.querySelector('textarea').addEventListener('input', (event) => updateCue(index, event.target.value));
-    item.querySelector('.duration-input').addEventListener('change', (event) => setCueDuration(index, Number(event.target.value)));
-    item.querySelector('.shorten-cue').addEventListener('click', () => adjustCueDuration(index, -getTimeAdjustSeconds()));
-    item.querySelector('.extend-cue').addEventListener('click', () => adjustCueDuration(index, getTimeAdjustSeconds()));
-    item.querySelector('.merge-next').addEventListener('click', () => mergeCueWithNext(index));
-    item.querySelector('.delete-cue').addEventListener('click', () => deleteCue(index));
     fragment.appendChild(item);
   });
   el.cueList.appendChild(fragment);
+}
+
+function getCueEventIndex(event) {
+  const item = event.target.closest('.review-cue');
+  if (!item) return -1;
+  const index = Number(item.dataset.index);
+  return Number.isInteger(index) ? index : -1;
+}
+
+function handleCueListClick(event) {
+  const index = getCueEventIndex(event);
+  if (index < 0) return;
+  if (event.target.closest('.jump')) jumpToCue(index);
+  else if (event.target.closest('.shorten-cue')) adjustCueDuration(index, -getTimeAdjustSeconds());
+  else if (event.target.closest('.extend-cue')) adjustCueDuration(index, getTimeAdjustSeconds());
+  else if (event.target.closest('.merge-next')) mergeCueWithNext(index);
+  else if (event.target.closest('.delete-cue')) deleteCue(index);
+}
+
+function handleCueListInput(event) {
+  if (!event.target.matches('textarea')) return;
+  const index = getCueEventIndex(event);
+  if (index >= 0) updateCue(index, event.target.value);
+}
+
+function handleCueListChange(event) {
+  if (!event.target.matches('.duration-input')) return;
+  const index = getCueEventIndex(event);
+  if (index >= 0) setCueDuration(index, Number(event.target.value));
 }
 
 function updateCue(index, value) {
@@ -199,6 +398,7 @@ function updateCue(index, value) {
   }
   if (index === state.activeIndex) setActiveCue(index);
   updateStats();
+  markReviewDirty();
 }
 
 function jumpToCue(index) {
@@ -206,13 +406,37 @@ function jumpToCue(index) {
   if (!cue) return;
   el.reviewVideo.currentTime = cue.start;
   el.reviewVideo.play();
+  setFollowCue(true);
   setActiveCue(index);
 }
 
 function updateActiveCue(force = false) {
   const time = el.reviewVideo.currentTime;
-  const index = state.cues.findIndex((cue) => time >= cue.start && time <= cue.end);
+  const index = findCueIndexAtTime(time);
   if (index !== state.activeIndex || force) setActiveCue(index);
+}
+
+function findCueIndexAtTime(time) {
+  const current = state.cues[state.activeIndex];
+  if (current && time >= current.start && time <= current.end) return state.activeIndex;
+  const next = state.cues[state.activeIndex + 1];
+  if (next && time >= next.start && time <= next.end) return state.activeIndex + 1;
+  const previous = state.cues[state.activeIndex - 1];
+  if (previous && time >= previous.start && time <= previous.end) return state.activeIndex - 1;
+
+  let low = 0;
+  let high = state.cues.length - 1;
+  let candidate = -1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    if (state.cues[middle].start <= time) {
+      candidate = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return candidate >= 0 && time <= state.cues[candidate].end ? candidate : -1;
 }
 
 function setActiveCue(index) {
@@ -221,7 +445,16 @@ function setActiveCue(index) {
   if (index >= 0) {
     const cue = state.cues[index];
     const node = el.cueList.querySelector(`[data-index="${index}"]`);
-    if (node) node.classList.add('active');
+    if (node) {
+      node.classList.add('active');
+      if (state.followCue) {
+        node.scrollIntoView({
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      }
+    }
     el.currentText.textContent = cue.text || ' ';
     el.currentMeta.textContent = `#${index + 1} ${cue.startRaw} - ${cue.endRaw}`;
     el.currentRuleState.textContent = hasRuleWarning(cue.text) ? '待檢查' : '已校稿';
@@ -244,6 +477,7 @@ function applyRulesToAll() {
   updateStats();
   updateActiveCue(true);
   statusMessage('已套用清理規則');
+  markReviewDirty();
 }
 
 function deleteCue(index) {
@@ -259,6 +493,7 @@ function deleteCue(index) {
   updateStats();
   setActiveCue(state.activeIndex);
   statusMessage(`已刪除第 ${index + 1} 段字幕`);
+  markReviewDirty();
 }
 
 function mergeCueWithNext(index) {
@@ -280,6 +515,7 @@ function mergeCueWithNext(index) {
   updateStats();
   setActiveCue(index);
   statusMessage(`已合併第 ${index + 1} 段與下一段字幕`);
+  markReviewDirty();
 }
 
 function rebuildCueIds() {
@@ -424,18 +660,75 @@ function downloadSrt() {
   URL.revokeObjectURL(url);
 }
 
-async function saveSrt() {
-  const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/save-review`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subtitle: buildSrt() }),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.ok) {
-    statusMessage(`另存失敗：${result.error || response.status}`);
-    return;
+async function saveSrt(options = {}) {
+  if (!jobId || state.saveInFlight) return false;
+  clearTimeout(state.autosaveTimer);
+  state.saveInFlight = true;
+  const savingVersion = state.changeVersion;
+  if (!options.silent) statusMessage('正在儲存字幕...');
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/save-review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subtitle: buildSrt() }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || String(response.status));
+    state.dirty = state.changeVersion !== savingVersion;
+    statusMessage(state.dirty
+      ? '已儲存先前變更，新的編輯即將自動儲存'
+      : (options.silent ? '字幕已自動儲存' : `已另存 SRT：${result.files.subtitle}`));
+    return true;
+  } catch (error) {
+    state.dirty = true;
+    statusMessage(`儲存失敗：${error.message}`);
+    return false;
+  } finally {
+    state.saveInFlight = false;
+    if (state.dirty) {
+      clearTimeout(state.autosaveTimer);
+      state.autosaveTimer = setTimeout(() => saveSrt({ silent: true }), 500);
+    }
   }
-  statusMessage(`已另存 SRT：${result.files.subtitle}`);
+}
+
+function markReviewDirty() {
+  state.dirty = true;
+  state.changeVersion += 1;
+  clearTimeout(state.autosaveTimer);
+  statusMessage('字幕有尚未儲存的變更');
+  state.autosaveTimer = setTimeout(() => saveSrt({ silent: true }), 1500);
+}
+
+function setFollowCue(enabled, alignNow = false) {
+  state.followCue = enabled;
+  el.followCue.classList.toggle('primary', enabled);
+  el.followCue.textContent = `自動跟隨：${enabled ? '開' : '暫停'}`;
+  if (enabled && alignNow && state.activeIndex >= 0) setActiveCue(state.activeIndex);
+}
+
+function handleReviewShortcut(event) {
+  const editing = event.target instanceof HTMLInputElement
+    || event.target instanceof HTMLTextAreaElement
+    || event.target instanceof HTMLSelectElement
+    || event.target?.isContentEditable;
+  if (editing) return;
+  if (event.code === 'Space') {
+    event.preventDefault();
+    el.reviewVideo.paused ? el.reviewVideo.play() : el.reviewVideo.pause();
+  } else if (event.altKey && event.key === 'ArrowLeft') {
+    event.preventDefault();
+    el.reviewVideo.currentTime = Math.max(0, el.reviewVideo.currentTime - 5);
+  } else if (event.altKey && event.key === 'ArrowRight') {
+    event.preventDefault();
+    el.reviewVideo.currentTime = Math.min(el.reviewVideo.duration || Infinity, el.reviewVideo.currentTime + 5);
+  } else if ((event.ctrlKey || event.metaKey) && event.key === 'ArrowUp') {
+    event.preventDefault();
+    jumpToCue(Math.max(0, state.activeIndex - 1));
+  } else if ((event.ctrlKey || event.metaKey) && event.key === 'ArrowDown') {
+    event.preventDefault();
+    jumpToCue(Math.min(state.cues.length - 1, state.activeIndex + 1));
+  }
 }
 
 function getTimeAdjustSeconds() {
@@ -453,6 +746,7 @@ function setCueDuration(index, duration) {
   renderCueList();
   updateStats();
   setActiveCue(index);
+  markReviewDirty();
 }
 
 function adjustCueDuration(index, delta) {
@@ -473,6 +767,7 @@ function adjustAllCueDurations(delta) {
   updateStats();
   updateActiveCue(true);
   statusMessage(`已${delta > 0 ? '增加' : '減少'}全片每句字幕長度 ${Math.abs(delta)} 秒`);
+  markReviewDirty();
 }
 
 function getCueEndLimit(index) {
@@ -552,5 +847,5 @@ function statusMessage(message) {
 
 // ── 返回任務頁 ──────────────────────────────
 document.getElementById('backToHome').addEventListener('click', () => {
-  window.location.href = `${API_BASE}/`;
+  window.location.href = appUrl('/');
 });

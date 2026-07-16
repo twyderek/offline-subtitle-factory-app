@@ -1,115 +1,108 @@
-# Offline Subtitle Factory App
+# 離線字幕工廠
 
-這是「離線字幕生成規劃專案」的獨立本機 MVP，套用 UI Option 3：教師友善版。
+## 0.30.0 影片修剪功能預覽版
 
-它不會修改原本的 `src/subtitle-editor.html` 或既有字幕流程，所有任務資料都會存放在本資料夾的 `jobs/` 內。
+此預覽版在核定的深藍側欄首頁與字幕校對工作區上，新增單一區間、非破壞式影片修剪。macOS 版使用內建 Whisper.cpp、Apple Metal、FFmpeg 與多語模型，不需要另外安裝 Python。
 
-## 快速啟動
+離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。
 
-### 第一次使用：安裝專案內工具
+## 安裝版
 
-先雙擊：
+### macOS Apple Silicon
 
-```text
-setup-local-tools.bat
-```
-
-它會把本服務需要的工具集中放到：
+開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-tools/
-  node/
-  ffmpeg/
-  python-venv/
-  whisper-models/
-  _downloads/
+離線字幕工廠 0.30.0 macOS-arm64.dmg
 ```
 
-完成後，本服務啟動與轉錄都會優先使用 `tools/` 內的工具，不再呼叫系統其他位置的 Node、FFmpeg 或 Whisper。
+另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
-### 一鍵啟動
+### Windows x64
 
-在檔案總管中雙擊：
+Windows 0.30 預覽版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。前往專案的 **Actions → Build Windows 0.30 Preview**，開啟最新成功紀錄後下載 `offline-subtitle-factory-0.30.0-windows-x64` artifact。
+
+目前 Windows 預覽成品尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先在測試機驗證檔案雜湊，再由「其他資訊 → 仍要執行」啟動；不建議在完成實機驗收前對外正式發布。
+
+## 不需要自行安裝其他軟體
+
+0.30.0 macOS 預覽包已內建：
+
+- Electron／Node 本機服務執行環境。
+- FFmpeg 與 FFprobe。
+- Whisper.cpp 轉錄引擎；Apple Silicon 版本會使用 Metal 加速，Windows x64 版本使用 CPU。
+- Whisper tiny 多語預設模型。
+
+使用者不需要另外安裝 Node.js、Python、Whisper、FFmpeg，不需要執行批次檔，也不會修改系統 PATH。
+
+## 主要功能
+
+- 上傳 MP4、MOV、M4V 等影片。
+- 在字幕生成前選擇「先修剪影片」，以 In／Out 把手或時間欄設定單一保留區間。
+- 提供精準修剪與快速修剪；所有輸出均為衍生檔，原始影片不會被覆蓋。
+- 修剪既有字幕專案時，自動移除範圍外字幕、截短邊界並把時間軸平移至 0 秒。
+- 使用內建 Whisper.cpp 進行本機離線轉錄。
+- 匯入既有 SRT，略過語音轉錄直接進入規則處理。
+- 套用繁體中文、專有名詞、填充詞與自訂取代規則。
+- 影片播放時自動跟隨右側字幕校閱段落。
+- 調整字幕文字、時間與樣式並自動保存。
+- 輸出 SRT、硬字幕 MP4 與軟字幕 MKV／MP4。
+- 管理歷史任務、專案檔、輸入與輸出資料夾。
+
+## 修剪操作
+
+1. 建立新專案並選擇影片後，按「先修剪影片」；既有專案可由首頁專案卡、任務管理或校對側欄進入「修剪」。
+2. 拖曳綠色起點與橘色終點，或直接輸入時間；I 設起點、O 設終點、Space 播放／暫停。
+3. 選擇「精準修剪」或「快速修剪」，按「套用修剪」。
+4. 完成後按「開始字幕生成」，或進入校對頁繼續處理。
+
+第一版只支援單一連續保留區間，不包含多段剪接、轉場、濾鏡、多軌或素材拼接。快速模式受來源關鍵影格影響，若需要準確邊界請使用精準模式。
+
+## 資料位置
+
+正式 APP 將可變動資料保存到作業系統的使用者資料目錄：
 
 ```text
-start-offline-subtitle-factory.bat
+%APPDATA%\離線字幕工廠\
+  jobs\
+  config\
+
+~/Library/Application Support/離線字幕工廠/
+  jobs/
+  config/
 ```
 
-它會自動啟動本機服務並開啟瀏覽器。
-若 8790 已經有舊服務執行，啟動檔會先停止舊服務再啟動新版，避免進入校閱頁時出現 Not Found。
+內建 runtime 位於安裝目錄中，APP 會在啟動時自動檢查。若內建元件缺少或損壞，健康檢查會提示重新安裝，不會要求使用者手動安裝套件。
 
-如果視窗顯示找不到 Project-local Node.js，請先執行 `setup-local-tools.bat`。
+## 開發與測試
 
-### 命令列啟動
+### Windows 11 x64
 
 ```powershell
-cd D:\Codex\subtitle-review-loop\offline-subtitle-factory-plan\app
-npm start
+git clone https://github.com/twyderek/offline-subtitle-factory-app.git
+cd offline-subtitle-factory-app
+git switch codex/windows-0.30-preview
+npm ci
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\prepare-windows-runtime.ps1
+npm run check
+npm run electron:build:dir
+npm run electron:build
 ```
 
-開啟：
+Windows runtime 準備腳本會下載固定版本的 FFmpeg 8.1.2、Whisper.cpp 1.9.1 與 ggml-tiny 多語模型並比對 SHA-256，不會安裝 Python，也不會修改系統 PATH。完整驗收項目請參閱 `WINDOWS-11-TEST-CHECKLIST.md`。
 
-```text
-http://127.0.0.1:8790
+### macOS Apple Silicon
+
+```bash
+npm ci
+npm run check
+npm run electron:build:mac:dir
+npm run electron:build:mac
 ```
 
-## 目前功能
+`electron:build` 會先建立 runtime manifest、逐一比對 SHA-256，再產生 Windows x64 Setup 與 Portable 安裝檔。
 
-- 上傳影片、規則檔與既有 SRT。
-- 填寫字幕生成需求說明。
-- 檢查本機 Node、FFmpeg、Python、Whisper 狀態。
-- 建立獨立 job folder，保存輸入、工作檔、報告與校閱設定。
-- 若提供既有 SRT，會直接產生 `draft.srt` 與 `rule-cleaned.srt`。
-- 若本機有 `whisper` CLI 且未提供 SRT，會嘗試使用 Whisper 產生 SRT。
-- 完成後可直接進入 `/review/{jobId}` 校閱頁，邊看影片邊修改 SRT。
-- 校閱後字幕會儲存到 `jobs/{jobId}/review-output/reviewed.srt`。
+## 第三方元件
 
-## 任務資料夾
-
-```text
-jobs/{jobId}/
-  input/
-  working/
-    draft.srt
-    rule-cleaned.srt
-    correction-report.md
-  review-output/
-    subtitle-style-settings.json
-  output/
-  logs/
-  job-config.json
-  job-status.json
-```
-
-## 需要的本機工具
-
-工具會集中安裝到 `tools/`。第一次安裝腳本會下載或建立：
-
-- `tools/node/node.exe`
-- `tools/ffmpeg/bin/ffmpeg.exe`
-- `tools/python-venv/Scripts/python.exe`
-- `tools/python-venv/Scripts/whisper.exe`
-- `tools/whisper-models/`
-
-### 常見問題
-
-**Q: 安裝完軟體後開啟，為什麼無法使用轉錄功能？**
-
-A: 第一次開啟時會自動偵測本機環境。如果缺少 Python 或 Whisper，會顯示警告畫面並引導您執行 `setup-local-tools.bat`。請按照提示操作即可。
-
-**Q: 安裝腳本中途失敗了怎麼辦？**
-
-A: 腳本已支援中斷後重新執行。已安裝的工具會被跳過，只需再次執行 `setup-local-tools.bat` 即可繼續安裝剩餘工具。
-
-**Q: 我的電腦沒有安裝 Python 怎麼辦？**
-
-A: 請先執行 `winget install Python.Python.3.12` 安裝 Python，然後再執行 `setup-local-tools.bat`。腳本會自動建立虛擬環境並安裝 Whisper。
-
-Whisper 模型會快取在 `tools/whisper-models/`，避免下載到使用者家目錄或其他外部位置。
-
-## 下一步串接
-
-- 將 `rule-cleaned.srt` 自動帶入字幕校閱頁。
-- 將校閱頁輸出的修正字幕與 `subtitle-style-settings.json` 回寫到同一個 job folder。
-- 串接 FFmpeg 燒錄字幕與預覽影片輸出。
-- 將目前的規則套用占位流程替換為正式 rule runner。
+授權與來源請參閱 `THIRD-PARTY-NOTICES.md`，FFmpeg 發行包的授權內容保存在 `tools/ffmpeg/LICENSE`。

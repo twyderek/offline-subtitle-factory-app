@@ -1,0 +1,64 @@
+name: Build Windows 0.30 Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/windows-0.30-preview
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    name: Windows x64 test and package
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Prepare verified offline runtime
+        shell: pwsh
+        run: ./scripts/prepare-windows-runtime.ps1
+
+      - name: Run source and real FFmpeg regression tests
+        run: npm run check
+
+      - name: Build NSIS Setup and Portable packages
+        run: npm run electron:build
+
+      - name: Verify package archives and write SHA-256
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem ../dist -Filter '*.exe' -File
+          if ($artifacts.Count -lt 2) { throw 'Expected Setup and Portable EXE files.' }
+          foreach ($artifact in $artifacts) {
+            & 7z t $artifact.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Archive validation failed: $($artifact.Name)" }
+          }
+          $artifacts | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content ../dist/SHA256SUMS-windows-x64.txt -Encoding utf8
+
+      - name: Upload Windows preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-subtitle-factory-0.30.0-windows-x64
+          path: |
+            ../dist/*.exe
+            ../dist/*.blockmap
+            ../dist/latest.yml
+            ../dist/SHA256SUMS-windows-x64.txt
+          if-no-files-found: error
+          retention-days: 14

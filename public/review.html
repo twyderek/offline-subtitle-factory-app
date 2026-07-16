@@ -2,143 +2,137 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: http://127.0.0.1:* http://localhost:*;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: http://127.0.0.1:* http://localhost:*;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>字幕校稿與燒錄預覽｜離線字幕工廠</title>
+  <title>字幕校對｜離線字幕工廠</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="review-pro-body">
   <div class="review-pro-app">
-    <header class="review-pro-topbar">
-      <div class="review-pro-title">
-        <strong>字幕校稿與燒錄預覽</strong>
-        <span>第一階段校稿，第二階段設定燒錄樣式</span>
+    <aside class="review-sidebar">
+      <div class="review-brand">
+        <img src="/assets/nycu-emblem-blue.png" alt="離線字幕工廠標誌">
+        <strong>離線字幕工廠</strong>
       </div>
-      <label class="review-file-button" for="reviewVideoFile">載入影片</label>
-      <input id="reviewVideoFile" type="file" accept="video/*">
-      <label class="review-file-button" for="reviewSrtFile">載入 SRT</label>
-      <input id="reviewSrtFile" type="file" accept=".srt,text/plain">
-      <button id="loadProjectPreset" class="review-button primary">載入專案預設</button>
-      <button id="saveReviewPackage" class="review-button success">儲存校稿包</button>
-      <button id="burnExport" class="review-button primary">燒錄輸出</button>
-      <button id="backToHome" class="review-button">回任務頁</button>
-      <div id="reviewStatus" class="review-status">準備載入任務</div>
-    </header>
 
-    <main class="review-workspace">
-      <section class="review-viewer">
-        <div class="review-video-shell">
-          <video id="reviewVideo" controls preload="metadata"></video>
-          <div id="burnOverlay" class="review-burn-overlay">
-            <div id="burnCaption" class="review-burn-caption"></div>
+      <nav class="review-nav" aria-label="主要功能">
+        <button id="loadProjectPreset" type="button"><span>↥</span>匯入</button>
+        <label for="reviewVideoFile"><span>▥</span>載入影片</label>
+        <input id="reviewVideoFile" type="file" accept="video/*">
+        <button id="openTrim" type="button"><span>✂</span>修剪</button>
+        <button id="stageProofread" class="active" type="button"><span>✎</span>校對</button>
+        <button id="stageBurn" type="button"><span>⬒</span>樣式與輸出</button>
+      </nav>
+
+      <div class="review-nav review-subnav">
+        <button id="backToHome" type="button"><span>□</span>專案</button>
+        <button type="button" disabled><span>◇</span>模型管理</button>
+        <button type="button" disabled><span>⚙</span>設定</button>
+      </div>
+
+      <div class="review-engine-card">
+        <div><span class="engine-dot"></span>內建轉錄引擎</div>
+        <strong>Whisper.cpp</strong>
+        <small>Apple Metal 加速・離線處理</small>
+      </div>
+    </aside>
+
+    <main class="review-main">
+      <header class="review-pro-topbar">
+        <div class="review-pro-title">
+          <strong>字幕校對工作區</strong>
+          <span id="reviewStatus" class="review-status">準備載入任務</span>
+        </div>
+        <div class="review-top-actions">
+          <label class="review-file-button" for="reviewSrtFile">載入 SRT</label>
+          <input id="reviewSrtFile" type="file" accept=".srt,text/plain">
+          <button id="applyRules" class="review-button">批次工具</button>
+          <button id="saveReviewPackage" class="review-button">儲存</button>
+          <button id="burnExport" class="review-button primary">匯出</button>
+        </div>
+      </header>
+
+      <div class="review-workspace">
+        <section class="review-viewer">
+          <div class="review-video-shell">
+            <video id="reviewVideo" controls preload="metadata"></video>
+            <div id="burnOverlay" class="review-burn-overlay">
+              <div id="burnCaption" class="review-burn-caption"></div>
+            </div>
           </div>
-        </div>
 
-        <div class="review-player-controls">
-          <button id="back5" class="review-button">-5 秒</button>
-          <button id="playPause" class="review-button">播放/暫停</button>
-          <button id="forward5" class="review-button">+5 秒</button>
-          <button id="loopCue" class="review-button">循環目前字幕</button>
-        </div>
+          <div class="review-player-strip">
+            <button id="back5" class="review-button" type="button">◀ −5 秒</button>
+            <button id="playPause" class="review-play-button" type="button" aria-label="播放或暫停">▶</button>
+            <button id="forward5" class="review-button" type="button">5 秒 ▶</button>
+            <button id="loopCue" class="review-button" type="button">循環目前字幕</button>
+            <strong id="clock">00:00</strong>
+          </div>
 
-        <div class="review-stage-tabs">
-          <button id="stageProofread" class="review-button active">階段 1：字幕校稿</button>
-          <button id="stageBurn" class="review-button">階段 2：燒錄預覽</button>
-          <button id="downloadSrt" class="review-button">下載 SRT</button>
-          <button id="applyRules" class="review-button">套用清理規則</button>
-        </div>
+          <div id="reviewTimeline" class="review-timeline" aria-label="影片音訊波形；點擊可跳轉播放位置">
+            <div id="timelineRuler" class="timeline-ruler"><span>00:00</span><span>00:10</span><span>00:20</span><span>00:30</span><span>00:40</span></div>
+            <canvas id="reviewWaveform" class="review-waveform"></canvas>
+            <div id="waveformStatus" class="review-waveform-status">正在讀取影片音軌…</div>
+            <div id="timelinePlayhead" class="timeline-playhead"></div>
+          </div>
 
-        <div class="review-current-card">
-          <header>
-            <span id="currentMeta">尚未選取字幕</span>
-            <span id="currentRuleState">等待載入</span>
-          </header>
-          <div id="currentText" class="review-current-text">請載入影片與字幕</div>
-        </div>
-      </section>
+          <div class="review-current-card">
+            <header>
+              <span id="currentMeta">尚未選取字幕</span>
+              <span id="currentRuleState">等待載入</span>
+            </header>
+            <div id="currentText" class="review-current-text">請載入影片與字幕</div>
+          </div>
 
-      <section class="review-editor">
-        <div class="review-metrics">
-          <div class="review-metric"><span>字幕數</span><strong id="cueCount">0</strong></div>
-          <div class="review-metric"><span>已修改</span><strong id="changedCount">0</strong></div>
-          <div class="review-metric"><span>待檢查</span><strong id="warningCount">0</strong></div>
-          <div class="review-metric"><span>目前時間</span><strong id="clock">00:00</strong></div>
-        </div>
+          <div class="review-bottom-controls">
+            <button id="downloadSrt" class="review-button" type="button">下載 SRT</button>
+            <button id="saveSrt" class="review-button" type="button">另存 SRT</button>
+            <span>空白鍵播放・⌥←/→ 快退快進・⌘↑/↓ 切換字幕</span>
+          </div>
+        </section>
 
-        <div class="review-stage">
-          <section id="proofreadPanel" class="review-stage-panel active">
-            <div class="review-tool-row">
-              <input id="cueSearch" class="review-search" type="search" placeholder="搜尋字幕文字">
-              <label class="time-adjust-label">每句秒數 <input id="timeAdjustSeconds" type="number" min="0.1" max="30" step="0.1" value="0.5"></label>
-              <button id="shortenAllCues" class="review-button">全片每句 -</button>
-              <button id="extendAllCues" class="review-button">全片每句 +</button>
-              <button id="saveSrt" class="review-button">另存 SRT</button>
+        <section class="review-editor">
+          <div class="review-editor-toolbar">
+            <input id="cueSearch" class="review-search" type="search" placeholder="搜尋字幕">
+            <div class="review-metrics">
+              <div class="review-metric"><span>字幕</span><strong id="cueCount">0</strong></div>
+              <div class="review-metric"><span>已修改</span><strong id="changedCount">0</strong></div>
+              <div class="review-metric warn"><span>待檢查</span><strong id="warningCount">0</strong></div>
             </div>
-            <div class="review-cue-list" id="cueList"></div>
-          </section>
+          </div>
 
-          <section id="burnPanel" class="review-stage-panel settings">
-            <div class="review-panel-head">
-              <span>燒錄字幕樣式設定</span>
-              <span>設定會儲存到任務資料夾，供 FFmpeg 燒錄字幕使用</span>
-            </div>
-            <div class="review-settings-grid">
-              <div class="review-field">
-                <label for="fontFamily">字型</label>
-                <select id="fontFamily">
-                  <option>Microsoft JhengHei</option>
-                  <option>Noto Sans TC</option>
-                  <option>Arial</option>
-                  <option>DFKai-SB</option>
-                  <option>PingFang TC</option>
-                </select>
+          <div class="review-stage">
+            <section id="proofreadPanel" class="review-stage-panel active">
+              <div class="review-tool-row">
+                <label class="time-adjust-label">每句秒數 <input id="timeAdjustSeconds" type="number" min="0.1" max="30" step="0.1" value="0.5"></label>
+                <button id="shortenAllCues" class="review-button" type="button">全片縮短</button>
+                <button id="extendAllCues" class="review-button" type="button">全片延長</button>
+                <button id="followCue" class="review-button primary" type="button">自動跟隨：開</button>
               </div>
-              <div class="review-field">
-                <label for="fontSize">字體大小</label>
-                <input id="fontSize" type="number" min="8" max="96" value="24">
+              <div class="review-cue-list" id="cueList"></div>
+            </section>
+
+            <section id="burnPanel" class="review-stage-panel settings">
+              <div class="review-panel-head">
+                <strong>字幕樣式與輸出</strong>
+                <span>即時預覽並儲存為專案設定</span>
               </div>
-              <div class="review-field">
-                <label for="fontColor">文字顏色</label>
-                <input id="fontColor" type="color" value="#ffffff">
+              <div class="review-settings-grid">
+                <div class="review-field"><label for="fontFamily">字型</label><select id="fontFamily"><option>PingFang TC</option><option>Microsoft JhengHei</option><option>Noto Sans TC</option><option>Arial</option></select></div>
+                <div class="review-field"><label for="fontSize">字體大小</label><input id="fontSize" type="number" min="8" max="96" value="24"></div>
+                <div class="review-field"><label for="fontColor">文字顏色</label><input id="fontColor" type="color" value="#ffffff"></div>
+                <div class="review-field"><label for="outlineColor">外框顏色</label><input id="outlineColor" type="color" value="#000000"></div>
+                <div class="review-field"><label for="outlineWidth">外框粗細</label><input id="outlineWidth" type="number" min="0" max="8" step="0.5" value="2"></div>
+                <div class="review-field"><label for="subtitlePosition">字幕位置</label><select id="subtitlePosition"><option value="bottom">下方</option><option value="middle">中間</option><option value="top">上方</option></select></div>
+                <div class="review-field"><label for="marginV">垂直邊距</label><input id="marginV" type="number" min="0" max="300" value="42"></div>
+                <div class="review-field"><label for="bold">粗體</label><select id="bold"><option value="true">是</option><option value="false">否</option></select></div>
+                <div class="review-field full"><label>FFmpeg ASS Style</label><pre id="commandBox" class="review-command-box"></pre></div>
+                <div class="review-field full"><p class="review-hint">儲存校稿包後，可由右上角「匯出」產生硬字幕或軟字幕影片。</p></div>
               </div>
-              <div class="review-field">
-                <label for="outlineColor">外框顏色</label>
-                <input id="outlineColor" type="color" value="#000000">
-              </div>
-              <div class="review-field">
-                <label for="outlineWidth">外框粗細</label>
-                <input id="outlineWidth" type="number" min="0" max="8" step="0.5" value="2">
-              </div>
-              <div class="review-field">
-                <label for="subtitlePosition">字幕位置</label>
-                <select id="subtitlePosition">
-                  <option value="bottom">下方</option>
-                  <option value="middle">中間</option>
-                  <option value="top">上方</option>
-                </select>
-              </div>
-              <div class="review-field">
-                <label for="marginV">垂直邊距</label>
-                <input id="marginV" type="number" min="0" max="300" value="42">
-              </div>
-              <div class="review-field">
-                <label for="bold">粗體</label>
-                <select id="bold">
-                  <option value="true">是</option>
-                  <option value="false">否</option>
-                </select>
-              </div>
-              <div class="review-field full">
-                <label>FFmpeg ASS Style</label>
-                <pre id="commandBox" class="review-command-box"></pre>
-              </div>
-              <div class="review-field full">
-                <p class="review-hint">完成校稿後，請按「儲存校稿包」。系統會輸出修正後 SRT、燒錄設定 JSON、FFmpeg 樣式字串與 manifest。</p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
+            </section>
+          </div>
+        </section>
+      </div>
     </main>
   </div>
 

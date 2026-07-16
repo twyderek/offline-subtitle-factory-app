@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob: http://127.0.0.1:* http://localhost:*;">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>影片修剪｜離線字幕工廠 0.30</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="trim-body">
+  <div class="trim-app">
+    <aside class="review-sidebar trim-sidebar">
+      <div class="review-brand">
+        <img src="/assets/nycu-emblem-blue.png" alt="離線字幕工廠標誌">
+        <strong>離線字幕工廠</strong>
+      </div>
+      <nav class="review-nav" aria-label="專案功能">
+        <button id="trimImport" type="button"><span>↥</span>匯入</button>
+        <button id="trimLoadVideo" type="button"><span>▥</span>載入影片</button>
+        <button class="active" type="button"><span>✂</span>修剪</button>
+        <button id="trimOpenReview" type="button"><span>✎</span>校對</button>
+        <button id="trimOpenExport" type="button"><span>⬒</span>樣式與輸出</button>
+      </nav>
+      <div class="review-nav review-subnav">
+        <button id="trimBackHome" type="button"><span>□</span>專案</button>
+        <button type="button" disabled><span>◇</span>模型管理</button>
+        <button type="button" disabled><span>⚙</span>設定</button>
+      </div>
+      <div class="review-engine-card">
+        <div><span class="engine-dot"></span>內建轉錄引擎</div>
+        <strong>Whisper.cpp</strong>
+        <small>Apple Metal 加速・離線處理</small>
+      </div>
+    </aside>
+
+    <main class="trim-main">
+      <header class="trim-topbar">
+        <div>
+          <h1>影片修剪工作區</h1>
+          <p><span id="trimProjectName">載入專案中…</span><b id="trimSaveState">非破壞式編輯</b></p>
+        </div>
+        <div class="trim-top-actions">
+          <button id="trimRestore" class="trim-button" type="button">還原原始影片</button>
+          <button id="trimApplyTop" class="trim-button primary" type="button">套用修剪</button>
+        </div>
+      </header>
+
+      <div class="trim-workspace">
+        <section class="trim-editor">
+          <div class="trim-video-shell">
+            <video id="trimVideo" controls preload="metadata"></video>
+          </div>
+          <div class="trim-player-controls">
+            <button id="trimBack5" type="button">◀ −5 秒</button>
+            <button id="trimPlay" class="trim-play" type="button" aria-label="播放或暫停">▶</button>
+            <button id="trimForward5" type="button">5 秒 ▶</button>
+            <button id="trimLoop" type="button">↻ 循環預覽</button>
+            <strong id="trimClock">00:00:00.000</strong>
+          </div>
+
+          <section class="trim-timeline-card">
+            <div id="trimRuler" class="trim-ruler"></div>
+            <div id="trimTimeline" class="trim-timeline" aria-label="影片修剪時間軸">
+              <canvas id="trimWaveform"></canvas>
+              <div id="trimDiscardLeft" class="trim-discard left"></div>
+              <div id="trimSelection" class="trim-selection"></div>
+              <div id="trimDiscardRight" class="trim-discard right"></div>
+              <div id="trimPlayhead" class="trim-playhead"></div>
+              <button id="trimInHandle" class="trim-handle in" type="button" aria-label="拖曳修剪起點"><i></i><span id="trimInLabel">起點 00:00:00.000</span></button>
+              <button id="trimOutHandle" class="trim-handle out" type="button" aria-label="拖曳修剪終點"><i></i><span id="trimOutLabel">終點 00:00:00.000</span></button>
+              <div id="trimWaveformStatus" class="trim-waveform-status">正在讀取原始影片聲波…</div>
+            </div>
+          </section>
+
+          <div class="trim-summary">
+            <article><span>原始長度</span><strong id="trimOriginalDuration">00:00:00.000</strong></article>
+            <article><span>保留長度</span><strong id="trimKeepDuration">00:00:00.000</strong></article>
+            <article><span>移除長度</span><strong id="trimRemoveDuration">00:00:00.000</strong></article>
+          </div>
+        </section>
+
+        <aside class="trim-settings-panel">
+          <h2>修剪設定</h2>
+          <label class="trim-time-field"><span>開始時間</span><input id="trimStartInput" type="text" inputmode="decimal" value="00:00:00.000"></label>
+          <label class="trim-time-field"><span>結束時間</span><input id="trimEndInput" type="text" inputmode="decimal" value="00:00:00.000"></label>
+          <div class="trim-set-buttons">
+            <button id="trimSetIn" type="button"><b>┃◀</b> 設為起點</button>
+            <button id="trimSetOut" type="button"><b>▶┃</b> 設為終點</button>
+          </div>
+
+          <fieldset class="trim-mode-field">
+            <legend>處理模式</legend>
+            <div>
+              <label><input type="radio" name="trimStrategy" value="precise" checked><span>精準修剪</span></label>
+              <label><input type="radio" name="trimStrategy" value="fast"><span>快速修剪</span></label>
+            </div>
+            <p id="trimModeHint">精準模式可準確保留所選畫面，適合字幕製作。</p>
+          </fieldset>
+
+          <div class="trim-safety-note">🛡 <span>原始影片不會被覆蓋，可隨時還原。</span></div>
+
+          <section id="trimProgressPanel" class="trim-progress-panel" hidden>
+            <div><strong id="trimProgressText">正在準備修剪</strong><b id="trimProgressPercent">0%</b></div>
+            <div class="trim-progress-track"><i id="trimProgressBar"></i></div>
+            <button id="trimCancelProcess" type="button">取消處理</button>
+          </section>
+
+          <p id="trimStatusMessage" class="trim-status-message" role="status">載入影片後即可設定保留範圍。</p>
+          <button id="trimStartJob" class="trim-start-job" type="button" hidden>開始字幕生成 →</button>
+          <div class="trim-panel-actions">
+            <button id="trimReset" type="button">重設</button>
+            <button id="trimApply" class="primary" type="button">套用修剪</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <script src="/trim.js"></script>
+</body>
+</html>

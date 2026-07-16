@@ -4,6 +4,10 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import Busboy from 'busboy';
+import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
+import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(appDir, 'public');
@@ -18,6 +22,7 @@ const settingsDir = process.env.OFFLINE_SUBTITLE_SETTINGS_DIR
   : path.join(appDir, 'config');
 const settingsPath = path.join(settingsDir, 'settings.json');
 const port = Number(process.env.PORT || 8790);
+const apiToken = process.env.OFFLINE_SUBTITLE_API_TOKEN || '';
 
 const toolsInfo = resolveToolsInfo();
 const toolsDir = toolsInfo.toolsDir;
@@ -34,6 +39,8 @@ const contentTypes = {
   '.ass': 'text/plain; charset=utf-8',
   '.vtt': 'text/vtt; charset=utf-8',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.mp4': 'video/mp4',
   '.mkv': 'video/x-matroska',
   '.m4v': 'video/x-m4v',
@@ -45,6 +52,22 @@ fs.mkdirSync(toolPaths.whisperModels, { recursive: true });
 
 const runningJobs = new Map();
 const runningBurns = new Map();
+const runningWaveforms = new Map();
+const runningThumbnails = new Map();
+const runningTrims = new Map();
+const jobQueue = [];
+const configuredMaxConcurrentJobs = Number(process.env.OFFLINE_SUBTITLE_MAX_JOBS || 1);
+const maxConcurrentJobs = Number.isFinite(configuredMaxConcurrentJobs)
+  ? Math.max(1, Math.floor(configuredMaxConcurrentJobs))
+  : 1;
+let activeJobCount = 0;
+let jobsListCache = null;
+let basicToolsCache = null;
+let basicToolsPromise = null;
+let gpuCache = null;
+let gpuPromise = null;
+const basicToolsCacheTtlMs = 60000;
+const gpuCacheTtlMs = 5 * 60000;
 
 const defaultSettings = {
   appLanguage: 'zh-TW',
@@ -99,6 +122,85 @@ async function readJsonBody(req) {
   return JSON.parse((await readRequest(req)).toString('utf8') || '{}');
 }
 
+function streamMultipart(req, tempDir) {
+  return new Promise((resolve, reject) => {
+    fs.mkdirSync(tempDir, { recursive: true });
+    const fields = {};
+    const files = {};
+    const writes = [];
+    const tempPaths = [];
+    let settled = false;
+    const cleanup = () => tempPaths.forEach((filePath) => {
+      try { fs.unlinkSync(filePath); } catch {}
+    });
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    let parser;
+    try {
+      parser = Busboy({
+        headers: req.headers,
+        limits: { files: 4, fields: 50, fieldSize: 1024 * 1024, fileSize: 2 * 1024 * 1024 * 1024 },
+      });
+    } catch (error) {
+      fail(error);
+      return;
+    }
+
+    parser.on('field', (name, value) => {
+      fields[name] = value.trim();
+    });
+    parser.on('file', (name, file, info) => {
+      const submittedName = String(info.filename || '').trim();
+      if (!submittedName) {
+        file.resume();
+        return;
+      }
+      const filename = path.basename(submittedName);
+      const tempPath = path.join(tempDir, `${crypto.randomUUID()}-${filename}`);
+      const output = fs.createWriteStream(tempPath, { flags: 'wx' });
+      tempPaths.push(tempPath);
+      let size = 0;
+      file.on('data', (chunk) => { size += chunk.length; });
+      file.on('limit', () => fail(new Error(`檔案過大：${filename}（上限 2GB）`)));
+      file.on('error', fail);
+      output.on('error', fail);
+      const completed = new Promise((resolveWrite, rejectWrite) => {
+        output.on('finish', () => {
+          if (size > 0) {
+            files[name] = { filename, path: tempPath, size, mimeType: info.mimeType };
+          } else {
+            try { fs.unlinkSync(tempPath); } catch {}
+          }
+          resolveWrite();
+        });
+        output.on('error', rejectWrite);
+      });
+      writes.push(completed);
+      file.pipe(output);
+    });
+    parser.on('filesLimit', () => fail(new Error('上傳檔案數量超過限制')));
+    parser.on('fieldsLimit', () => fail(new Error('表單欄位數量超過限制')));
+    parser.on('error', fail);
+    parser.on('close', async () => {
+      if (settled) return;
+      try {
+        await Promise.all(writes);
+        settled = true;
+        resolve({ fields, files, cleanup });
+      } catch (error) {
+        fail(error);
+      }
+    });
+    req.on('aborted', () => fail(new Error('上傳已中斷')));
+    req.pipe(parser);
+  });
+}
+
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
@@ -127,6 +229,9 @@ function hasAnyTool(candidate) {
     path.join(candidate, 'python-embed', 'python.exe'),
     path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg'),
+    path.join(candidate, 'whisper-cpp', 'whisper-cli.exe'),
+    path.join(candidate, 'whisper-cpp', 'whisper-cli'),
     path.join(candidate, 'node', 'node.exe'),
   ].some((filePath) => fs.existsSync(filePath));
 }
@@ -141,22 +246,27 @@ function buildToolsInfo(selectedToolsDir, candidates) {
     path.join(selectedToolsDir, 'python-embed', 'python.exe'),
     path.join(selectedToolsDir, 'python-venv', 'Scripts', 'python.exe'),
   ];
+  const whisperCppCandidates = [
+    path.join(selectedToolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
+  ];
   const paths = {
     node: firstExisting([
       path.join(selectedToolsDir, 'node', 'node.exe'),
       process.execPath,
     ]),
     ffmpeg: firstExisting([
-      path.join(selectedToolsDir, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+      path.join(selectedToolsDir, 'ffmpeg', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
       'ffmpeg',
     ]),
     ffprobe: firstExisting([
-      path.join(selectedToolsDir, 'ffmpeg', 'bin', 'ffprobe.exe'),
+      path.join(selectedToolsDir, 'ffmpeg', 'bin', process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'),
       'ffprobe',
     ]),
     python: firstExisting(pythonCandidates),
     whisper: 'python -m whisper',
+    whisperCpp: firstExisting(whisperCppCandidates),
     whisperModels: process.env.WHISPER_CACHE || path.join(selectedToolsDir, 'whisper-models'),
+    whisperCppModel: path.join(selectedToolsDir, 'whisper-models', 'ggml-tiny.bin'),
     manifest: path.join(selectedToolsDir, 'manifest.json'),
   };
   return {
@@ -204,6 +314,7 @@ function saveSettings(nextSettings) {
   fs.mkdirSync(settingsDir, { recursive: true });
   fs.mkdirSync(getJobsDir(), { recursive: true });
   writeJson(settingsPath, appSettings);
+  jobsListCache = null;
   return appSettings;
 }
 
@@ -252,9 +363,10 @@ function loadJob(jobId) {
 }
 
 function listJobs() {
+  if (jobsListCache) return jobsListCache;
   const jobsDir = getJobsDir();
   if (!fs.existsSync(jobsDir)) return [];
-  return fs.readdirSync(jobsDir, { withFileTypes: true })
+  jobsListCache = fs.readdirSync(jobsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
       const job = loadJob(entry.name);
@@ -278,6 +390,8 @@ function listJobs() {
           existingSrt: job.config.files?.existingSrt || null,
         },
         hasReviewed: fs.existsSync(path.join(reviewOutputDir, 'reviewed.srt')),
+        hasTrim: Boolean(readEditPlan(job.jobRoot)?.appliedAt && fs.existsSync(getEditPaths(job.jobRoot).trimmed)),
+        trimUrl: `/trim/${job.config.jobId || entry.name}`,
         hasBurnSettings: fs.existsSync(path.join(reviewOutputDir, 'burn-settings.json')),
         hasOutput: fs.existsSync(outputDir) && fs.readdirSync(outputDir).some((name) => /\.(mp4|mkv|srt|vtt)$/i.test(name)),
         outputFolder: relativeToApp(outputDir),
@@ -285,6 +399,7 @@ function listJobs() {
     })
     .filter(Boolean)
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return jobsListCache;
 }
 
 function saveStatus(job) {
@@ -296,6 +411,7 @@ function updateJob(job, patch, log) {
   const cleanLog = sanitizeLog(log);
   if (cleanLog) job.status.logs = [...(job.status.logs || []), cleanLog].slice(-120);
   saveStatus(job);
+  jobsListCache = null;
 }
 
 function sanitizeLog(value) {
@@ -312,6 +428,9 @@ function sanitizeLog(value) {
 }
 
 function createJob({ fields, files }) {
+  if (!files.video || Number(files.video.size || 0) <= 0) {
+    throw new Error('請選擇有效的影片或音訊檔案');
+  }
   const stamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
   const jobId = `${stamp}-${crypto.randomBytes(3).toString('hex')}`;
   const jobRoot = path.join(getJobsDir(), jobId);
@@ -322,16 +441,20 @@ function createJob({ fields, files }) {
   const logsDir = path.join(jobRoot, 'logs');
   for (const dir of [inputDir, workingDir, reviewOutputDir, outputDir, logsDir]) fs.mkdirSync(dir, { recursive: true });
 
-  if (files.video) fs.writeFileSync(path.join(inputDir, files.video.filename || 'media.mp4'), files.video.buffer);
-  if (files.ruleFile) fs.writeFileSync(path.join(inputDir, files.ruleFile.filename || 'rule.txt'), files.ruleFile.buffer);
-  if (files.existingSrt) fs.writeFileSync(path.join(inputDir, files.existingSrt.filename || 'source.srt'), files.existingSrt.buffer);
+  stageUploadedFile(files.video, path.join(inputDir, files.video?.filename || 'media.mp4'));
+  stageUploadedFile(files.ruleFile, path.join(inputDir, files.ruleFile?.filename || 'rule.txt'));
+  stageUploadedFile(files.existingSrt, path.join(inputDir, files.existingSrt?.filename || 'source.srt'));
 
   const config = {
     jobId,
     createdAt: new Date().toISOString(),
     language: fields.language || 'zh-TW',
-    asrEngine: fields.asrEngine || 'manual',
+    asrEngine: fields.asrEngine || 'whisper-cpp',
     modelName: fields.modelName || '',
+    performancePreset: ['fast', 'balanced', 'accurate'].includes(fields.performancePreset)
+      ? fields.performancePreset
+      : 'balanced',
+    cpuThreads: Math.min(64, Math.max(0, Number(fields.cpuThreads) || 0)),
     outputFormats: fields.outputFormats || 'srt,vtt',
     requirements: fields.requirements || '',
     files: {
@@ -353,7 +476,23 @@ function createJob({ fields, files }) {
   };
   writeJson(path.join(jobRoot, 'job-config.json'), config);
   writeJson(path.join(jobRoot, 'job-status.json'), status);
+  jobsListCache = null;
   return { jobId, folder: jobRoot, status };
+}
+
+function stageUploadedFile(file, destination) {
+  if (!file) return;
+  if (file.path) {
+    try {
+      fs.renameSync(file.path, destination);
+    } catch (error) {
+      if (error.code !== 'EXDEV') throw error;
+      fs.copyFileSync(file.path, destination);
+      fs.unlinkSync(file.path);
+    }
+    return;
+  }
+  if (file.buffer) fs.writeFileSync(destination, file.buffer);
 }
 
 function commandExists(command, args = ['--version']) {
@@ -373,6 +512,39 @@ function commandExists(command, args = ['--version']) {
   });
 }
 
+async function getBasicToolsStatus(force = false) {
+  const now = Date.now();
+  if (!force && basicToolsCache && now - basicToolsCache.checkedAt < basicToolsCacheTtlMs) {
+    return basicToolsCache;
+  }
+  if (!force && basicToolsPromise) return basicToolsPromise;
+  basicToolsPromise = Promise.all([
+    commandExists(toolPaths.node),
+    commandExists(toolPaths.ffmpeg, ['-version']),
+    commandExists(toolPaths.python),
+    commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
+    commandExists(toolPaths.whisperCpp, ['--help']),
+  ]).then(([node, ffmpeg, python, pythonWhisper, whisperCpp]) => {
+    const whisperCppModel = fs.existsSync(toolPaths.whisperCppModel);
+    const whisper = pythonWhisper || (whisperCpp && whisperCppModel);
+    const asrEngine = pythonWhisper ? 'openai-whisper' : whisperCpp && whisperCppModel ? 'whisper.cpp' : '';
+    basicToolsCache = { node, ffmpeg, python, pythonWhisper, whisperCpp, whisperCppModel, whisper, asrEngine, checkedAt: Date.now() };
+    return basicToolsCache;
+  }).finally(() => { basicToolsPromise = null; });
+  return basicToolsPromise;
+}
+
+async function getGpuStatus(force = false) {
+  const now = Date.now();
+  if (!force && gpuCache && now - gpuCache.checkedAt < gpuCacheTtlMs) return gpuCache.value;
+  if (!force && gpuPromise) return gpuPromise;
+  gpuPromise = detectGpu().then((value) => {
+    gpuCache = { value, checkedAt: Date.now() };
+    return value;
+  }).finally(() => { gpuPromise = null; });
+  return gpuPromise;
+}
+
 async function detectGpu() {
   const result = {
     available: false,
@@ -384,7 +556,19 @@ async function detectGpu() {
   };
 
   if (!fs.existsSync(toolPaths.python)) {
-    return { ...result, status: 'error', error: 'Python 未安裝，無法檢測 GPU' };
+    if (fs.existsSync(toolPaths.whisperCpp)) {
+      if (process.platform === 'darwin' && process.arch === 'arm64') {
+        return {
+          ...result,
+          available: true,
+          status: 'mps',
+          deviceName: 'Apple Silicon GPU (Metal)',
+          error: null,
+        };
+      }
+      return { ...result, status: 'cpu-only', error: null };
+    }
+    return { ...result, status: 'error', error: '找不到可用的本機轉錄引擎' };
   }
 
   const script = [
@@ -458,45 +642,37 @@ async function detectGpu() {
   }
 }
 
-async function healthCheck() {
-  const [hasNode, hasFfmpeg, hasPython, hasWhisper] = await Promise.all([
-    commandExists(toolPaths.node),
-    commandExists(toolPaths.ffmpeg, ['-version']),
-    commandExists(toolPaths.python),
-    commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
-  ]);
-  const gpuInfo = await detectGpu();
+async function healthCheck(force = false) {
+  const tools = await getBasicToolsStatus(force);
+  const {
+    node: hasNode,
+    ffmpeg: hasFfmpeg,
+    python: hasPython,
+    whisper: hasWhisper,
+    whisperCpp: hasWhisperCpp,
+    whisperCppModel: hasWhisperCppModel,
+    asrEngine,
+  } = tools;
+  const gpuInfo = await getGpuStatus(force);
 
   // Determine overall readiness
   const criticalMissing = [];
   if (!hasNode) criticalMissing.push('Node.js');
   if (!hasFfmpeg) criticalMissing.push('FFmpeg');
-  if (!hasPython) criticalMissing.push('Python');
-  if (!hasWhisper) criticalMissing.push('Whisper (openai-whisper)');
+  if (!hasWhisper) criticalMissing.push('Whisper 離線轉錄引擎或預設模型');
 
   const isReady = criticalMissing.length === 0;
-  const canProcessJobs = hasPython && hasWhisper && hasFfmpeg;
+  const canProcessJobs = hasWhisper && hasFfmpeg;
 
   // Build human-readable install guidance
   let installGuide = null;
   if (criticalMissing.length > 0) {
     const guideParts = [];
-    if (criticalMissing.includes('Node.js')) {
-      guideParts.push('• Node.js：執行 setup-local-tools.bat 自動安裝');
-    }
-    if (criticalMissing.includes('FFmpeg')) {
-      guideParts.push('• FFmpeg：執行 setup-local-tools.bat 自動安裝');
-    }
-    if (criticalMissing.includes('Python')) {
-      guideParts.push('• Python：先安裝 Python（winget install Python.Python.3.12），再執行 setup-local-tools.bat');
-    }
-    if (criticalMissing.includes('Whisper (openai-whisper)')) {
-      guideParts.push('• Whisper：安裝 Python 後執行 setup-local-tools.bat 自動安裝');
-    }
+    guideParts.push('• 正式安裝包已內建所有必要元件；若檔案缺失或損壞，請重新安裝 APP。');
     installGuide = {
       missingTools: criticalMissing,
       steps: guideParts,
-      setupScript: 'setup-local-tools.bat',
+      repairAction: 'reinstall-app',
     };
   }
 
@@ -524,6 +700,9 @@ async function healthCheck() {
       ffmpeg: hasFfmpeg,
       python: hasPython,
       whisper: hasWhisper,
+      whisperCpp: hasWhisperCpp,
+      whisperCppModel: hasWhisperCppModel,
+      asrEngine,
       gpu: gpuInfo,
     },
     paths: toolPaths,
@@ -532,46 +711,194 @@ async function healthCheck() {
   };
 }
 
-async function startJob(jobId) {
-  if (runningJobs.has(jobId)) return;
-  const job = loadJob(jobId);
-  if (!job) return;
-  const promise = runJob(job).finally(() => runningJobs.delete(jobId));
-  runningJobs.set(jobId, promise);
+function createJobCancelledError() {
+  const error = new Error('任務已取消');
+  error.code = 'JOB_CANCELLED';
+  return error;
 }
 
-async function runJob(job) {
+function throwIfJobCancelled(signal) {
+  if (signal?.aborted) throw createJobCancelledError();
+}
+
+function startJob(jobId) {
+  if (runningJobs.has(jobId)) return { started: false, alreadyRunning: true };
+  if (runningTrims.has(jobId)) return { started: false, error: '影片修剪進行中，完成後才能開始字幕轉錄' };
+  if (runningBurns.has(jobId)) return { started: false, error: '影片輸出進行中，無法開始字幕轉錄' };
+  const job = loadJob(jobId);
+  if (!job) return { started: false, error: '找不到任務' };
+  const controller = new AbortController();
+  const entry = { controller, promise: null, state: 'queued' };
+  runningJobs.set(jobId, entry);
+  jobQueue.push({ jobId, job, entry });
+  const queued = activeJobCount >= maxConcurrentJobs;
+  if (queued) {
+    updateJob(job, {
+      status: 'queued',
+      stage: 'queued',
+      progress: 0,
+      message: `任務排隊中（前方 ${jobQueue.length - 1} 個）`,
+    }, '已加入字幕處理佇列');
+  }
+  drainJobQueue();
+  return { started: true, alreadyRunning: false, queued, queuePosition: queued ? jobQueue.length : 0 };
+}
+
+function drainJobQueue() {
+  while (activeJobCount < maxConcurrentJobs && jobQueue.length) {
+    const queuedJob = jobQueue.shift();
+    const { jobId, job, entry } = queuedJob;
+    if (entry.controller.signal.aborted) {
+      runningJobs.delete(jobId);
+      continue;
+    }
+    activeJobCount += 1;
+    entry.state = 'running';
+    entry.promise = runJob(job, entry.controller.signal)
+    .catch((error) => {
+      const cancelled = entry.controller.signal.aborted || error?.code === 'JOB_CANCELLED';
+      updateJob(job, cancelled ? {
+        status: 'cancelled',
+        stage: 'cancelled',
+        message: '任務已由使用者取消',
+      } : {
+        status: 'failed',
+        stage: 'failed',
+        message: `任務失敗：${error.message}`,
+      }, cancelled ? '已停止目前任務' : `任務執行失敗：${error.message}`);
+    })
+    .finally(() => {
+      activeJobCount = Math.max(0, activeJobCount - 1);
+      runningJobs.delete(jobId);
+      refreshQueuedJobStatuses();
+      drainJobQueue();
+    });
+  }
+}
+
+function refreshQueuedJobStatuses() {
+  jobQueue.forEach(({ job }, index) => {
+    updateJob(job, {
+      status: 'queued',
+      stage: 'queued',
+      progress: 0,
+      message: `任務排隊中（前方 ${index + activeJobCount} 個）`,
+    });
+  });
+}
+
+function cancelJob(jobId) {
+  const active = runningJobs.get(jobId);
+  if (!active) return false;
+  active.controller.abort();
+  const job = loadJob(jobId);
+  if (active.state === 'queued') {
+    const queueIndex = jobQueue.findIndex((item) => item.jobId === jobId);
+    if (queueIndex >= 0) jobQueue.splice(queueIndex, 1);
+    runningJobs.delete(jobId);
+    if (job) {
+      updateJob(job, {
+        status: 'cancelled',
+        stage: 'cancelled',
+        message: '已取消排隊中的任務',
+      }, '使用者取消排隊中的任務');
+    }
+    refreshQueuedJobStatuses();
+    return true;
+  }
+  if (job) {
+    updateJob(job, {
+      status: 'cancelled',
+      stage: 'cancelling',
+      message: '正在停止目前任務...',
+    }, '使用者要求取消任務');
+  }
+  return true;
+}
+
+function retryJob(jobId) {
+  if (runningJobs.has(jobId)) return { started: false, error: '任務仍在執行中' };
+  const job = loadJob(jobId);
+  if (!job) return { started: false, error: '找不到任務' };
+  if (!['failed', 'cancelled', 'needs-action'].includes(job.status.status)) {
+    return { started: false, error: `目前狀態「${job.status.status}」不可重新執行` };
+  }
+  const workingDir = path.join(job.jobRoot, 'working');
+  fs.mkdirSync(workingDir, { recursive: true });
+  const preservedTrimFiles = new Set([
+    'edit-plan.json',
+    'media-trimmed.mp4',
+    'trim-status.json',
+  ]);
+  for (const entry of fs.readdirSync(workingDir)) {
+    if (preservedTrimFiles.has(entry) || /^waveform(?:-original)?-\d+\.json$/i.test(entry)) continue;
+    fs.rmSync(path.join(workingDir, entry), { recursive: true, force: true });
+  }
+  updateJob(job, {
+    status: 'created',
+    stage: 'retry-pending',
+    progress: 0,
+    message: '任務準備重新執行',
+    metrics: {},
+    files: {},
+  }, '清理前次轉錄暫存並保留非破壞式修剪設定後重新排程');
+  return startJob(jobId);
+}
+
+async function runJob(job, signal) {
+  throwIfJobCancelled(signal);
   updateJob(job, { status: 'running', stage: 'preflight', progress: 8, message: '檢查本機環境與工具' }, '開始環境檢查');
-  const hasFfmpeg = await commandExists(toolPaths.ffmpeg, ['-version']);
-  const hasPython = await commandExists(toolPaths.python);
-  const hasWhisper = await commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']);
+  const tools = await getBasicToolsStatus();
+  const { ffmpeg: hasFfmpeg, python: hasPython, whisper: hasWhisper, asrEngine } = tools;
+  throwIfJobCancelled(signal);
   updateJob(job, {
     progress: 22,
     message: '環境檢查完成',
-    metrics: { hasFfmpeg, hasPython, hasWhisper },
-  }, `FFmpeg=${hasFfmpeg ? 'OK' : '未安裝'} Python=${hasPython ? 'OK' : '未安裝'} Whisper=${hasWhisper ? 'OK' : '未安裝'}`);
+    metrics: { hasFfmpeg, hasPython, hasWhisper, asrEngine },
+  }, `FFmpeg=${hasFfmpeg ? 'OK' : '缺少'} ASR=${asrEngine || '缺少'}`);
 
   const inputDir = path.join(job.jobRoot, 'input');
   const workingDir = path.join(job.jobRoot, 'working');
   const existingSrtName = job.config.files.existingSrt;
-  if (existingSrtName) {
+  const trimmedSrtPath = path.join(job.jobRoot, 'review-output', 'trimmed.srt');
+  const uploadedSrtPath = existingSrtName ? path.join(inputDir, existingSrtName) : '';
+  const appliedEditPlan = readEditPlan(job.jobRoot);
+  if (!fs.existsSync(trimmedSrtPath) && appliedEditPlan?.appliedAt && uploadedSrtPath && fs.existsSync(uploadedSrtPath)) {
+    const remapped = trimSrtToRange(fs.readFileSync(uploadedSrtPath, 'utf8'), appliedEditPlan.in, appliedEditPlan.out);
+    if (remapped.cues.length) {
+      fs.mkdirSync(path.dirname(trimmedSrtPath), { recursive: true });
+      fs.writeFileSync(trimmedSrtPath, remapped.subtitle, 'utf8');
+    }
+  }
+  const existingSrtPath = fs.existsSync(trimmedSrtPath) ? trimmedSrtPath : uploadedSrtPath;
+  const existingSrtCues = existingSrtPath && fs.existsSync(existingSrtPath)
+    ? parseSrtCues(fs.readFileSync(existingSrtPath, 'utf8'))
+    : [];
+  if (existingSrtCues.length > 0) {
     updateJob(job, { stage: 'import-srt', progress: 42, message: '偵測到既有 SRT，略過 ASR 轉錄' }, '匯入使用者提供的 SRT');
-    fs.copyFileSync(path.join(inputDir, existingSrtName), path.join(workingDir, 'draft.srt'));
+    fs.copyFileSync(existingSrtPath, path.join(workingDir, 'draft.srt'));
   } else if (hasWhisper && job.config.files.video) {
+    if (existingSrtName) {
+      updateJob(job, { progress: 25, message: '既有 SRT 無有效字幕，改用內建 ASR 轉錄' }, '忽略空白或無效的 SRT');
+    }
     updateJob(job, { stage: 'transcribing', progress: 35, message: '使用 Whisper 進行本機轉錄' }, '啟動 Whisper 轉錄');
-    await runWhisper(job, inputDir, workingDir);
+    await runWhisper(job, inputDir, workingDir, signal);
   } else {
     updateJob(job, {
       status: 'needs-action',
       stage: 'missing-asr',
       progress: 35,
-      message: '尚未偵測到可用 ASR。請先執行 setup-local-tools.bat，或上傳既有 SRT 後再執行。',
+      message: '尚未偵測到可用的內建 ASR。請重新安裝 APP，或上傳既有 SRT 後再執行。',
     }, '缺少 ASR 工具，流程暫停等待處理');
     return;
   }
 
+  throwIfJobCancelled(signal);
   updateJob(job, { stage: 'rule-cleanup', progress: 72, message: '套用字幕規則並產生校稿資料' }, '建立初稿與校稿報告');
   const draft = path.join(workingDir, 'draft.srt');
+  if (!fs.existsSync(draft) || parseSrtCues(fs.readFileSync(draft, 'utf8')).length === 0) {
+    throw new Error('轉錄未產生有效字幕段落，任務不會標記為完成；請確認影片含有可辨識的語音後重試。');
+  }
   const cleaned = path.join(workingDir, 'rule-cleaned.srt');
   const report = path.join(workingDir, 'correction-report.md');
   const settings = path.join(job.jobRoot, 'review-output', 'subtitle-style-settings.json');
@@ -618,24 +945,59 @@ async function runJob(job) {
   }, '任務完成，等待人工校閱');
 }
 
-function runWhisper(job, inputDir, workingDir) {
+async function runWhisper(job, inputDir, workingDir, signal) {
+  const videoFile = getEffectiveVideoPath(job);
+  if (!videoFile) throw new Error('找不到可轉錄的有效影片');
+  const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
+  throwIfJobCancelled(signal);
+  const tools = await getBasicToolsStatus();
+  if (tools.asrEngine === 'whisper.cpp') {
+    return runWhisperCpp(job, audioFile, workingDir, signal);
+  }
+  const gpu = await getGpuStatus();
+  const useCuda = gpu.available && gpu.status === 'cuda';
+  const preset = job.config.performancePreset || 'balanced';
+  const configuredThreads = Number(job.config.cpuThreads || 0);
+  const cpuThreads = configuredThreads > 0
+    ? configuredThreads
+    : Math.max(1, Math.min(16, os.availableParallelism?.() || os.cpus().length || 1));
+  updateJob(job, {
+    stage: 'transcribing',
+    progress: 35,
+    message: `使用 Whisper ${preset} 模式轉錄（${useCuda ? 'CUDA' : `CPU ${cpuThreads} threads`}）`,
+    metrics: {
+      ...(job.status.metrics || {}),
+      whisperDevice: useCuda ? 'cuda' : 'cpu',
+      performancePreset: preset,
+      cpuThreads: useCuda ? null : cpuThreads,
+    },
+  }, `Whisper 裝置=${useCuda ? 'CUDA' : 'CPU'} 模式=${preset}`);
+
   return new Promise((resolve, reject) => {
-    const videoFile = path.join(inputDir, job.config.files.video);
+    if (signal?.aborted) {
+      reject(createJobCancelledError());
+      return;
+    }
     const args = [
       '-m', 'whisper',
-      videoFile,
+      audioFile,
       '--language', job.config.language.startsWith('zh') ? 'Chinese' : job.config.language,
       '--output_format', 'srt',
       '--output_dir', workingDir,
       '--model_dir', toolPaths.whisperModels,
+      '--device', useCuda ? 'cuda' : 'cpu',
+      '--fp16', useCuda ? 'True' : 'False',
     ];
+    if (!useCuda) args.push('--threads', String(cpuThreads));
+    if (preset === 'fast') args.push('--beam_size', '1');
+    if (preset === 'accurate') args.push('--beam_size', '5');
     if (job.config.modelName) args.push('--model', job.config.modelName);
     let lastProgressLogAt = 0;
     const child = spawn(toolPaths.python, args, {
       shell: false,
       env: {
         ...process.env,
-        PATH: `${path.dirname(toolPaths.ffmpeg)};${path.dirname(toolPaths.python)};${process.env.PATH || ''}`,
+        PATH: [path.dirname(toolPaths.ffmpeg), path.dirname(toolPaths.python), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
         XDG_CACHE_HOME: toolsDir,
         WHISPER_CACHE: toolPaths.whisperModels,
         PYTHONIOENCODING: 'utf-8',
@@ -643,6 +1005,19 @@ function runWhisper(job, inputDir, workingDir) {
       },
       windowsHide: true,
     });
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', abortHandler);
+      try { fs.unlinkSync(audioFile); } catch {}
+      callback();
+    };
+    const abortHandler = () => {
+      child.kill('SIGTERM');
+      finish(() => reject(createJobCancelledError()));
+    };
+    signal?.addEventListener('abort', abortHandler, { once: true });
     child.stdout.on('data', (data) => {
       const log = normalizeWhisperLog(data);
       if (log) updateJob(job, { progress: 48, message: 'Whisper 本機轉錄中' }, log);
@@ -655,19 +1030,162 @@ function runWhisper(job, inputDir, workingDir) {
         updateJob(job, { progress: 52, message: 'Whisper 本機轉錄中' }, log);
       }
     });
-    child.on('error', reject);
+    child.on('error', (error) => finish(() => reject(error)));
     child.on('exit', (code) => {
+      if (signal?.aborted) {
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
       if (code !== 0) {
-        reject(new Error(`Whisper exit code ${code}`));
+        finish(() => reject(new Error(`Whisper exit code ${code}`)));
         return;
       }
       const srtFile = fs.readdirSync(workingDir).find((file) => file.toLowerCase().endsWith('.srt'));
       if (!srtFile) {
-        reject(new Error('Whisper did not produce an SRT file'));
+        finish(() => reject(new Error('Whisper did not produce an SRT file')));
         return;
       }
       fs.copyFileSync(path.join(workingDir, srtFile), path.join(workingDir, 'draft.srt'));
-      resolve();
+      finish(resolve);
+    });
+  });
+}
+
+function runWhisperCpp(job, audioFile, workingDir, signal) {
+  const configuredThreads = Number(job.config.cpuThreads || 0);
+  const cpuThreads = configuredThreads > 0
+    ? configuredThreads
+    : Math.max(1, Math.min(16, os.availableParallelism?.() || os.cpus().length || 1));
+  const outputBase = path.join(workingDir, 'whisper-cpp-output');
+  const outputSrt = `${outputBase}.srt`;
+  const language = job.config.language.startsWith('zh') ? 'zh' : job.config.language;
+  const useMetal = process.platform === 'darwin' && process.arch === 'arm64';
+
+  updateJob(job, {
+    stage: 'transcribing',
+    progress: 35,
+    message: `使用內建 Whisper.cpp 轉錄（${useMetal ? 'Apple Metal' : `CPU ${cpuThreads} threads`}）`,
+    metrics: {
+      ...(job.status.metrics || {}),
+      whisperDevice: useMetal ? 'metal' : 'cpu',
+      asrEngine: 'whisper.cpp',
+      modelName: 'tiny-multilingual',
+      cpuThreads,
+    },
+  }, job.config.modelName && !/tiny/i.test(job.config.modelName)
+    ? `安裝包目前內建 tiny 多語模型，已取代要求的 ${job.config.modelName}`
+    : '啟動安裝包內建的 Whisper.cpp 與 tiny 多語模型');
+
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
+      reject(createJobCancelledError());
+      return;
+    }
+
+    const args = [
+      '-m', toolPaths.whisperCppModel,
+      '-f', audioFile,
+      '-l', language,
+      '-osrt',
+      '-of', outputBase,
+      '-t', String(cpuThreads),
+    ];
+    const child = spawn(toolPaths.whisperCpp, args, {
+      shell: false,
+      cwd: path.dirname(toolPaths.whisperCpp),
+      env: {
+        ...process.env,
+        PATH: [path.dirname(toolPaths.whisperCpp), path.dirname(toolPaths.ffmpeg), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
+      },
+      windowsHide: true,
+    });
+    let settled = false;
+    let stderr = '';
+    let lastProgressLogAt = 0;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', abortHandler);
+      try { fs.unlinkSync(audioFile); } catch {}
+      callback();
+    };
+    const abortHandler = () => {
+      child.kill('SIGTERM');
+      finish(() => reject(createJobCancelledError()));
+    };
+    signal?.addEventListener('abort', abortHandler, { once: true });
+    child.stdout.on('data', (data) => {
+      const log = normalizeWhisperLog(data);
+      if (log && Date.now() - lastProgressLogAt > 1200) {
+        lastProgressLogAt = Date.now();
+        updateJob(job, { progress: 52, message: 'Whisper.cpp 本機轉錄中' }, log);
+      }
+    });
+    child.stderr.on('data', (data) => {
+      stderr = `${stderr}${data.toString('utf8')}`.slice(-4000);
+      const log = normalizeWhisperLog(data);
+      if (log && Date.now() - lastProgressLogAt > 1200) {
+        lastProgressLogAt = Date.now();
+        updateJob(job, { progress: 52, message: 'Whisper.cpp 本機轉錄中' }, log);
+      }
+    });
+    child.on('error', (error) => finish(() => reject(error)));
+    child.on('exit', (code) => {
+      if (signal?.aborted) {
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      if (code !== 0) {
+        finish(() => reject(new Error(`Whisper.cpp exit code ${code}: ${sanitizeLog(stderr).slice(-500)}`)));
+        return;
+      }
+      if (!fs.existsSync(outputSrt)) {
+        finish(() => reject(new Error('Whisper.cpp 未產生 SRT 字幕檔')));
+        return;
+      }
+      fs.copyFileSync(outputSrt, path.join(workingDir, 'draft.srt'));
+      finish(resolve);
+    });
+  });
+}
+
+function prepareWhisperAudio(job, videoFile, workingDir, signal) {
+  const audioFile = path.join(workingDir, 'whisper-input.wav');
+  updateJob(job, {
+    stage: 'audio-preprocessing',
+    progress: 30,
+    message: '正在準備 16kHz 單聲道音訊',
+  }, '使用 FFmpeg 建立 Whisper 最佳化音訊');
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createJobCancelledError());
+      return;
+    }
+    const child = spawn(toolPaths.ffmpeg, [
+      '-y', '-i', videoFile,
+      '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le',
+      audioFile,
+    ], { shell: false, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    let stderr = '';
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', abortHandler);
+      callback();
+    };
+    const abortHandler = () => {
+      child.kill('SIGTERM');
+      finish(() => reject(createJobCancelledError()));
+    };
+    signal?.addEventListener('abort', abortHandler, { once: true });
+    child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk.toString('utf8')}`.slice(-2000); });
+    child.on('error', (error) => finish(() => reject(error)));
+    child.on('close', (code) => {
+      if (signal?.aborted) finish(() => reject(createJobCancelledError()));
+      else if (code === 0 && fs.existsSync(audioFile)) finish(() => resolve(audioFile));
+      else finish(() => reject(new Error(`音訊前處理失敗（FFmpeg exit ${code}）：${sanitizeLog(stderr).slice(-300)}`)));
     });
   });
 }
@@ -1341,22 +1859,358 @@ function buildCorrectionReport(job, ruleResults) {
 }
 
 function getReviewSubtitlePath(job) {
+  const editedCandidates = [
+    path.join(job.jobRoot, 'review-output', 'reviewed.srt'),
+    path.join(job.jobRoot, 'review-output', 'trimmed.srt'),
+  ].filter((candidate) => fs.existsSync(candidate))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  const candidates = [
+    ...editedCandidates,
+    path.join(job.jobRoot, 'working', 'rule-cleaned.srt'),
+    path.join(job.jobRoot, 'working', 'draft.srt'),
+    job.config.files.existingSrt ? path.join(job.jobRoot, 'input', job.config.files.existingSrt) : null,
+  ];
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null;
+}
+
+function getBaseSubtitlePath(job) {
   const candidates = [
     path.join(job.jobRoot, 'review-output', 'reviewed.srt'),
     path.join(job.jobRoot, 'working', 'rule-cleaned.srt'),
     path.join(job.jobRoot, 'working', 'draft.srt'),
+    job.config.files.existingSrt ? path.join(job.jobRoot, 'input', job.config.files.existingSrt) : null,
   ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+  return candidates.find((candidate) => candidate && fs.existsSync(candidate)) || null;
 }
 
-function getVideoPath(job) {
+function getOriginalVideoPath(job) {
   if (!job.config.files.video) return null;
   const videoPath = path.join(job.jobRoot, 'input', job.config.files.video);
   return fs.existsSync(videoPath) ? videoPath : null;
 }
 
+function getEffectiveVideoPath(job) {
+  return resolveEffectiveMediaPath(job.jobRoot, getOriginalVideoPath(job));
+}
+
+function readTrimStatus(job) {
+  const statusPath = getEditPaths(job.jobRoot).trimStatus;
+  if (!fs.existsSync(statusPath)) return { status: 'idle', stage: 'trim-planned', progress: 0, message: '尚未套用修剪' };
+  try {
+    return readJson(statusPath);
+  } catch {
+    return { status: 'idle', stage: 'trim-planned', progress: 0, message: '修剪狀態需要重新建立' };
+  }
+}
+
+function updateTrimStatus(job, patch) {
+  const status = { ...readTrimStatus(job), ...patch, jobId: job.config.jobId, updatedAt: new Date().toISOString() };
+  const statusPath = getEditPaths(job.jobRoot).trimStatus;
+  fs.mkdirSync(path.dirname(statusPath), { recursive: true });
+  writeJson(statusPath, status);
+  return status;
+}
+
+function invalidateMediaCaches(job) {
+  const workingDir = path.join(job.jobRoot, 'working');
+  if (!fs.existsSync(workingDir)) return;
+  for (const name of fs.readdirSync(workingDir)) {
+    if (/^waveform(?:-original)?-\d+\.json$/i.test(name) || name === 'home-thumbnail.jpg') {
+      fs.rmSync(path.join(workingDir, name), { force: true });
+    }
+  }
+}
+
+async function saveEditPlan(job, value) {
+  const original = getOriginalVideoPath(job);
+  if (!original) throw new Error('找不到原始影片');
+  const sourceDuration = await probeDurationSeconds(original);
+  const plan = normalizeEditPlan(value, sourceDuration);
+  const planPath = getEditPaths(job.jobRoot).plan;
+  fs.mkdirSync(path.dirname(planPath), { recursive: true });
+  writeJson(planPath, plan);
+  updateTrimStatus(job, { status: 'idle', stage: 'trim-planned', progress: 0, message: '修剪區間已儲存' });
+  return plan;
+}
+
+function assertTrimAvailable(jobId) {
+  if (runningJobs.has(jobId)) throw Object.assign(new Error('字幕轉錄進行中，無法同時修剪影片'), { statusCode: 409 });
+  if (runningBurns.has(jobId)) throw Object.assign(new Error('影片輸出進行中，無法同時修剪影片'), { statusCode: 409 });
+  if (runningTrims.has(jobId)) throw Object.assign(new Error('影片修剪已在進行中'), { statusCode: 409 });
+}
+
+function startTrim(jobId) {
+  const job = loadJob(jobId);
+  if (!job) return { error: '找不到任務', statusCode: 404 };
+  try {
+    assertTrimAvailable(jobId);
+  } catch (error) {
+    return { error: error.message, statusCode: error.statusCode || 409 };
+  }
+  const plan = readEditPlan(job.jobRoot);
+  if (!plan) return { error: '請先設定修剪起點與終點', statusCode: 400 };
+  const controller = new AbortController();
+  const previousJobState = { status: job.status.status, stage: job.status.stage, progress: job.status.progress, message: job.status.message };
+  const promise = applyTrim(job, plan, controller.signal, previousJobState)
+    .catch((error) => {
+      const cancelled = controller.signal.aborted;
+      const paths = getEditPaths(job.jobRoot);
+      fs.rmSync(paths.partial, { force: true });
+      updateTrimStatus(job, {
+        status: cancelled ? 'cancelled' : 'failed',
+        stage: cancelled ? 'trim-cancelled' : 'trim-failed',
+        message: cancelled ? '影片修剪已取消' : `影片修剪失敗：${error.message}`,
+      });
+      updateJob(job, cancelled ? {
+        ...previousJobState,
+        message: '影片修剪已取消，原始影片保持不變',
+      } : {
+        status: 'failed',
+        stage: 'trim-failed',
+        message: `影片修剪失敗：${error.message}`,
+      }, cancelled ? '使用者取消影片修剪' : `影片修剪失敗：${error.message}`);
+    })
+    .finally(() => runningTrims.delete(jobId));
+  runningTrims.set(jobId, { controller, promise });
+  return { started: true };
+}
+
+function cancelTrim(jobId) {
+  const active = runningTrims.get(jobId);
+  if (!active) return false;
+  active.controller.abort();
+  return true;
+}
+
+async function applyTrim(job, rawPlan, signal, previousJobState) {
+  const original = getOriginalVideoPath(job);
+  if (!original) throw new Error('找不到原始影片');
+  const sourceDuration = await probeDurationSeconds(original);
+  const plan = normalizeEditPlan(rawPlan, sourceDuration);
+  const paths = getEditPaths(job.jobRoot);
+  fs.mkdirSync(path.dirname(paths.partial), { recursive: true });
+  fs.rmSync(paths.partial, { force: true });
+  const estimatedBytes = Math.ceil(fs.statSync(original).size * (plan.outputDuration / plan.sourceDuration)) + 1024 * 1024 * 1024;
+  if (typeof fs.statfsSync === 'function') {
+    const stats = fs.statfsSync(path.dirname(paths.partial));
+    const available = Number(stats.bavail) * Number(stats.bsize);
+    if (Number.isFinite(available) && available < estimatedBytes) throw new Error('磁碟空間不足，請至少保留預估輸出容量加 1 GB');
+  }
+  updateTrimStatus(job, { status: 'running', stage: 'trim-preparing', progress: 1, message: '正在準備非破壞式影片修剪', plan });
+  updateJob(job, { status: 'running', stage: 'trimming', progress: 1, message: '正在修剪影片' }, `修剪區間 ${plan.in}–${plan.out} 秒`);
+
+  const encoders = plan.strategy === 'fast'
+    ? ['copy']
+    : (process.platform === 'darwin' ? ['h264_videotoolbox', 'libx264'] : ['libx264']);
+  let lastError = null;
+  for (const encoder of encoders) {
+    fs.rmSync(paths.partial, { force: true });
+    try {
+      await runTrimProcess(job, original, paths.partial, plan, encoder, signal);
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      if (signal.aborted || encoder === encoders.at(-1)) throw error;
+      updateTrimStatus(job, { message: '硬體編碼不可用，改用相容編碼器重試' });
+    }
+  }
+  if (lastError) throw lastError;
+  const info = await probeMediaInfo(paths.partial);
+  if (!info.hasVideo || !Number.isFinite(info.duration) || Math.abs(info.duration - plan.outputDuration) > Math.max(0.75, plan.outputDuration * 0.03)) {
+    throw new Error(`修剪成品驗證失敗（預期 ${plan.outputDuration.toFixed(2)} 秒，實際 ${Number(info.duration || 0).toFixed(2)} 秒）`);
+  }
+  fs.rmSync(paths.trimmed, { force: true });
+  fs.renameSync(paths.partial, paths.trimmed);
+
+  const appliedPlan = { ...plan, appliedAt: new Date().toISOString(), effectiveFile: 'working/media-trimmed.mp4' };
+  writeJson(paths.plan, appliedPlan);
+  const baseSubtitle = getBaseSubtitlePath(job);
+  let trimmedSubtitle = null;
+  let subtitleResult = null;
+  if (baseSubtitle) {
+    subtitleResult = trimSrtToRange(fs.readFileSync(baseSubtitle, 'utf8'), plan.in, plan.out);
+    if (subtitleResult.cues.length) {
+      trimmedSubtitle = path.join(job.jobRoot, 'review-output', 'trimmed.srt');
+      fs.mkdirSync(path.dirname(trimmedSubtitle), { recursive: true });
+      fs.writeFileSync(trimmedSubtitle, subtitleResult.subtitle, 'utf8');
+      writeJson(path.join(job.jobRoot, 'review-output', 'trim-report.json'), {
+        sourceSubtitle: relativeToApp(baseSubtitle),
+        sourceCount: subtitleResult.sourceCount,
+        keptCount: subtitleResult.cues.length,
+        removedCount: subtitleResult.removedCount,
+        boundaryCount: subtitleResult.boundaryCount,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  invalidateMediaCaches(job);
+  const completedStatus = updateTrimStatus(job, {
+    status: 'completed',
+    stage: 'trim-completed',
+    progress: 100,
+    message: '影片修剪完成，可進入字幕校對',
+    plan: appliedPlan,
+    mediaInfo: info,
+    subtitle: subtitleResult ? {
+      keptCount: subtitleResult.cues.length,
+      removedCount: subtitleResult.removedCount,
+      boundaryCount: subtitleResult.boundaryCount,
+    } : null,
+  });
+  updateJob(job, {
+    status: previousJobState.status === 'created' ? 'created' : 'completed',
+    stage: previousJobState.status === 'created' ? 'trim-completed' : 'ready-review',
+    progress: previousJobState.status === 'created' ? 0 : 100,
+    message: previousJobState.status === 'created' ? '影片修剪完成，可開始字幕生成' : '影片修剪與字幕時間重算完成',
+    files: {
+      ...(job.status.files || {}),
+      effectiveVideo: paths.trimmed,
+      ...(trimmedSubtitle ? { trimmedSrt: trimmedSubtitle } : {}),
+    },
+  }, '影片修剪完成並切換有效影片');
+  return completedStatus;
+}
+
+function runTrimProcess(job, input, output, plan, encoder, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(createJobCancelledError());
+    const duration = String(plan.outputDuration);
+    const args = encoder === 'copy'
+      ? ['-y', '-ss', String(plan.in), '-i', input, '-t', duration, '-map', '0:v:0', '-map', '0:a:0?', '-c', 'copy', '-avoid_negative_ts', 'make_zero', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', output]
+      : ['-y', '-ss', String(plan.in), '-i', input, '-t', duration, '-map', '0:v:0', '-map', '0:a:0?', '-c:v', encoder, ...(encoder === 'h264_videotoolbox' ? ['-q:v', '65'] : ['-preset', 'veryfast', '-crf', '20']), '-c:a', 'aac', '-b:a', '192k', '-avoid_negative_ts', 'make_zero', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', output];
+    const child = spawn(toolPaths.ffmpeg, args, { shell: false, windowsHide: true });
+    let stderr = '';
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', abortHandler);
+      callback();
+    };
+    const abortHandler = () => {
+      child.kill('SIGTERM');
+      finish(() => reject(createJobCancelledError()));
+    };
+    signal.addEventListener('abort', abortHandler, { once: true });
+    child.stdout.on('data', (chunk) => {
+      const timeMs = parseFfmpegProgressMs(chunk.toString('utf8'));
+      if (timeMs < 0) return;
+      const progress = Math.max(2, Math.min(96, Math.round((timeMs / 1000000 / plan.outputDuration) * 94 + 2)));
+      updateTrimStatus(job, { status: 'running', stage: 'trimming', progress, message: encoder === 'copy' ? '正在快速修剪影片' : '正在精準修剪影片' });
+      updateJob(job, { status: 'running', stage: 'trimming', progress, message: '正在修剪影片' });
+    });
+    child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk.toString('utf8')}`.slice(-5000); });
+    child.on('error', (error) => finish(() => reject(error)));
+    child.on('close', (code) => {
+      if (signal.aborted) finish(() => reject(createJobCancelledError()));
+      else if (code === 0 && fs.existsSync(output)) finish(resolve);
+      else finish(() => reject(new Error(`FFmpeg 修剪失敗（${encoder}, exit ${code}）：${sanitizeLog(stderr).slice(-400)}`)));
+    });
+  });
+}
+
+function restoreOriginalMedia(job) {
+  if (runningTrims.has(job.config.jobId)) throw Object.assign(new Error('影片修剪進行中，請先取消'), { statusCode: 409 });
+  const paths = getEditPaths(job.jobRoot);
+  for (const filePath of [paths.trimmed, paths.partial, paths.plan, paths.trimStatus, path.join(job.jobRoot, 'review-output', 'trimmed.srt'), path.join(job.jobRoot, 'review-output', 'trim-report.json')]) {
+    fs.rmSync(filePath, { force: true });
+  }
+  invalidateMediaCaches(job);
+  updateJob(job, {
+    status: job.status.status === 'running' ? 'created' : job.status.status,
+    stage: job.status.status === 'completed' ? 'ready-review' : 'created',
+    message: '已還原原始影片',
+    files: Object.fromEntries(Object.entries(job.status.files || {}).filter(([key]) => !['effectiveVideo', 'trimmedSrt'].includes(key))),
+  }, '停用修剪並還原原始影片');
+  return { ok: true, message: '已還原原始影片' };
+}
+
+function getWaveform(job, requestedPoints = 640, source = 'effective') {
+  const points = Math.max(160, Math.min(1200, Math.floor(Number(requestedPoints) || 640)));
+  const useOriginal = source === 'original';
+  const videoPath = useOriginal ? getOriginalVideoPath(job) : getEffectiveVideoPath(job);
+  if (!videoPath) return Promise.reject(new Error('找不到任務影片'));
+  if (!toolPaths.ffmpeg) return Promise.reject(new Error('找不到內建 FFmpeg'));
+  const cachePath = path.join(job.jobRoot, 'working', `waveform${useOriginal ? '-original' : ''}-${points}.json`);
+  if (fs.existsSync(cachePath)) {
+    try {
+      const cached = readJson(cachePath);
+      if (Array.isArray(cached.peaks) && cached.peaks.length === points) return Promise.resolve(cached);
+    } catch {}
+  }
+  const key = `${job.config.jobId}:${source}:${points}`;
+  if (runningWaveforms.has(key)) return runningWaveforms.get(key);
+  const promise = new Promise((resolve, reject) => {
+    const chunks = [];
+    let stderr = '';
+    const sampleRate = 800;
+    const child = spawn(toolPaths.ffmpeg, [
+      '-v', 'error', '-i', videoPath, '-map', '0:a:0', '-vn', '-ac', '1', '-ar', String(sampleRate), '-f', 's16le', 'pipe:1',
+    ], { shell: false, windowsHide: true });
+    child.stdout.on('data', (chunk) => chunks.push(chunk));
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`無法解析影片音軌：${sanitizeLog(stderr).slice(-180) || `FFmpeg exit ${code}`}`));
+        return;
+      }
+      const pcm = Buffer.concat(chunks);
+      const sampleCount = Math.floor(pcm.length / 2);
+      if (!sampleCount) {
+        reject(new Error('影片沒有可用的音訊取樣'));
+        return;
+      }
+      const peaks = new Array(points).fill(0);
+      for (let bucket = 0; bucket < points; bucket += 1) {
+        const start = Math.floor((bucket * sampleCount) / points);
+        const end = Math.max(start + 1, Math.floor(((bucket + 1) * sampleCount) / points));
+        let peak = 0;
+        for (let index = start; index < end; index += 1) {
+          peak = Math.max(peak, Math.abs(pcm.readInt16LE(index * 2)) / 32768);
+        }
+        peaks[bucket] = peak;
+      }
+      const high = Math.max(...peaks, 0.01);
+      const normalized = peaks.map((value) => Number(Math.min(1, Math.pow(value / high, 0.68)).toFixed(4)));
+      const result = { peaks: normalized, duration: sampleCount / sampleRate, points, source: 'ffmpeg-pcm' };
+      fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+      writeJson(cachePath, result);
+      resolve(result);
+    });
+  }).finally(() => runningWaveforms.delete(key));
+  runningWaveforms.set(key, promise);
+  return promise;
+}
+
+function getProjectThumbnail(job) {
+  const videoPath = getEffectiveVideoPath(job);
+  if (!videoPath) return Promise.reject(new Error('找不到任務影片'));
+  const outputPath = path.join(job.jobRoot, 'working', 'home-thumbnail.jpg');
+  if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) return Promise.resolve(outputPath);
+  const key = job.config.jobId;
+  if (runningThumbnails.has(key)) return runningThumbnails.get(key);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const promise = new Promise((resolve, reject) => {
+    let stderr = '';
+    const child = spawn(toolPaths.ffmpeg, [
+      '-v', 'error', '-ss', '1', '-i', videoPath, '-frames:v', '1', '-vf', 'scale=320:-2', '-q:v', '4', '-y', outputPath,
+    ], { shell: false, windowsHide: true });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) resolve(outputPath);
+      else reject(new Error(`無法產生專案縮圖：${sanitizeLog(stderr).slice(-160) || `FFmpeg exit ${code}`}`));
+    });
+  }).finally(() => runningThumbnails.delete(key));
+  runningThumbnails.set(key, promise);
+  return promise;
+}
+
 function startBurn(jobId, options) {
   if (runningBurns.has(jobId)) return { started: false, alreadyRunning: true };
+  if (runningTrims.has(jobId)) return { started: false, error: '影片修剪進行中，完成後才能輸出' };
   const job = loadJob(jobId);
   if (!job) return { started: false, error: '找不到任務' };
   const controller = new AbortController();
@@ -1391,7 +2245,7 @@ function cancelBurn(jobId) {
 }
 
 async function burnSubtitle(job, options = {}, signal) {
-  const videoPath = getVideoPath(job);
+  const videoPath = getEffectiveVideoPath(job);
   if (!videoPath) throw new Error('找不到任務影片，無法輸出');
 
   const subtitlePath = getReviewSubtitlePath(job);
@@ -1580,6 +2434,35 @@ function probeDurationSeconds(videoPath) {
   });
 }
 
+function probeMediaInfo(videoPath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(toolPaths.ffprobe, [
+      '-v', 'error', '-show_entries', 'format=duration:stream=codec_type,width,height', '-of', 'json', videoPath,
+    ], { shell: false, windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(`FFprobe 驗證失敗：${sanitizeLog(stderr).slice(-250)}`));
+      try {
+        const data = JSON.parse(stdout);
+        const video = data.streams?.find((stream) => stream.codec_type === 'video');
+        resolve({
+          duration: Number(data.format?.duration || 0),
+          hasVideo: Boolean(video),
+          hasAudio: Boolean(data.streams?.some((stream) => stream.codec_type === 'audio')),
+          width: Number(video?.width || 0),
+          height: Number(video?.height || 0),
+        });
+      } catch (error) {
+        reject(new Error(`FFprobe 回傳資料無法解析：${error.message}`));
+      }
+    });
+  });
+}
+
 function buildAssFromSrt(srtContent, settings) {
   const cues = parseSrtCues(srtContent);
   const style = buildAssStyleLine(settings);
@@ -1730,6 +2613,13 @@ function relativeToApp(filePath) {
   return absolutePath;
 }
 
+function jobMediaUrl(job, filePath) {
+  const relative = path.relative(job.jobRoot, filePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('影片路徑不在任務資料夾內');
+  const encoded = relative.split(path.sep).map(encodeURIComponent).join('/');
+  return `/job-media/${encodeURIComponent(job.config.jobId)}/${encoded}`;
+}
+
 function resolveJobFolder(job, target) {
   const map = {
     job: job.jobRoot,
@@ -1798,6 +2688,11 @@ function serveStatic(req, res) {
     serveFile(req, res, path.join(publicDir, 'review.html'));
     return;
   }
+  const trimMatch = url.pathname.match(/^\/trim\/([^/]+)$/);
+  if (trimMatch) {
+    serveFile(req, res, path.join(publicDir, 'trim.html'));
+    return;
+  }
   const mediaMatch = url.pathname.match(/^\/job-media\/([^/]+)\/(.+)$/);
   if (mediaMatch) {
     const job = loadJob(mediaMatch[1]);
@@ -1821,40 +2716,35 @@ async function handleApi(req, res) {
   const url = new URL(req.url, 'http://localhost');
   console.log('[api]', req.method, url.pathname);
   if (req.method === 'GET' && url.pathname === '/api/health') {
-    sendJson(res, 200, await healthCheck());
+    sendJson(res, 200, await healthCheck(url.searchParams.get('refresh') === '1'));
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/bootstrap') {
     // Lightweight bootstrap check — no GPU detection (avoids torch import cost)
-    const [hasNode, hasFfmpeg, hasPython, hasWhisper] = await Promise.all([
-      commandExists(toolPaths.node),
-      commandExists(toolPaths.ffmpeg, ['-version']),
-      commandExists(toolPaths.python),
-      commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
-    ]);
+    const tools = await getBasicToolsStatus(url.searchParams.get('refresh') === '1');
+    const { node: hasNode, ffmpeg: hasFfmpeg, whisper: hasWhisper, asrEngine } = tools;
 
     const missing = [];
     if (!hasNode) missing.push('Node.js');
     if (!hasFfmpeg) missing.push('FFmpeg');
-    if (!hasPython) missing.push('Python');
     if (!hasWhisper) missing.push('Whisper');
 
     const ready = missing.length === 0;
-    const canProcess = hasPython && hasWhisper && hasFfmpeg;
+    const canProcess = hasWhisper && hasFfmpeg;
 
     let installGuide = null;
     if (!ready) {
-      const steps = [];
-      if (missing.includes('Node.js')) steps.push('• Node.js：執行 setup-local-tools.bat 自動安裝');
-      if (missing.includes('FFmpeg')) steps.push('• FFmpeg：執行 setup-local-tools.bat 自動安裝');
-      if (missing.includes('Python')) steps.push('• Python：先安裝 Python（winget install Python.Python.3.12），再執行 setup-local-tools.bat');
-      if (missing.includes('Whisper')) steps.push('• Whisper：安裝 Python 後執行 setup-local-tools.bat 自動安裝');
-      installGuide = { missingTools: missing, steps, setupScript: 'setup-local-tools.bat' };
+      installGuide = {
+        missingTools: missing,
+        steps: ['• 正式安裝包已內建所有必要元件；若檔案缺失或損壞，請重新安裝 APP。'],
+        repairAction: 'reinstall-app',
+      };
     }
 
     sendJson(res, 200, {
       ready,
       canProcessJobs: canProcess,
+      asrEngine,
       missingTools: missing,
       installGuide,
       localToolsDir: toolsDir,
@@ -1889,18 +2779,16 @@ async function handleApi(req, res) {
   }
   // ── /api/video/probe (FormData: 直接上傳檔案 probing) ──
   if (req.method === 'POST' && url.pathname === '/api/video/probe') {
+    let upload = null;
     try {
-      const { files } = parseMultipart(await readRequest(req), req.headers['content-type']);
+      const tempDir = path.join(getJobsDir(), '.temp-probe');
+      upload = await streamMultipart(req, tempDir);
+      const { files } = upload;
       if (!files.video) {
         sendJson(res, 400, { error: '請上傳影片檔案' });
         return;
       }
-      // Write to temp for ffprobe
-      const tempDir = path.join(getJobsDir(), '.temp-probe');
-      fs.mkdirSync(tempDir, { recursive: true });
-      const safeName = (files.video.filename || 'temp.mp4').replace(/[\\/]/g, '_');
-      const tempPath = path.join(tempDir, safeName);
-      fs.writeFileSync(tempPath, files.video.buffer);
+      const tempPath = files.video.path;
 
       const probeCmd = toolPaths.ffprobe;
       const probeArgs = [
@@ -1922,9 +2810,6 @@ async function handleApi(req, res) {
         proc.on('error', reject);
       });
 
-      // Cleanup temp file
-      try { fs.unlinkSync(tempPath); } catch {}
-
       const info = JSON.parse(stdout);
       const videoStream = info.streams?.find((s) => s.codec_type === 'video');
       const format = info.format || {};
@@ -1938,12 +2823,26 @@ async function handleApi(req, res) {
     } catch (error) {
       console.error('[api] video probe error:', error.message);
       sendJson(res, 500, { error: error.message });
+    } finally {
+      upload?.cleanup();
     }
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/jobs') {
     try {
-      sendJson(res, 200, { jobs: listJobs() });
+      const jobs = listJobs();
+      const requestedOffset = Number(url.searchParams.get('offset') || 0);
+      const requestedLimit = Number(url.searchParams.get('limit'));
+      const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
+      const hasLimit = Number.isFinite(requestedLimit) && requestedLimit > 0;
+      const limit = hasLimit ? Math.min(500, Math.floor(requestedLimit)) : jobs.length;
+      sendJson(res, 200, {
+        jobs: jobs.slice(offset, offset + limit),
+        total: jobs.length,
+        offset,
+        limit,
+        hasMore: offset + limit < jobs.length,
+      });
     } catch (error) {
       console.error('[api] Job list error:', error.message);
       sendJson(res, 500, { error: error.message });
@@ -1951,13 +2850,17 @@ async function handleApi(req, res) {
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/jobs') {
+    let upload = null;
     try {
-      const result = createJob(parseMultipart(await readRequest(req), req.headers['content-type']));
+      upload = await streamMultipart(req, path.join(getJobsDir(), '.temp-upload'));
+      const result = createJob(upload);
       console.log('[api] Job created:', result.jobId);
       sendJson(res, 201, result);
     } catch (error) {
       console.error('[api] Job creation error:', error.message, error.stack);
       sendJson(res, 400, { error: error.message });
+    } finally {
+      upload?.cleanup();
     }
     return;
   }
@@ -1976,8 +2879,24 @@ async function handleApi(req, res) {
   }
 
   if (req.method === 'POST' && action === 'start') {
-    startJob(jobId);
-    sendJson(res, 202, { ok: true });
+    const result = startJob(jobId);
+    if (result.error) sendJson(res, 400, { ok: false, error: result.error });
+    else sendJson(res, 202, { ok: true, ...result });
+    return;
+  }
+  if (req.method === 'POST' && action === 'cancel') {
+    const cancelled = cancelJob(jobId);
+    if (!cancelled) {
+      sendJson(res, 409, { ok: false, error: '目前沒有執行中的任務' });
+    } else {
+      sendJson(res, 202, { ok: true, cancelled: true });
+    }
+    return;
+  }
+  if (req.method === 'POST' && action === 'retry') {
+    const result = retryJob(jobId);
+    if (result.error) sendJson(res, 409, { ok: false, error: result.error });
+    else sendJson(res, 202, { ok: true, ...result });
     return;
   }
   if (req.method === 'GET' && action === 'status') {
@@ -1986,6 +2905,63 @@ async function handleApi(req, res) {
   }
   if (req.method === 'GET' && action === 'files') {
     sendJson(res, 200, job.status.files || {});
+    return;
+  }
+  if (req.method === 'GET' && action === 'edit-plan') {
+    try {
+      const original = getOriginalVideoPath(job);
+      if (!original) throw new Error('找不到原始影片');
+      const sourceDuration = await probeDurationSeconds(original);
+      const effective = getEffectiveVideoPath(job);
+      const effectiveDuration = effective ? await probeDurationSeconds(effective) : sourceDuration;
+      sendJson(res, 200, {
+        jobId,
+        plan: readEditPlan(job.jobRoot),
+        sourceDuration,
+        effectiveDuration,
+        sourceFileName: path.basename(original),
+        effectiveVideoUrl: jobMediaUrl(job, effective),
+        originalVideoUrl: jobMediaUrl(job, original),
+        trimStatus: readTrimStatus(job),
+        jobStatus: { status: job.status.status, stage: job.status.stage },
+      });
+    } catch (error) {
+      sendJson(res, 422, { error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'PUT' && action === 'edit-plan') {
+    try {
+      const payload = await readJsonBody(req);
+      const plan = await saveEditPlan(job, payload);
+      sendJson(res, 200, { ok: true, plan });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'POST' && action === 'apply-trim') {
+    const result = startTrim(jobId);
+    if (result.error) sendJson(res, result.statusCode || 400, { ok: false, error: result.error });
+    else sendJson(res, 202, { ok: true, started: true, message: '影片修剪已啟動' });
+    return;
+  }
+  if (req.method === 'GET' && action === 'trim-status') {
+    sendJson(res, 200, readTrimStatus(job));
+    return;
+  }
+  if (req.method === 'POST' && action === 'cancel-trim') {
+    const cancelled = cancelTrim(jobId);
+    if (!cancelled) sendJson(res, 409, { ok: false, error: '目前沒有進行中的修剪任務' });
+    else sendJson(res, 202, { ok: true, cancelled: true });
+    return;
+  }
+  if (req.method === 'DELETE' && action === 'trim') {
+    try {
+      sendJson(res, 200, restoreOriginalMedia(job));
+    } catch (error) {
+      sendJson(res, error.statusCode || 400, { ok: false, error: error.message });
+    }
     return;
   }
   if (req.method === 'POST' && action === 'open-folder') {
@@ -2001,7 +2977,7 @@ async function handleApi(req, res) {
   }
   if (req.method === 'GET' && action === 'review-data') {
     const subtitlePath = getReviewSubtitlePath(job);
-    const videoPath = getVideoPath(job);
+    const videoPath = getEffectiveVideoPath(job);
     if (!subtitlePath) {
       sendJson(res, 404, { error: '找不到可校閱字幕，請先完成字幕生成' });
       return;
@@ -2014,9 +2990,26 @@ async function handleApi(req, res) {
       jobId,
       videoFileName: path.basename(videoPath),
       subtitleFileName: path.basename(subtitlePath),
-      videoUrl: `/job-media/${encodeURIComponent(jobId)}/input/${encodeURIComponent(path.basename(videoPath))}`,
+      videoUrl: jobMediaUrl(job, videoPath),
       subtitle: fs.readFileSync(subtitlePath, 'utf8'),
     });
+    return;
+  }
+  if (req.method === 'GET' && action === 'thumbnail') {
+    try {
+      serveFile(req, res, await getProjectThumbnail(job));
+    } catch (error) {
+      sendJson(res, 422, { error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'GET' && action === 'waveform') {
+    try {
+      const result = await getWaveform(job, url.searchParams.get('points'), url.searchParams.get('source') || 'effective');
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 422, { error: error.message });
+    }
     return;
   }
   if (req.method === 'POST' && action === 'save-review') {
@@ -2099,7 +3092,19 @@ async function handleApi(req, res) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (req.url.startsWith('/api/')) await handleApi(req, res);
+    if (req.url.startsWith('/api/')) {
+      const origin = req.headers.origin || '';
+      const localOrigin = !origin || /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/i.test(origin);
+      if (!localOrigin) {
+        sendJson(res, 403, { error: '不允許的請求來源' });
+        return;
+      }
+      if (apiToken && req.headers['x-offline-subtitle-token'] !== apiToken) {
+        sendJson(res, 401, { error: '本機 API 驗證失敗' });
+        return;
+      }
+      await handleApi(req, res);
+    }
     else serveStatic(req, res);
   } catch (error) {
     console.error('[server] Request error:', error.message);
