@@ -54,7 +54,7 @@ const ids = [
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
-const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiTimeoutSeconds', 'aiInstructions'];
+const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -69,6 +69,7 @@ document.getElementById('closeAiSettings').addEventListener('click', closeAiSett
 document.getElementById('saveAiSettings').addEventListener('click', saveAiSettings);
 document.getElementById('testAiConnection').addEventListener('click', testAiConnection);
 document.getElementById('runAiOptimize').addEventListener('click', runAiOptimize);
+document.getElementById('resumeAiOptimize').addEventListener('click', resumeAiOptimize);
 document.getElementById('cancelAiOptimize').addEventListener('click', cancelAiOptimize);
 document.getElementById('acceptAllAiSuggestions').addEventListener('click', acceptAllAiSuggestions);
 document.getElementById('rejectAllAiSuggestions').addEventListener('click', rejectAllAiSuggestions);
@@ -175,6 +176,8 @@ function applyAiSettings(settings) {
   document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
   document.getElementById('aiLanguage').value = settings.language || 'zh-TW';
   document.getElementById('aiTimeoutSeconds').value = settings.timeoutSeconds || 60;
+  document.getElementById('aiMaxRetries').value = settings.maxRetries ?? 3;
+  document.getElementById('aiRetryBaseMs').value = settings.retryBaseMs || 1000;
   document.getElementById('aiInstructions').value = settings.instructions || '';
   const badge = document.getElementById('aiConnectionBadge');
   const ready = Boolean(settings.enabled && settings.model && settings.hasApiKey);
@@ -204,6 +207,8 @@ function collectAiSettings() {
     apiKey: document.getElementById('aiApiKey').value.trim(),
     language: document.getElementById('aiLanguage').value,
     timeoutSeconds: Number(document.getElementById('aiTimeoutSeconds').value),
+    maxRetries: Number(document.getElementById('aiMaxRetries').value),
+    retryBaseMs: Number(document.getElementById('aiRetryBaseMs').value),
     instructions: document.getElementById('aiInstructions').value.trim(),
   };
 }
@@ -255,13 +260,17 @@ function setAiProgress(progress, message) {
   wrap.hidden = false;
   document.getElementById('aiProgress').value = percent;
   document.getElementById('aiProgressPercent').textContent = `${percent}%`;
-  document.getElementById('aiProgressText').textContent = message || `第 ${progress?.completedBatches || 0}／${progress?.totalBatches || 0} 批`;
+  const retryMessage = progress?.retryAttempt
+    ? `第 ${progress.activeBatch} 批受限或失敗，第 ${progress.retryAttempt} 次重試，等待 ${Math.ceil((progress.retryWaitMs || 0) / 1000)} 秒`
+    : '';
+  document.getElementById('aiProgressText').textContent = message || retryMessage || `第 ${progress?.completedBatches || 0}／${progress?.totalBatches || 0} 批・累計重試 ${progress?.totalRetries || 0} 次`;
 }
 
 function setAiRunning(running) {
   state.aiPolling = running;
   document.getElementById('runAiOptimize').disabled = running;
   document.getElementById('cancelAiOptimize').hidden = !running;
+  if (running) document.getElementById('resumeAiOptimize').hidden = true;
 }
 
 function aiRequestCues() {
@@ -318,10 +327,56 @@ async function pollAiOptimization() {
       return;
     }
     if (result.status === 'cancelled') {
+      document.getElementById('resumeAiOptimize').hidden = !result.retryable;
       statusMessage('AI 優化已取消，原字幕未變更');
       return;
     }
+    document.getElementById('resumeAiOptimize').hidden = !result.retryable;
     throw new Error(result.error || 'AI 優化失敗');
+  }
+}
+
+async function restoreAiOptimizationStatus() {
+  if (!jobId) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, { cache: 'no-store' });
+    if (response.status === 404) return;
+    const result = await response.json();
+    if (!response.ok || !result.ok) return;
+    if (result.status === 'running') {
+      setAiRunning(true);
+      setAiProgress(result.progress, '正在恢復 AI 任務狀態…');
+      pollAiOptimization().catch((error) => statusMessage(`AI 狀態恢復失敗：${error.message}`));
+      return;
+    }
+    if (result.status === 'completed' && result.result) {
+      state.aiSuggestions = new Map((result.result.suggestions || []).map((item) => [String(item.id), item]));
+      updateAiSuggestionActions();
+      renderCueList();
+      setAiProgress(result.progress, '先前 AI 優化已完成，請確認建議');
+      return;
+    }
+    if (['failed', 'interrupted', 'cancelled'].includes(result.status)) {
+      document.getElementById('resumeAiOptimize').hidden = !result.retryable;
+      setAiProgress(result.progress, result.error || 'AI 任務可繼續');
+    }
+  } catch {}
+}
+
+async function resumeAiOptimize() {
+  const button = document.getElementById('resumeAiOptimize');
+  button.disabled = true;
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/resume-ai-optimize`, { method: 'POST' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    setAiRunning(true);
+    setAiProgress(result.progress, `從第 ${Number(result.resumedFromBatch || 0) + 1} 批繼續`);
+    await pollAiOptimization();
+  } catch (error) {
+    statusMessage(`恢復 AI 任務失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -406,6 +461,7 @@ async function loadProjectPreset() {
     el.reviewVideo.src = data.videoUrl;
     loadSrtText(data.subtitle, `已載入任務 ${jobId}`);
     loadJobWaveform();
+    restoreAiOptimizationStatus();
   } catch (error) {
     statusMessage(`載入失敗：${error.message}`);
   }

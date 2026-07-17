@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +16,47 @@ const token = `test-${Date.now()}-${Math.random()}`;
 const baseUrl = `http://127.0.0.1:${port}`;
 let output = '';
 const serverCommand = process.env.OFFLINE_SUBTITLE_TEST_NODE || process.execPath;
+const fakeAiPort = 21000 + Math.floor(Math.random() * 1000);
+let fakeAiMode = 'retry-once';
+let fakeAiCalls = 0;
+const fakeAiCueIds = [];
+const fakeAiServer = createServer((req, res) => {
+  if (req.url === '/v1/models') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ data: [{ id: 'test-model' }] }));
+    return;
+  }
+  if (req.url === '/v1/chat/completions' && req.method === 'POST') {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      fakeAiCalls += 1;
+      if (fakeAiMode === 'retry-once' && fakeAiCalls === 1) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '0' });
+        res.end(JSON.stringify({ error: { message: 'test rate limit', code: 'rate_limit' } }));
+        return;
+      }
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      const marker = '待處理字幕：\n';
+      const content = body.messages?.[1]?.content || '';
+      const cues = JSON.parse(content.slice(content.indexOf(marker) + marker.length));
+      fakeAiCueIds.push(...cues.map((cue) => cue.id));
+      if (fakeAiMode === 'fail-second' && cues.some((cue) => Number(cue.id) === 2)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: 'test permanent batch error', code: 'bad_request' } }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ cues: cues.map((cue) => ({ id: cue.id, text: `${cue.text}。`, reason: 'mock optimized' })) }) } }] }));
+    });
+    return;
+  }
+  res.writeHead(404).end();
+});
+await new Promise((resolve, reject) => {
+  fakeAiServer.once('error', reject);
+  fakeAiServer.listen(fakeAiPort, '127.0.0.1', resolve);
+});
 
 const server = spawn(serverCommand, [path.join(appDir, 'server.mjs')], {
   cwd: appDir,
@@ -70,6 +112,17 @@ async function waitForTrim(jobId, expectedStatuses, timeoutMs = 30000) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`修剪任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}`);
+}
+
+async function waitForAi(jobId, expectedStatuses, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const response = await api(`/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`);
+    const status = await response.json();
+    if (expectedStatuses.includes(status.status)) return status;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`AI 任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}`);
 }
 
 function createTestWav() {
@@ -147,6 +200,57 @@ try {
     body: JSON.stringify({ cues: [{ id: 1, start: '00:00:00,000', end: '00:00:01,000', text: '測試字幕' }] }),
   });
   assert.equal(disabledAiResponse.status, 400, 'AI 未啟用時不可啟動外部優化請求');
+
+  const enabledAiSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      enabled: true,
+      provider: 'openai-compatible',
+      baseUrl: `http://127.0.0.1:${fakeAiPort}/v1`,
+      model: 'test-model',
+      batchSize: 1,
+      language: 'zh-TW',
+      timeoutSeconds: 10,
+      maxRetries: 1,
+      retryBaseMs: 100,
+      instructions: '測試可靠性',
+    }),
+  });
+  assert.equal(enabledAiSettingsResponse.status, 200, 'AI 可靠性測試設定應可啟用');
+  const reliabilityCues = [
+    { id: 1, start: '00:00:00,000', end: '00:00:01,000', text: '第一段' },
+    { id: 2, start: '00:00:01,000', end: '00:00:02,000', text: '第二段' },
+  ];
+  fakeAiMode = 'retry-once';
+  fakeAiCalls = 0;
+  fakeAiCueIds.length = 0;
+  const retryAiResponse = await api(`/api/jobs/${created.jobId}/ai-optimize`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cues: reliabilityCues, mode: 'proofread' }),
+  });
+  assert.equal(retryAiResponse.status, 202, 'AI 任務應可啟動');
+  const retriedAi = await waitForAi(created.jobId, ['completed', 'failed']);
+  assert.equal(retriedAi.status, 'completed', retriedAi.error);
+  assert.equal(retriedAi.result.totalRetries, 1, '429 應依設定完成一次自動重試');
+  assert.equal(retriedAi.result.changedCues, 2);
+
+  fakeAiMode = 'fail-second';
+  fakeAiCalls = 0;
+  fakeAiCueIds.length = 0;
+  await api(`/api/jobs/${created.jobId}/ai-optimize`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cues: reliabilityCues, mode: 'proofread' }),
+  });
+  const failedAi = await waitForAi(created.jobId, ['failed']);
+  assert.equal(failedAi.retryable, true, '已有 checkpoint 的失敗任務應可恢復');
+  const checkpoint = JSON.parse(fs.readFileSync(path.join(dataDir, created.jobId, 'ai-output', 'checkpoint.json'), 'utf8'));
+  assert.equal(checkpoint.checkpoint.nextBatchIndex, 1, 'checkpoint 應保存第一個已完成批次');
+  fakeAiMode = 'success';
+  fakeAiCueIds.length = 0;
+  const resumeAiResponse = await api(`/api/jobs/${created.jobId}/resume-ai-optimize`, { method: 'POST' });
+  assert.equal(resumeAiResponse.status, 202, '失敗的 AI 任務應可續傳');
+  const resumedAi = await waitForAi(created.jobId, ['completed', 'failed']);
+  assert.equal(resumedAi.status, 'completed', resumedAi.error);
+  assert.deepEqual(fakeAiCueIds, [2], '續傳不可重送已完成的第一批');
 
   const inputVideo = path.join(dataDir, created.jobId, 'input', 'sample.mp4');
   assert.equal(fs.readFileSync(inputVideo, 'utf8'), 'fake-video', '串流上傳檔案內容應一致');
@@ -292,5 +396,6 @@ try {
   console.log('核心回歸測試通過：API token、Origin、串流上傳、任務執行、真實聲波、精準修剪、字幕重算、還原、分頁與取消狀態');
 } finally {
   server.kill('SIGTERM');
+  await new Promise((resolve) => fakeAiServer.close(resolve));
   fs.rmSync(dataDir, { recursive: true, force: true });
 }

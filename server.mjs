@@ -88,6 +88,8 @@ const defaultSettings = {
     batchSize: 30,
     language: 'zh-TW',
     timeoutSeconds: 60,
+    maxRetries: 3,
+    retryBaseMs: 1000,
     instructions: '修正錯字與標點，保留原意；專有名詞使用一致寫法，不確定的內容不要自行補寫。',
   },
 };
@@ -372,6 +374,8 @@ function normalizeAiSettings(value = {}) {
     batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
     language: ['zh-TW', 'zh-CN', 'en'].includes(value.language) ? value.language : defaultSettings.ai.language,
     timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),
+    maxRetries: clampNumber(value.maxRetries, 0, 8, defaultSettings.ai.maxRetries),
+    retryBaseMs: clampNumber(value.retryBaseMs, 100, 10000, defaultSettings.ai.retryBaseMs),
     instructions: String(value.instructions || defaultSettings.ai.instructions).trim(),
   };
 }
@@ -399,6 +403,111 @@ function publicAiSettings() {
 
 function aiProviderConfig() {
   return { ...appSettings.ai, apiKey: readAiApiKey() };
+}
+
+function getAiCheckpointPath(job) {
+  return path.join(job.jobRoot, 'ai-output', 'checkpoint.json');
+}
+
+function publicAiRecord(record) {
+  if (!record) return null;
+  return {
+    sessionId: record.sessionId,
+    status: record.status,
+    progress: record.progress,
+    result: record.result,
+    error: record.error,
+    retryable: Boolean(record.retryable),
+    startedAt: record.startedAt,
+    updatedAt: record.updatedAt,
+    completedAt: record.completedAt,
+  };
+}
+
+function persistAiRecord(job, record) {
+  const checkpointPath = getAiCheckpointPath(job);
+  fs.mkdirSync(path.dirname(checkpointPath), { recursive: true });
+  record.updatedAt = new Date().toISOString();
+  writeJson(checkpointPath, {
+    ...publicAiRecord(record),
+    request: record.request,
+    checkpoint: record.checkpoint,
+  });
+}
+
+function loadAiRecord(job) {
+  const checkpointPath = getAiCheckpointPath(job);
+  if (!fs.existsSync(checkpointPath)) return null;
+  try {
+    const record = readJson(checkpointPath);
+    if (record.status === 'running') {
+      record.status = 'interrupted';
+      record.error = '應用程式先前在 AI 優化期間關閉，可從已完成批次繼續';
+      record.retryable = true;
+      persistAiRecord(job, record);
+    }
+    return record;
+  } catch {
+    return null;
+  }
+}
+
+function startAiOptimizationJob(job, payload, previous = null) {
+  const jobId = job.config.jobId;
+  const config = aiProviderConfig();
+  if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
+  if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
+  const request = previous?.request || payload;
+  if (!Array.isArray(request?.cues) || request.cues.length === 0) throw new Error('Missing subtitle cues');
+  const batchSize = Math.max(1, Number(config.batchSize) || 30);
+  const controller = new AbortController();
+  const record = {
+    sessionId: previous?.sessionId || crypto.randomUUID(),
+    status: 'running',
+    progress: previous?.progress || { completedBatches: 0, totalBatches: Math.ceil(request.cues.length / batchSize), processedCues: 0, totalCues: request.cues.length, totalRetries: 0 },
+    checkpoint: previous?.checkpoint || { nextBatchIndex: 0, suggestions: [], totalRetries: 0 },
+    request,
+    controller,
+    startedAt: previous?.startedAt || new Date().toISOString(),
+    error: null,
+    retryable: false,
+  };
+  aiOptimizationJobs.set(jobId, record);
+  persistAiRecord(job, record);
+  const complete = (body, signal) => createChatCompletion(config, body, signal);
+  complete.progress = (progress) => {
+    record.progress = progress;
+    persistAiRecord(job, record);
+  };
+  optimizeSubtitleCues({
+    cues: request.cues,
+    config,
+    mode: request.mode,
+    instructions: request.instructions,
+    language: request.language || config.language,
+    signal: controller.signal,
+    complete,
+    checkpoint: record.checkpoint,
+    onCheckpoint: async (checkpoint) => {
+      record.checkpoint = checkpoint;
+      record.progress = checkpoint.progress;
+      persistAiRecord(job, record);
+    },
+  }).then((result) => {
+    record.status = 'completed';
+    record.result = result;
+    record.progress = { ...record.progress, completedBatches: result.totalBatches, processedCues: result.totalCues, totalRetries: result.totalRetries };
+    record.completedAt = new Date().toISOString();
+    delete record.controller;
+    persistAiRecord(job, record);
+  }).catch((error) => {
+    record.status = controller.signal.aborted ? 'cancelled' : 'failed';
+    record.error = error.message;
+    record.retryable = !controller.signal.aborted && (Boolean(error.retryable) || record.checkpoint.nextBatchIndex > 0);
+    delete record.controller;
+    persistAiRecord(job, record);
+  });
+  return record;
 }
 
 function saveSettings(nextSettings) {
@@ -3269,33 +3378,7 @@ async function handleApi(req, res) {
     try {
       if (aiOptimizationJobs.get(jobId)?.status === 'running') throw new Error('此任務已有 AI 優化正在進行');
       const payload = await readJsonBody(req);
-      if (!Array.isArray(payload.cues) || payload.cues.length === 0) throw new Error('Missing subtitle cues');
-      const config = aiProviderConfig();
-      if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
-      if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
-      const controller = new AbortController();
-      const record = { status: 'running', progress: { completedBatches: 0, totalBatches: Math.ceil(payload.cues.length / config.batchSize), processedCues: 0, totalCues: payload.cues.length }, controller, startedAt: new Date().toISOString() };
-      aiOptimizationJobs.set(jobId, record);
-      const complete = (body, signal) => createChatCompletion(config, body, signal);
-      complete.progress = (progress) => { record.progress = progress; };
-      optimizeSubtitleCues({
-        cues: payload.cues,
-        config,
-        mode: payload.mode,
-        instructions: payload.instructions,
-        language: payload.language || config.language,
-        signal: controller.signal,
-        complete,
-      }).then((result) => {
-        record.status = 'completed';
-        record.result = result;
-        record.completedAt = new Date().toISOString();
-        delete record.controller;
-      }).catch((error) => {
-        record.status = controller.signal.aborted ? 'cancelled' : 'failed';
-        record.error = error.message;
-        delete record.controller;
-      });
+      const record = startAiOptimizationJob(job, payload);
       sendJson(res, 202, { ok: true, status: record.status, progress: record.progress });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
@@ -3303,9 +3386,21 @@ async function handleApi(req, res) {
     return;
   }
   if (req.method === 'GET' && action === 'ai-optimize') {
-    const record = aiOptimizationJobs.get(jobId);
+    const record = aiOptimizationJobs.get(jobId) || loadAiRecord(job);
     if (!record) sendJson(res, 404, { ok: false, error: '找不到 AI 優化任務' });
-    else sendJson(res, 200, { ok: true, status: record.status, progress: record.progress, result: record.result, error: record.error });
+    else sendJson(res, 200, { ok: true, ...publicAiRecord(record) });
+    return;
+  }
+  if (req.method === 'POST' && action === 'resume-ai-optimize') {
+    try {
+      if (aiOptimizationJobs.get(jobId)?.status === 'running') throw new Error('此任務已有 AI 優化正在進行');
+      const previous = aiOptimizationJobs.get(jobId) || loadAiRecord(job);
+      if (!previous?.request || !['failed', 'interrupted', 'cancelled'].includes(previous.status)) throw new Error('目前沒有可恢復的 AI 優化任務');
+      const record = startAiOptimizationJob(job, previous.request, previous);
+      sendJson(res, 202, { ok: true, status: record.status, progress: record.progress, resumedFromBatch: record.checkpoint.nextBatchIndex });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
     return;
   }
   if (req.method === 'POST' && action === 'cancel-ai-optimize') {
@@ -3315,6 +3410,8 @@ async function handleApi(req, res) {
     } else {
       record.controller.abort(new Error('使用者取消 AI 優化'));
       record.status = 'cancelled';
+      record.retryable = record.checkpoint.nextBatchIndex > 0;
+      persistAiRecord(job, record);
       sendJson(res, 200, { ok: true, cancelled: true });
     }
     return;

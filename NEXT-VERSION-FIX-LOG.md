@@ -1051,3 +1051,50 @@
   - Portable：`7d6a36afa30d9230c5297796f5438090812d26c88039907a6f83f52a34b17322`。
 - 簽章狀態：本機成品為 `NotSigned`；需提供正式憑證後才能產生可信簽章安裝版。
 - GitHub 注意：既有 `v0.30.1` tag 已存在並指向先前 commit，本次同步更新分支與版本說明，不強制移動既有 tag。
+
+### 2026-07-17 — AI 字幕優化項目 9：建立 0.40 至 0.50 專案 Roadmap
+
+- 狀態：完成
+- 新增檔案：
+  - `AI-ROADMAP-0.50.md`
+- 規劃範圍：
+  - 0.41：重試、限流、checkpoint 與錯誤恢復。
+  - 0.42：術語表、Prompt 範本與多段選取。
+  - 0.43：AI 優化報告與一鍵撤銷。
+  - 0.44：macOS／Windows 作業系統安全金鑰保存與隱私同意。
+  - 0.45：OpenAI、OpenAI-compatible、Azure 等多供應商 adapter。
+  - 0.46：翻譯與雙語字幕資料、校閱及輸出。
+  - 0.47：低可信與品質風險片段工作流。
+  - 0.48：Ollama／LM Studio 本機 LLM。
+  - 0.49：跨平台 Beta、效能與封裝硬化。
+  - 0.50：本機 AI 穩定版發布。
+- 時程估算：
+  - 約 36～50 個有效工作日，預計 9～10 週。
+- 下一步：
+  - 由 0.41 的 checkpoint、錯誤分類、Retry-After、指數退避與 mock failure tests 開始。
+
+### 2026-07-17 — AI 字幕優化項目 10：完成 0.41.0 請求可靠性與錯誤恢復
+
+- 狀態：完成
+- 分支：`codex/0.41-ai-reliability`
+- 版本：`0.41.0`
+- 修改內容：
+  - provider adapter 新增 HTTP、網路與逾時錯誤分類。
+  - 支援 `Retry-After`、指數退避、隨機抖動與最大重試次數。
+  - 每批成功後保存 `ai-output/checkpoint.json`，內容包含 session、請求、進度、已完成批次及部分建議，不包含 API Key。
+  - 新增失敗、取消及應用程式重啟後的續傳 API。
+  - 校閱頁顯示目前批次、累計重試、等待時間與「繼續未完成任務」。
+  - AI 設定新增最大重試次數與起始等待毫秒數。
+- 測試：
+  - 單元測試涵蓋 429 自動重試與 checkpoint 起始批次。
+  - 核心 API 測試使用本機 mock AI，驗證 429、第二批永久失敗、checkpoint 與只續傳第二批。
+  - 測試不呼叫或消耗真實 AI API。
+- 發布文件：
+  - 新增 `RELEASE-NOTES-0.41.0.md`。
+  - README、首頁、專案版本與 Windows workflow 更新為 0.41.0。
+- macOS 打包：
+  - `離線字幕工廠 0.41.0 macOS-arm64.dmg`，約 204 MB。
+  - `離線字幕工廠 0.41.0 macOS-arm64.zip`，約 209 MB。
+  - `hdiutil verify` 與 `.app` 深度簽章結構驗證通過。
+  - DMG SHA-256：`3410607e1bba78678a4e890cdedc922e0d0de49d202be6a881318e6570e8db1d`。
+  - ZIP SHA-256：`3a233de24285ee96180e0b64d83a713916edf55aae13a782eb7ac606021e8bca`。

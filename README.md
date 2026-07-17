@@ -1,5 +1,16 @@
 # 離線字幕工廠
 
+## 0.41.0 發布重點
+
+0.41.0 強化長字幕 AI 優化的可靠性。遇到供應商限流、暫時性伺服器錯誤、逾時或網路中斷時，系統會依 `Retry-After` 與指數退避自動重試；已完成批次寫入 checkpoint，失敗或 APP 重啟後可從未完成批次繼續，不會重送已完成內容。
+
+- 分類處理 HTTP 408、429、500、502、503、504、逾時與網路錯誤。
+- 可設定最大重試次數及起始等待時間，等待採指數退避與隨機抖動。
+- UI 顯示批次、累計重試、等待秒數及恢復按鈕。
+- 每個任務保存本機 checkpoint、session ID、進度、部分建議與錯誤狀態。
+- APP 意外關閉後會把先前執行中任務標記為 interrupted，允許繼續處理。
+- 新增 mock 429、永久失敗與續傳測試，不需使用或消耗真實 AI API。
+
 ## 0.40.0 發布重點
 
 0.40.0 新增可選用的 AI 字幕優化工作區。Whisper 轉錄、影片修剪與字幕輸出仍可完全離線使用；只有使用者主動啟用 AI 優化時，字幕文字才會傳送至自行設定的 OpenAI 或 OpenAI-compatible 服務，影片與音訊不會上傳。
@@ -35,20 +46,20 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-離線字幕工廠 0.40.0 macOS-arm64.dmg
+離線字幕工廠 0.41.0 macOS-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.40 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。前往專案的 **Actions → Build Windows 0.40**，開啟最新成功紀錄後下載 `offline-subtitle-factory-0.40.0-windows-x64` artifact。
+Windows 0.41 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。前往專案的 **Actions → Build Windows 0.41**，開啟最新成功紀錄後下載 `offline-subtitle-factory-0.41.0-windows-x64` artifact。
 
 目前 Windows 預覽成品尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先在測試機驗證檔案雜湊，再由「其他資訊 → 仍要執行」啟動；不建議在完成實機驗收前對外正式發布。
 
 ## 不需要自行安裝其他軟體
 
-0.40.0 安裝包已內建：
+0.41.0 安裝包已內建：
 
 - Electron／Node 本機服務執行環境。
 - FFmpeg 與 FFprobe。
@@ -104,7 +115,7 @@ Windows 0.40 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 N
 ```powershell
 git clone https://github.com/twyderek/offline-subtitle-factory-app.git
 cd offline-subtitle-factory-app
-git switch codex/0.40-ai-subtitle
+git switch codex/0.41-ai-reliability
 npm ci
 Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\prepare-windows-runtime.ps1

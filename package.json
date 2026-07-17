@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.40.0",
+  "version": "0.41.0",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -51,6 +51,7 @@
       "NEXT-VERSION-FIX-LOG.md",
       "FINAL-VERSION-LOG.md",
       "RELEASE-NOTES-0.40.0.md",
+      "RELEASE-NOTES-0.41.0.md",
       "package.json",
       ".gitignore"
     ],
