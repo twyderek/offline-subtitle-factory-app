@@ -16,11 +16,12 @@ if (-not $pfxPassword) { $pfxPassword = $env:CSC_KEY_PASSWORD }
 
 $certName = $env:CSC_NAME
 
+$codeSigningOid = '1.3.6.1.5.5.7.3.3'
 $storeCerts = @(
-  Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert -ErrorAction SilentlyContinue |
-    Where-Object { $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) }
-  Get-ChildItem Cert:\LocalMachine\My -CodeSigningCert -ErrorAction SilentlyContinue |
-    Where-Object { $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) }
+  Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
+    Where-Object { $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) -and $_.EnhancedKeyUsageList.ObjectId.Value -contains $codeSigningOid }
+  Get-ChildItem Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
+    Where-Object { $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) -and $_.EnhancedKeyUsageList.ObjectId.Value -contains $codeSigningOid }
 )
 
 if ($pfxLink) {

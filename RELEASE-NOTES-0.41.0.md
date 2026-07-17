@@ -38,6 +38,7 @@
 - 標籤：`v0.41.0`
 - macOS：Apple Silicon DMG／ZIP，ad-hoc 簽章、未經 Apple 公證。
 - Windows：x64 Setup／Portable，由 GitHub Actions 建置；正式簽章取決於 repository Code Signing secrets。
+- Windows Actions 在有 Code Signing secrets 時建立並驗證正式簽章包；沒有 secrets 時只建立明確標示 `UNSIGNED INTERNAL PREVIEW` 的內部測試包。
 
 ## macOS Apple Silicon 成品
 

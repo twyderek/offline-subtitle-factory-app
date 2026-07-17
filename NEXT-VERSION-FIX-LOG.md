@@ -1098,3 +1098,16 @@
   - `hdiutil verify` 與 `.app` 深度簽章結構驗證通過。
   - DMG SHA-256：`3410607e1bba78678a4e890cdedc922e0d0de49d202be6a881318e6570e8db1d`。
   - ZIP SHA-256：`3a233de24285ee96180e0b64d83a713916edf55aae13a782eb7ac606021e8bca`。
+
+### 2026-07-17 — AI 字幕優化項目 11：修正 0.41 Windows Actions 封裝
+
+- 狀態：完成
+- 根因：
+  - GitHub repository 尚未設定 Windows Code Signing secrets。
+  - PowerShell 7 的 `Get-ChildItem` 不支援原預檢腳本使用的 `-CodeSigningCert` 參數。
+- 修正：
+  - 改以 Code Signing EKU OID `1.3.6.1.5.5.7.3.3` 篩選憑證，支援 PowerShell 7。
+  - 有簽章 secrets 時執行正式 `electron:build` 與驗章。
+  - 無 secrets 時執行 `electron:build:unsigned`，僅產生內部預覽包。
+  - artifact 新增 `SIGNING-STATUS-windows-x64.txt`，清楚標示 SIGNED RELEASE 或 UNSIGNED INTERNAL PREVIEW。
+  - 未簽章狀態不再冒充正式可信發布。
