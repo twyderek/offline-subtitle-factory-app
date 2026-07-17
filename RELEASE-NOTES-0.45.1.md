@@ -1,5 +1,7 @@
 # 離線字幕工廠 0.45.1
 
+> **Windows 版本簽章提醒**：本次 Windows x64 Setup 與 Portable 為未簽章版本，Windows 可能顯示「未知的發行者」或 Microsoft Defender SmartScreen 警告。請從本 Release 下載 `SHA256SUMS-windows-x64.txt`，核對 EXE 的 SHA-256 後再執行；`SIGNING-STATUS-windows-x64.txt` 記錄本次簽章狀態。
+
 ## 版本定位
 
 0.45.1 是 Azure OpenAI GPT-5 相容性與校閱介面更新。離線 Whisper、影片修剪、人工校閱及字幕輸出流程維持不變。
