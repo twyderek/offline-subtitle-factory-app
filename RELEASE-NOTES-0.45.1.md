@@ -25,6 +25,13 @@
 - AI optimizer request compatibility tests
 - macOS arm64 App、DMG 映像與封裝內容驗證
 
+## 完整操作說明
+
+- 安裝包內含 `docs/0.45.1/USER-GUIDE.html`，無網路時也可直接用瀏覽器閱讀。
+- 手冊包含安裝、建立專案、載入影片、字幕校閱、AI 優化、Azure OpenAI 設定、錯誤排除及字幕輸出。
+- 容易出錯的 AI 面板切換、Azure 設定及 GPT-5 參數錯誤均附操作動畫。
+- 線上版：[離線字幕工廠 0.45.1 完整操作說明](https://offline-subtitle-factory-0451-guide.derek62101.chatgpt.site)
+
 ## 版本注記
 
 - 版本：`0.45.1`

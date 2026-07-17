@@ -1,4 +1,4 @@
-name: Build Windows 0.45
+name: Build Windows 0.45.1
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches:
       - codex/0.45-ai-workflow
     tags:
-      - v0.45.0
+      - v0.45.1
 
 permissions:
   contents: read
@@ -83,7 +83,7 @@ jobs:
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: offline-subtitle-factory-0.45.0-windows-x64
+          name: offline-subtitle-factory-0.45.1-windows-x64
           path: |
             .artifacts/windows-x64/*
           if-no-files-found: error
