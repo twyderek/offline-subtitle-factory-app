@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: http://127.0.0.1:* http://localhost:*;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: http://127.0.0.1:* http://localhost:*;">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>本機離線字幕工廠｜字幕生成任務</title>
   <link rel="stylesheet" href="styles.css">
@@ -17,14 +17,14 @@
           <span class="bootstrap-icon">🛡</span>
           <div>
             <h2>歡迎使用離線字幕工廠</h2>
-            <p>首次啟動環境檢查</p>
+            <p>首次啟動內建元件檢查</p>
           </div>
         </div>
 
         <div id="bootstrapCheck" class="bootstrap-body">
           <div class="bootstrap-spinner">
             <div class="spinner-ring"></div>
-            <p>正在檢查本機環境...</p>
+            <p>正在檢查內建離線轉錄元件...</p>
           </div>
         </div>
 
@@ -36,11 +36,11 @@
           </div>
           <div id="bootstrapMissing" style="display:none;">
             <div class="bootstrap-warn">⚠</div>
-            <h3>部分工具尚未安裝</h3>
+            <h3>部分內建元件需要修復</h3>
             <p id="bootstrapMissingList"></p>
             <div class="bootstrap-steps" id="bootstrapSteps"></div>
             <div class="bootstrap-actions">
-              <button id="bootstrapOpenSetup" class="primary">📦 打開安裝腳本</button>
+              <button id="bootstrapOpenSetup" class="primary">關閉提示</button>
               <button id="bootstrapRetry" class="secondary">🔄 重新檢查</button>
             </div>
           </div>
@@ -54,34 +54,73 @@
           <img src="assets/nycu-emblem-blue.png" alt="國立陽明交通大學校徽">
         </div>
         <div>
-          <strong>本機離線字幕工廠</strong>
-          <span>輕鬆生成・專業校閱・在地安全</span>
+          <strong>離線字幕工廠</strong>
         </div>
       </div>
 
-      <nav class="workflow" aria-label="字幕製作工作流">
-        <button class="active" data-step="setup"><span class="icon blue">📋</span><b>1</b><strong>建立任務</strong><em>開始新的字幕任務</em></button>
-        <button data-step="video"><span class="icon violet">🎞</span><b>2</b><strong>上傳影片</strong><em>上傳影片檔案</em></button>
-        <button data-step="rule"><span class="icon green">📄</span><b>3</b><strong>規則檔</strong><em>上傳字幕規則檔</em></button>
-        <button data-step="requirements"><span class="icon amber">✏️</span><b>4</b><strong>字幕需求</strong><em>設定需求與偏好</em></button>
-        <button data-step="preflight"><span class="icon cyan">🛡</span><b>5</b><strong>環境檢查</strong><em>檢查本機環境</em></button>
-        <button data-step="transcribe"><span class="icon sky">〰</span><b>6</b><strong>自動轉錄</strong><em>語音轉為字幕</em></button>
-        <button data-step="cleanup"><span class="icon mint">🔽</span><b>7</b><strong>套用規則</strong><em>清理與優化字幕</em></button>
-        <button data-step="review"><span class="icon orange">🔍</span><b>8</b><strong>校閱字幕</strong><em>人工校對與調整時間</em></button>
-        <button data-step="burn"><span class="icon pink">🖥</span><b>9</b><strong>燒錄預覽</strong><em>設定字幕樣式與預覽</em></button>
-        <button data-step="export"><span class="icon purple">⬇</span><b>10</b><strong>輸出</strong><em>匯出字幕與影片</em></button>
+      <nav class="home-nav" aria-label="主要功能">
+        <button id="navHome" class="active" type="button"><span>◆</span><strong>首頁</strong></button>
+        <button id="navProjects" type="button"><span>□</span><strong>專案</strong></button>
+        <button id="navProcessing" type="button"><span>◌</span><strong>處理中心</strong></button>
+        <button id="navModels" type="button"><span>◇</span><strong>模型管理</strong></button>
+        <button id="navSettings" type="button"><span>⚙</span><strong>設定</strong></button>
       </nav>
 
-      <section class="task-manager" id="taskManagerBtn" role="button" tabindex="0" aria-label="查看歷史任務">
-        <span class="folder-icon">📁</span>
-        <div>
-          <strong>任務管理</strong>
-          <p>查看歷史任務</p>
-        </div>
-      </section>
+      <div class="sidebar-version">0.45.0・AI 工作流更新</div>
     </aside>
 
     <main class="main">
+      <section id="homeDashboard" class="home-dashboard">
+        <header class="home-hero">
+          <h1>開始製作您的離線字幕</h1>
+          <p>影片全程在本機處理，安全、不上傳雲端</p>
+        </header>
+
+        <div class="home-actions">
+          <button id="homeNewProject" class="home-action primary-action" type="button">
+            <span>↥</span><strong>新增字幕專案</strong>
+          </button>
+          <button id="homeImportProject" class="home-action" type="button">
+            <span>▣</span><strong>匯入既有專案</strong>
+          </button>
+        </div>
+
+        <div class="home-overview-grid">
+          <section class="recent-projects-section">
+            <div class="home-section-title">
+              <h2>最近專案</h2>
+              <button id="homeViewAllProjects" type="button">查看全部</button>
+            </div>
+            <div id="recentProjectsList" class="recent-projects-list">
+              <div class="home-empty-state">正在載入最近專案…</div>
+            </div>
+          </section>
+
+          <aside class="processing-section">
+            <h2>處理中任務</h2>
+            <div id="homeProcessingCard" class="processing-card">
+              <strong id="homeProcessingName">目前沒有處理中任務</strong>
+              <span id="homeProcessingStage">系統已準備就緒</span>
+              <div class="processing-ring" style="--progress:0"><b id="homeProcessingPercent">0%</b></div>
+              <p>預估剩餘時間</p>
+              <strong id="homeProcessingEta">—</strong>
+              <button id="homeOpenProcessing" type="button">開啟處理中心</button>
+            </div>
+          </aside>
+        </div>
+
+        <footer class="home-healthbar">
+          <span><i></i><b id="homeRuntimeStatus">離線元件檢查中</b></span>
+          <span><i></i>預設模型：<b id="homeModelStatus">tiny multilingual</b></span>
+          <span><i></i>運算裝置：<b id="homeDeviceStatus">Apple Metal</b></span>
+        </footer>
+      </section>
+
+      <section id="workspaceView" class="workspace-view is-hidden">
+      <div class="workspace-backbar">
+        <button id="backToDashboard" type="button">← 返回首頁</button>
+        <span>新增字幕專案</span>
+      </div>
       <header id="setup" class="topbar">
         <div>
           <h1>字幕生成任務 ✨</h1>
@@ -175,15 +214,25 @@
             <label>
               <span>🤖 ASR 模型選擇</span>
               <select name="asrEngine">
-                <option value="manual">優先使用既有 SRT</option>
-                <option value="whisper">Whisper Python</option>
-                <option value="faster-whisper">faster-whisper（建議）</option>
-                <option value="whisper-cpp">whisper.cpp</option>
+                <option value="whisper-cpp" selected>內建 Whisper.cpp（建議）</option>
+                <option value="manual">僅使用既有 SRT（需上傳字幕）</option>
               </select>
             </label>
             <label>
               <span>🧩 模型名稱</span>
               <input name="modelName" type="text" placeholder="small / medium / large-v3">
+            </label>
+            <label>
+              <span>⚡ 轉錄效能模式</span>
+              <select name="performancePreset">
+                <option value="balanced">平衡（建議）</option>
+                <option value="fast">快速</option>
+                <option value="accurate">精準</option>
+              </select>
+            </label>
+            <label>
+              <span>🧵 CPU 執行緒（0 = 自動）</span>
+              <input name="cpuThreads" type="number" min="0" max="64" step="1" value="0">
             </label>
             <label>
               <span>💾 字幕輸出格式</span>
@@ -246,7 +295,8 @@
 
           <div class="action-row">
             <button type="submit" class="primary">✨ 開始字幕生成</button>
-            <button type="button" id="healthButton" class="secondary">環境檢查</button>
+            <button type="button" id="createAndTrim" class="secondary">✂ 先修剪影片</button>
+            <button type="button" id="healthButton" class="secondary">檢查內建元件</button>
             <button type="button" id="cancelButton" class="secondary" style="display:none;">中止任務</button>
             <button type="button" id="retryButton" class="secondary" style="display:none;">重新執行</button>
             <button type="button" id="openReview" class="secondary" disabled>進入校閱頁</button>
@@ -283,7 +333,7 @@
             <div class="meter blue"><i style="width:42%"></i></div>
             <div class="metric-grid">
               <div><span>FFmpeg</span><strong id="ffmpegMetric">待檢查</strong></div>
-              <div><span>Python</span><strong id="pythonMetric">待檢查</strong></div>
+              <div><span>轉錄引擎</span><strong id="asrMetric">待檢查</strong></div>
               <div><span>Whisper</span><strong id="whisperMetric">待檢查</strong></div>
               <div><span>GPU</span><strong id="gpuMetric">待檢查</strong></div>
             </div>
@@ -318,6 +368,7 @@
           <p>建議先準備字幕規則檔，確認內容後再進行校閱與燒錄設定，效果更好！</p>
         </aside>
       </footer>
+      </section>
     </main>
   </div>
 

@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openSettingsFile: (filePath) => ipcRenderer.invoke('open-settings-file', filePath),
   saveProjectFile: (project) => ipcRenderer.invoke('save-project-file', project),
   openProjectFile: () => ipcRenderer.invoke('open-project-file'),
+  aiKeyStatus: (provider) => ipcRenderer.invoke('ai-key-status', provider),
+  saveAiKey: (provider, apiKey) => ipcRenderer.invoke('ai-key-save', provider, apiKey),
+  clearAiKey: (provider) => ipcRenderer.invoke('ai-key-clear', provider),
   onOpenSettings: (callback) => {
     ipcRenderer.removeAllListeners('open-settings');
     ipcRenderer.on('open-settings', callback);

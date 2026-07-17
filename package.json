@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.20.0",
+  "version": "0.45.0",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -10,8 +10,19 @@
     "start": "node server.mjs",
     "electron:start": "electron .",
     "electron:dev": "node scripts/start-electron-dev.mjs",
-    "runtime:verify": "node scripts/verify-runtime-package.mjs",
-    "electron:build": "npm run runtime:verify && electron-builder"
+    "test": "node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-core.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
+    "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",
+    "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
+    "runtime:verify": "node scripts/verify-runtime-package.mjs --target=win32-x64",
+    "runtime:verify:mac": "node scripts/verify-runtime-package.mjs --target=darwin-arm64",
+    "codesign:windows:assert": "powershell -ExecutionPolicy Bypass -File scripts/assert-windows-codesign.ps1",
+    "codesign:windows:verify": "powershell -ExecutionPolicy Bypass -File scripts/verify-windows-signatures.ps1",
+    "electron:build:dir": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --dir --publish never",
+    "electron:build:unsigned": "npm run runtime:manifest && npm run runtime:verify && electron-builder --win --x64 --publish never",
+    "electron:build": "npm run runtime:manifest && npm run runtime:verify && npm run codesign:windows:assert && electron-builder --win --x64 --publish never && npm run codesign:windows:verify",
+    "electron:build:mac:dir": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64 --dir",
+    "electron:build:mac": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64"
   },
   "engines": {
     "node": ">=20"
@@ -22,27 +33,26 @@
   },
   "build": {
     "appId": "com.offline-subtitle-factory.app",
-    "productName": "\u96e2\u7dda\u5b57\u5e55\u5de5\u5ee0",
+    "productName": "離線字幕工廠",
     "directories": {
       "output": "../dist"
     },
     "asar": false,
+    "compression": "maximum",
     "npmRebuild": false,
+    "afterPack": "scripts/after-pack.cjs",
     "files": [
       "server.mjs",
+      "lib/**/*",
       "electron/**/*",
       "public/**/*",
-      "tools/**/*",
-      "!tools/_downloads/**/*",
-      "!tools/python-venv/**/*",
-      "scripts/**/*",
-      "!scripts/verify-electron-renderer.mjs",
-      "start-offline-subtitle-factory.bat",
-      "start-offline-subtitle-factory.ps1",
-      "setup-local-tools.bat",
       "README.md",
-      "FINAL-VERSION-LOG.md",
+      "THIRD-PARTY-NOTICES.md",
       "NEXT-VERSION-FIX-LOG.md",
+      "FINAL-VERSION-LOG.md",
+      "RELEASE-NOTES-0.40.0.md",
+      "RELEASE-NOTES-0.41.0.md",
+      "RELEASE-NOTES-0.45.0.md",
       "package.json",
       ".gitignore"
     ],
@@ -62,17 +72,99 @@
         }
       ],
       "icon": "electron/icons/icon.ico",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true,
+      "extraResources": [
+        {
+          "from": "tools/ffmpeg",
+          "to": "tools/ffmpeg",
+          "filter": [
+            "bin/*.exe",
+            "LICENSE",
+            "README.txt"
+          ]
+        },
+        {
+          "from": "tools/whisper-cpp",
+          "to": "tools/whisper-cpp",
+          "filter": [
+            "*.exe",
+            "*.dll",
+            "LICENSE"
+          ]
+        },
+        {
+          "from": "tools/whisper-models/ggml-tiny.bin",
+          "to": "tools/whisper-models/ggml-tiny.bin"
+        },
+        {
+          "from": "tools/manifests/win32-x64.json",
+          "to": "tools/manifest.json"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "electron/icons/icon.icns",
+      "category": "public.app-category.video",
+      "minimumSystemVersion": "12.0",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "${productName} ${version} macOS-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "tools/ffmpeg",
+          "to": "tools/ffmpeg",
+          "filter": [
+            "bin/ffmpeg",
+            "bin/ffprobe",
+            "LICENSE-macos",
+            "README-macos.txt"
+          ]
+        },
+        {
+          "from": "tools/whisper-cpp",
+          "to": "tools/whisper-cpp",
+          "filter": [
+            "whisper-cli",
+            "LICENSE"
+          ]
+        },
+        {
+          "from": "tools/whisper-models/ggml-tiny.bin",
+          "to": "tools/whisper-models/ggml-tiny.bin"
+        },
+        {
+          "from": "tools/manifests/darwin-arm64.json",
+          "to": "tools/manifest.json"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "\u96e2\u7dda\u5b57\u5e55\u5de5\u5ee0",
+      "shortcutName": "離線字幕工廠",
       "installerIcon": "electron/icons/icon.ico",
       "uninstallerIcon": "electron/icons/icon.ico",
       "installerHeaderIcon": "electron/icons/icon.ico"
     }
+  },
+  "dependencies": {
+    "busboy": "^1.6.0"
   }
 }

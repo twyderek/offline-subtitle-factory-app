@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
@@ -8,11 +9,64 @@ import path from 'node:path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(__dirname, '..');
 const serverPath = path.join(appDir, 'server.mjs');
-const setupBatPath = path.join(appDir, 'setup-local-tools.bat');
 
 let serverProcess = null;
+let serverApiToken = '';
+let currentServerPort = null;
+let mainWindow = null;
+let secureAiKeys = {};
 
-function createWindow(serverPort) {
+function secureAiKeysPath() { return path.join(app.getPath('userData'), 'config', 'ai-keys.safe'); }
+function readSecureAiKeys() {
+  try {
+    if (!safeStorage.isEncryptionAvailable() || !fs.existsSync(secureAiKeysPath())) return {};
+    return JSON.parse(safeStorage.decryptString(Buffer.from(fs.readFileSync(secureAiKeysPath(), 'utf8'), 'base64')));
+  } catch { return {}; }
+}
+function writeSecureAiKeys(keys) {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('作業系統安全金鑰服務目前無法使用');
+  fs.mkdirSync(path.dirname(secureAiKeysPath()), { recursive: true });
+  fs.writeFileSync(secureAiKeysPath(), safeStorage.encryptString(JSON.stringify(keys)).toString('base64'), { encoding: 'utf8', mode: 0o600 });
+}
+function migrateLegacyAiKeys() {
+  const legacyPath = path.join(app.getPath('userData'), 'config', 'ai-secrets.json');
+  if (!fs.existsSync(legacyPath) || !safeStorage.isEncryptionAvailable()) return;
+  try {
+    const legacy = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+    const migrated = { ...(legacy.providers || {}) };
+    if (legacy.apiKey && !migrated['openai-compatible']) migrated['openai-compatible'] = legacy.apiKey;
+    secureAiKeys = { ...secureAiKeys, ...migrated };
+    writeSecureAiKeys(secureAiKeys);
+    fs.unlinkSync(legacyPath);
+  } catch (error) { console.warn('[main] AI key migration failed:', error.message); }
+}
+
+function createSplashWindow() {
+  const splash = new BrowserWindow({
+    width: 640,
+    height: 360,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    show: false,
+    center: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    backgroundColor: '#071a36',
+    icon: path.join(__dirname, 'icons', 'icon.png'),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  splash.once('ready-to-show', () => splash.show());
+  return splash;
+}
+
+function createWindow(serverPort, apiToken) {
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -20,6 +74,7 @@ function createWindow(serverPort) {
     minHeight: 700,
     title: '離線字幕工廠',
     icon: path.join(__dirname, 'icons', 'icon.png'),
+    show: false,
     autoHideMenuBar: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -29,7 +84,15 @@ function createWindow(serverPort) {
     },
   });
 
-  win.loadURL(`http://127.0.0.1:${serverPort}`);
+  const appOrigin = `http://127.0.0.1:${serverPort}`;
+  win.loadURL(`${appOrigin}/?token=${encodeURIComponent(apiToken)}`);
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(`${appOrigin}/`)) return { action: 'allow' };
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(`${appOrigin}/`)) event.preventDefault();
+  });
   if (!app.isPackaged && process.env.ELECTRON_ENV === 'development') {
     win.webContents.openDevTools();
   }
@@ -71,27 +134,28 @@ function openSettingsWindow(win) {
 }
 
 function createApplicationMenu(win) {
+  const shortcutPrefix = process.platform === 'darwin' ? 'Command' : 'Ctrl';
   const template = [
     {
       label: '檔案',
       submenu: [
         {
           label: '新增專案檔',
-          accelerator: 'Ctrl+N',
+          accelerator: 'CmdOrCtrl+N',
           click: () => {
             win.webContents.send('project-new');
           },
         },
         {
           label: '儲存專案檔',
-          accelerator: 'Ctrl+S',
+          accelerator: 'CmdOrCtrl+S',
           click: () => {
             win.webContents.send('project-save');
           },
         },
         {
           label: '讀取專案檔...',
-          accelerator: 'Ctrl+O',
+          accelerator: 'CmdOrCtrl+O',
           click: () => {
             win.webContents.send('project-open');
           },
@@ -99,7 +163,7 @@ function createApplicationMenu(win) {
         { type: 'separator' },
         {
           label: 'APP 偏好設定',
-          accelerator: 'Ctrl+,',
+          accelerator: 'CmdOrCtrl+,',
           click: () => {
             openSettingsWindow(win);
           },
@@ -120,7 +184,7 @@ function createApplicationMenu(win) {
         { type: 'separator' },
         {
           label: '結束',
-          accelerator: 'Alt+F4',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4',
           click: () => app.quit(),
         },
       ],
@@ -128,9 +192,17 @@ function createApplicationMenu(win) {
     {
       label: '編輯',
       submenu: [
+        { label: '復原', role: 'undo' },
+        { label: '重做', role: 'redo' },
+        { type: 'separator' },
+        { label: '剪下', role: 'cut' },
+        { label: '複製', role: 'copy' },
+        { label: '貼上', role: 'paste' },
+        { label: '全選', role: 'selectAll' },
+        { type: 'separator' },
         {
           label: '健康檢查',
-          accelerator: 'Ctrl+Shift+H',
+          accelerator: 'CmdOrCtrl+Shift+H',
           click: () => showHealthCheckDialog(win),
         },
         { type: 'separator' },
@@ -162,11 +234,33 @@ function createApplicationMenu(win) {
               message: '離線字幕工廠操作流程',
               detail: [
                 '1. 選擇影片、規則檔，或匯入既有 SRT。',
-                '2. 執行健康檢查，確認 Node.js、FFmpeg、Python、Whisper 狀態。',
-                '3. 若工具未安裝，請執行 setup-local-tools.bat。',
+                '2. APP 會自動檢查內建 FFmpeg、Whisper.cpp、模型與 Metal／GPU 狀態。',
+                '3. 若離線元件異常，請執行健康檢查並依畫面提示修復。',
                 '4. 建立任務後等待轉錄與字幕初稿產生。',
                 '5. 進入校閱頁修正字幕，並調整燒錄樣式。',
-                '6. 儲存校稿包後，可在任務資料夾找到 SRT 與 FFmpeg 樣式設定。',
+                '6. 校閱內容會自動保存，也可儲存校稿包或輸出字幕與影片。',
+              ].join('\n'),
+            });
+          },
+        },
+        {
+          label: '快捷鍵一覽',
+          click: () => {
+            dialog.showMessageBox(win, {
+              type: 'info',
+              title: '快捷鍵一覽',
+              message: '離線字幕工廠快捷鍵',
+              detail: [
+                `${shortcutPrefix}+N　新增專案檔`,
+                `${shortcutPrefix}+O　讀取專案檔`,
+                `${shortcutPrefix}+S　儲存專案檔`,
+                `${shortcutPrefix}+,　開啟偏好設定`,
+                `${shortcutPrefix}+Shift+H　健康檢查`,
+                '',
+                '校閱頁：',
+                'Space　播放／暫停',
+                'Alt+← / Alt+→　快退／快進 5 秒',
+                `${shortcutPrefix}+↑ / ${shortcutPrefix}+↓　上一段／下一段字幕`,
               ].join('\n'),
             });
           },
@@ -200,7 +294,7 @@ function createApplicationMenu(win) {
               title: '關於離線字幕工廠',
               message: '離線字幕工廠',
               detail: [
-                '版本：0.1.0',
+                `版本：${app.getVersion()}`,
                 '',
                 '學校：國立陽明交通大學',
                 '單位：教務處數位教學中心',
@@ -216,6 +310,23 @@ function createApplicationMenu(win) {
     },
   ];
 
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: app.name,
+      submenu: [
+        { role: 'about', label: '關於離線字幕工廠' },
+        { type: 'separator' },
+        { role: 'services', label: '服務' },
+        { type: 'separator' },
+        { role: 'hide', label: '隱藏離線字幕工廠' },
+        { role: 'hideOthers', label: '隱藏其他項目' },
+        { role: 'unhide', label: '顯示全部' },
+        { type: 'separator' },
+        { role: 'quit', label: '結束離線字幕工廠' },
+      ],
+    });
+  }
+
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -228,13 +339,19 @@ function getServerBaseUrl(win) {
 
 async function showHealthCheckDialog(win) {
   try {
-    const res = await fetch(`${getServerBaseUrl(win)}/api/health`);
+    const res = await fetch(`${getServerBaseUrl(win)}/api/health?refresh=1`, {
+      headers: { 'X-Offline-Subtitle-Token': serverApiToken },
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const toolStatus = data.tools
-      ? Object.entries(data.tools)
-          .map(([name, value]) => `  ${name}: ${formatHealthToolStatus(name, value)}`)
-          .join('\n')
+      ? [
+          `  FFmpeg：${formatHealthToolStatus('ffmpeg', data.tools.ffmpeg)}`,
+          `  轉錄引擎：${data.tools.asrEngine || '不可用'}`,
+          `  Whisper.cpp：${formatHealthToolStatus('whisperCpp', data.tools.whisperCpp)}`,
+          `  內建模型：${formatHealthToolStatus('whisperCppModel', data.tools.whisperCppModel)}`,
+          `  Metal／GPU：${formatHealthToolStatus('gpu', data.tools.gpu)}`,
+        ].join('\n')
       : '  無工具狀態資料';
 
     const projectFolder = data.settings?.projectFolder || '';
@@ -286,6 +403,7 @@ function formatHealthToolStatus(name, value) {
 function resolveToolsInfo() {
   const candidates = [
     process.env.OFFLINE_SUBTITLE_TOOLS_DIR,
+    app.isPackaged ? path.join(process.resourcesPath, 'tools') : null,
     path.join(app.getPath('userData'), 'tools'),
     path.join(appDir, 'tools'),
     path.resolve(appDir, '..', 'tools'),
@@ -303,6 +421,9 @@ function hasAnyTool(candidate) {
     path.join(candidate, 'python-embed', 'python.exe'),
     path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg'),
+    path.join(candidate, 'whisper-cpp', 'whisper-cli.exe'),
+    path.join(candidate, 'whisper-cpp', 'whisper-cli'),
     path.join(candidate, 'node', 'node.exe'),
   ].some((filePath) => fs.existsSync(filePath));
 }
@@ -330,7 +451,7 @@ function buildToolsInfo(toolsDir, candidates) {
       process.execPath,
     ]),
     ffmpeg: firstExisting([
-      path.join(toolsDir, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+      path.join(toolsDir, 'ffmpeg', 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
       'ffmpeg',
     ]),
     python: firstExisting([
@@ -338,7 +459,9 @@ function buildToolsInfo(toolsDir, candidates) {
       path.join(toolsDir, 'python-embed', 'python.exe'),
       path.join(toolsDir, 'python-venv', 'Scripts', 'python.exe'),
     ]),
+    whisperCpp: path.join(toolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
     whisperModels: path.join(toolsDir, 'whisper-models'),
+    whisperCppModel: path.join(toolsDir, 'whisper-models', 'ggml-tiny.bin'),
     manifest: path.join(toolsDir, 'manifest.json'),
   };
   return { toolsDir, candidates, paths };
@@ -353,6 +476,7 @@ function checkToolExists(exePath) {
 function checkToolRunnable(exePath, args = []) {
   if (!checkToolExists(exePath)) return false;
   try {
+    const useElectronAsNode = path.resolve(exePath) === path.resolve(process.execPath);
     const result = spawnSync(exePath, args, {
       timeout: 8000,
       encoding: 'utf8',
@@ -361,6 +485,7 @@ function checkToolRunnable(exePath, args = []) {
         ...process.env,
         PYTHONIOENCODING: 'utf-8',
         PYTHONUTF8: '1',
+        ELECTRON_RUN_AS_NODE: useElectronAsNode ? '1' : process.env.ELECTRON_RUN_AS_NODE,
       },
     });
     return result.error == null && result.status === 0;
@@ -397,6 +522,12 @@ async function preFlightCheck() {
       args: ['-c', 'import whisper; print("ok")'],
       label: 'Whisper',
     },
+    whisperCpp: {
+      exists: checkToolExists(paths.whisperCpp),
+      exe: paths.whisperCpp,
+      args: ['--help'],
+      label: 'Whisper.cpp',
+    },
   };
 
   const results = {};
@@ -405,14 +536,19 @@ async function preFlightCheck() {
   for (const [key, check] of Object.entries(checks)) {
     if (!check.exists) {
       results[key] = false;
-      missing.push(check.label);
     } else {
       results[key] = checkToolRunnable(check.exe, check.args);
-      if (!results[key]) missing.push(check.label);
     }
   }
 
-  return { results, missing, setupScript: setupBatPath, toolInfo };
+  results.whisperCppModel = fs.existsSync(paths.whisperCppModel);
+  if (!results.node) missing.push('內建 Node.js 執行環境');
+  if (!results.ffmpeg) missing.push('FFmpeg');
+  if (!(results.whisper || (results.whisperCpp && results.whisperCppModel))) {
+    missing.push('Whisper 離線轉錄引擎或預設模型');
+  }
+
+  return { results, missing, toolInfo };
 }
 
 async function showStartupError(title, detail) {
@@ -420,48 +556,37 @@ async function showStartupError(title, detail) {
 }
 
 async function showPreFlightWarning(win, preflight) {
-  const { results, missing, setupScript } = preflight;
+  const { missing } = preflight;
   const missingNames = missing.join('、');
 
   const detailLines = [
     `以下工具尚未就緒：${missingNames}`,
     '',
-    '建議操作：',
-    `  1. 在檔案總管中開啟應用程式資料夾`,
-    `  2. 雙擊執行 ${path.basename(setupScript)}`,
-    '  3. 等待工具安裝完成後重新啟動 APP',
+    '正式安裝包已包含所有必要元件，不需要另外安裝 Python、Node.js、FFmpeg 或 Whisper。',
     '',
-    '注意：',
-    '  • 如果電腦上沒有安裝 Python，請先執行：',
-    '    winget install Python.Python.3.12',
-    '  • Node.js 和 FFmpeg 可以透過 setup-local-tools.bat 自動安裝',
-    '',
-    `工具安裝腳本路徑：${setupScript}`,
+    '請重新執行安裝程式以修復缺少或損壞的元件。',
   ].join('\n');
 
-  const { response } = await dialog.showMessageBox(win, {
+  await dialog.showMessageBox(win, {
     type: 'warning',
-    title: '環境工具尚未安裝',
-    message: '離線字幕工廠偵測到部分工具尚未安裝',
+    title: '內建元件需要修復',
+    message: '離線字幕工廠偵測到部分內建元件缺少或損壞',
     detail: detailLines,
-    buttons: ['開啟工具資料夾', '稍後再說'],
+    buttons: ['確定'],
     defaultId: 0,
-    cancelId: 1,
   });
-
-  if (response === 0) {
-    shell.openPath(path.dirname(setupScript));
-  }
 }
 
-async function startServer(effectivePort) {
+async function startServer(effectivePort, apiToken) {
   const toolInfo = resolveToolsInfo();
   const pathEntries = [
     commandDir(toolInfo.paths.ffmpeg),
     commandDir(toolInfo.paths.python),
+    commandDir(toolInfo.paths.whisperCpp),
     commandDir(toolInfo.paths.node),
   ].filter(Boolean);
-  const nodeCommand = checkToolExists(toolInfo.paths.node) ? toolInfo.paths.node : 'node';
+  const nodeCommand = checkToolExists(toolInfo.paths.node) ? toolInfo.paths.node : process.execPath;
+  const useElectronAsNode = path.resolve(nodeCommand) === path.resolve(process.execPath);
 
   console.log('[main] Starting server...');
   console.log('[main] appDir:', appDir);
@@ -480,11 +605,14 @@ async function startServer(effectivePort) {
       OFFLINE_SUBTITLE_DATA_DIR: dataDir,
       OFFLINE_SUBTITLE_SETTINGS_DIR: settingsDir,
       OFFLINE_SUBTITLE_TOOLS_DIR: toolInfo.toolsDir,
+      OFFLINE_SUBTITLE_API_TOKEN: apiToken,
+      SUBTITLE_AI_KEYS_JSON: JSON.stringify(secureAiKeys),
       XDG_CACHE_HOME: toolInfo.toolsDir,
       WHISPER_CACHE: toolInfo.paths.whisperModels,
       PYTHONIOENCODING: 'utf-8',
       PYTHONUTF8: '1',
-      PATH: `${pathEntries.join(';')}${pathEntries.length ? ';' : ''}${process.env.PATH || ''}`,
+      ELECTRON_RUN_AS_NODE: useElectronAsNode ? '1' : process.env.ELECTRON_RUN_AS_NODE,
+      PATH: [...pathEntries, process.env.PATH || ''].filter(Boolean).join(path.delimiter),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -501,7 +629,7 @@ async function startServer(effectivePort) {
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 500));
     try {
-      const res = await fetch(`${checkBase}/api/health`);
+      const res = await fetch(`${checkBase}/api/health`, { headers: { 'X-Offline-Subtitle-Token': apiToken } });
       if (res.ok) {
         console.log('[main] Server ready on port', effectivePort);
         return;
@@ -515,6 +643,9 @@ async function startServer(effectivePort) {
 
 // ── App startup with preflight check ──────────────────────────────────────────
 app.whenReady().then(async () => {
+  secureAiKeys = readSecureAiKeys();
+  migrateLegacyAiKeys();
+  const splash = createSplashWindow();
   // Run preflight before starting server
   const preflight = await preFlightCheck();
   if (preflight.missing.length > 0) {
@@ -526,14 +657,23 @@ app.whenReady().then(async () => {
 
   try {
     const actualPort = await findAvailablePort(8790);
-    await startServer(actualPort);
-    const win = createWindow(actualPort);
+    currentServerPort = actualPort;
+    serverApiToken = crypto.randomBytes(32).toString('hex');
+    await startServer(actualPort, serverApiToken);
+    const win = createWindow(actualPort, serverApiToken);
+    mainWindow = win;
+    win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
+    win.once('ready-to-show', () => {
+      win.show();
+      if (!splash.isDestroyed()) splash.close();
+    });
 
     // Show preflight warning after window is ready
     if (preflight.missing.length > 0) {
       await showPreFlightWarning(win, preflight);
     }
   } catch (error) {
+    if (!splash.isDestroyed()) splash.close();
     const detail = error.stack
       ? `${error.message}\n\n${error.stack.split('\n').slice(0, 4).join('\n')}`
       : error.message;
@@ -544,7 +684,28 @@ app.whenReady().then(async () => {
 
 ipcMain.handle('open-folder', async (_event, relativePath) => {
   const resolvedPath = path.resolve(appDir, relativePath);
+  const relative = path.relative(appDir, resolvedPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('不允許開啟應用程式目錄外的路徑');
   return shell.openPath(resolvedPath);
+});
+
+ipcMain.handle('ai-key-status', async (_event, provider) => ({
+  available: safeStorage.isEncryptionAvailable(),
+  hasKey: Boolean(secureAiKeys[String(provider || '')]),
+  source: secureAiKeys[String(provider || '')] ? 'safeStorage' : 'none',
+}));
+ipcMain.handle('ai-key-save', async (_event, provider, apiKey) => {
+  const id = String(provider || 'openai-compatible');
+  const value = String(apiKey || '').trim();
+  if (!value) throw new Error('API Key 不可為空白');
+  secureAiKeys[id] = value;
+  writeSecureAiKeys(secureAiKeys);
+  return { ok: true, hasKey: true, source: 'safeStorage' };
+});
+ipcMain.handle('ai-key-clear', async (_event, provider) => {
+  delete secureAiKeys[String(provider || '')];
+  writeSecureAiKeys(secureAiKeys);
+  return { ok: true, hasKey: false, source: 'none' };
 });
 
 ipcMain.handle('select-folder', async (_event, options = {}) => {
@@ -560,13 +721,21 @@ ipcMain.handle('select-folder', async (_event, options = {}) => {
 
 ipcMain.handle('open-arbitrary-folder', async (_event, folderPath) => {
   if (!folderPath || !path.isAbsolute(folderPath)) return;
-  fs.mkdirSync(folderPath, { recursive: true });
+  if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) return '資料夾不存在';
   const result = await shell.openPath(folderPath);
   if (result) console.error('[main] open-arbitrary-folder error:', result);
   return result;
 });
 
 ipcMain.handle('open-external', async (_event, url) => {
+  let parsed;
+  try { parsed = new URL(url); } catch { throw new Error('無效的外部網址'); }
+  if (!['https:', 'http:', 'file:'].includes(parsed.protocol)) throw new Error('不允許此外部網址協定');
+  if (parsed.protocol === 'file:') {
+    const filePath = path.resolve(decodeURIComponent(parsed.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1')));
+    const relative = path.relative(appDir, filePath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('不允許開啟應用程式目錄外的檔案');
+  }
   return shell.openExternal(url);
 });
 
@@ -616,6 +785,9 @@ ipcMain.handle('open-project-file', async () => {
 ipcMain.handle('open-settings-file', async (_event, filePath) => {
   if (!filePath || !path.isAbsolute(filePath)) return;
   if (!fs.existsSync(filePath)) return;
+  const settingsRoot = path.join(app.getPath('userData'), 'config');
+  const relative = path.relative(settingsRoot, path.resolve(filePath));
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('不允許開啟設定目錄外的檔案');
   return shell.openPath(filePath);
 });
 
@@ -623,6 +795,14 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     serverProcess?.kill();
     app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (!mainWindow && currentServerPort && serverApiToken) {
+    mainWindow = createWindow(currentServerPort, serverApiToken);
+    mainWindow.on('closed', () => { mainWindow = null; });
+    mainWindow.once('ready-to-show', () => mainWindow?.show());
   }
 });
 

@@ -2,6 +2,24 @@
 const API_BASE = window.location.origin.startsWith('http')
   ? window.location.origin
   : 'http://127.0.0.1:8790';
+const API_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init = {}) => {
+  const requestUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+  if (!API_TOKEN || requestUrl.origin !== API_BASE || !requestUrl.pathname.startsWith('/api/')) {
+    return nativeFetch(input, init);
+  }
+  const headers = new Headers(input instanceof Request ? input.headers : undefined);
+  new Headers(init.headers || {}).forEach((value, key) => headers.set(key, value));
+  headers.set('X-Offline-Subtitle-Token', API_TOKEN);
+  return nativeFetch(input, { ...init, headers });
+};
+
+function appUrl(pathname) {
+  const url = new URL(pathname, `${API_BASE}/`);
+  if (API_TOKEN) url.searchParams.set('token', API_TOKEN);
+  return url.toString();
+}
 
 const form = document.getElementById('jobForm');
 const progressNumber = document.getElementById('progressNumber');
@@ -11,10 +29,11 @@ const statusText = document.getElementById('statusText');
 const logBox = document.getElementById('logBox');
 const jobBadge = document.getElementById('jobBadge');
 const openReview = document.getElementById('openReview');
+const createAndTrim = document.getElementById('createAndTrim');
 const healthButton = document.getElementById('healthButton');
 const openJobFolder = document.getElementById('openJobFolder');
 const ffmpegMetric = document.getElementById('ffmpegMetric');
-const pythonMetric = document.getElementById('pythonMetric');
+const asrMetric = document.getElementById('asrMetric');
 const whisperMetric = document.getElementById('whisperMetric');
 const gpuMetric = document.getElementById('gpuMetric');
 const appLanguage = document.getElementById('appLanguage');
@@ -46,6 +65,15 @@ const startExportBtn = document.getElementById('startExport');
 const cancelExportBtn = document.getElementById('cancelExport');
 const openOutputFolderBtn = document.getElementById('openOutputFolder');
 const exportStatus = document.getElementById('exportStatus');
+const homeDashboard = document.getElementById('homeDashboard');
+const workspaceView = document.getElementById('workspaceView');
+const homeNewProject = document.getElementById('homeNewProject');
+const homeImportProject = document.getElementById('homeImportProject');
+const homeViewAllProjects = document.getElementById('homeViewAllProjects');
+const recentProjectsList = document.getElementById('recentProjectsList');
+const homeOpenProcessing = document.getElementById('homeOpenProcessing');
+const backToDashboard = document.getElementById('backToDashboard');
+const homeNavButtons = [...document.querySelectorAll('.home-nav button')];
 
 let currentJobId = null;
 let pollTimer = null;
@@ -95,7 +123,7 @@ let allTasks = [];
       successDiv.style.display = 'none';
       missingDiv.style.display = 'block';
 
-      missingListEl.textContent = `缺少工具：${data.missingTools.join('、')}`;
+      missingListEl.textContent = `缺少或損壞的內建元件：${data.missingTools.join('、')}`;
 
       if (data.installGuide?.steps?.length) {
         stepsEl.innerHTML = data.installGuide.steps.map((s) => `<li>${s}</li>`).join('');
@@ -103,24 +131,7 @@ let allTasks = [];
 
       if (openSetupBtn) {
         openSetupBtn.addEventListener('click', () => {
-          // Try to open the setup script location
-          const setupPath = 'setup-local-tools.bat';
-          if (window.electronAPI?.openExternal) {
-            // In Electron, try to open the folder containing setup script
-            try {
-              window.electronAPI.openExternal(`file://${setupPath}`);
-            } catch {}
-          }
-          // Fallback: try to execute via shell
-          if (window.electronAPI?.openFolder) {
-            // Open the app directory
-          }
-          // Last resort: copy the path to clipboard
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(setupPath).then(() => {
-              openSetupBtn.textContent = '✅ 已複製路徑到剪貼簿';
-            }).catch(() => {});
-          }
+          overlay.style.display = 'none';
         });
       }
 
@@ -131,7 +142,7 @@ let allTasks = [];
           checkDiv.style.display = 'block';
           resultDiv.style.display = 'none';
           try {
-            const resp2 = await fetch(`${API_BASE}/api/bootstrap`, { cache: 'no-store' });
+          const resp2 = await fetch(`${API_BASE}/api/bootstrap?refresh=1`, { cache: 'no-store' });
             if (!resp2.ok) throw new Error(`HTTP ${resp2.status}`);
             const data2 = await resp2.json();
             checkDiv.style.display = 'none';
@@ -142,7 +153,7 @@ let allTasks = [];
               overlay.style.display = 'none';
               try { localStorage.setItem('bootstrap_done', 'true'); } catch {}
             } else {
-              missingListEl.textContent = `缺少工具：${data2.missingTools.join('、')}`;
+              missingListEl.textContent = `缺少或損壞的內建元件：${data2.missingTools.join('、')}`;
               if (data2.installGuide?.steps?.length) {
                 stepsEl.innerHTML = data2.installGuide.steps.map((s) => `<li>${s}</li>`).join('');
               }
@@ -218,6 +229,187 @@ bindSettingsControls();
 bindProjectMenuControls();
 bindTaskManagerControls();
 bindExportControls();
+bindHomeDashboard();
+refreshHomeDashboard();
+openRequestedHomeAction();
+
+async function openRequestedHomeAction() {
+  const requested = new URLSearchParams(location.search).get('open');
+  if (requested === 'new-project') {
+    newBlankProject();
+    showWorkspace();
+  } else if (requested === 'import') {
+    showWorkspace();
+    await openProjectFile();
+  } else if (requested === 'processing') {
+    openProcessingList();
+  }
+}
+
+function bindHomeDashboard() {
+  document.getElementById('navHome')?.addEventListener('click', () => {
+    showDashboard();
+    refreshHomeDashboard();
+  });
+  document.getElementById('navProjects')?.addEventListener('click', () => openProjectList());
+  document.getElementById('navProcessing')?.addEventListener('click', () => openProcessingList());
+  document.getElementById('navModels')?.addEventListener('click', async () => {
+    showWorkspace('navModels');
+    document.getElementById('preflight')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    healthButton?.click();
+  });
+  document.getElementById('navSettings')?.addEventListener('click', () => {
+    openSettingsPanel();
+  });
+  homeNewProject?.addEventListener('click', () => {
+    newBlankProject();
+    showWorkspace();
+  });
+  homeImportProject?.addEventListener('click', async () => {
+    showWorkspace();
+    await openProjectFile();
+  });
+  homeViewAllProjects?.addEventListener('click', openProjectList);
+  homeOpenProcessing?.addEventListener('click', openProcessingList);
+  backToDashboard?.addEventListener('click', () => {
+    showDashboard();
+    refreshHomeDashboard();
+  });
+  recentProjectsList?.addEventListener('click', handleHomeProjectClick);
+}
+
+function setHomeNavActive(activeId = 'navHome') {
+  homeNavButtons.forEach((button) => button.classList.toggle('active', button.id === activeId));
+}
+
+function showDashboard(activeId = 'navHome') {
+  homeDashboard?.classList.remove('is-hidden');
+  workspaceView?.classList.add('is-hidden');
+  setHomeNavActive(activeId);
+}
+
+function showWorkspace(activeId = '') {
+  homeDashboard?.classList.add('is-hidden');
+  workspaceView?.classList.remove('is-hidden');
+  setHomeNavActive(activeId);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openProjectList() {
+  setHomeNavActive('navProjects');
+  if (taskFilterSelect) taskFilterSelect.value = 'all';
+  openTaskManager();
+}
+
+function openProcessingList() {
+  setHomeNavActive('navProcessing');
+  if (taskFilterSelect) taskFilterSelect.value = 'running';
+  openTaskManager();
+}
+
+async function refreshHomeDashboard() {
+  await Promise.allSettled([refreshHomeProjects(), refreshHomeHealth()]);
+}
+
+async function refreshHomeProjects() {
+  if (!recentProjectsList) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs?offset=0&limit=12`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+    renderHomeProjects(jobs.slice(0, 3));
+    renderHomeProcessing(jobs.find((job) => ['running', 'queued'].includes(job.status)) || null);
+  } catch (error) {
+    recentProjectsList.innerHTML = `<div class="home-empty-state">無法讀取專案：${escapeHtml(error.message)}</div>`;
+    renderHomeProcessing(null);
+  }
+}
+
+function renderHomeProjects(jobs) {
+  if (!recentProjectsList) return;
+  if (!jobs.length) {
+    recentProjectsList.innerHTML = '<div class="home-empty-state">尚無專案，請點選「新增字幕專案」開始製作。</div>';
+    return;
+  }
+  recentProjectsList.innerHTML = jobs.map((job) => {
+    const video = job.files?.video || '未命名字幕專案';
+    const projectName = video.replace(/\.[^.]+$/, '') || video;
+    const progress = Math.max(0, Math.min(100, Math.round(job.progress || 0)));
+    return `
+      <article class="home-project-card" data-home-job-id="${escapeHtml(job.jobId)}" data-home-status="${escapeHtml(job.status)}" tabindex="0">
+        <div class="home-project-thumb" aria-hidden="true"><img src="${appUrl(`/api/jobs/${encodeURIComponent(job.jobId)}/thumbnail`)}" alt=""></div>
+        <div class="home-project-copy">
+          <strong>${escapeHtml(projectName)}</strong>
+          <div class="home-project-meta">
+            <span class="home-project-status ${escapeHtml(job.status)}">${escapeHtml(statusLabel(job.status))}</span>
+            <span>${escapeHtml(stageLabel(job.stage))}${progress ? `・${progress}%` : ''}</span>
+            <span>更新於 ${escapeHtml(formatDateTime(job.updatedAt || job.createdAt))}</span>
+          </div>
+        </div>
+        <button class="home-project-trim" data-home-action="trim" type="button" aria-label="開啟影片修剪">✂ 修剪</button>
+      </article>`;
+  }).join('');
+  recentProjectsList.querySelectorAll('.home-project-thumb img').forEach((image) => {
+    image.addEventListener('error', () => { image.hidden = true; }, { once: true });
+  });
+}
+
+function renderHomeProcessing(job) {
+  const ring = document.querySelector('#homeProcessingCard .processing-ring');
+  const name = document.getElementById('homeProcessingName');
+  const stage = document.getElementById('homeProcessingStage');
+  const percent = document.getElementById('homeProcessingPercent');
+  const eta = document.getElementById('homeProcessingEta');
+  const progress = job ? Math.max(0, Math.min(100, Math.round(job.progress || 0))) : 0;
+  if (ring) ring.style.setProperty('--progress', String(progress));
+  if (percent) percent.textContent = `${progress}%`;
+  if (!job) {
+    if (name) name.textContent = '目前沒有處理中任務';
+    if (stage) stage.textContent = '系統已準備就緒';
+    if (eta) eta.textContent = '—';
+    return;
+  }
+  if (name) name.textContent = (job.files?.video || job.jobId).replace(/\.[^.]+$/, '');
+  if (stage) stage.textContent = `${stageLabel(job.stage)}・${job.message || '處理中'}`;
+  if (eta) eta.textContent = progress > 2 && progress < 100 ? '計算中' : '即將開始';
+}
+
+async function refreshHomeHealth() {
+  try {
+    const response = await fetch(`${API_BASE}/api/health`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    const tools = data.tools || {};
+    const runtime = document.getElementById('homeRuntimeStatus');
+    const model = document.getElementById('homeModelStatus');
+    const device = document.getElementById('homeDeviceStatus');
+    if (runtime) runtime.textContent = data.ready ? '離線元件正常' : '離線元件需要檢查';
+    if (model) model.textContent = form.elements.modelName?.value || 'tiny multilingual';
+    if (device) device.textContent = tools.gpu?.available ? (tools.gpu.deviceName || 'Apple Metal') : 'CPU';
+  } catch {
+    const runtime = document.getElementById('homeRuntimeStatus');
+    if (runtime) runtime.textContent = '離線服務尚未連線';
+  }
+}
+
+async function handleHomeProjectClick(event) {
+  const card = event.target.closest('[data-home-job-id]');
+  if (!card) return;
+  const jobId = card.dataset.homeJobId;
+  if (event.target.closest('[data-home-action="trim"]')) {
+    window.location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
+    return;
+  }
+  if (card.dataset.homeStatus === 'completed') {
+    window.location.href = appUrl(`/review/${encodeURIComponent(jobId)}?stage=proofread`);
+    return;
+  }
+  currentJobId = jobId;
+  jobBadge.textContent = `workspace/jobs/${currentJobId}`;
+  showWorkspace();
+  await loadJobStatus(jobId, { fallbackMessage: `已載入任務：${jobId}` });
+}
 
 document.querySelectorAll('.workflow button').forEach((button) => {
   button.addEventListener('click', () => {
@@ -244,7 +436,7 @@ healthButton.addEventListener('click', async () => {
   setStatus({
     progress: 8,
     stage: 'preflight',
-    message: '正在檢查本機環境',
+    message: '正在檢查內建離線元件',
     logs: ['呼叫 /api/health'],
   });
 
@@ -254,17 +446,17 @@ healthButton.addEventListener('click', async () => {
   setStatus({
     progress: 18,
     stage: 'preflight',
-    message: `Node ${health.node}，環境檢查完成`,
+    message: `內建元件檢查完成（${health.tools.asrEngine || '無可用 ASR'}）`,
     logs: [
       `FFmpeg=${labelOk(health.tools.ffmpeg)}`,
-      `Python=${labelOk(health.tools.python)}`,
+      `離線轉錄引擎=${health.tools.asrEngine || '缺少'}`,
       `Whisper=${labelOk(health.tools.whisper)}`,
       `GPU=${gpuSummary(health.tools.gpu)}`,
     ],
     metrics: {
       hasFfmpeg: health.tools.ffmpeg,
-      hasPython: health.tools.python,
       hasWhisper: health.tools.whisper,
+      asrEngine: health.tools.asrEngine,
       gpu: health.tools.gpu,
     },
   });
@@ -425,6 +617,7 @@ function bindSettingsControls() {
 }
 
 function openSettingsPanel() {
+  if (workspaceView?.classList.contains('is-hidden')) showWorkspace('navSettings');
   appSettingsModal?.classList.add('is-open');
   appSettingsModal?.setAttribute('aria-hidden', 'false');
   loadAppSettings();
@@ -470,6 +663,15 @@ function updateSettingsStatus(message) {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  await createProjectJob({ startAfterCreate: true });
+});
+
+createAndTrim?.addEventListener('click', async () => {
+  if (!form.reportValidity()) return;
+  await createProjectJob({ startAfterCreate: false });
+});
+
+async function createProjectJob({ startAfterCreate }) {
   // Reset video info (will be taken over by job status after submission)
   const elDuration = document.getElementById('infoDuration');
   const elResolution = document.getElementById('infoResolution');
@@ -505,9 +707,14 @@ form.addEventListener('submit', async (event) => {
   jobBadge.textContent = `workspace/jobs/${currentJobId}`;
   setStatus(created.status);
 
+  if (!startAfterCreate) {
+    window.location.href = appUrl(`/trim/${encodeURIComponent(currentJobId)}`);
+    return;
+  }
   await fetch(`${API_BASE}/api/jobs/${currentJobId}/start`, { method: 'POST' });
+  refreshHomeDashboard();
   startPolling();
-});
+}
 
 openReview.addEventListener('click', () => {
   if (!currentJobId) return;
@@ -567,8 +774,7 @@ function startPolling() {
     if (terminalStates.includes(status.status)) {
       clearInterval(pollTimer);
       openReview.disabled = status.status !== 'completed';
-      if (status.status === 'completed') {
-      }
+      refreshHomeDashboard();
     }
   }, 1000);
 }
@@ -584,7 +790,7 @@ function openReviewStage(stage) {
     return;
   }
   // Electron 環境和網頁環境都指向本機伺服器
-  window.location.href = `${API_BASE}/review/${encodeURIComponent(currentJobId)}?stage=${encodeURIComponent(stage)}`;
+  window.location.href = appUrl(`/review/${encodeURIComponent(currentJobId)}?stage=${encodeURIComponent(stage)}`);
 }
 
 async function openFolder(target) {
@@ -708,8 +914,10 @@ function renderTaskList() {
         <div class="task-item-actions">
           <span class="status-pill ${escapeHtml(task.status)}">${escapeHtml(statusLabel(task.status))}</span>
           <button type="button" class="small-button" data-task-action="load">載入</button>
+          <button type="button" class="small-button" data-task-action="trim">修剪</button>
           <button type="button" class="small-button" data-task-action="review">校閱</button>
           <button type="button" class="small-button" data-task-action="folder">資料夾</button>
+          <button type="button" class="small-button danger-button" data-task-action="delete">刪除</button>
         </div>
       </article>`;
   }).join('');
@@ -723,8 +931,12 @@ async function handleTaskAction(event) {
   const jobId = item?.dataset.jobId;
   if (!jobId) return;
   const action = event.currentTarget.dataset.taskAction;
+  if (action === 'trim') {
+    window.location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
+    return;
+  }
   if (action === 'review') {
-    window.location.href = `${API_BASE}/review/${encodeURIComponent(jobId)}?stage=proofread`;
+    window.location.href = appUrl(`/review/${encodeURIComponent(jobId)}?stage=proofread`);
     return;
   }
   if (action === 'folder') {
@@ -734,10 +946,33 @@ async function handleTaskAction(event) {
     currentJobId = previousJobId;
     return;
   }
+  if (action === 'delete') {
+    const task = allTasks.find((item) => item.jobId === jobId);
+    const label = task?.files?.video || jobId;
+    if (!confirm(`確定刪除專案「${label}」？\n\n此操作會移除任務資料夾、字幕與輸出檔，無法復原。`)) return;
+    event.currentTarget.disabled = true;
+    try {
+      const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      if (currentJobId === jobId) {
+        currentJobId = null;
+        localStorage.removeItem('offlineSubtitleFactory.currentJobId');
+        resetFormForNewJob();
+      }
+      await loadTaskList();
+      await loadRecentProjects();
+    } catch (error) {
+      alert(`刪除失敗：${error.message}`);
+      event.currentTarget.disabled = false;
+    }
+    return;
+  }
   currentJobId = jobId;
   jobBadge.textContent = `workspace/jobs/${currentJobId}`;
   await loadJobStatus(jobId, { fallbackMessage: `已載入歷史任務：${jobId}` });
   closeTaskManager();
+  showWorkspace();
 }
 
 function bindExportControls() {
@@ -813,6 +1048,7 @@ async function cancelExportJob() {
 function statusLabel(status) {
   const labels = {
     created: '未開始',
+    queued: '排隊中',
     running: '進行中',
     completed: '已完成',
     failed: '失敗',
@@ -851,8 +1087,8 @@ function setStatus(status) {
   if (status.metrics) {
     updateMetrics({
       ffmpeg: status.metrics.hasFfmpeg,
-      python: status.metrics.hasPython,
       whisper: status.metrics.hasWhisper,
+      asrEngine: status.metrics.asrEngine,
       gpu: status.metrics.gpu,
     });
   }
@@ -872,13 +1108,15 @@ function bindProjectMenuControls() {
 
 function collectProjectData() {
   return {
-    appVersion: '0.1.0',
+    appVersion: '0.45.0',
     jobId: currentJobId,
     projectPath: currentProjectPath,
     form: {
       language: form.elements.language?.value || '',
       asrEngine: form.elements.asrEngine?.value || '',
       modelName: form.elements.modelName?.value || '',
+      performancePreset: form.elements.performancePreset?.value || 'balanced',
+      cpuThreads: form.elements.cpuThreads?.value || '0',
       outputFormats: form.elements.outputFormats?.value || '',
       requirements: form.elements.requirements?.value || '',
     },
@@ -993,6 +1231,8 @@ function applyFormValues(values) {
   if (form.elements.language && values.language) form.elements.language.value = values.language;
   if (form.elements.asrEngine && values.asrEngine) form.elements.asrEngine.value = values.asrEngine;
   if (form.elements.modelName) form.elements.modelName.value = values.modelName || '';
+  if (form.elements.performancePreset) form.elements.performancePreset.value = values.performancePreset || 'balanced';
+  if (form.elements.cpuThreads) form.elements.cpuThreads.value = values.cpuThreads || '0';
   if (form.elements.outputFormats) form.elements.outputFormats.value = values.outputFormats || 'srt,vtt';
   if (form.elements.requirements) form.elements.requirements.value = values.requirements || '';
 }
@@ -1046,6 +1286,8 @@ function newBlankProject({ confirmFirst = false } = {}) {
   localStorage.removeItem('offlineSubtitleFactory.currentJobId');
   form.reset();
   if (form.elements.outputFormats) form.elements.outputFormats.value = 'srt,vtt';
+  if (form.elements.performancePreset) form.elements.performancePreset.value = 'balanced';
+  if (form.elements.cpuThreads) form.elements.cpuThreads.value = '0';
   applyInterfaceLanguage(currentSettings?.appLanguage || appLanguage?.value || 'zh-TW');
   clearFileInputs();
   jobBadge.textContent = 'workspace/jobs/尚未建立';
@@ -1061,7 +1303,9 @@ function newBlankProject({ confirmFirst = false } = {}) {
 
 function updateMetrics(tools) {
   ffmpegMetric.textContent = labelPending(tools?.ffmpeg);
-  pythonMetric.textContent = labelPending(tools?.python);
+  asrMetric.textContent = tools?.asrEngine
+    ? `${tools.asrEngine}${tools.asrEngine === 'whisper.cpp' ? '（內建）' : ''}`
+    : labelPending(tools?.whisper);
   whisperMetric.textContent = labelPending(tools?.whisper);
 
   const gpu = tools?.gpu;
@@ -1116,9 +1360,11 @@ function stageLabel(stage) {
     waiting: '等待開始',
     created: '建立任務',
     uploading: '上傳中',
+    queued: '排隊等候',
     preflight: '環境檢查',
     'import-srt': '匯入 SRT',
     transcribing: '自動轉錄',
+    'audio-preprocessing': '音訊最佳化',
     'rule-cleanup': '套用規則',
     'ready-review': '準備校閱',
     'export-start': '準備輸出',
@@ -1157,7 +1403,7 @@ let retryBtn = document.getElementById('retryButton');
 function updateActionButtons(status) {
   if (!cancelBtn || !retryBtn) return;
 
-  const isRunning = status?.status === 'running';
+  const isRunning = status?.status === 'running' || status?.status === 'queued';
   const isTerminal = ['completed', 'failed', 'cancelled', 'needs-action'].includes(status?.status);
 
   cancelBtn.style.display = isRunning ? 'inline-block' : 'none';

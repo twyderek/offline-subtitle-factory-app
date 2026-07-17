@@ -3,7 +3,7 @@
 > 整合日期：2026-07-03  
 > 專案位置：`APP-PROJECT/offline-subtitle-factory-app`  
 > 測試輸出位置：`APP-PROJECT/dist/win-unpacked`  
-> 目前狀態：已完成 0.20.0 版 Windows x64 Setup / Portable 打包。
+> 目前狀態：已完成 0.21.0 版 Windows x64 完整獨立 Setup / Portable 打包。
 
 ---
 
@@ -11,11 +11,13 @@
 
 本階段完成「離線字幕工廠」0.20.0 發布版主要功能整合。此版本包含任務管理列表、第 10 步輸出、GPU 偵測、環境安裝引導、NYCU 品牌資訊、專案檔儲存/讀取與校閱/燒錄流程。
 
-正式打包流程會輸出：
+最新正式打包流程輸出：
 
-- `離線字幕工廠 Setup 0.20.0.exe`
-- `離線字幕工廠 0.20.0.exe`
+- `離線字幕工廠 Setup 0.21.0.exe`
+- `離線字幕工廠 0.21.0.exe`
 - `dist/win-unpacked`
+
+0.21.0 已內建 Electron／Node、FFmpeg、FFprobe、Whisper.cpp 與預設多語模型，使用者不需要自行安裝任何字幕處理套件。完整調整、驗證與 SHA-256 請參閱 `NEXT-VERSION-FIX-LOG.md` 項目 24。
 
 ---
 
@@ -232,3 +234,32 @@
 `APP-PROJECT/歷史資料/2026-07-03-開發整合封存`
 
 根目錄保留本檔作為最新單一版本日誌。
+
+---
+
+## 八、2026-07-15 macOS 0.21.0 發行補充
+
+- 已完成 macOS 12+、Apple Silicon arm64 的 DMG 安裝版與 ZIP 可攜包。
+- 安裝包內建 FFmpeg、FFprobe、Whisper.cpp 及 ggml-tiny 多語模型，不需使用者另行安裝套件。
+- 已完成封裝版 UI、任務 API、真實語音轉錄、Metal 加速、硬字幕輸出、DMG／ZIP 完整性與 ad-hoc 深層簽章測試。
+- 完整技術細節、成品大小與 SHA-256 請查閱 `NEXT-VERSION-FIX-LOG.md` 項目 25。
+
+## 九、2026-07-15 macOS 0.22.0-preview.1 預覽版
+
+- 已修正空白可選 SRT 導致略過 ASR、產生 0-byte 字幕卻直接完成的問題。
+- macOS 介面不再把 Python 顯示為必要元件，改為內建 Whisper.cpp／Metal。
+- 已套用深藍側欄新版首頁、字幕校對及樣式輸出畫面。
+- 已使用回報問題的 11:33 影片重跑並產生 138 段字幕。
+- 完整根因、修改與測試證據請查閱 `NEXT-VERSION-FIX-LOG.md` 項目 26。
+
+## 十、2026-07-15 macOS 0.22.0-preview.2 首頁與真實聲波預覽版
+
+- 首頁恢復為核定的深藍側欄專案總覽；原字幕設定表單改為新增專案後的工作區。
+- 最近專案、處理中任務、健康狀態與影片縮圖全部綁定本機真實資料。
+- 校閱頁移除固定 CSS 假聲波，改用 FFmpeg 音軌取樣與 canvas 真實繪製。
+- 聲波時間刻度、播放游標與影片同步，支援點擊聲波跳轉。
+- `npm run check`、封裝後 Electron 首頁／設定／上傳／任務測試、簽章、DMG 與 ZIP 完整性均通過。
+- DMG：`dist/離線字幕工廠 0.22.0-preview.2 macOS-arm64.dmg`
+- ZIP：`dist/離線字幕工廠 0.22.0-preview.2 macOS-arm64.zip`
+- DMG SHA-256：`12bba17e84d95cc19016873477fb58f9eb69e042771f55b9dc320d9f720909e7`
+- ZIP SHA-256：`2e7a97aa78062e05d17e6de2cdb87f18bcf237ea8859ca34c407e68a7d074ec5`

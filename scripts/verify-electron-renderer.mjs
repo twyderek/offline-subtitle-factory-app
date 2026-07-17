@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
-import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import http from 'node:http';
-import net from 'node:net';
 import path from 'node:path';
 
 const exePath = process.argv[2];
 const port = Number(process.argv[3] || 9235);
 const timeoutMs = Number(process.argv[4] || 30000);
+const trimMediaPath = process.argv[5] || '';
 
 if (!exePath) {
   throw new Error('Usage: node scripts/verify-electron-renderer.mjs <exe-path> [debug-port]');
@@ -38,7 +38,8 @@ async function waitForTarget() {
   while (Date.now() < deadline) {
     try {
       const targets = await getJson(`http://127.0.0.1:${port}/json`);
-      const page = targets.find((target) => target.type === 'page' && target.webSocketDebuggerUrl);
+      const pages = targets.filter((target) => target.type === 'page' && target.webSocketDebuggerUrl);
+      const page = pages.find((target) => /^http:\/\/127\.0\.0\.1:\d+\//.test(target.url || ''));
       if (page) return page;
     } catch {
       // App is still starting.
@@ -48,106 +49,46 @@ async function waitForTarget() {
   throw new Error('Timed out waiting for Electron renderer target');
 }
 
-function encodeFrame(text) {
-  const payload = Buffer.from(text);
-  const header = [];
-  header.push(0x81);
-  if (payload.length < 126) {
-    header.push(0x80 | payload.length);
-  } else if (payload.length < 65536) {
-    header.push(0x80 | 126, (payload.length >> 8) & 0xff, payload.length & 0xff);
-  } else {
-    throw new Error('Payload too large');
-  }
-  const mask = crypto.randomBytes(4);
-  const masked = Buffer.alloc(payload.length);
-  for (let i = 0; i < payload.length; i += 1) masked[i] = payload[i] ^ mask[i % 4];
-  return Buffer.concat([Buffer.from(header), mask, masked]);
-}
-
-function decodeFrames(buffer) {
-  const messages = [];
-  let offset = 0;
-  while (offset + 2 <= buffer.length) {
-    const first = buffer[offset];
-    const second = buffer[offset + 1];
-    let length = second & 0x7f;
-    let headerLength = 2;
-    if (length === 126) {
-      if (offset + 4 > buffer.length) break;
-      length = buffer.readUInt16BE(offset + 2);
-      headerLength = 4;
-    } else if (length === 127) {
-      if (offset + 10 > buffer.length) break;
-      const high = buffer.readUInt32BE(offset + 2);
-      const low = buffer.readUInt32BE(offset + 6);
-      if (high !== 0) throw new Error('Frame too large');
-      length = low;
-      headerLength = 10;
-    }
-    const masked = Boolean(second & 0x80);
-    const maskLength = masked ? 4 : 0;
-    const frameEnd = offset + headerLength + maskLength + length;
-    if (frameEnd > buffer.length) break;
-    let payload = buffer.subarray(offset + headerLength + maskLength, frameEnd);
-    if (masked) {
-      const mask = buffer.subarray(offset + headerLength, offset + headerLength + 4);
-      payload = Buffer.from(payload.map((byte, index) => byte ^ mask[index % 4]));
-    }
-    if ((first & 0x0f) === 1) messages.push(payload.toString('utf8'));
-    offset = frameEnd;
-  }
-  return { messages, rest: buffer.subarray(offset) };
-}
-
-function connectWebSocket(wsUrl) {
-  const url = new URL(wsUrl);
-  const key = crypto.randomBytes(16).toString('base64');
-  const socket = net.connect(Number(url.port), url.hostname);
-  let buffer = Buffer.alloc(0);
-  let connected = false;
+async function connectWebSocket(wsUrl) {
+  const socket = new WebSocket(wsUrl);
   let id = 0;
   const pending = new Map();
-
-  socket.on('data', (chunk) => {
-    buffer = Buffer.concat([buffer, chunk]);
-    if (!connected) {
-      const headerEnd = buffer.indexOf('\r\n\r\n');
-      if (headerEnd === -1) return;
-      connected = true;
-      buffer = buffer.subarray(headerEnd + 4);
-    }
-    const decoded = decodeFrames(buffer);
-    buffer = decoded.rest;
-    for (const message of decoded.messages) {
-      const data = JSON.parse(message);
-      if (data.id && pending.has(data.id)) {
-        pending.get(data.id)(data);
-        pending.delete(data.id);
-      }
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out connecting to Electron DevTools')), 5000);
+    socket.addEventListener('open', () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+    socket.addEventListener('error', () => {
+      clearTimeout(timer);
+      reject(new Error('Failed to connect to Electron DevTools'));
+    }, { once: true });
+  });
+  socket.addEventListener('message', (event) => {
+    const data = JSON.parse(String(event.data));
+    if (data.id && pending.has(data.id)) {
+      const { resolve, timer } = pending.get(data.id);
+      clearTimeout(timer);
+      pending.delete(data.id);
+      resolve(data);
     }
   });
-
-  socket.write([
-    `GET ${url.pathname}${url.search} HTTP/1.1`,
-    `Host: ${url.host}`,
-    'Upgrade: websocket',
-    'Connection: Upgrade',
-    `Sec-WebSocket-Key: ${key}`,
-    'Sec-WebSocket-Version: 13',
-    '',
-    '',
-  ].join('\r\n'));
 
   return {
     call(method, params = {}) {
       const messageId = ++id;
       const message = JSON.stringify({ id: messageId, method, params });
-      socket.write(encodeFrame(message));
-      return new Promise((resolve) => pending.set(messageId, resolve));
+      socket.send(message);
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pending.delete(messageId);
+          reject(new Error(`Timed out waiting for DevTools method ${method}`));
+        }, 15000);
+        pending.set(messageId, { resolve, timer });
+      });
     },
     close() {
-      socket.end();
+      socket.close();
     },
   };
 }
@@ -155,8 +96,7 @@ function connectWebSocket(wsUrl) {
 let client;
 try {
   const target = await waitForTarget();
-  client = connectWebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  client = await connectWebSocket(target.webSocketDebuggerUrl);
 
   const inspectExpression = `(() => ({
     href: location.href,
@@ -164,9 +104,15 @@ try {
     hasPageSettingsButton: Boolean(document.getElementById('openSettings')),
     hasSettingsModal: Boolean(document.getElementById('appSettings')),
     hasWorkflowSettings: Boolean(document.querySelector('[data-step="appSettings"]')),
+    hasHomeDashboard: Boolean(document.getElementById('homeDashboard')),
+    homeDashboardVisible: !document.getElementById('homeDashboard')?.classList.contains('is-hidden'),
+    hasHomeNavigation: Boolean(document.getElementById('navHome') && document.getElementById('navProjects') && document.getElementById('navProcessing')),
+    hasNewProjectButton: Boolean(document.getElementById('homeNewProject')),
+    hasCreateAndTrimButton: Boolean(document.getElementById('createAndTrim')),
     hasElectronApi: Boolean(window.electronAPI),
     hasSelectFolder: typeof window.electronAPI?.selectFolder === 'function',
     hasOpenArbitraryFolder: typeof window.electronAPI?.openArbitraryFolder === 'function',
+    hasSafeAiKeyApi: typeof window.electronAPI?.saveAiKey === 'function' && typeof window.electronAPI?.clearAiKey === 'function',
     modalOpenBefore: document.getElementById('appSettings')?.classList.contains('is-open') || false
   }))()`;
   const before = await client.call('Runtime.evaluate', { expression: inspectExpression, returnByValue: true });
@@ -176,7 +122,10 @@ try {
   });
   await new Promise((resolve) => setTimeout(resolve, 300));
   const after = await client.call('Runtime.evaluate', {
-    expression: `document.getElementById('appSettings')?.classList.contains('is-open') || false`,
+    expression: `(() => {
+      const modal = document.getElementById('appSettings');
+      return Boolean(modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length);
+    })()`,
     returnByValue: true,
   });
 
@@ -216,6 +165,92 @@ try {
     })()`,
   });
 
+  const trimAssets = await client.call('Runtime.evaluate', {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(async () => {
+      const page = await fetch('/trim/packaged-smoke-test').then((res) => ({ ok: res.ok, text: res.text() }));
+      const html = await page.text;
+      const scriptOk = await fetch('/trim.js').then((res) => res.ok);
+      return { pageOk: page.ok, scriptOk, hasWorkspace: html.includes('影片修剪工作區'), hasStartJob: html.includes('trimStartJob') };
+    })()`,
+  });
+
+  const rendererJobId = uploadFlow.result.result.value.jobId;
+  const aiReviewAssets = await client.call('Runtime.evaluate', {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(async () => {
+      const jobId = ${JSON.stringify(rendererJobId)};
+      const htmlResponse = await fetch('/review/' + encodeURIComponent(jobId));
+      const html = await htmlResponse.text();
+      const saveResponse = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/ai-project-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ glossary: [{ source: 'Open AI', target: 'OpenAI', note: 'brand' }], prompts: { proofread: '測試範本' } })
+      });
+      const loaded = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/ai-project-settings').then((res) => res.json());
+      const providers = await fetch('/api/ai/settings').then((res) => res.json());
+      return {
+        pageOk: htmlResponse.ok,
+        saveStatus: saveResponse.status,
+        hasSelectionUi: html.includes('aiScopeEstimate') && html.includes('value="search"') && html.includes('value="selected"'),
+        hasSessionUi: html.includes('undoAiSession') && html.includes('redoAiSession'),
+        hasSecureKeyUi: html.includes('clearAiKey') && html.includes('aiConsent'),
+        glossaryRoundTrip: loaded.settings?.glossary?.[0]?.target === 'OpenAI',
+        providerIds: providers.settings?.providers?.map((item) => item.id) || [],
+      };
+    })()`,
+  });
+
+  let packagedTrimFlow = { result: { result: { value: null } } };
+  if (trimMediaPath) {
+    const mediaBase64 = readFileSync(trimMediaPath).toString('base64');
+    packagedTrimFlow = await client.call('Runtime.evaluate', {
+      awaitPromise: true,
+      returnByValue: true,
+      expression: `(async () => {
+        const bytes = Uint8Array.from(atob('${mediaBase64}'), (char) => char.charCodeAt(0));
+        const form = new FormData();
+        form.append('video', new File([bytes], 'packaged-trim-test.mp4', { type: 'video/mp4' }));
+        form.append('existingSrt', new File(['1\\n00:00:00,500 --> 00:00:01,500\\n跨越起點\\n\\n2\\n00:00:01,500 --> 00:00:02,500\\n保留字幕\\n\\n3\\n00:00:02,500 --> 00:00:03,500\\n跨越終點\\n'], 'packaged-trim-test.srt', { type: 'text/plain' }));
+        form.append('language', 'zh-TW');
+        const createdResponse = await fetch('/api/jobs', { method: 'POST', body: form });
+        const created = await createdResponse.json();
+        if (!createdResponse.ok) return { createStatus: createdResponse.status, error: created.error };
+        const planResponse = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/edit-plan', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ in: 1, out: 3, strategy: 'precise' })
+        });
+        const applyResponse = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/apply-trim', { method: 'POST' });
+        let trimStatus = null;
+        for (let i = 0; i < 80; i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          trimStatus = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/trim-status', { cache: 'no-store' }).then((res) => res.json());
+          if (['completed', 'failed', 'cancelled'].includes(trimStatus.status)) break;
+        }
+        const startResponse = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/start', { method: 'POST' });
+        let jobStatus = null;
+        for (let i = 0; i < 40; i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          jobStatus = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/status', { cache: 'no-store' }).then((res) => res.json());
+          if (['completed', 'failed', 'cancelled', 'needs-action'].includes(jobStatus.status)) break;
+        }
+        const review = await fetch('/api/jobs/' + encodeURIComponent(created.jobId) + '/review-data').then((res) => res.json());
+        return {
+          jobId: created.jobId,
+          createStatus: createdResponse.status,
+          planStatus: planResponse.status,
+          applyStatus: applyResponse.status,
+          trimStatus: trimStatus?.status,
+          trimDuration: trimStatus?.mediaInfo?.duration,
+          startStatus: startResponse.status,
+          jobStatus: jobStatus?.status,
+          usesTrimmedVideo: /media-trimmed\\.mp4/.test(review.videoUrl || ''),
+          shiftedSubtitle: /00:00:00,000 --> 00:00:00,500/.test(review.subtitle || ''),
+        };
+      })()`,
+    });
+  }
+
   const folderIconFlow = await client.call('Runtime.evaluate', {
     awaitPromise: true,
     returnByValue: true,
@@ -242,6 +277,9 @@ try {
     before: before.result.result.value,
     modalOpenAfterEvent: after.result.result.value,
     uploadFlow: uploadFlow.result.result.value,
+    trimAssets: trimAssets.result.result.value,
+    aiReviewAssets: aiReviewAssets.result.result.value,
+    packagedTrimFlow: packagedTrimFlow.result.result.value,
     folderIconFlow: folderIconFlow.result.result.value,
   };
   console.log(JSON.stringify(result, null, 2));
@@ -249,21 +287,40 @@ try {
   if (result.before.hasPageSettingsButton) throw new Error('Page settings button still exists');
   if (!result.before.hasSettingsModal) throw new Error('Settings modal is missing');
   if (result.before.hasWorkflowSettings) throw new Error('Workflow settings step still exists');
+  if (!result.before.hasHomeDashboard || !result.before.homeDashboardVisible) throw new Error('Approved home dashboard is missing or hidden');
+  if (!result.before.hasHomeNavigation) throw new Error('Home navigation is missing');
+  if (!result.before.hasNewProjectButton) throw new Error('New project action is missing');
+  if (!result.before.hasCreateAndTrimButton) throw new Error('Create-and-trim action is missing');
   if (!result.before.hasElectronApi) throw new Error('Electron preload API is missing');
   if (!result.before.hasSelectFolder) throw new Error('Electron selectFolder API is missing');
   if (!result.before.hasOpenArbitraryFolder) throw new Error('Electron openArbitraryFolder API is missing');
-  if (!result.modalOpenAfterEvent) throw new Error('Settings modal did not open from renderer event');
+  if (!result.before.hasSafeAiKeyApi) throw new Error('Electron safe AI key API is missing');
+  if (!result.modalOpenAfterEvent) throw new Error('Settings modal did not open visibly from renderer event');
   if (!result.uploadFlow.healthOk) throw new Error('Renderer health fetch failed');
   if (!result.uploadFlow.settingsOk) throw new Error('Renderer settings fetch failed');
   if (result.uploadFlow.createStatus !== 201) throw new Error(`Renderer upload create job failed: ${result.uploadFlow.createStatus}`);
   if (result.uploadFlow.startStatus !== 202) throw new Error(`Renderer start job failed: ${result.uploadFlow.startStatus}`);
   if (result.uploadFlow.finalStatus !== 'completed') throw new Error(`Renderer upload job did not complete: ${result.uploadFlow.finalStatus}`);
   if (!result.uploadFlow.hasCleanedSrt) throw new Error('Renderer upload job did not produce cleaned SRT');
+  if (!result.trimAssets.pageOk || !result.trimAssets.scriptOk || !result.trimAssets.hasWorkspace || !result.trimAssets.hasStartJob) throw new Error('Packaged trim workspace assets are missing');
+  if (!result.aiReviewAssets.pageOk || result.aiReviewAssets.saveStatus !== 200) throw new Error('Packaged AI review settings API is unavailable');
+  if (!result.aiReviewAssets.hasSelectionUi || !result.aiReviewAssets.hasSessionUi || !result.aiReviewAssets.hasSecureKeyUi) throw new Error('Packaged 0.45 AI review controls are missing');
+  if (!result.aiReviewAssets.glossaryRoundTrip) throw new Error('Packaged glossary settings did not round-trip');
+  if (!['openai', 'openai-compatible', 'azure'].every((id) => result.aiReviewAssets.providerIds.includes(id))) throw new Error('Packaged provider definitions are incomplete');
+  if (trimMediaPath) {
+    if (result.packagedTrimFlow.createStatus !== 201 || result.packagedTrimFlow.planStatus !== 200 || result.packagedTrimFlow.applyStatus !== 202) throw new Error('Packaged real trim flow could not start');
+    if (result.packagedTrimFlow.trimStatus !== 'completed' || Math.abs(result.packagedTrimFlow.trimDuration - 2) > 0.5) throw new Error('Packaged real trim output is invalid');
+    if (result.packagedTrimFlow.startStatus !== 202 || result.packagedTrimFlow.jobStatus !== 'completed') throw new Error('Packaged post-trim subtitle job did not complete');
+    if (!result.packagedTrimFlow.usesTrimmedVideo || !result.packagedTrimFlow.shiftedSubtitle) throw new Error('Packaged review data is not synchronized to trimmed media');
+  }
   if (!result.folderIconFlow.hasButton) throw new Error('Folder open icon button is missing');
   if (!result.folderIconFlow.requestedPath?.includes('offline-subtitle-folder-open-test')) throw new Error('Folder open icon did not request the entered path');
   if (result.folderIconFlow.openResult !== 'skipped') throw new Error('Folder open icon did not reach the open-folder flow');
 } finally {
   client?.close();
-  child.kill();
-  spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }).on('error', () => {});
+  } else {
+    child.kill('SIGTERM');
+  }
 }

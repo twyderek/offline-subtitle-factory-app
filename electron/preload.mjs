@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: (options) => ipcRenderer.invoke('select-folder', options),
   // 開啟任意絕對路徑資料夾（用於設定頁面）
   openArbitraryFolder: (folderPath) => ipcRenderer.invoke('open-arbitrary-folder', folderPath),
+  aiKeyStatus: (provider) => ipcRenderer.invoke('ai-key-status', provider),
+  saveAiKey: (provider, apiKey) => ipcRenderer.invoke('ai-key-save', provider, apiKey),
+  clearAiKey: (provider) => ipcRenderer.invoke('ai-key-clear', provider),
   // 從 Electron 上方選單開啟設定
   onOpenSettings: (callback) => {
     ipcRenderer.removeAllListeners('open-settings');

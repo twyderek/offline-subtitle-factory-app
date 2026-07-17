@@ -1,0 +1,90 @@
+name: Build Windows 0.45
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/0.45-ai-workflow
+    tags:
+      - v0.45.0
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    name: Windows x64 test and package
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Prepare verified offline runtime
+        shell: pwsh
+        run: ./scripts/prepare-windows-runtime.ps1
+
+      - name: Run source and real FFmpeg regression tests
+        run: npm run check
+
+      - name: Build signed NSIS Setup and Portable packages
+        if: env.CSC_LINK != ''
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PASSWORD }}
+        run: npm run electron:build
+
+      - name: Build unsigned internal preview packages
+        if: env.CSC_LINK == ''
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run electron:build:unsigned
+
+      - name: Verify package archives and write SHA-256
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem ../dist -Filter '*.exe' -File
+          if ($artifacts.Count -lt 2) { throw 'Expected Setup and Portable EXE files.' }
+          foreach ($artifact in $artifacts) {
+            & 7z t $artifact.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Archive validation failed: $($artifact.Name)" }
+          }
+          $artifacts | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content ../dist/SHA256SUMS-windows-x64.txt -Encoding utf8
+
+          $signatures = $artifacts | ForEach-Object { Get-AuthenticodeSignature $_.FullName }
+          $allSigned = ($signatures | Where-Object Status -ne 'Valid').Count -eq 0
+          if ($allSigned) {
+            'SIGNED RELEASE: Authenticode signatures are valid.' | Set-Content ../dist/SIGNING-STATUS-windows-x64.txt -Encoding utf8
+          } else {
+            'UNSIGNED INTERNAL PREVIEW: Windows may display Unknown Publisher or SmartScreen warnings.' | Set-Content ../dist/SIGNING-STATUS-windows-x64.txt -Encoding utf8
+          }
+
+          $uploadDir = Join-Path $PWD '.artifacts/windows-x64'
+          New-Item -ItemType Directory -Force -Path $uploadDir | Out-Null
+          Copy-Item ../dist/*.exe -Destination $uploadDir
+          Copy-Item ../dist/*.blockmap -Destination $uploadDir
+          Copy-Item ../dist/latest.yml -Destination $uploadDir
+          Copy-Item ../dist/SHA256SUMS-windows-x64.txt -Destination $uploadDir
+          Copy-Item ../dist/SIGNING-STATUS-windows-x64.txt -Destination $uploadDir
+
+      - name: Upload Windows preview artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-subtitle-factory-0.45.0-windows-x64
+          path: |
+            .artifacts/windows-x64/*
+          if-no-files-found: error
+          retention-days: 14
