@@ -61,16 +61,15 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Archive validation failed: $($artifact.Name)" }
           }
 
-          $portable = $artifacts | Where-Object Name -NotMatch 'Setup' | Select-Object -First 1
-          $packageListing = (& 7z l $portable.FullName) -join "`n"
           $requiredGuideFiles = @(
-            'resources\\docs\\0.45.1\\USER-GUIDE.html',
-            'resources\\docs\\0.45.1\\assets\\ai-panel-toggle.mp4',
-            'resources\\docs\\0.45.1\\assets\\azure-setup.mp4',
-            'resources\\docs\\0.45.1\\assets\\azure-error-check.mp4'
+            'USER-GUIDE.html',
+            'assets/ai-panel-toggle.mp4',
+            'assets/azure-setup.mp4',
+            'assets/azure-error-check.mp4'
           )
           foreach ($guideFile in $requiredGuideFiles) {
-            if ($packageListing -notmatch [regex]::Escape($guideFile)) {
+            $packagedGuideFile = Join-Path '../dist/win-unpacked/resources/docs/0.45.1' $guideFile
+            if (-not (Test-Path -LiteralPath $packagedGuideFile -PathType Leaf)) {
               throw "Packaged operation guide file is missing: $guideFile"
             }
           }
