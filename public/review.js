@@ -4,6 +4,7 @@ const API_BASE = window.location.origin.startsWith('http')
   : 'http://127.0.0.1:8790';
 const ASS_PLAY_RES_Y = 1080;
 const API_TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+const AI_TOOLBAR_COLLAPSED_KEY = 'offline-subtitle-factory.ai-toolbar-collapsed';
 const nativeFetch = window.fetch.bind(window);
 window.fetch = (input, init = {}) => {
   const requestUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
@@ -72,6 +73,9 @@ document.getElementById('closeAiSettings').addEventListener('click', closeAiSett
 document.getElementById('saveAiSettings').addEventListener('click', saveAiSettings);
 document.getElementById('testAiConnection').addEventListener('click', testAiConnection);
 document.getElementById('runAiOptimize').addEventListener('click', runAiOptimize);
+document.getElementById('toggleAiToolbar').addEventListener('click', () => {
+  setAiToolbarCollapsed(!document.getElementById('aiToolbar').classList.contains('collapsed'));
+});
 document.getElementById('resumeAiOptimize').addEventListener('click', resumeAiOptimize);
 document.getElementById('cancelAiOptimize').addEventListener('click', cancelAiOptimize);
 document.getElementById('acceptAllAiSuggestions').addEventListener('click', acceptAllAiSuggestions);
@@ -114,6 +118,17 @@ el.shortenAllCues.addEventListener('click', () => adjustAllCueDurations(-getTime
 el.extendAllCues.addEventListener('click', () => adjustAllCueDurations(getTimeAdjustSeconds()));
 el.followCue.addEventListener('click', () => setFollowCue(!state.followCue, true));
 settingIds.forEach((id) => document.getElementById(id).addEventListener('input', updateBurnPreview));
+
+setAiToolbarCollapsed(localStorage.getItem(AI_TOOLBAR_COLLAPSED_KEY) !== 'false', false);
+
+function setAiToolbarCollapsed(collapsed, persist = true) {
+  const toolbar = document.getElementById('aiToolbar');
+  const toggle = document.getElementById('toggleAiToolbar');
+  toolbar.classList.toggle('collapsed', collapsed);
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  toggle.querySelector('.review-ai-toggle-label').textContent = collapsed ? '展開 AI 優化' : '收合 AI 優化';
+  if (persist) localStorage.setItem(AI_TOOLBAR_COLLAPSED_KEY, String(collapsed));
+}
 
 el.cueList.addEventListener('wheel', () => setFollowCue(false), { passive: true });
 el.cueList.addEventListener('pointerdown', (event) => {
@@ -185,7 +200,7 @@ function applyAiSettings(settings) {
   document.getElementById('aiBaseUrl').value = settings.baseUrl || '';
   document.getElementById('aiModel').value = settings.model || '';
   document.getElementById('aiDeployment').value = settings.deployment || '';
-  document.getElementById('aiApiVersion').value = settings.apiVersion || '2024-10-21';
+  document.getElementById('aiApiVersion').value = settings.apiVersion || '2024-12-01-preview';
   document.getElementById('aiBatchSize').value = settings.batchSize || 30;
   document.getElementById('aiApiKey').value = '';
   document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
@@ -331,7 +346,7 @@ async function loadAiProviderProfile() {
   document.getElementById('aiBaseUrl').value = profile.baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : '');
   document.getElementById('aiModel').value = profile.model || '';
   document.getElementById('aiDeployment').value = profile.deployment || '';
-  document.getElementById('aiApiVersion').value = profile.apiVersion || '2024-10-21';
+  document.getElementById('aiApiVersion').value = profile.apiVersion || '2024-12-01-preview';
   document.getElementById('aiApiKey').value = '';
   document.getElementById('aiApiKey').placeholder = result.hasApiKey ? '此供應商已有安全金鑰' : '請輸入此供應商的 API Key';
   setAiSettingsStatus(`已切換供應商；JSON Schema：${result.capabilities.jsonSchema ? '支援' : '依服務而定'}，模型列表：${result.capabilities.modelList ? '支援' : '不支援'}`);
@@ -398,6 +413,7 @@ async function runAiOptimize() {
     statusMessage(document.getElementById('aiScope').value === 'selected' ? '請先選取一段字幕' : '沒有可優化的字幕');
     return;
   }
+  setAiToolbarCollapsed(false);
   const mode = document.querySelector('.ai-mode.active')?.dataset.aiMode || 'proofread';
   setAiRunning(true);
   setAiProgress({ processedCues: 0, totalCues: cues.length, completedBatches: 0, totalBatches: 1 }, '正在啟動 AI 優化…');
@@ -481,6 +497,7 @@ async function restoreAiOptimizationStatus() {
 }
 
 async function resumeAiOptimize() {
+  setAiToolbarCollapsed(false);
   const button = document.getElementById('resumeAiOptimize');
   button.disabled = true;
   try {

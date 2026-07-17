@@ -95,7 +95,7 @@ const defaultSettings = {
     maxRetries: 3,
     retryBaseMs: 1000,
     deployment: '',
-    apiVersion: '2024-10-21',
+    apiVersion: '2024-12-01-preview',
     consentGrantedAt: '',
     profiles: {},
     instructions: '修正錯字與標點，保留原意；專有名詞使用一致寫法，不確定的內容不要自行補寫。',
@@ -571,6 +571,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
   const config = aiProviderConfig();
   if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
   if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
+  if (config.provider === 'azure' && !config.deployment) throw new Error('Azure Deployment 尚未設定');
   if (!config.consentGrantedAt && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${config.baseUrl}/`)) throw new Error('首次使用雲端 AI 前必須確認資料傳送同意');
   const request = previous?.request || payload;
   if (!Array.isArray(request?.cues) || request.cues.length === 0) throw new Error('Missing subtitle cues');
@@ -3184,6 +3185,7 @@ async function handleApi(req, res) {
       const payload = await readJsonBody(req);
       const nextAi = normalizeAiSettings(payload);
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
+      if (nextAi.enabled && nextAi.provider === 'azure' && !nextAi.deployment) throw new Error('啟用 Azure OpenAI 前必須填寫 Azure Deployment');
       if (nextAi.baseUrl) new URL(nextAi.baseUrl);
       const profiles = { ...(appSettings.ai.profiles || {}), ...(payload.profiles || {}) };
       profiles[nextAi.provider] = {

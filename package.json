@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -10,7 +10,7 @@
     "start": "node server.mjs",
     "electron:start": "electron .",
     "electron:dev": "node scripts/start-electron-dev.mjs",
-    "test": "node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-core.mjs",
+    "test": "node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
     "check": "node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
     "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
@@ -53,6 +53,7 @@
       "RELEASE-NOTES-0.40.0.md",
       "RELEASE-NOTES-0.41.0.md",
       "RELEASE-NOTES-0.45.0.md",
+      "RELEASE-NOTES-0.45.1.md",
       "package.json",
       ".gitignore"
     ],
