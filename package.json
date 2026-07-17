@@ -54,7 +54,6 @@
       "RELEASE-NOTES-0.41.0.md",
       "RELEASE-NOTES-0.45.0.md",
       "RELEASE-NOTES-0.45.1.md",
-      "docs/**/*",
       "package.json",
       ".gitignore"
     ],
@@ -76,6 +75,13 @@
       "icon": "electron/icons/icon.ico",
       "signAndEditExecutable": true,
       "extraResources": [
+        {
+          "from": "docs/0.45.1",
+          "to": "docs/0.45.1",
+          "filter": [
+            "**/*"
+          ]
+        },
         {
           "from": "tools/ffmpeg",
           "to": "tools/ffmpeg",

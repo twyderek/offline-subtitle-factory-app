@@ -70,7 +70,7 @@ Windows 0.45.1 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出
 
 0.45.1 安裝包已內建：
 
-- 完整離線操作手冊：`docs/0.45.1/USER-GUIDE.html`
+- 完整離線操作手冊：`resources/docs/0.45.1/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
 
 - Electron／Node 本機服務執行環境。
