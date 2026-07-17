@@ -63,9 +63,9 @@ jobs:
 
           $requiredGuideFiles = @(
             'USER-GUIDE.html',
-            'assets/ai-panel-toggle.mp4',
-            'assets/azure-setup.mp4',
-            'assets/azure-error-check.mp4'
+            'assets/ai-panel-toggle.osfvideo',
+            'assets/azure-setup.osfvideo',
+            'assets/azure-error-check.osfvideo'
           )
           foreach ($guideFile in $requiredGuideFiles) {
             $packagedGuideFile = Join-Path '../dist/win-unpacked/resources/docs/0.45.1' $guideFile
