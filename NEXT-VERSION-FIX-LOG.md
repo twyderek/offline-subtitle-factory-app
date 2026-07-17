@@ -1130,3 +1130,52 @@
   - 受 Drive 對接單檔 100 MB 上限影響，macOS 與 Windows 完整安裝包各切成約 45 MB chunk。
   - 已上傳所有 chunk、重組說明與 chunk SHA-256 清單。
   - GitHub Release 保留完整單檔，Drive 作為分卷備份。
+
+### 2026-07-17 — AI 字幕優化項目 13：完成 0.42 術語、Prompt 與多段選取
+
+- 狀態：完成
+- 內容：
+  - 建立專案級 `ai-output/project-settings.json`。
+  - 術語表支援標準詞、大小寫、禁止翻譯與備註，提供 CSV／JSON 匯入匯出。
+  - 五種 Prompt 範本與內建 cue 保護指令分離保存。
+  - 校閱頁加入多段勾選、目前字幕、搜尋結果及全部字幕範圍。
+  - 執行前顯示預計 cue 與批次數。
+- 驗證：術語表在每個批次中一致注入，多段請求只包含選取 cue。
+
+### 2026-07-17 — AI 字幕優化項目 14：完成 0.43 稽核報告與復原
+
+- 狀態：完成
+- 內容：
+  - 每次優化使用 UUID session，保存來源、建議、決策、模型、模式與統計。
+  - 產出 `suggestions.json`、`optimized-preview.srt` 與 `REPORT.md`。
+  - 接受／略過狀態持久化，APP 重啟後仍可讀取。
+  - 新增撤銷與重新套用；遇到後續人工修改時不覆寫並回報衝突。
+
+### 2026-07-17 — AI 字幕優化項目 15：完成 0.44 安全金鑰與隱私控制
+
+- 狀態：完成
+- 內容：
+  - Electron 使用 `safeStorage`，由 macOS Keychain／Windows DPAPI 加密 API Key。
+  - 舊明文 secrets 支援一次性遷移並在成功後移除。
+  - 金鑰依供應商隔離，支援保存、替換、狀態顯示與清除。
+  - 第一次使用雲端 AI 必須同意字幕文字傳送；影片與音訊不會傳送。
+  - Server 僅在記憶體接收桌面安全金鑰，不在 API 回應顯示原文。
+
+### 2026-07-17 — AI 字幕優化項目 16：完成 0.45 多供應商 Adapter
+
+- 狀態：完成
+- 分支：`codex/0.45-ai-workflow`
+- 版本：`0.45.0`
+- 內容：
+  - 統一 provider 連線測試、模型列表、優化、取消及錯誤分類 contract。
+  - 支援 OpenAI、OpenAI-compatible 與 Azure OpenAI。
+  - 各供應商設定與金鑰互相隔離，並宣告 JSON Schema、串流、模型列表與本機端點能力。
+  - Anthropic Claude 與 Google Gemini 延至 0.51 評估。
+- 測試：
+  - 新增不連外、不消耗 API 的 provider contract tests。
+  - 完整 `npm test` 涵蓋 cue 保護、重試續傳、術語跨批次、provider headers 與既有核心 API。
+  - macOS arm64 directory package 建置及深度簽章結構驗證通過。
+  - 實際封裝 renderer 驗證通過：安全金鑰 preload、0.45 AI 控制、術語設定 round-trip 與三種 provider 定義完整。
+- 發布規則：
+  - 新增 `RELEASE-NOTES-0.45.0.md` 與版本注記。
+  - 後續成品只發布至 GitHub，不再執行雲端硬碟上傳。

@@ -112,6 +112,7 @@ try {
     hasElectronApi: Boolean(window.electronAPI),
     hasSelectFolder: typeof window.electronAPI?.selectFolder === 'function',
     hasOpenArbitraryFolder: typeof window.electronAPI?.openArbitraryFolder === 'function',
+    hasSafeAiKeyApi: typeof window.electronAPI?.saveAiKey === 'function' && typeof window.electronAPI?.clearAiKey === 'function',
     modalOpenBefore: document.getElementById('appSettings')?.classList.contains('is-open') || false
   }))()`;
   const before = await client.call('Runtime.evaluate', { expression: inspectExpression, returnByValue: true });
@@ -172,6 +173,32 @@ try {
       const html = await page.text;
       const scriptOk = await fetch('/trim.js').then((res) => res.ok);
       return { pageOk: page.ok, scriptOk, hasWorkspace: html.includes('影片修剪工作區'), hasStartJob: html.includes('trimStartJob') };
+    })()`,
+  });
+
+  const rendererJobId = uploadFlow.result.result.value.jobId;
+  const aiReviewAssets = await client.call('Runtime.evaluate', {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(async () => {
+      const jobId = ${JSON.stringify(rendererJobId)};
+      const htmlResponse = await fetch('/review/' + encodeURIComponent(jobId));
+      const html = await htmlResponse.text();
+      const saveResponse = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/ai-project-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ glossary: [{ source: 'Open AI', target: 'OpenAI', note: 'brand' }], prompts: { proofread: '測試範本' } })
+      });
+      const loaded = await fetch('/api/jobs/' + encodeURIComponent(jobId) + '/ai-project-settings').then((res) => res.json());
+      const providers = await fetch('/api/ai/settings').then((res) => res.json());
+      return {
+        pageOk: htmlResponse.ok,
+        saveStatus: saveResponse.status,
+        hasSelectionUi: html.includes('aiScopeEstimate') && html.includes('value="search"') && html.includes('value="selected"'),
+        hasSessionUi: html.includes('undoAiSession') && html.includes('redoAiSession'),
+        hasSecureKeyUi: html.includes('clearAiKey') && html.includes('aiConsent'),
+        glossaryRoundTrip: loaded.settings?.glossary?.[0]?.target === 'OpenAI',
+        providerIds: providers.settings?.providers?.map((item) => item.id) || [],
+      };
     })()`,
   });
 
@@ -251,6 +278,7 @@ try {
     modalOpenAfterEvent: after.result.result.value,
     uploadFlow: uploadFlow.result.result.value,
     trimAssets: trimAssets.result.result.value,
+    aiReviewAssets: aiReviewAssets.result.result.value,
     packagedTrimFlow: packagedTrimFlow.result.result.value,
     folderIconFlow: folderIconFlow.result.result.value,
   };
@@ -266,6 +294,7 @@ try {
   if (!result.before.hasElectronApi) throw new Error('Electron preload API is missing');
   if (!result.before.hasSelectFolder) throw new Error('Electron selectFolder API is missing');
   if (!result.before.hasOpenArbitraryFolder) throw new Error('Electron openArbitraryFolder API is missing');
+  if (!result.before.hasSafeAiKeyApi) throw new Error('Electron safe AI key API is missing');
   if (!result.modalOpenAfterEvent) throw new Error('Settings modal did not open visibly from renderer event');
   if (!result.uploadFlow.healthOk) throw new Error('Renderer health fetch failed');
   if (!result.uploadFlow.settingsOk) throw new Error('Renderer settings fetch failed');
@@ -274,6 +303,10 @@ try {
   if (result.uploadFlow.finalStatus !== 'completed') throw new Error(`Renderer upload job did not complete: ${result.uploadFlow.finalStatus}`);
   if (!result.uploadFlow.hasCleanedSrt) throw new Error('Renderer upload job did not produce cleaned SRT');
   if (!result.trimAssets.pageOk || !result.trimAssets.scriptOk || !result.trimAssets.hasWorkspace || !result.trimAssets.hasStartJob) throw new Error('Packaged trim workspace assets are missing');
+  if (!result.aiReviewAssets.pageOk || result.aiReviewAssets.saveStatus !== 200) throw new Error('Packaged AI review settings API is unavailable');
+  if (!result.aiReviewAssets.hasSelectionUi || !result.aiReviewAssets.hasSessionUi || !result.aiReviewAssets.hasSecureKeyUi) throw new Error('Packaged 0.45 AI review controls are missing');
+  if (!result.aiReviewAssets.glossaryRoundTrip) throw new Error('Packaged glossary settings did not round-trip');
+  if (!['openai', 'openai-compatible', 'azure'].every((id) => result.aiReviewAssets.providerIds.includes(id))) throw new Error('Packaged provider definitions are incomplete');
   if (trimMediaPath) {
     if (result.packagedTrimFlow.createStatus !== 201 || result.packagedTrimFlow.planStatus !== 200 || result.packagedTrimFlow.applyStatus !== 202) throw new Error('Packaged real trim flow could not start');
     if (result.packagedTrimFlow.trimStatus !== 'completed' || Math.abs(result.packagedTrimFlow.trimDuration - 2) > 0.5) throw new Error('Packaged real trim output is invalid');

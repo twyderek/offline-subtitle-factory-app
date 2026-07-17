@@ -39,6 +39,12 @@
 .review-ai-settings-grid textarea { resize: vertical; }
 .review-ai-settings-actions { justify-content: flex-end; margin-top: 18px; }
 .review-ai-settings-actions > span { margin-right: auto; color: #64748b; font-size: 12px; }
+.review-ai-estimate, .review-ai-history-actions span { color: #64748b; font-size: 12px; }
+.review-ai-history-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-ai-history-actions span { margin-left: auto; }
+.review-ai-consent { padding: 10px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; }
+.review-cue.selected { border-color: #7c3aed; box-shadow: 0 0 0 1px #7c3aed; }
+.review-cue-select { width: 18px; height: 18px; margin-top: 8px; }
 .review-ai-suggestion { margin-top: 9px; padding: 10px 11px; border-left: 3px solid #2469bd; border-radius: 8px; background: #edf5ff; }
 .review-ai-suggestion > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .review-ai-suggestion strong { color: #164f9f; }

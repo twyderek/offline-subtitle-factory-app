@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, safeStorage, shell } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -14,6 +14,32 @@ let serverProcess = null;
 let serverApiToken = '';
 let currentServerPort = null;
 let mainWindow = null;
+let secureAiKeys = {};
+
+function secureAiKeysPath() { return path.join(app.getPath('userData'), 'config', 'ai-keys.safe'); }
+function readSecureAiKeys() {
+  try {
+    if (!safeStorage.isEncryptionAvailable() || !fs.existsSync(secureAiKeysPath())) return {};
+    return JSON.parse(safeStorage.decryptString(Buffer.from(fs.readFileSync(secureAiKeysPath(), 'utf8'), 'base64')));
+  } catch { return {}; }
+}
+function writeSecureAiKeys(keys) {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('作業系統安全金鑰服務目前無法使用');
+  fs.mkdirSync(path.dirname(secureAiKeysPath()), { recursive: true });
+  fs.writeFileSync(secureAiKeysPath(), safeStorage.encryptString(JSON.stringify(keys)).toString('base64'), { encoding: 'utf8', mode: 0o600 });
+}
+function migrateLegacyAiKeys() {
+  const legacyPath = path.join(app.getPath('userData'), 'config', 'ai-secrets.json');
+  if (!fs.existsSync(legacyPath) || !safeStorage.isEncryptionAvailable()) return;
+  try {
+    const legacy = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+    const migrated = { ...(legacy.providers || {}) };
+    if (legacy.apiKey && !migrated['openai-compatible']) migrated['openai-compatible'] = legacy.apiKey;
+    secureAiKeys = { ...secureAiKeys, ...migrated };
+    writeSecureAiKeys(secureAiKeys);
+    fs.unlinkSync(legacyPath);
+  } catch (error) { console.warn('[main] AI key migration failed:', error.message); }
+}
 
 function createSplashWindow() {
   const splash = new BrowserWindow({
@@ -580,6 +606,7 @@ async function startServer(effectivePort, apiToken) {
       OFFLINE_SUBTITLE_SETTINGS_DIR: settingsDir,
       OFFLINE_SUBTITLE_TOOLS_DIR: toolInfo.toolsDir,
       OFFLINE_SUBTITLE_API_TOKEN: apiToken,
+      SUBTITLE_AI_KEYS_JSON: JSON.stringify(secureAiKeys),
       XDG_CACHE_HOME: toolInfo.toolsDir,
       WHISPER_CACHE: toolInfo.paths.whisperModels,
       PYTHONIOENCODING: 'utf-8',
@@ -616,6 +643,8 @@ async function startServer(effectivePort, apiToken) {
 
 // ── App startup with preflight check ──────────────────────────────────────────
 app.whenReady().then(async () => {
+  secureAiKeys = readSecureAiKeys();
+  migrateLegacyAiKeys();
   const splash = createSplashWindow();
   // Run preflight before starting server
   const preflight = await preFlightCheck();
@@ -658,6 +687,25 @@ ipcMain.handle('open-folder', async (_event, relativePath) => {
   const relative = path.relative(appDir, resolvedPath);
   if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('不允許開啟應用程式目錄外的路徑');
   return shell.openPath(resolvedPath);
+});
+
+ipcMain.handle('ai-key-status', async (_event, provider) => ({
+  available: safeStorage.isEncryptionAvailable(),
+  hasKey: Boolean(secureAiKeys[String(provider || '')]),
+  source: secureAiKeys[String(provider || '')] ? 'safeStorage' : 'none',
+}));
+ipcMain.handle('ai-key-save', async (_event, provider, apiKey) => {
+  const id = String(provider || 'openai-compatible');
+  const value = String(apiKey || '').trim();
+  if (!value) throw new Error('API Key 不可為空白');
+  secureAiKeys[id] = value;
+  writeSecureAiKeys(secureAiKeys);
+  return { ok: true, hasKey: true, source: 'safeStorage' };
+});
+ipcMain.handle('ai-key-clear', async (_event, provider) => {
+  delete secureAiKeys[String(provider || '')];
+  writeSecureAiKeys(secureAiKeys);
+  return { ok: true, hasKey: false, source: 'none' };
 });
 
 ipcMain.handle('select-folder', async (_event, options = {}) => {

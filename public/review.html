@@ -121,7 +121,8 @@
                 </div>
                 <div class="review-ai-actions">
                   <label class="review-ai-check"><input id="aiPreserveTiming" type="checkbox" checked> 鎖定時間碼</label>
-                  <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="selected">只處理目前字幕</option></select>
+                  <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="selected">只處理勾選字幕</option><option value="search">只處理搜尋結果</option><option value="current">只處理目前字幕</option></select>
+                  <span id="aiScopeEstimate" class="review-ai-estimate">預計 0 段</span>
                   <button id="runAiOptimize" class="review-button primary" type="button">開始 AI 優化</button>
                   <button id="resumeAiOptimize" class="review-button primary" type="button" hidden>繼續未完成任務</button>
                   <button id="cancelAiOptimize" class="review-button" type="button" hidden>取消</button>
@@ -134,6 +135,11 @@
                   <span id="aiSuggestionSummary">0 段 AI 建議等待確認</span>
                   <button id="rejectAllAiSuggestions" class="review-button" type="button">全部略過</button>
                   <button id="acceptAllAiSuggestions" class="review-button primary" type="button">全部接受</button>
+                </div>
+                <div class="review-ai-history-actions">
+                  <button id="undoAiSession" class="review-button" type="button" disabled>撤銷本次 AI 優化</button>
+                  <button id="redoAiSession" class="review-button" type="button" disabled>重新套用</button>
+                  <span id="aiSessionSummary">尚無 AI 優化紀錄</span>
                 </div>
               </div>
               <div class="review-tool-row">
@@ -177,20 +183,30 @@
       </header>
       <div class="review-ai-settings-grid">
         <label><span>啟用 AI 優化</span><input id="aiEnabled" type="checkbox"></label>
-        <label><span>服務類型</span><select id="aiProvider"><option value="openai-compatible">OpenAI-compatible</option><option value="openai">OpenAI</option></select></label>
+        <label><span>服務類型</span><select id="aiProvider"><option value="openai-compatible">OpenAI-compatible</option><option value="openai">OpenAI</option><option value="azure">Azure OpenAI</option></select></label>
         <label class="full"><span>API Base URL</span><input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1"></label>
         <label><span>模型</span><input id="aiModel" type="text" placeholder="請輸入模型名稱"></label>
+        <label><span>Azure Deployment</span><input id="aiDeployment" type="text" placeholder="僅 Azure 使用"></label>
+        <label><span>Azure API Version</span><input id="aiApiVersion" type="text" value="2024-10-21"></label>
         <label><span>每批段落</span><input id="aiBatchSize" type="number" min="1" max="100" value="30"></label>
         <label class="full"><span>API Key</span><input id="aiApiKey" type="password" autocomplete="off" placeholder="留空表示沿用已保存金鑰"></label>
+        <label class="full review-ai-consent"><span><input id="aiConsent" type="checkbox"> 我了解只會傳送畫面所列的字幕文字與前後文，不會傳送影片或音訊</span></label>
         <label><span>輸出語言</span><select id="aiLanguage"><option value="zh-TW">繁體中文</option><option value="zh-CN">簡體中文</option><option value="en">英文</option></select></label>
         <label><span>請求逾時（秒）</span><input id="aiTimeoutSeconds" type="number" min="10" max="300" value="60"></label>
         <label><span>最大重試次數</span><input id="aiMaxRetries" type="number" min="0" max="8" value="3"></label>
         <label><span>重試起始等待（毫秒）</span><input id="aiRetryBaseMs" type="number" min="100" max="10000" step="100" value="1000"></label>
         <label class="full"><span>優化指令</span><textarea id="aiInstructions" rows="4">修正錯字與標點，保留原意；專有名詞使用一致寫法，不確定的內容不要自行補寫。</textarea></label>
+        <label class="full"><span>專案術語表（每行：原詞 | 標準詞 | 備註）</span><textarea id="aiGlossary" rows="5" placeholder="Open AI | OpenAI | 品牌名稱"></textarea></label>
+        <label class="full"><span>術語表匯入</span><input id="aiGlossaryFile" type="file" accept=".json,.csv,application/json,text/csv"></label>
+        <label><span>Prompt 範本</span><select id="aiPromptMode"><option value="proofread">錯字標點</option><option value="breaks">斷句</option><option value="terms">術語</option><option value="fillers">贅詞</option><option value="translate">翻譯</option></select></label>
+        <label class="full"><span>目前範本內容</span><textarea id="aiPromptTemplate" rows="3"></textarea></label>
       </div>
       <div class="review-ai-settings-actions">
         <span id="aiSettingsStatus">設定尚未載入</span>
         <button id="testAiConnection" class="review-button" type="button">測試連線</button>
+        <button id="clearAiKey" class="review-button" type="button">清除金鑰</button>
+        <button id="exportAiGlossary" class="review-button" type="button">匯出術語 JSON</button>
+        <button id="importAiGlossary" class="review-button" type="button">匯入術語表</button>
         <button id="saveAiSettings" class="review-button primary" type="button">儲存設定</button>
       </div>
     </div>

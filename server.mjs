@@ -8,8 +8,9 @@ import os from 'node:os';
 import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
-import { createChatCompletion, testOpenAiCompatible } from './lib/ai/openai-compatible.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
+import { createProvider, listProviderDefinitions, PROVIDER_CAPABILITIES } from './lib/ai/providers.mjs';
+import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from './lib/ai/project-tools.mjs';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(appDir, 'public');
@@ -24,6 +25,9 @@ const settingsDir = process.env.OFFLINE_SUBTITLE_SETTINGS_DIR
   : path.join(appDir, 'config');
 const settingsPath = path.join(settingsDir, 'settings.json');
 const aiSecretsPath = path.join(settingsDir, 'ai-secrets.json');
+let runtimeAiKeys = (() => {
+  try { return JSON.parse(process.env.SUBTITLE_AI_KEYS_JSON || '{}'); } catch { return {}; }
+})();
 const port = Number(process.env.PORT || 8790);
 const apiToken = process.env.OFFLINE_SUBTITLE_API_TOKEN || '';
 
@@ -90,6 +94,10 @@ const defaultSettings = {
     timeoutSeconds: 60,
     maxRetries: 3,
     retryBaseMs: 1000,
+    deployment: '',
+    apiVersion: '2024-10-21',
+    consentGrantedAt: '',
+    profiles: {},
     instructions: '修正錯字與標點，保留原意；專有名詞使用一致寫法，不確定的內容不要自行補寫。',
   },
 };
@@ -368,7 +376,7 @@ function normalizeAiSettings(value = {}) {
   const baseUrl = String(value.baseUrl || defaultSettings.ai.baseUrl).trim().replace(/\/+$/, '');
   return {
     enabled: Boolean(value.enabled),
-    provider: ['openai', 'openai-compatible'].includes(value.provider) ? value.provider : defaultSettings.ai.provider,
+    provider: ['openai', 'openai-compatible', 'azure'].includes(value.provider) ? value.provider : defaultSettings.ai.provider,
     baseUrl,
     model: String(value.model || '').trim(),
     batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
@@ -376,33 +384,65 @@ function normalizeAiSettings(value = {}) {
     timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),
     maxRetries: clampNumber(value.maxRetries, 0, 8, defaultSettings.ai.maxRetries),
     retryBaseMs: clampNumber(value.retryBaseMs, 100, 10000, defaultSettings.ai.retryBaseMs),
+    deployment: String(value.deployment || '').trim(),
+    apiVersion: String(value.apiVersion || defaultSettings.ai.apiVersion).trim(),
+    consentGrantedAt: String(value.consentGrantedAt || '').trim(),
+    profiles: value.profiles && typeof value.profiles === 'object' ? value.profiles : {},
     instructions: String(value.instructions || defaultSettings.ai.instructions).trim(),
   };
 }
 
-function readAiApiKey() {
-  const environmentKey = String(process.env.SUBTITLE_AI_API_KEY || '').trim();
-  if (environmentKey) return environmentKey;
-  try {
-    return String(readJson(aiSecretsPath).apiKey || '').trim();
-  } catch {
-    return '';
-  }
+function readAiSecrets() {
+  try { return readJson(aiSecretsPath); } catch { return {}; }
 }
 
-function saveAiApiKey(apiKey) {
+function readAiApiKey(provider = appSettings.ai.provider) {
+  const environmentKey = String(process.env.SUBTITLE_AI_API_KEY || '').trim();
+  if (environmentKey) return environmentKey;
+  if (runtimeAiKeys[provider]) return runtimeAiKeys[provider];
+  const secrets = readAiSecrets();
+  return String(secrets.providers?.[provider] || secrets.apiKey || '').trim();
+}
+
+function saveAiApiKey(apiKey, provider = appSettings.ai.provider) {
   const value = String(apiKey || '').trim();
   if (!value) return;
-  writeJson(aiSecretsPath, { apiKey: value });
+  runtimeAiKeys[provider] = value;
+  const secrets = readAiSecrets();
+  writeJson(aiSecretsPath, { providers: { ...(secrets.providers || {}), [provider]: value } });
   try { fs.chmodSync(aiSecretsPath, 0o600); } catch {}
 }
 
+function clearAiApiKey(provider = appSettings.ai.provider) {
+  delete runtimeAiKeys[provider];
+  const secrets = readAiSecrets();
+  const providers = { ...(secrets.providers || {}) };
+  delete providers[provider];
+  if (Object.keys(providers).length) writeJson(aiSecretsPath, { providers });
+  else if (fs.existsSync(aiSecretsPath)) fs.unlinkSync(aiSecretsPath);
+}
+
 function publicAiSettings() {
-  return { ...appSettings.ai, hasApiKey: Boolean(readAiApiKey()) };
+  const provider = appSettings.ai.provider;
+  const { profiles, ...settings } = appSettings.ai;
+  return { ...settings, hasApiKey: Boolean(readAiApiKey(provider)), keySource: process.env.SUBTITLE_AI_API_KEY ? 'environment' : (runtimeAiKeys[provider] ? 'runtime' : (readAiApiKey(provider) ? 'encrypted-or-legacy' : 'none')), providers: listProviderDefinitions() };
 }
 
 function aiProviderConfig() {
-  return { ...appSettings.ai, apiKey: readAiApiKey() };
+  const provider = appSettings.ai.provider;
+  const profile = appSettings.ai.profiles?.[provider] || {};
+  return { ...appSettings.ai, ...profile, provider, apiKey: readAiApiKey(provider), capabilities: PROVIDER_CAPABILITIES[provider] };
+}
+
+function getProjectAiSettingsPath(job) { return path.join(job.jobRoot, 'ai-output', 'project-settings.json'); }
+function loadProjectAiSettings(job) {
+  try { return normalizeProjectAiSettings(readJson(getProjectAiSettingsPath(job))); } catch { return normalizeProjectAiSettings(); }
+}
+function saveProjectAiSettings(job, value) {
+  const settings = normalizeProjectAiSettings(value);
+  fs.mkdirSync(path.dirname(getProjectAiSettingsPath(job)), { recursive: true });
+  writeJson(getProjectAiSettingsPath(job), settings);
+  return settings;
 }
 
 function getAiCheckpointPath(job) {
@@ -413,6 +453,8 @@ function publicAiRecord(record) {
   if (!record) return null;
   return {
     sessionId: record.sessionId,
+    provider: record.provider || appSettings.ai.provider,
+    model: record.model || appSettings.ai.model,
     status: record.status,
     progress: record.progress,
     result: record.result,
@@ -452,11 +494,84 @@ function loadAiRecord(job) {
   }
 }
 
+function sessionDir(job, sessionId) { return path.join(job.jobRoot, 'ai-output', 'sessions', String(sessionId)); }
+function sessionPath(job, sessionId) { return path.join(sessionDir(job, sessionId), 'session.json'); }
+function writeAiSession(job, record) {
+  const dir = sessionDir(job, record.sessionId);
+  fs.mkdirSync(dir, { recursive: true });
+  const sourceById = new Map(record.request.cues.map((cue) => [String(cue.id), cue]));
+  const suggestions = record.result?.suggestions || [];
+  const session = {
+    sessionId: record.sessionId,
+    createdAt: record.startedAt,
+    completedAt: record.completedAt,
+    provider: record.provider,
+    model: record.model,
+    mode: record.request.mode || 'proofread',
+    source: record.request.cues,
+    suggestions,
+    decisions: Object.fromEntries(suggestions.map((item) => [String(item.id), 'pending'])),
+    statistics: { processed: record.result?.totalCues || 0, modified: suggestions.length, accepted: 0, skipped: 0, failed: 0 },
+  };
+  writeJson(sessionPath(job, record.sessionId), session);
+  writeJson(path.join(dir, 'suggestions.json'), { sessionId: record.sessionId, suggestions });
+  const preview = record.request.cues.map((cue, index) => {
+    const suggestion = suggestions.find((item) => String(item.id) === String(cue.id));
+    return `${index + 1}\n${cue.start} --> ${cue.end}\n${suggestion?.text || cue.text}`;
+  }).join('\n\n');
+  fs.writeFileSync(path.join(dir, 'optimized-preview.srt'), `${preview}\n`, 'utf8');
+  const report = [
+    `# AI 字幕優化報告 ${record.sessionId}`,
+    '', `- 供應商：${session.provider}`, `- 模型：${session.model}`, `- 模式：${session.mode}`,
+    `- 處理：${session.statistics.processed}`, `- 修改建議：${session.statistics.modified}`,
+    '', '## 修改摘要', '',
+    ...suggestions.map((item) => `- Cue ${item.id}: ${String(sourceById.get(String(item.id))?.text || '').replace(/\s+/g, ' ')} → ${item.text.replace(/\s+/g, ' ')}`),
+  ].join('\n');
+  fs.writeFileSync(path.join(dir, 'REPORT.md'), `${report}\n`, 'utf8');
+  return session;
+}
+
+function loadAiSession(job, sessionId) { return readJson(sessionPath(job, sessionId)); }
+function listAiSessions(job) {
+  const root = path.join(job.jobRoot, 'ai-output', 'sessions');
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => {
+    try { return loadAiSession(job, entry.name); } catch { return null; }
+  }).filter(Boolean).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+}
+
+function updateAiSessionDecisions(job, sessionId, decisions = {}) {
+  const session = loadAiSession(job, sessionId);
+  session.decisions = { ...session.decisions, ...decisions };
+  const values = Object.values(session.decisions);
+  session.statistics.accepted = values.filter((value) => value === 'accepted').length;
+  session.statistics.skipped = values.filter((value) => value === 'skipped').length;
+  writeJson(sessionPath(job, sessionId), session);
+  return session;
+}
+
+function sessionTextChanges(job, sessionId, currentCues, direction) {
+  const session = loadAiSession(job, sessionId);
+  const current = new Map((currentCues || []).map((cue) => [String(cue.id), String(cue.text || '')]));
+  const changes = [];
+  const conflicts = [];
+  for (const suggestion of session.suggestions || []) {
+    const id = String(suggestion.id);
+    if (session.decisions?.[id] !== 'accepted') continue;
+    const expected = direction === 'undo' ? suggestion.text : suggestion.original;
+    const replacement = direction === 'undo' ? suggestion.original : suggestion.text;
+    if (current.get(id) === expected) changes.push({ id: suggestion.id, text: replacement });
+    else conflicts.push({ id: suggestion.id, current: current.get(id) || '', expected });
+  }
+  return { sessionId, direction, changes, conflicts };
+}
+
 function startAiOptimizationJob(job, payload, previous = null) {
   const jobId = job.config.jobId;
   const config = aiProviderConfig();
   if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
   if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
+  if (!config.consentGrantedAt && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${config.baseUrl}/`)) throw new Error('首次使用雲端 AI 前必須確認資料傳送同意');
   const request = previous?.request || payload;
   if (!Array.isArray(request?.cues) || request.cues.length === 0) throw new Error('Missing subtitle cues');
   const batchSize = Math.max(1, Number(config.batchSize) || 30);
@@ -467,6 +582,8 @@ function startAiOptimizationJob(job, payload, previous = null) {
     progress: previous?.progress || { completedBatches: 0, totalBatches: Math.ceil(request.cues.length / batchSize), processedCues: 0, totalCues: request.cues.length, totalRetries: 0 },
     checkpoint: previous?.checkpoint || { nextBatchIndex: 0, suggestions: [], totalRetries: 0 },
     request,
+    provider: config.provider,
+    model: config.model,
     controller,
     startedAt: previous?.startedAt || new Date().toISOString(),
     error: null,
@@ -474,7 +591,8 @@ function startAiOptimizationJob(job, payload, previous = null) {
   };
   aiOptimizationJobs.set(jobId, record);
   persistAiRecord(job, record);
-  const complete = (body, signal) => createChatCompletion(config, body, signal);
+  const provider = createProvider(config);
+  const complete = (body, signal) => provider.optimize(body, signal);
   complete.progress = (progress) => {
     record.progress = progress;
     persistAiRecord(job, record);
@@ -484,6 +602,8 @@ function startAiOptimizationJob(job, payload, previous = null) {
     config,
     mode: request.mode,
     instructions: request.instructions,
+    promptTemplate: loadProjectAiSettings(job).prompts[request.mode],
+    glossary: loadProjectAiSettings(job).glossary,
     language: request.language || config.language,
     signal: controller.signal,
     complete,
@@ -499,6 +619,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
     record.progress = { ...record.progress, completedBatches: result.totalBatches, processedCues: result.totalCues, totalRetries: result.totalRetries };
     record.completedAt = new Date().toISOString();
     delete record.controller;
+    writeAiSession(job, record);
     persistAiRecord(job, record);
   }).catch((error) => {
     record.status = controller.signal.aborted ? 'cancelled' : 'failed';
@@ -3053,26 +3174,53 @@ async function handleApi(req, res) {
     sendJson(res, 200, { ok: true, settings: publicAiSettings() });
     return;
   }
+  if (req.method === 'GET' && url.pathname === '/api/ai/profile') {
+    const provider = ['openai', 'openai-compatible', 'azure'].includes(url.searchParams.get('provider')) ? url.searchParams.get('provider') : appSettings.ai.provider;
+    sendJson(res, 200, { ok: true, provider, profile: appSettings.ai.profiles?.[provider] || {}, hasApiKey: Boolean(readAiApiKey(provider)), capabilities: PROVIDER_CAPABILITIES[provider] });
+    return;
+  }
   if (req.method === 'POST' && url.pathname === '/api/ai/settings') {
     try {
       const payload = await readJsonBody(req);
       const nextAi = normalizeAiSettings(payload);
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
       if (nextAi.baseUrl) new URL(nextAi.baseUrl);
+      const profiles = { ...(appSettings.ai.profiles || {}), ...(payload.profiles || {}) };
+      profiles[nextAi.provider] = {
+        baseUrl: nextAi.baseUrl, model: nextAi.model, deployment: nextAi.deployment,
+        apiVersion: nextAi.apiVersion, batchSize: nextAi.batchSize, timeoutSeconds: nextAi.timeoutSeconds,
+      };
+      nextAi.profiles = profiles;
       appSettings = { ...appSettings, ai: nextAi };
       writeJson(settingsPath, appSettings);
-      saveAiApiKey(payload.apiKey);
+      saveAiApiKey(payload.apiKey, nextAi.provider);
       sendJson(res, 200, { ok: true, settings: publicAiSettings() });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
     }
     return;
   }
+  if (req.method === 'DELETE' && url.pathname === '/api/ai/key') {
+    clearAiApiKey(appSettings.ai.provider);
+    sendJson(res, 200, { ok: true, settings: publicAiSettings() });
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/ai/runtime-key') {
+    try {
+      const payload = await readJsonBody(req);
+      const provider = ['openai', 'openai-compatible', 'azure'].includes(payload.provider) ? payload.provider : appSettings.ai.provider;
+      const apiKey = String(payload.apiKey || '').trim();
+      if (apiKey) runtimeAiKeys[provider] = apiKey;
+      else delete runtimeAiKeys[provider];
+      sendJson(res, 200, { ok: true, hasApiKey: Boolean(runtimeAiKeys[provider]) });
+    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    return;
+  }
   if (req.method === 'POST' && url.pathname === '/api/ai/test') {
     try {
       const config = aiProviderConfig();
       if (!config.baseUrl || !config.model) throw new Error('請先儲存 Base URL 與模型名稱');
-      const result = await testOpenAiCompatible(config);
+      const result = await createProvider(config).test();
       sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
       sendJson(res, 422, { ok: false, error: error.message });
@@ -3383,6 +3531,48 @@ async function handleApi(req, res) {
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
     }
+    return;
+  }
+  if (req.method === 'GET' && action === 'ai-project-settings') {
+    sendJson(res, 200, { ok: true, settings: loadProjectAiSettings(job) });
+    return;
+  }
+  if (req.method === 'POST' && action === 'ai-project-settings') {
+    try { sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, await readJsonBody(req)) }); }
+    catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    return;
+  }
+  if (req.method === 'POST' && action === 'ai-glossary-import') {
+    try {
+      const payload = await readJsonBody(req);
+      const current = loadProjectAiSettings(job);
+      const glossary = payload.format === 'csv' ? parseGlossaryCsv(payload.content) : normalizeProjectAiSettings({ glossary: JSON.parse(payload.content || '[]') }).glossary;
+      sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, { ...current, glossary }) });
+    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    return;
+  }
+  if (req.method === 'GET' && action === 'ai-glossary-export') {
+    const settings = loadProjectAiSettings(job);
+    if (url.searchParams.get('format') === 'csv') sendText(res, 200, glossaryToCsv(settings.glossary));
+    else sendJson(res, 200, settings.glossary);
+    return;
+  }
+  if (req.method === 'GET' && action === 'ai-sessions') {
+    sendJson(res, 200, { ok: true, sessions: listAiSessions(job) });
+    return;
+  }
+  if (req.method === 'POST' && action === 'ai-session-decisions') {
+    try {
+      const payload = await readJsonBody(req);
+      sendJson(res, 200, { ok: true, session: updateAiSessionDecisions(job, payload.sessionId, payload.decisions) });
+    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    return;
+  }
+  if (req.method === 'POST' && ['undo-ai-session', 'redo-ai-session'].includes(action)) {
+    try {
+      const payload = await readJsonBody(req);
+      sendJson(res, 200, { ok: true, ...sessionTextChanges(job, payload.sessionId, payload.cues, action.startsWith('undo') ? 'undo' : 'redo') });
+    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
     return;
   }
   if (req.method === 'GET' && action === 'ai-optimize') {

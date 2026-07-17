@@ -63,4 +63,21 @@ assert.equal(resumedCalls, 1, '續傳不可重送已完成批次');
 assert.equal(resumed.resumedFromBatch, 1);
 assert.equal(resumed.suggestions.length, 2);
 assert.equal(resumed.totalRetries, 2);
+
+const glossaryBodies = [];
+const glossaryComplete = async (body) => {
+  glossaryBodies.push(body);
+  const batch = JSON.parse(body.messages[1].content.split('待處理字幕：\n')[1]);
+  return { choices: [{ message: { content: JSON.stringify({ cues: batch.map((cue) => ({ id: cue.id, text: cue.text, reason: '' })) }) } }] };
+};
+await optimizeSubtitleCues({
+  cues: source,
+  config: { model: 'test', batchSize: 1 },
+  glossary: [{ source: 'ＡＩ', target: 'AI', note: '縮寫' }],
+  promptTemplate: '依專案規範校對。',
+  complete: glossaryComplete,
+});
+assert.equal(glossaryBodies.length, 2);
+assert.equal(glossaryBodies.every((body) => body.messages[1].content.includes('ＡＩ → AI')), true, '每一批都必須包含相同術語表');
+assert.equal(glossaryBodies[0].messages[0].content.includes('依專案規範校對。'), true);
 console.log('AI 字幕優化測試通過：固定 cue ID、時間碼、差異建議、進度與回應驗證');
