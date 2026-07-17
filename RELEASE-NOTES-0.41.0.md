@@ -47,3 +47,18 @@
 - DMG SHA-256：`3410607e1bba78678a4e890cdedc922e0d0de49d202be6a881318e6570e8db1d`。
 - ZIP SHA-256：`3a233de24285ee96180e0b64d83a713916edf55aae13a782eb7ac606021e8bca`。
 - `hdiutil verify` 與 `codesign --verify --deep --strict` 通過。
+
+## Windows x64 內部預覽成品
+
+- Setup：`離線字幕工廠 Setup 0.41.0.exe`，約 197 MB。
+- Portable：`離線字幕工廠 0.41.0.exe`，約 196 MB。
+- Setup SHA-256：`e884c495002442126d2e50227c582230d946cc2cf11454d83f09fabbf27c773a`。
+- Portable SHA-256：`774fcd97f80c8a1c548dd4140c55f40f30f07c28d216df2778a11fc15ba02135`。
+- GitHub Actions 的 runtime、來源測試、封包驗證與 artifact 上傳通過。
+- 此次 repository 未設定 Windows Code Signing secrets，因此成品明確標示為 `UNSIGNED INTERNAL PREVIEW`。
+
+## Google Drive 備份
+
+- macOS DMG／ZIP 與 Windows Setup／Portable 已分割為約 45 MB chunk，上傳至指定 Google Drive 資料夾。
+- Drive 內包含各平台重組說明與 chunk SHA-256 清單。
+- 完整未分割檔案保存在本 GitHub Release。

@@ -1111,3 +1111,22 @@
   - 無 secrets 時執行 `electron:build:unsigned`，僅產生內部預覽包。
   - artifact 新增 `SIGNING-STATUS-windows-x64.txt`，清楚標示 SIGNED RELEASE 或 UNSIGNED INTERNAL PREVIEW。
   - 未簽章狀態不再冒充正式可信發布。
+
+### 2026-07-17 — AI 字幕優化項目 12：完成 0.41 跨平台發布與 Drive 備份
+
+- 狀態：完成
+- GitHub：
+  - 分支：`codex/0.41-ai-reliability`。
+  - PR：`https://github.com/twyderek/offline-subtitle-factory-app/pull/3`。
+  - tag／Release：`v0.41.0`。
+  - Release 包含 macOS DMG／ZIP、Windows Setup／Portable、blockmap、SHA-256 與簽章狀態。
+- Windows Actions：
+  - 來源測試、runtime 準備與驗證、未簽章內部包、封包驗證及 artifact 上傳全部通過。
+  - Setup SHA-256：`e884c495002442126d2e50227c582230d946cc2cf11454d83f09fabbf27c773a`。
+  - Portable SHA-256：`774fcd97f80c8a1c548dd4140c55f40f30f07c28d216df2778a11fc15ba02135`。
+  - 成品狀態：`UNSIGNED INTERNAL PREVIEW`。
+- Google Drive：
+  - 指定資料夾：`1tSPGU_uhUEij60VVZF7e5ust73gZsbSj`。
+  - 受 Drive 對接單檔 100 MB 上限影響，macOS 與 Windows 完整安裝包各切成約 45 MB chunk。
+  - 已上傳所有 chunk、重組說明與 chunk SHA-256 清單。
+  - GitHub Release 保留完整單檔，Drive 作為分卷備份。
