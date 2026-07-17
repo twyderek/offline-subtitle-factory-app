@@ -107,39 +107,47 @@
 
           <div class="review-stage">
             <section id="proofreadPanel" class="review-stage-panel active">
-              <div class="review-ai-toolbar" aria-label="AI 字幕優化工具">
+              <div id="aiToolbar" class="review-ai-toolbar collapsed" aria-label="AI 字幕優化工具">
                 <div class="review-ai-toolbar-title">
-                  <strong>AI 字幕優化</strong>
-                  <span id="aiConnectionBadge" class="review-ai-badge offline">尚未設定</span>
+                  <div class="review-ai-toolbar-heading">
+                    <span class="review-ai-spark" aria-hidden="true">✦</span>
+                    <strong>AI 字幕優化</strong>
+                    <span id="aiConnectionBadge" class="review-ai-badge offline">尚未設定</span>
+                  </div>
+                  <button id="toggleAiToolbar" class="review-button review-ai-toggle" type="button" aria-expanded="false" aria-controls="aiToolbarContent">
+                    <span class="review-ai-toggle-label">展開 AI 優化</span><span class="review-ai-toggle-chevron" aria-hidden="true">⌄</span>
+                  </button>
                 </div>
-                <div class="review-ai-tools" role="group" aria-label="優化模式">
-                  <button class="review-button ai-mode active" type="button" data-ai-mode="proofread">錯字與標點</button>
-                  <button class="review-button ai-mode" type="button" data-ai-mode="breaks">斷句優化</button>
-                  <button class="review-button ai-mode" type="button" data-ai-mode="terms">術語統一</button>
-                  <button class="review-button ai-mode" type="button" data-ai-mode="fillers">移除贅詞</button>
-                  <button class="review-button ai-mode" type="button" data-ai-mode="translate">翻譯</button>
-                </div>
-                <div class="review-ai-actions">
-                  <label class="review-ai-check"><input id="aiPreserveTiming" type="checkbox" checked> 鎖定時間碼</label>
-                  <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="selected">只處理勾選字幕</option><option value="search">只處理搜尋結果</option><option value="current">只處理目前字幕</option></select>
-                  <span id="aiScopeEstimate" class="review-ai-estimate">預計 0 段</span>
-                  <button id="runAiOptimize" class="review-button primary" type="button">開始 AI 優化</button>
-                  <button id="resumeAiOptimize" class="review-button primary" type="button" hidden>繼續未完成任務</button>
-                  <button id="cancelAiOptimize" class="review-button" type="button" hidden>取消</button>
-                </div>
-                <div id="aiProgressWrap" class="review-ai-progress" hidden>
-                  <div><span id="aiProgressText">準備處理…</span><strong id="aiProgressPercent">0%</strong></div>
-                  <progress id="aiProgress" max="100" value="0">0%</progress>
-                </div>
-                <div id="aiSuggestionActions" class="review-ai-suggestion-actions" hidden>
-                  <span id="aiSuggestionSummary">0 段 AI 建議等待確認</span>
-                  <button id="rejectAllAiSuggestions" class="review-button" type="button">全部略過</button>
-                  <button id="acceptAllAiSuggestions" class="review-button primary" type="button">全部接受</button>
-                </div>
-                <div class="review-ai-history-actions">
-                  <button id="undoAiSession" class="review-button" type="button" disabled>撤銷本次 AI 優化</button>
-                  <button id="redoAiSession" class="review-button" type="button" disabled>重新套用</button>
-                  <span id="aiSessionSummary">尚無 AI 優化紀錄</span>
+                <div id="aiToolbarContent" class="review-ai-toolbar-content">
+                  <div class="review-ai-tools" role="group" aria-label="優化模式">
+                    <button class="review-button ai-mode active" type="button" data-ai-mode="proofread">錯字與標點</button>
+                    <button class="review-button ai-mode" type="button" data-ai-mode="breaks">斷句優化</button>
+                    <button class="review-button ai-mode" type="button" data-ai-mode="terms">術語統一</button>
+                    <button class="review-button ai-mode" type="button" data-ai-mode="fillers">移除贅詞</button>
+                    <button class="review-button ai-mode" type="button" data-ai-mode="translate">翻譯</button>
+                  </div>
+                  <div class="review-ai-actions">
+                    <label class="review-ai-check"><input id="aiPreserveTiming" type="checkbox" checked> 鎖定時間碼</label>
+                    <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="selected">只處理勾選字幕</option><option value="search">只處理搜尋結果</option><option value="current">只處理目前字幕</option></select>
+                    <span id="aiScopeEstimate" class="review-ai-estimate">預計 0 段</span>
+                    <button id="runAiOptimize" class="review-button primary" type="button">開始 AI 優化</button>
+                    <button id="resumeAiOptimize" class="review-button primary" type="button" hidden>繼續未完成任務</button>
+                    <button id="cancelAiOptimize" class="review-button" type="button" hidden>取消</button>
+                  </div>
+                  <div id="aiProgressWrap" class="review-ai-progress" hidden>
+                    <div><span id="aiProgressText">準備處理…</span><strong id="aiProgressPercent">0%</strong></div>
+                    <progress id="aiProgress" max="100" value="0">0%</progress>
+                  </div>
+                  <div id="aiSuggestionActions" class="review-ai-suggestion-actions" hidden>
+                    <span id="aiSuggestionSummary">0 段 AI 建議等待確認</span>
+                    <button id="rejectAllAiSuggestions" class="review-button" type="button">全部略過</button>
+                    <button id="acceptAllAiSuggestions" class="review-button primary" type="button">全部接受</button>
+                  </div>
+                  <div class="review-ai-history-actions">
+                    <button id="undoAiSession" class="review-button" type="button" disabled>撤銷本次 AI 優化</button>
+                    <button id="redoAiSession" class="review-button" type="button" disabled>重新套用</button>
+                    <span id="aiSessionSummary">尚無 AI 優化紀錄</span>
+                  </div>
                 </div>
               </div>
               <div class="review-tool-row">
@@ -187,7 +195,7 @@
         <label class="full"><span>API Base URL</span><input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1"></label>
         <label><span>模型</span><input id="aiModel" type="text" placeholder="請輸入模型名稱"></label>
         <label><span>Azure Deployment</span><input id="aiDeployment" type="text" placeholder="僅 Azure 使用"></label>
-        <label><span>Azure API Version</span><input id="aiApiVersion" type="text" value="2024-10-21"></label>
+        <label><span>Azure API Version</span><input id="aiApiVersion" type="text" value="2024-12-01-preview"></label>
         <label><span>每批段落</span><input id="aiBatchSize" type="number" min="1" max="100" value="30"></label>
         <label class="full"><span>API Key</span><input id="aiApiKey" type="password" autocomplete="off" placeholder="留空表示沿用已保存金鑰"></label>
         <label class="full review-ai-consent"><span><input id="aiConsent" type="checkbox"> 我了解只會傳送畫面所列的字幕文字與前後文，不會傳送影片或音訊</span></label>

@@ -23,12 +23,15 @@ try {
     assert.equal(adapter.classifyError(Object.assign(new Error('rate'), { status: 429, retryable: true })).retryable, true);
   }
 
-  const azure = createProvider({ provider: 'azure', baseUrl: 'https://resource.openai.azure.com', apiKey: 'azure-key', deployment: 'subtitle', apiVersion: '2024-10-21' });
+  const azure = createProvider({ provider: 'azure', baseUrl: 'https://resource.openai.azure.com', apiKey: 'azure-key', deployment: 'subtitle', apiVersion: '2024-12-01-preview' });
   assert.equal((await azure.test()).ok, true);
   const azureRequest = requests.at(-1);
-  assert.match(azureRequest.url, /deployments\/subtitle\/chat\/completions\?api-version=2024-10-21/);
+  assert.match(azureRequest.url, /deployments\/subtitle\/chat\/completions\?api-version=2024-12-01-preview/);
   assert.equal(azureRequest.options.headers['api-key'], 'azure-key');
   assert.equal(azureRequest.options.headers.Authorization, undefined);
+  const azureBody = JSON.parse(azureRequest.options.body);
+  assert.equal(azureBody.max_completion_tokens, 16);
+  assert.equal(azureBody.max_tokens, undefined);
 
   const csv = 'source,target,caseSensitive,doNotTranslate,note\nOpen AI,OpenAI,true,false,brand\nWhisper,,false,true,keep';
   const glossary = parseGlossaryCsv(csv);

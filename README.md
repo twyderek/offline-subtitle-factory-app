@@ -1,5 +1,14 @@
 # 離線字幕工廠
 
+## 0.45.1 發布重點
+
+0.45.1 修正 Azure OpenAI GPT-5 的請求參數相容性，並讓校閱頁的 AI 優化工具可收合，未使用 AI 時可把右側空間完整留給字幕清單。
+
+- Azure 連線測試改用 `max_completion_tokens`，不再傳送 GPT-5 不支援的 `max_tokens`。
+- 正式優化請求不再固定傳送 `temperature: 0.1`。
+- AI 優化面板預設收合，可手動展開／收合並記住選擇；開始或繼續 AI 任務時會自動展開。
+- 新增 GPT-5 請求參數與 AI 面板回歸檢查。
+
 ## 0.45.0 發布重點
 
 0.45.0 把 AI 優化推進為完整校閱工作流：支援專案術語表、可重用 Prompt、多段與搜尋結果選取、可稽核 session 報告、一鍵撤銷／重做、作業系統安全金鑰，以及 OpenAI、OpenAI-compatible、Azure OpenAI provider adapter。所有 AI 建議仍須經使用者確認，且 cue 數量與時間碼維持鎖定。
@@ -46,7 +55,7 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-離線字幕工廠 0.45.0 macOS-arm64.dmg
+離線字幕工廠 0.45.1 macOS-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
@@ -59,7 +68,7 @@ Windows 0.45 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 N
 
 ## 不需要自行安裝其他軟體
 
-0.45.0 安裝包已內建：
+0.45.1 安裝包已內建：
 
 - Electron／Node 本機服務執行環境。
 - FFmpeg 與 FFprobe。

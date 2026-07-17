@@ -196,6 +196,7 @@ try {
         hasSelectionUi: html.includes('aiScopeEstimate') && html.includes('value="search"') && html.includes('value="selected"'),
         hasSessionUi: html.includes('undoAiSession') && html.includes('redoAiSession'),
         hasSecureKeyUi: html.includes('clearAiKey') && html.includes('aiConsent'),
+        hasCollapsibleAiUi: html.includes('id="aiToolbar" class="review-ai-toolbar collapsed"') && html.includes('id="toggleAiToolbar"') && html.includes('aria-controls="aiToolbarContent"'),
         glossaryRoundTrip: loaded.settings?.glossary?.[0]?.target === 'OpenAI',
         providerIds: providers.settings?.providers?.map((item) => item.id) || [],
       };
@@ -305,6 +306,7 @@ try {
   if (!result.trimAssets.pageOk || !result.trimAssets.scriptOk || !result.trimAssets.hasWorkspace || !result.trimAssets.hasStartJob) throw new Error('Packaged trim workspace assets are missing');
   if (!result.aiReviewAssets.pageOk || result.aiReviewAssets.saveStatus !== 200) throw new Error('Packaged AI review settings API is unavailable');
   if (!result.aiReviewAssets.hasSelectionUi || !result.aiReviewAssets.hasSessionUi || !result.aiReviewAssets.hasSecureKeyUi) throw new Error('Packaged 0.45 AI review controls are missing');
+  if (!result.aiReviewAssets.hasCollapsibleAiUi) throw new Error('Packaged 0.45.1 collapsible AI toolbar is missing');
   if (!result.aiReviewAssets.glossaryRoundTrip) throw new Error('Packaged glossary settings did not round-trip');
   if (!['openai', 'openai-compatible', 'azure'].every((id) => result.aiReviewAssets.providerIds.includes(id))) throw new Error('Packaged provider definitions are incomplete');
   if (trimMediaPath) {

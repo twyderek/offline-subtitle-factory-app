@@ -17,6 +17,14 @@
 .review-ai-toolbar { margin-bottom: 12px; padding: 14px; border: 1px solid #cbd9ee; border-radius: 14px; background: #f7faff; display: grid; gap: 10px; }
 .review-ai-toolbar-title, .review-ai-actions, .review-ai-settings-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .review-ai-toolbar-title { justify-content: space-between; }
+.review-ai-toolbar-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.review-ai-spark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: #e6f1ff; color: #1678ed; font-size: 14px; }
+.review-ai-toolbar-content { display: grid; gap: 10px; }
+.review-ai-toggle { margin-left: auto; white-space: nowrap; }
+.review-ai-toggle-chevron { display: inline-block; margin-left: 5px; font-size: 15px; transition: transform .18s ease; }
+.review-ai-toolbar.collapsed { padding: 10px 12px; gap: 0; }
+.review-ai-toolbar.collapsed .review-ai-toolbar-content { display: none; }
+.review-ai-toolbar:not(.collapsed) .review-ai-toggle-chevron { transform: rotate(180deg); }
 .review-ai-tools { display: flex; gap: 7px; flex-wrap: wrap; }
 .review-ai-tools .ai-mode.active { color: #fff; border-color: #164f9f; background: #164f9f; }
 .review-ai-actions select { min-height: 34px; padding: 0 9px; border: 1px solid #c5d2e4; border-radius: 8px; background: #fff; }
@@ -1432,7 +1440,7 @@ code {
 
 .review-stage-panel.active {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .review-tool-row {
