@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.45.1",
+  "version": "0.45.2",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -10,8 +10,11 @@
     "start": "node server.mjs",
     "electron:start": "electron .",
     "electron:dev": "node scripts/start-electron-dev.mjs",
-    "test": "node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
+    "project:preflight": "node scripts/project-preflight.mjs",
+    "docs:check": "node scripts/check-project-docs.mjs",
+    "docs:check:final": "node scripts/check-project-docs.mjs --final",
+    "test": "node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
+    "check": "npm run docs:check && node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
     "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
     "runtime:verify": "node scripts/verify-runtime-package.mjs --target=win32-x64",
@@ -54,6 +57,7 @@
       "RELEASE-NOTES-0.41.0.md",
       "RELEASE-NOTES-0.45.0.md",
       "RELEASE-NOTES-0.45.1.md",
+      "RELEASE-NOTES-0.45.2.md",
       "package.json",
       ".gitignore"
     ],
@@ -76,8 +80,8 @@
       "signAndEditExecutable": true,
       "extraResources": [
         {
-          "from": "docs/0.45.1",
-          "to": "docs/0.45.1",
+          "from": "docs/0.45.2",
+          "to": "docs/0.45.2",
           "filter": [
             "**/*"
           ]
@@ -133,6 +137,13 @@
       "gatekeeperAssess": false,
       "artifactName": "${productName} ${version} macOS-${arch}.${ext}",
       "extraResources": [
+        {
+          "from": "docs/0.45.2",
+          "to": "docs/0.45.2",
+          "filter": [
+            "**/*"
+          ]
+        },
         {
           "from": "tools/ffmpeg",
           "to": "tools/ffmpeg",

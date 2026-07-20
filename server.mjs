@@ -11,6 +11,7 @@ import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { createProvider, listProviderDefinitions, PROVIDER_CAPABILITIES } from './lib/ai/providers.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from './lib/ai/project-tools.mjs';
+import { canonicalizeLanguageTag, normalizeLanguageTag } from './lib/ai/languages.mjs';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(appDir, 'public');
@@ -380,7 +381,7 @@ function normalizeAiSettings(value = {}) {
     baseUrl,
     model: String(value.model || '').trim(),
     batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
-    language: ['zh-TW', 'zh-CN', 'en'].includes(value.language) ? value.language : defaultSettings.ai.language,
+    language: normalizeLanguageTag(value.language, defaultSettings.ai.language),
     timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),
     maxRetries: clampNumber(value.maxRetries, 0, 8, defaultSettings.ai.maxRetries),
     retryBaseMs: clampNumber(value.retryBaseMs, 100, 10000, defaultSettings.ai.retryBaseMs),
@@ -575,6 +576,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
   if (!config.consentGrantedAt && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${config.baseUrl}/`)) throw new Error('首次使用雲端 AI 前必須確認資料傳送同意');
   const request = previous?.request || payload;
   if (!Array.isArray(request?.cues) || request.cues.length === 0) throw new Error('Missing subtitle cues');
+  request.language = canonicalizeLanguageTag(request.language || config.language);
   const batchSize = Math.max(1, Number(config.batchSize) || 30);
   const controller = new AbortController();
   const record = {
@@ -3162,9 +3164,11 @@ async function handleApi(req, res) {
   }
   if (req.method === 'POST' && url.pathname === '/api/settings') {
     try {
+      const payload = await readJsonBody(req);
+      if (payload.ai && Object.hasOwn(payload.ai, 'language')) canonicalizeLanguageTag(payload.ai.language);
       sendJson(res, 200, {
         ok: true,
-        settings: saveSettings(await readJsonBody(req)),
+        settings: saveSettings(payload),
       });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
@@ -3183,6 +3187,7 @@ async function handleApi(req, res) {
   if (req.method === 'POST' && url.pathname === '/api/ai/settings') {
     try {
       const payload = await readJsonBody(req);
+      if (Object.hasOwn(payload, 'language')) canonicalizeLanguageTag(payload.language);
       const nextAi = normalizeAiSettings(payload);
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
       if (nextAi.enabled && nextAi.provider === 'azure' && !nextAi.deployment) throw new Error('啟用 Azure OpenAI 前必須填寫 Azure Deployment');

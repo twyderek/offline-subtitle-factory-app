@@ -58,7 +58,7 @@ const ids = [
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
-const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiDeployment', 'aiApiVersion', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
+const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiDeployment', 'aiApiVersion', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiCustomLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -85,6 +85,7 @@ document.getElementById('exportAiGlossary').addEventListener('click', exportAiGl
 document.getElementById('importAiGlossary').addEventListener('click', importAiGlossary);
 document.getElementById('aiPromptMode').addEventListener('change', showAiPromptTemplate);
 document.getElementById('aiProvider').addEventListener('change', loadAiProviderProfile);
+document.getElementById('aiLanguage').addEventListener('change', updateAiLanguageControls);
 document.getElementById('aiScope').addEventListener('change', updateAiScopeEstimate);
 document.getElementById('undoAiSession').addEventListener('click', () => applyAiSessionDirection('undo'));
 document.getElementById('redoAiSession').addEventListener('click', () => applyAiSessionDirection('redo'));
@@ -194,6 +195,25 @@ function setAiSettingsStatus(message) {
   document.getElementById('aiSettingsStatus').textContent = message;
 }
 
+function updateAiLanguageControls() {
+  const custom = document.getElementById('aiLanguage').value === 'custom';
+  document.getElementById('aiCustomLanguageField').hidden = !custom;
+  if (custom) document.getElementById('aiCustomLanguage').focus();
+}
+
+function setAiLanguage(language = 'zh-TW') {
+  const select = document.getElementById('aiLanguage');
+  const supported = [...select.options].some((option) => option.value === language && option.value !== 'custom');
+  select.value = supported ? language : 'custom';
+  document.getElementById('aiCustomLanguage').value = supported ? '' : language;
+  updateAiLanguageControls();
+}
+
+function getAiLanguage() {
+  const select = document.getElementById('aiLanguage');
+  return select.value === 'custom' ? document.getElementById('aiCustomLanguage').value.trim() : select.value;
+}
+
 function applyAiSettings(settings) {
   document.getElementById('aiEnabled').checked = Boolean(settings.enabled);
   document.getElementById('aiProvider').value = settings.provider || 'openai-compatible';
@@ -204,7 +224,7 @@ function applyAiSettings(settings) {
   document.getElementById('aiBatchSize').value = settings.batchSize || 30;
   document.getElementById('aiApiKey').value = '';
   document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
-  document.getElementById('aiLanguage').value = settings.language || 'zh-TW';
+  setAiLanguage(settings.language || 'zh-TW');
   document.getElementById('aiTimeoutSeconds').value = settings.timeoutSeconds || 60;
   document.getElementById('aiMaxRetries').value = settings.maxRetries ?? 3;
   document.getElementById('aiRetryBaseMs').value = settings.retryBaseMs || 1000;
@@ -238,7 +258,7 @@ function collectAiSettings() {
     apiVersion: document.getElementById('aiApiVersion').value.trim(),
     batchSize: Number(document.getElementById('aiBatchSize').value),
     apiKey: document.getElementById('aiApiKey').value.trim(),
-    language: document.getElementById('aiLanguage').value,
+    language: getAiLanguage(),
     timeoutSeconds: Number(document.getElementById('aiTimeoutSeconds').value),
     maxRetries: Number(document.getElementById('aiMaxRetries').value),
     retryBaseMs: Number(document.getElementById('aiRetryBaseMs').value),
@@ -425,7 +445,7 @@ async function runAiOptimize() {
         cues,
         mode,
         preserveTiming: document.getElementById('aiPreserveTiming').checked,
-        language: document.getElementById('aiLanguage').value,
+        language: getAiLanguage(),
         instructions: document.getElementById('aiInstructions').value.trim(),
       }),
     });

@@ -1,0 +1,76 @@
+# 偵錯與修改歷程
+
+## 紀錄格式
+
+每個缺陷記錄：`BUG-ID`、日期／版本、現象、影響、重現、根因、修正、驗證、防回歸、剩餘風險。
+
+## 重要既有缺陷
+
+### BUG-001：portable Python／Whisper 綁定開發機路徑
+
+- 現象：換到其他 Windows 電腦後找不到 Python 或 Whisper。
+- 根因：venv 與 launcher 保存開發機絕對路徑。
+- 修正：改用 bundled Whisper.cpp；runtime resolver、manifest 與 SHA 驗證取代開發機 venv 依賴。
+- 防回歸：`verify-runtime-package.mjs` 與平台 runtime 準備腳本。
+
+### BUG-002：Windows 中文檔名亂碼
+
+- 現象：匯入、任務資料或輸出顯示 mojibake。
+- 根因：UTF-8 被誤解為 Latin-1／Windows 編碼處理不一致。
+- 修正：統一 UTF-8 路徑與回應處理。
+- 防回歸：核心測試包含中文檔名案例。
+
+### BUG-003：FFmpeg ASS filter 的 Windows 磁碟機路徑
+
+- 現象：硬字幕輸出因 `C:` 等路徑字元解析失敗。
+- 根因：filter 字串中的 Windows 絕對路徑需特殊跳脫。
+- 修正：以輸出工作目錄與相對 `subtitle.ass` 執行。
+- 防回歸：硬／軟字幕輸出 API 測試。
+
+### BUG-004：Azure GPT-5 不支援 `max_tokens`
+
+- 現象：連線測試回覆要求改用 `max_completion_tokens`。
+- 根因：舊 chat completions 參數套用到 GPT-5 部署。
+- 修正：0.45.1 改送 `max_completion_tokens`。
+- 防回歸：AI provider contract tests 驗證請求參數。
+
+### BUG-005：GPT-5 不接受 `temperature: 0.1`
+
+- 現象：AI 優化在部分 GPT-5 部署回覆 unsupported value。
+- 根因：optimizer 固定傳送 0.1。
+- 修正：0.45.1 移除固定 temperature，使用模型預設。
+- 防回歸：provider／optimizer 測試確認不再傳送不相容值。
+
+### BUG-006：AI 優化面板佔用字幕清單空間
+
+- 現象：未使用 AI 時仍大幅壓縮右側校閱區。
+- 根因：AI 控制區始終展開。
+- 修正：預設精簡、可展開／收合、保存偏好；任務開始時自動展開。
+- 防回歸：`test-review-ui.mjs` 驗證狀態、記憶與自動展開。
+
+### BUG-007：Windows 手冊 MP4 被最終 NSIS 過濾
+
+- 現象：`win-unpacked` 有 MP4，但最終 EXE 清單缺少動畫。
+- 根因：最終封裝流程未保留 `.mp4` 資產。
+- 修正：保持 MP4 內容但使用 `.osfvideo` 資源副檔名，HTML 明確宣告 `type="video/mp4"`。
+- 防回歸：workflow 檢查三個資源；發布前以 `7za l` 與 `ffprobe` 交叉驗證。
+
+### BUG-008：GitHub 中文 Windows 資產名稱被簡化
+
+- 現象：中文檔名上傳後變成 `0.45.1.exe`／`Setup.0.45.1.exe`，與 checksum、blockmap、`latest.yml` 不一致。
+- 根因：GitHub CLI／Release 對上傳檔名進行平台正規化。
+- 修正：Release 使用穩定 ASCII 名稱，更新 checksum，驗證後刪除錯誤重複資產。
+- 防回歸：部署文件規定使用 ASCII 發布名稱並在上傳後核對實際名稱。
+
+### BUG-009：AI 輸出語言僅支援三個固定選項
+
+- 現象：設定介面只有繁中、簡中與英文；其他語言無法選擇，未支援值會靜默回退繁中。
+- 影響：使用者誤以為指定語言已生效，但 LLM 實際收到 `zh-TW`，造成翻譯或校對語言錯誤。
+- 根因：前端選項與 `normalizeAiSettings` 都以三值白名單硬編碼，Prompt 沒有共用語言驗證層。
+- 修正：新增 `lib/ai/languages.mjs`，統一 BCP 47 驗證與標準化；UI 增加常用語言及自訂標籤；設定與 AI 任務 API 拒絕無效新輸入；Prompt 只採用驗證後值。
+- 防回歸：optimizer、review UI 與 core API 測試覆蓋標準化、自訂語言、舊設定回退及注入型字串拒絕。
+- 剩餘風險：LLM 是否完全遵循目標語言仍受供應商模型能力影響，必須由使用者逐段確認建議。
+
+## 新缺陷處理
+
+發現新問題先在 `08-CHANGE-LOG.md` 記錄，再於本文件新增 `BUG-ID`。修正不得只寫「已解決」，必須包含可重現證據、根因與防回歸測試；若只能 workaround，須說明移除條件。

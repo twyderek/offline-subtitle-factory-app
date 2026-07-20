@@ -1,5 +1,14 @@
 # 離線字幕工廠
 
+## 0.45.2 發布重點
+
+0.45.2 新增多語言 LLM 字幕優化：提供 12 個常用目標語言與自訂 BCP 47 標籤，並統一設定、API 與 Prompt 的語言驗證。
+
+- 翻譯及各種字幕優化模式均使用所選目標語言。
+- 舊設定缺少或含無效語言時回退繁中；新的非法值會被 API 拒絕。
+- AI 回傳若改變 cue 數量、ID 或順序會被拒絕，時間碼維持鎖定。
+- Windows 未簽章、macOS 未公證；尚未完成跨平台乾淨實機測試。
+
 ## 0.45.1 發布重點
 
 0.45.1 修正 Azure OpenAI GPT-5 的請求參數相容性，並讓校閱頁的 AI 優化工具可收合，未使用 AI 時可把右側空間完整留給字幕清單。
@@ -55,22 +64,22 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-離線字幕工廠 0.45.1 macOS-arm64.dmg
+離線字幕工廠 0.45.2 macOS-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.45.1 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。可從 GitHub 的 `v0.45.1` Release 下載，或前往 **Actions → Build Windows 0.45.1** 取得 `offline-subtitle-factory-0.45.1-windows-x64` artifact。
+Windows 0.45.2 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。可從 GitHub 的 `v0.45.2` Release 下載，或前往 **Actions → Build Windows 0.45.2** 取得 `offline-subtitle-factory-0.45.2-windows-x64` artifact。
 
 目前 Windows 預覽成品尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先在測試機驗證檔案雜湊，再由「其他資訊 → 仍要執行」啟動；不建議在完成實機驗收前對外正式發布。
 
 ## 不需要自行安裝其他軟體
 
-0.45.1 安裝包已內建：
+0.45.2 安裝包已內建：
 
-- 完整離線操作手冊：`resources/docs/0.45.1/USER-GUIDE.html`
+- 完整離線操作手冊：`resources/docs/0.45.2/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
 
 - Electron／Node 本機服務執行環境。

@@ -45,6 +45,8 @@
 .review-ai-settings-grid label.full { grid-column: 1 / -1; }
 .review-ai-settings-grid input:not([type="checkbox"]), .review-ai-settings-grid select, .review-ai-settings-grid textarea { width: 100%; border: 1px solid #c5d2e4; border-radius: 9px; padding: 9px 10px; background: #fff; color: #172033; font: inherit; }
 .review-ai-settings-grid textarea { resize: vertical; }
+.review-ai-settings-grid [hidden] { display: none; }
+.review-ai-settings-grid small { color: #64748b; }
 .review-ai-settings-actions { justify-content: flex-end; margin-top: 18px; }
 .review-ai-settings-actions > span { margin-right: auto; color: #64748b; font-size: 12px; }
 .review-ai-estimate, .review-ai-history-actions span { color: #64748b; font-size: 12px; }
