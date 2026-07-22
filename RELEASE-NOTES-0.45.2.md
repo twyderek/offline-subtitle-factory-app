@@ -38,6 +38,7 @@
 - 真實 LLM 是否完全遵循目標語言仍受模型能力影響，所有建議都必須人工確認。
 - 本版仍是單一 cue 文字欄位，不包含雙語同屏、雙語 cue 資料模型或完整介面本地化。
 - Windows 未簽章、macOS 未公證，且尚未完成跨平台乾淨實機測試。
+- 本版未使用真實 Groq／Google Gemini API Key 執行外部 smoke test；provider contract 與本機 UI 驗證已完成。
 
 ## 版本注記
 
