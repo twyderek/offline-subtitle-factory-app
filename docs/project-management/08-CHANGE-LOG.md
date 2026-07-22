@@ -57,7 +57,7 @@
 - 預計影響檔案／模組：`package.json` macOS artifact 命名、`dist/` 產物、治理文件與 GitHub Release。
 - 風險與回復方式：若 metadata、checksum、CI artifact 或審查不一致則停止發布；保留既有未提交修改，不使用破壞性 Git 操作。
 - 驗證計畫：完整回歸、macOS DMG／ZIP／metadata／SHA 驗證、Windows CI artifact 交叉核對、獨立 round2 複審、發布後 GitHub 資產核對與 `docs:check:final`。
-- 實際修改：macOS `artifactName` 已改為 ASCII；初次 Windows CI 交叉核對又發現 Setup／Portable 實際輸出仍為中文檔名而 `latest.yml` 指向 ASCII，已補上 Windows NSIS／Portable 的 ASCII `artifactName` 設定，待重新 CI。
+- 實際修改：macOS `artifactName` 已改為 ASCII；Windows CI 交叉核對後發現 Portable 已為 ASCII、NSIS 仍為中文檔名，已將 Windows target-level `artifactName` 設為 ASCII Setup 名稱，待最後 CI。
 - 開發驗證結果：`npm run check`、macOS 重建、DMG／ZIP／`latest-mac.yml` URL 存在性與完整性驗證通過；Windows run `29886119926` 測試與封裝成功，但因檔名 metadata 不一致，不採用該資產發布，待新 CI run。
 - 獨立審查是否執行：待執行。
 - 獨立審查結論：待執行。
