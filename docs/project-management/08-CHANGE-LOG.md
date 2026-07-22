@@ -46,7 +46,7 @@
 
 ## 2026-07-22 — 修正 0.45.2 updater metadata 並完成發布準備
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求修正已知問題並完成 0.45.2 發布。
 - 關聯需求／缺陷：`NFR-003`、`NFR-004`、`NFR-008`、`BUG-011`
@@ -57,17 +57,21 @@
 - 預計影響檔案／模組：`package.json` macOS artifact 命名、`dist/` 產物、治理文件與 GitHub Release。
 - 風險與回復方式：若 metadata、checksum、CI artifact 或審查不一致則停止發布；保留既有未提交修改，不使用破壞性 Git 操作。
 - 驗證計畫：完整回歸、macOS DMG／ZIP／metadata／SHA 驗證、Windows CI artifact 交叉核對、獨立 round2 複審、發布後 GitHub 資產核對與 `docs:check:final`。
-- 實際修改：macOS `artifactName` 已改為 ASCII；Windows CI 交叉核對後發現 Portable 已為 ASCII、NSIS 仍為中文檔名，已將 Windows target-level `artifactName` 設為 ASCII Setup 名稱，待最後 CI。
-- 開發驗證結果：`npm run check`、macOS 重建、DMG／ZIP／`latest-mac.yml` URL 存在性與完整性驗證通過；Windows run `29886119926` 測試與封裝成功，但因檔名 metadata 不一致，不採用該資產發布，待新 CI run。
-- 獨立審查是否執行：待執行。
-- 獨立審查結論：待執行。
+- 實際修改：macOS `artifactName` 已改為 ASCII；Windows target-level `artifactName` 已設為 ASCII Setup 名稱、Portable 保持 ASCII；Windows CI run `29886823270` 成功。新增 round3 獨立複審紀錄。
+- 開發驗證結果：`npm run check` 通過；macOS DMG／ZIP、`latest-mac.yml` URL／size／path、DMG verify、ZIP test、codesign 與 SHA 通過；Windows run `29886823270` 成功，artifact ZIP 無錯誤，Setup／Portable／`latest.yml`／SHA 檔名與內容一致，未簽章狀態已揭露。
+- 獨立審查是否執行：是（round1 不通過；round2、round3 依序修正與複審，round3 有條件通過）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-22-release-v0-45-2-provider-rebuild-round3.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 round3 獨立複審結論為有條件通過：Windows CI run 29886823270 的 artifact、ZIP、latest.yml URL／size、Setup 實檔與 SHA 檔，以及 macOS round2 已驗證的 ASCII DMG／ZIP 與 latest-mac.yml 均符合發布前資產一致性要求；在 Release notes 揭露未簽章、未公證、未完成乾淨實機與未完成真實 Groq／Gemini smoke test，並於發布後核對 GitHub 實際資產 digest 與下載 URL 的條件下，可以發布 v0.45.2。**
+  - 條件：發布說明揭露未簽章、未公證、未完成乾淨實機與未完成真實 Groq／Gemini smoke test；發布後核對 GitHub 資產。
+  - 條件是否已被需求方接受：是（本次明確要求完成發布，且接受風險揭露）。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
   - 核准時間：2026-07-22 本次明確要求
   - 核准範圍：修正問題、重建／核對資產並完成 v0.45.2 GitHub Release；接受未簽章、未公證、未完成實機與真實 API smoke test 風險之揭露。
-- 部署／發布結果：待執行。
-- 遺留風險與後續事項：待執行；若 Windows CI 無法取得最新來源資產，停止公開發布並回報。
+- 部署／發布結果：待執行；本紀錄完成前仍未建立 Release。
+- 遺留風險與後續事項：發布後需核對 GitHub 實際檔名、大小、digest 與下載 URL；仍未完成正式簽章／公證、乾淨實機與真實供應商 smoke test。
 
 ---
 
