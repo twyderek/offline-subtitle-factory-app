@@ -1,5 +1,21 @@
 # 下一版修正紀錄
 
+## 0.45.3 重要事項（2026-07-22）
+
+### BUG-012 — OpenAI-compatible 載入 Gemini 舊設定
+
+- 現象：服務類型顯示 `OpenAI-compatible`，但 Base URL／模型仍為 Gemini。
+- 0.45.3 修正：載入設定時偵測 Gemini URL／模型與 OpenAI-compatible 的不一致組合，回復 OpenAI-compatible 預設 Base URL／空模型；不刪除 API Key 或 Gemini profile。
+- 回歸測試：`scripts/test-core.mjs` 驗證舊混用設定會被安全遷移。
+
+### 0.45.3 工作重點
+
+1. 完成 BUG-012 實機升級驗證與設定遷移說明。
+2. Windows／macOS 乾淨實機安裝、啟動、解除安裝與離線手冊驗收。
+3. Groq／Gemini 真實測試帳號 smoke test。
+4. Windows Authenticode、macOS Developer ID／公證與 npm audit 風險分類。
+5. 重新建立 0.45.3 Release notes、雙平台資產與獨立發布審查。
+
 > 建立日期：2026-07-14  
 > 目標：修正安裝版 / 免安裝版在非開發機環境下 Python、Whisper 無法正確使用的問題。  
 > 原則：逐項完成、逐項記錄，作為下一版發布前查詢依據。

@@ -86,3 +86,11 @@
 ## 新缺陷處理
 
 發現新問題先在 `08-CHANGE-LOG.md` 記錄，再於本文件新增 `BUG-ID`。修正不得只寫「已解決」，必須包含可重現證據、根因與防回歸測試；若只能 workaround，須說明移除條件。
+# BUG-012 — OpenAI-compatible 顯示 Gemini 舊設定
+
+- 發現版本：0.45.2（2026-07-22）
+- 現象：AI 設定服務類型為 `OpenAI-compatible`，但 Base URL 為 `generativelanguage.googleapis.com/...`、模型為 `gemini-3.5-flash`。
+- 根因：舊設定的供應商值與 Gemini 的 Base URL／模型被分開保存；載入時供應商回退為 `openai-compatible`，卻未清除不相容的舊欄位。
+- 修正方向：0.45.3 載入設定時辨識 Gemini URL／模型與 OpenAI-compatible 的不一致組合，回復 OpenAI-compatible 預設 Base URL／空模型；不刪除 API Key、不修改 Gemini profile。
+- 回歸防護：核心 API 測試加入舊 Gemini／OpenAI-compatible 混用資料遷移案例。
+- 未覆蓋：目前尚未完成已存在使用者設定檔的實機升級驗證，需於 0.45.3 實機 smoke test 補齊。

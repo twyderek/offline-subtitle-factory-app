@@ -77,4 +77,10 @@
 - 2026-07-22 macOS 本機瀏覽器實測：Groq 自動帶入 `https://api.groq.com/openai/v1`；Gemini 自動帶入 `https://generativelanguage.googleapis.com`；兩者清空並停用 Azure 欄位；切回 Azure 後 Deployment／API Version 恢復可用；缺模型時測試連線顯示可採取行動的錯誤且按鈕恢復可用。
 - round1 修正後，`ai-provider-settings.mjs` 的可執行測試覆蓋已保存 profile 與未保存 provider／Base URL／model／Azure deployment／API version／API Key；瀏覽器實測修改已保存 Groq profile 的 model 後，測試連線被阻擋、按鈕恢復，server log 確認未送出 `/api/ai/test`。
 - round2 修正後，`test-review-ui.mjs` 直接執行可注入連線控制器：七類未保存／缺 key 狀態均斷言 request 0 次；已保存未變更狀態 request 1 次；阻擋、成功、HTTP 錯誤與 fetch 例外後按鈕皆恢復，錯誤訊息可診斷。
-- 未覆蓋：未使用真實 Groq／Gemini API Key 呼叫外部服務；Windows 候選仍為 2026-07-20 CI 資產，尚未重建。2026-07-22 macOS arm64 已依修正來源重建，DMG `hdiutil verify`、ZIP `unzip -t` 通過；App 內含 `ai-provider-settings.mjs`、`review.js` 與 `server.mjs`。另發現 `latest-mac.yml` 內的英文資產檔名與實際中文輸出檔名不一致，updater metadata 尚未通過。
+- 未覆蓋：未使用真實 Groq／Gemini API Key 呼叫外部服務；Windows／macOS 乾淨實機安裝與啟動仍待 0.45.3。0.45.2 macOS arm64 DMG／ZIP、Windows Setup／Portable 與 updater metadata 已於發布前後核對通過。
+
+## 0.45.3 設定遷移驗證計畫
+
+- BUG-012：`test-core.mjs` 驗證 `openai-compatible` 搭配 Gemini URL／`gemini-*` 模型時，會回復空 Base URL／空模型，且不影響供應商金鑰隔離。
+- 必測：正常 OpenAI-compatible 自訂 endpoint、正常 Gemini profile、舊混用設定、空值、非法 provider、重啟後設定持久化。
+- 實機：以既有 0.45.2 使用者設定升級到 0.45.3，確認 UI 不再顯示跨供應商資料。

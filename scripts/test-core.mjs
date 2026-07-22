@@ -202,6 +202,22 @@ try {
   assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
   assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
 
+  const migratedLegacyGeminiResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...loadedAiSettings.settings,
+      provider: 'openai-compatible',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/interactions',
+      model: 'gemini-3.5-flash',
+    }),
+  });
+  assert.equal(migratedLegacyGeminiResponse.status, 200, '舊 Gemini／OpenAI-compatible 混用設定應可安全遷移');
+  const migratedLegacyGemini = await migratedLegacyGeminiResponse.json();
+  assert.equal(migratedLegacyGemini.settings.provider, 'openai-compatible', '遷移後供應商應維持 OpenAI-compatible');
+  assert.equal(migratedLegacyGemini.settings.baseUrl, '', 'OpenAI-compatible 不可沿用 Gemini Base URL');
+  assert.equal(migratedLegacyGemini.settings.model, '', 'OpenAI-compatible 不可沿用 Gemini 模型');
+
   const invalidProviderResponse = await api('/api/ai/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

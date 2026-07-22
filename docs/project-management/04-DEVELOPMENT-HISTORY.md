@@ -15,6 +15,7 @@
 | 下一版開發中／2026-07-20 | 多語言 LLM 字幕優化 | 常用語言、自訂 BCP 47、統一 Prompt 與舊設定相容；尚未打包或發布 |
 | 0.45.2 候選／2026-07-20 | 多語言 LLM 正式發布流程 | 已取得未簽章、未公證與未完成跨平台乾淨實機測試的風險接受；資產建置與發布進行中 |
 | 0.45.2／2026-07-22 | 補齊 Groq／Google Gemini 供應商整合並完成雙平台發布 | 修正 artifact naming／updater metadata；macOS DMG／ZIP 與 Windows Setup／Portable 已驗證後發布 GitHub Release v0.45.2；保留未簽章、未公證、未實機與未真實供應商 smoke test 風險 |
+| 0.45.3 規劃／2026-07-22 | 供應商設定一致性與舊設定遷移 | BUG-012：OpenAI-compatible 不得載入 Gemini URL／模型；補安全遷移、回歸測試、實機驗收與真實供應商 smoke test |
 
 ## 0.45.1 發布補充
 

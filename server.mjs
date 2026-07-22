@@ -377,12 +377,18 @@ function normalizeSettings(value = {}) {
 function normalizeAiSettings(value = {}) {
   const provider = isSupportedProvider(value.provider) ? value.provider : defaultSettings.ai.provider;
   const providerDefaultBaseUrl = PROVIDER_DEFAULT_BASE_URLS[provider] ?? defaultSettings.ai.baseUrl;
-  const baseUrl = String(Object.hasOwn(value, 'baseUrl') ? value.baseUrl : providerDefaultBaseUrl).trim().replace(/\/+$/, '');
+  let baseUrl = String(Object.hasOwn(value, 'baseUrl') ? value.baseUrl : providerDefaultBaseUrl).trim().replace(/\/+$/, '');
+  let model = String(value.model || '').trim();
+  const looksLikeGeminiSetting = /generativelanguage\.googleapis\.com/i.test(baseUrl) || /(^|[-_.])gemini([-.0-9]|$)/i.test(model);
+  if (provider === 'openai-compatible' && looksLikeGeminiSetting) {
+    baseUrl = providerDefaultBaseUrl;
+    model = '';
+  }
   return {
     enabled: Boolean(value.enabled),
     provider,
     baseUrl,
-    model: String(value.model || '').trim(),
+    model,
     batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
     language: normalizeLanguageTag(value.language, defaultSettings.ai.language),
     timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),

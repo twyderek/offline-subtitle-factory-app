@@ -44,6 +44,37 @@
 
 ---
 
+## 2026-07-22 — 修正 OpenAI-compatible 載入 Gemini 舊設定並規劃 0.45.3
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者回報 AI 設定開啟後顯示 `OpenAI-compatible`，但 Base URL／模型卻為 Google Gemini。
+- 關聯需求／缺陷：`BUG-012`、`FR-013`、`NFR-006`
+- 變更等級：高（涉及使用者設定遷移、供應商一致性與下一版本規劃）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、開發、測試、偵錯與文件結案流程（是）
+- 目標與成功條件：啟動／載入設定時偵測 `openai-compatible` 與 Gemini URL／模型不一致的舊資料，安全回復 OpenAI-compatible 預設 URL／空模型；補回歸測試；同步記錄目前版本進度與 0.45.3 重要工作重點。
+- 不在範圍：不刪除使用者 API Key、不修改真正的 Gemini profile、不自動執行外部 API 呼叫、不在本次發布 0.45.3。
+- 預計影響檔案／模組：`server.mjs`、AI 設定核心測試、需求／設計／偵錯／測試／目前狀態與版本工作紀錄。
+- 風險與回復方式：只遷移可辨識的 Gemini URL／模型與 OpenAI-compatible 不一致組合；若使用者刻意設定自訂 proxy，需重新輸入並儲存，原始金鑰不受影響。
+- 驗證計畫：舊 Gemini URL／模型遷移、正常 OpenAI-compatible、正常 Gemini profile、空值／非法值測試；完整 `npm run check`、獨立六面向審查與 `npm run docs:check:final`。
+- 實際修改：`server.mjs` 新增 OpenAI-compatible／Gemini legacy 混用設定遷移；`scripts/test-core.mjs` 新增遷移回歸案例；同步更新需求、設計、偵錯、測試稽核、目前狀態、歷程與 `NEXT-VERSION-FIX-LOG.md`，明確列入 0.45.3。
+- 開發驗證結果：`node scripts/test-core.mjs` 通過；`npm run check` 通過；遷移案例確認 provider 維持 OpenAI-compatible、Base URL 與 model 清空；正常自訂 endpoint、Gemini profile／runtime key 隔離測試通過。
+- 獨立審查是否執行：是（round1 有條件通過）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-22-bug-012-provider-migration-round1.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 BUG-012 獨立審查結論為有條件通過：遷移邏輯只作用於 OpenAI-compatible 的可辨識 Gemini URL／模型混用資料，正常 Gemini provider、API Key／profile 隔離、正常自訂 endpoint 與 migration API 測試均未發現阻擋問題；完成 0.45.3 實機舊設定升級、proxy 邊界與跨平台驗收後，才可將本修正納入 0.45.3 發布。**
+  - 條件：0.45.3 發布前完成既有設定檔重啟／UI、Gemini proxy 邊界與跨平台實機驗收。
+  - 條件是否已被需求方接受：是（已列入 0.45.3 工作重點）。
+- 發布授權：
+  - 是否需要：否（本次不發布 0.45.3）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本次不發布；修正預計納入下一版本 0.45.3。
+- 遺留風險與後續事項：需確認 0.45.3 的版本升級、Release notes、跨平台重新封裝與實機驗收；真實供應商 smoke test、正式簽章／公證與 npm audit 分類仍是後續重點。
+
+---
+
 ## 2026-07-22 — 修正 0.45.2 updater metadata 並完成發布準備
 
 - 狀態：完成
