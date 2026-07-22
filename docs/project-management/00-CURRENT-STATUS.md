@@ -26,7 +26,7 @@
 - 現行公開 Release 仍為 v0.45.1；v0.45.2 在 GitHub Release 建立前均視為候選版本。
 - v0.45.2 Windows 候選資產已由 Windows Server 2022 CI run `29716922238` 完成：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`SHA256SUMS-windows-x64.txt`。
 - v0.45.2 macOS arm64 候選資產已依目前來源重建：`離線字幕工廠 0.45.2 macOS-arm64.dmg`、`離線字幕工廠 0.45.2 macOS-arm64.zip`；DMG `hdiutil verify`、ZIP `unzip -t` 通過，App 內含目前 provider 檔案。但 `latest-mac.yml` 目前仍指向英文命名資產，與實際中文檔名不一致，不能視為 updater-ready。
-- Windows 候選資產仍是 2026-07-20 CI 版本，落後 2026-07-22 AI 供應商修正，必須重新執行 Windows CI 後才可用於 v0.45.2 Release；macOS 已完成本機重建。乾淨實機安裝／啟動驗收仍未完成。
+- Windows 最新 CI run `29886119926` 已包含目前 provider 修正且測試通過，但其中文檔名與 `latest.yml` ASCII URL 不一致，已修正 Windows artifactName，待再次 CI 後才可用於 v0.45.2 Release；macOS 已完成本機重建。乾淨實機安裝／啟動驗收仍未完成。
 
 ## 已知風險與未覆蓋項目
 
