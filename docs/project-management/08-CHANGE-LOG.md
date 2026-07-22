@@ -61,17 +61,17 @@
 - 開發驗證結果：`npm run check` 通過；macOS DMG／ZIP、`latest-mac.yml` URL／size／path、DMG verify、ZIP test、codesign 與 SHA 通過；Windows run `29886823270` 成功，artifact ZIP 無錯誤，Setup／Portable／`latest.yml`／SHA 檔名與內容一致，未簽章狀態已揭露。
 - 獨立審查是否執行：是（round1 不通過；round2、round3 依序修正與複審，round3 有條件通過）。
 - 獨立審查結論：
-  - 審查檔案：`docs/project-management/reviews/2026-07-22-release-v0-45-2-provider-rebuild-round3.md`
-  - 判定（逐字引用「綜合判定」）：**本輪 round3 獨立複審結論為有條件通過：Windows CI run 29886823270 的 artifact、ZIP、latest.yml URL／size、Setup 實檔與 SHA 檔，以及 macOS round2 已驗證的 ASCII DMG／ZIP 與 latest-mac.yml 均符合發布前資產一致性要求；在 Release notes 揭露未簽章、未公證、未完成乾淨實機與未完成真實 Groq／Gemini smoke test，並於發布後核對 GitHub 實際資產 digest 與下載 URL 的條件下，可以發布 v0.45.2。**
+  - 審查檔案：`docs/project-management/reviews/2026-07-22-release-v0-45-2-provider-rebuild-round7.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 round7 獨立複審結論為有條件通過：六面向均已依治理 schema 判定為部分通過，Windows 與 macOS 發布資產、updater metadata、checksum 與 GitHub 實際資產核對均已完成且無阻擋問題；在持續揭露 Windows 未簽章、macOS 未公證、未完成乾淨實機與未完成真實 Groq／Gemini smoke test 的條件下，v0.45.2 發布結果可接受。**
   - 條件：發布說明揭露未簽章、未公證、未完成乾淨實機與未完成真實 Groq／Gemini smoke test；發布後核對 GitHub 資產。
   - 條件是否已被需求方接受：是（本次明確要求完成發布，且接受風險揭露）。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
   - 核准時間：2026-07-22 本次明確要求
-  - 核准範圍：修正問題、重建／核對資產並完成 v0.45.2 GitHub Release；接受未簽章、未公證、未完成實機與真實 API smoke test 風險之揭露。
-- 部署／發布結果：待執行；本紀錄完成前仍未建立 Release。
-- 遺留風險與後續事項：發布後需核對 GitHub 實際檔名、大小、digest 與下載 URL；仍未完成正式簽章／公證、乾淨實機與真實供應商 smoke test。
+  - 核准範圍：明確核准修正問題、重建／核對資產、提交推送並公開建立 v0.45.2 GitHub Release；明確接受以 Release notes 揭露 Windows 未簽章、macOS 未公證、未完成實機與真實 API smoke test 的發布條件。
+- 部署／發布結果：已完成。GitHub Release `v0.45.2` 已於 2026-07-22 02:59:57Z 建立並公開：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.45.2；已上傳 macOS DMG／ZIP／blockmap／latest-mac.yml，以及 Windows Setup／Portable／blockmap／latest.yml／SHA／簽章狀態檔；發布後資產名稱、大小、digest 與 URL 已核對。
+- 遺留風險與後續事項：Windows 未 Authenticode 簽章；macOS 僅 ad-hoc、未 Developer ID／公證；兩平台未完成乾淨實機安裝／啟動／操作；未使用真實 Groq／Gemini key 執行外部 smoke test；GitHub Actions 有 Node 20 deprecation 警告；`asar` disabled 仍為既有封裝風險。
 
 ---
 

@@ -1,7 +1,7 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-07-22
-> 現行版本：0.45.2（發布候選）
+> 現行版本：0.45.2（已發布）
 > 現行公開版本：0.45.1
 > 主分支：`main`
 
@@ -23,7 +23,7 @@
 
 ## 發布資產狀態
 
-- 現行公開 Release 仍為 v0.45.1；v0.45.2 在 GitHub Release 建立前均視為候選版本。
+- 現行公開 Release 已為 v0.45.2；GitHub Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.45.2。
 - v0.45.2 Windows 候選資產已由 Windows Server 2022 CI run `29716922238` 完成：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`SHA256SUMS-windows-x64.txt`。
 - v0.45.2 macOS arm64 候選資產已依目前來源重建：`離線字幕工廠 0.45.2 macOS-arm64.dmg`、`離線字幕工廠 0.45.2 macOS-arm64.zip`；DMG `hdiutil verify`、ZIP `unzip -t` 通過，App 內含目前 provider 檔案。但 `latest-mac.yml` 目前仍指向英文命名資產，與實際中文檔名不一致，不能視為 updater-ready。
 - Windows 最新 CI run `29886823270` 已包含目前 provider 修正且測試通過；Setup／Portable、`latest.yml` 與 SHA 已交叉核對一致。macOS 已完成本機重建且 metadata 一致。v0.45.2 Release 尚待建立與發布後核對；乾淨實機安裝／啟動驗收仍未完成。
