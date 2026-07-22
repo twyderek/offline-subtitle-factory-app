@@ -9,7 +9,7 @@ import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
-import { createProvider, listProviderDefinitions, PROVIDER_CAPABILITIES } from './lib/ai/providers.mjs';
+import { createProvider, isSupportedProvider, listProviderDefinitions, PROVIDER_CAPABILITIES, PROVIDER_DEFAULT_BASE_URLS } from './lib/ai/providers.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from './lib/ai/project-tools.mjs';
 import { canonicalizeLanguageTag, normalizeLanguageTag } from './lib/ai/languages.mjs';
 
@@ -40,6 +40,7 @@ const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
@@ -374,10 +375,12 @@ function normalizeSettings(value = {}) {
 }
 
 function normalizeAiSettings(value = {}) {
-  const baseUrl = String(value.baseUrl || defaultSettings.ai.baseUrl).trim().replace(/\/+$/, '');
+  const provider = isSupportedProvider(value.provider) ? value.provider : defaultSettings.ai.provider;
+  const providerDefaultBaseUrl = PROVIDER_DEFAULT_BASE_URLS[provider] ?? defaultSettings.ai.baseUrl;
+  const baseUrl = String(Object.hasOwn(value, 'baseUrl') ? value.baseUrl : providerDefaultBaseUrl).trim().replace(/\/+$/, '');
   return {
     enabled: Boolean(value.enabled),
-    provider: ['openai', 'openai-compatible', 'azure'].includes(value.provider) ? value.provider : defaultSettings.ai.provider,
+    provider,
     baseUrl,
     model: String(value.model || '').trim(),
     batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
@@ -3165,6 +3168,9 @@ async function handleApi(req, res) {
   if (req.method === 'POST' && url.pathname === '/api/settings') {
     try {
       const payload = await readJsonBody(req);
+      if (payload.ai && Object.hasOwn(payload.ai, 'provider') && !isSupportedProvider(payload.ai.provider)) {
+        throw new Error(`不支援的 AI 供應商：${payload.ai.provider || ''}`);
+      }
       if (payload.ai && Object.hasOwn(payload.ai, 'language')) canonicalizeLanguageTag(payload.ai.language);
       sendJson(res, 200, {
         ok: true,
@@ -3180,13 +3186,18 @@ async function handleApi(req, res) {
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/ai/profile') {
-    const provider = ['openai', 'openai-compatible', 'azure'].includes(url.searchParams.get('provider')) ? url.searchParams.get('provider') : appSettings.ai.provider;
+    const provider = url.searchParams.get('provider') || appSettings.ai.provider;
+    if (!isSupportedProvider(provider)) {
+      sendJson(res, 400, { ok: false, error: `不支援的 AI 供應商：${provider}` });
+      return;
+    }
     sendJson(res, 200, { ok: true, provider, profile: appSettings.ai.profiles?.[provider] || {}, hasApiKey: Boolean(readAiApiKey(provider)), capabilities: PROVIDER_CAPABILITIES[provider] });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/ai/settings') {
     try {
       const payload = await readJsonBody(req);
+      if (!isSupportedProvider(payload.provider)) throw new Error(`不支援的 AI 供應商：${payload.provider || ''}`);
       if (Object.hasOwn(payload, 'language')) canonicalizeLanguageTag(payload.language);
       const nextAi = normalizeAiSettings(payload);
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
@@ -3208,14 +3219,20 @@ async function handleApi(req, res) {
     return;
   }
   if (req.method === 'DELETE' && url.pathname === '/api/ai/key') {
-    clearAiApiKey(appSettings.ai.provider);
+    const provider = url.searchParams.get('provider') || appSettings.ai.provider;
+    if (!isSupportedProvider(provider)) {
+      sendJson(res, 400, { ok: false, error: `不支援的 AI 供應商：${provider}` });
+      return;
+    }
+    clearAiApiKey(provider);
     sendJson(res, 200, { ok: true, settings: publicAiSettings() });
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/ai/runtime-key') {
     try {
       const payload = await readJsonBody(req);
-      const provider = ['openai', 'openai-compatible', 'azure'].includes(payload.provider) ? payload.provider : appSettings.ai.provider;
+      if (!isSupportedProvider(payload.provider)) throw new Error(`不支援的 AI 供應商：${payload.provider || ''}`);
+      const provider = payload.provider;
       const apiKey = String(payload.apiKey || '').trim();
       if (apiKey) runtimeAiKeys[provider] = apiKey;
       else delete runtimeAiKeys[provider];

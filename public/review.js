@@ -1,3 +1,5 @@
+import { providerProfileSnapshot, runProviderConnectionTest } from './ai-provider-settings.mjs';
+
 // API base URL — Web/Electron 都使用目前頁面的本機伺服器
 const API_BASE = window.location.origin.startsWith('http')
   ? window.location.origin
@@ -47,6 +49,7 @@ const state = {
   selectedCueIds: new Set(),
   aiProjectSettings: { glossary: [], prompts: {} },
   aiSessionId: '',
+  aiProviderProfileSnapshot: null,
 };
 
 const ids = [
@@ -59,6 +62,7 @@ const ids = [
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
 const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiDeployment', 'aiApiVersion', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiCustomLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
+const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gemini'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -221,8 +225,12 @@ function applyAiSettings(settings) {
   document.getElementById('aiModel').value = settings.model || '';
   document.getElementById('aiDeployment').value = settings.deployment || '';
   document.getElementById('aiApiVersion').value = settings.apiVersion || '2024-12-01-preview';
+  const azure = settings.provider === 'azure';
+  document.getElementById('aiDeployment').disabled = !azure;
+  document.getElementById('aiApiVersion').disabled = !azure;
   document.getElementById('aiBatchSize').value = settings.batchSize || 30;
   document.getElementById('aiApiKey').value = '';
+  document.getElementById('aiApiKey').dataset.hasKey = settings.hasApiKey ? 'true' : 'false';
   document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
   setAiLanguage(settings.language || 'zh-TW');
   document.getElementById('aiTimeoutSeconds').value = settings.timeoutSeconds || 60;
@@ -234,6 +242,7 @@ function applyAiSettings(settings) {
   const ready = Boolean(settings.enabled && settings.model && settings.hasApiKey);
   badge.textContent = ready ? 'AI 已設定' : '尚未設定';
   badge.classList.toggle('offline', !ready);
+  state.aiProviderProfileSnapshot = providerProfileSnapshot(settings);
 }
 
 async function loadAiSettings() {
@@ -299,12 +308,16 @@ async function saveAiSettings() {
 
 async function clearAiKey() {
   const provider = document.getElementById('aiProvider').value;
+  if (!VALID_AI_PROVIDERS.includes(provider)) throw new Error(`不支援的 AI 供應商：${provider}`);
   if (window.electronAPI?.clearAiKey) await window.electronAPI.clearAiKey(provider);
   await fetch(`${API_BASE}/api/ai/runtime-key`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, apiKey: '' }) });
-  const response = await fetch(`${API_BASE}/api/ai/key`, { method: 'DELETE' });
+  const response = await fetch(`${API_BASE}/api/ai/key?provider=${encodeURIComponent(provider)}`, { method: 'DELETE' });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || '清除金鑰失敗');
-  applyAiSettings(result.settings);
+  const keyInput = document.getElementById('aiApiKey');
+  keyInput.value = '';
+  keyInput.dataset.hasKey = 'false';
+  keyInput.placeholder = '請輸入此供應商的 API Key';
   setAiSettingsStatus('目前供應商的 API Key 已清除');
 }
 
@@ -359,36 +372,55 @@ async function importAiGlossary() {
 
 async function loadAiProviderProfile() {
   const provider = document.getElementById('aiProvider').value;
+  if (!VALID_AI_PROVIDERS.includes(provider)) {
+    setAiSettingsStatus(`不支援的 AI 供應商：${provider}`);
+    return;
+  }
   const response = await fetch(`${API_BASE}/api/ai/profile?provider=${encodeURIComponent(provider)}`);
   const result = await response.json();
   if (!response.ok) return;
   const profile = result.profile || {};
-  document.getElementById('aiBaseUrl').value = profile.baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : '');
+  const defaults = {
+    openai: 'https://api.openai.com/v1',
+    groq: 'https://api.groq.com/openai/v1',
+    gemini: 'https://generativelanguage.googleapis.com',
+    azure: '',
+    'openai-compatible': '',
+  };
+  document.getElementById('aiBaseUrl').value = profile.baseUrl || defaults[provider] || '';
   document.getElementById('aiModel').value = profile.model || '';
-  document.getElementById('aiDeployment').value = profile.deployment || '';
-  document.getElementById('aiApiVersion').value = profile.apiVersion || '2024-12-01-preview';
-  document.getElementById('aiApiKey').value = '';
-  document.getElementById('aiApiKey').placeholder = result.hasApiKey ? '此供應商已有安全金鑰' : '請輸入此供應商的 API Key';
+  const azure = provider === 'azure';
+  document.getElementById('aiDeployment').value = azure ? (profile.deployment || '') : '';
+  document.getElementById('aiDeployment').disabled = !azure;
+  document.getElementById('aiApiVersion').value = azure ? (profile.apiVersion || '2024-12-01-preview') : '';
+  document.getElementById('aiApiVersion').disabled = !azure;
+  const keyInput = document.getElementById('aiApiKey');
+  keyInput.value = '';
+  keyInput.dataset.hasKey = result.hasApiKey ? 'true' : 'false';
+  keyInput.placeholder = result.hasApiKey ? '此供應商已有安全金鑰' : '請輸入此供應商的 API Key';
+  state.aiProviderProfileSnapshot = providerProfileSnapshot({ provider, ...profile, baseUrl: profile.baseUrl || defaults[provider] || '' });
   setAiSettingsStatus(`已切換供應商；JSON Schema：${result.capabilities.jsonSchema ? '支援' : '依服務而定'}，模型列表：${result.capabilities.modelList ? '支援' : '不支援'}`);
 }
 
 async function testAiConnection() {
   const button = document.getElementById('testAiConnection');
-  button.disabled = true;
-  setAiSettingsStatus('正在測試 AI 服務…');
-  try {
-    const response = await fetch(`${API_BASE}/api/ai/test`, { method: 'POST' });
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
-    const modelMessage = result.modelAvailable ? '指定模型可用' : '已連線，但模型清單中找不到指定模型';
-    setAiSettingsStatus(`連線成功：${modelMessage}`);
+  const settings = collectAiSettings();
+  if (!VALID_AI_PROVIDERS.includes(settings.provider)) {
+    setAiSettingsStatus(`連線失敗：不支援的 AI 供應商：${settings.provider}`);
+    return;
+  }
+  const result = await runProviderConnectionTest({
+    button,
+    savedProfile: state.aiProviderProfileSnapshot,
+    currentSettings: settings,
+    hasSavedKey: document.getElementById('aiApiKey').dataset.hasKey === 'true',
+    request: () => fetch(`${API_BASE}/api/ai/test`, { method: 'POST' }),
+    setStatus: setAiSettingsStatus,
+  });
+  if (result) {
     const badge = document.getElementById('aiConnectionBadge');
     badge.textContent = 'AI 已連線';
     badge.classList.remove('offline');
-  } catch (error) {
-    setAiSettingsStatus(`連線失敗：${error.message}`);
-  } finally {
-    button.disabled = false;
   }
 }
 

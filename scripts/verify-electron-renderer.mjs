@@ -308,7 +308,7 @@ try {
   if (!result.aiReviewAssets.hasSelectionUi || !result.aiReviewAssets.hasSessionUi || !result.aiReviewAssets.hasSecureKeyUi) throw new Error('Packaged 0.45 AI review controls are missing');
   if (!result.aiReviewAssets.hasCollapsibleAiUi) throw new Error('Packaged 0.45.1 collapsible AI toolbar is missing');
   if (!result.aiReviewAssets.glossaryRoundTrip) throw new Error('Packaged glossary settings did not round-trip');
-  if (!['openai', 'openai-compatible', 'azure'].every((id) => result.aiReviewAssets.providerIds.includes(id))) throw new Error('Packaged provider definitions are incomplete');
+  if (!['openai', 'openai-compatible', 'azure', 'groq', 'gemini'].every((id) => result.aiReviewAssets.providerIds.includes(id))) throw new Error('Packaged provider definitions are incomplete');
   if (trimMediaPath) {
     if (result.packagedTrimFlow.createStatus !== 201 || result.packagedTrimFlow.planStatus !== 200 || result.packagedTrimFlow.applyStatus !== 202) throw new Error('Packaged real trim flow could not start');
     if (result.packagedTrimFlow.trimStatus !== 'completed' || Math.abs(result.packagedTrimFlow.trimDuration - 2) > 0.5) throw new Error('Packaged real trim output is invalid');

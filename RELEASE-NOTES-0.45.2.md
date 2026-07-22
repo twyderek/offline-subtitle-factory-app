@@ -6,6 +6,12 @@
 
 0.45.2 新增多語言 LLM 字幕優化，延續 0.45.1 的 Azure GPT-5 相容性與精簡 AI 面板。離線 Whisper、影片修剪、人工校閱與字幕輸出仍可在不啟用雲端 AI 的情況下使用。
 
+## AI 供應商
+
+- 新增 Groq 與 Google Gemini 設定，供應商 profile 與 API Key 分開保存。
+- 切換非 Azure 供應商時會清空並停用 Azure Deployment／API Version，避免把舊值誤用到其他服務。
+- 不支援的供應商 ID 會明確顯示錯誤，不再無聲回退成 OpenAI-compatible。
+
 ## 多語言 LLM
 
 - 提供繁中、簡中、英文、日文、韓文、西班牙文、法文、德文、巴西葡萄牙文、越南文、泰文與印尼文。

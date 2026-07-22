@@ -1,6 +1,6 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-07-20
+> 最後查證日期：2026-07-22
 > 現行版本：0.45.2（發布候選）
 > 現行公開版本：0.45.1
 > 主分支：`main`
@@ -18,27 +18,29 @@
 
 - 工作樹已完成多語言 LLM 字幕優化：12 個常用目標語言、自訂 BCP 47 標籤、前後端標準化、非法 API 值拒絕、舊設定回退與目標語言 Prompt。
 - cue ID、數量、順序與時間碼保護已補強；交換順序的模型回應會被拒絕。
+- 0.45.2 工作樹已補齊 Groq／Google Gemini 供應商識別、請求契約、profile／金鑰隔離、設定介面切換與未保存欄位連線防護；完整自動測試、本機瀏覽器實測及獨立審查通過。
 - 自動測試與 round3 獨立審查已通過；目前正依明確發布授權建置 0.45.2，現行公開版在 GitHub Release 完成前仍是 0.45.1。
 
 ## 發布資產狀態
 
-- Windows Setup：`offline-subtitle-factory-setup-0.45.1.exe`
-- Windows Portable：`offline-subtitle-factory-portable-0.45.1.exe`
-- Windows SHA-256：`SHA256SUMS-windows-x64.txt`
-- macOS：`0.45.1.macOS-arm64.dmg`、`0.45.1.macOS-arm64.zip`
+- 現行公開 Release 仍為 v0.45.1；v0.45.2 在 GitHub Release 建立前均視為候選版本。
+- v0.45.2 Windows 候選資產已由 Windows Server 2022 CI run `29716922238` 完成：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`SHA256SUMS-windows-x64.txt`。
+- v0.45.2 macOS arm64 候選資產已依目前來源重建：`離線字幕工廠 0.45.2 macOS-arm64.dmg`、`離線字幕工廠 0.45.2 macOS-arm64.zip`；DMG `hdiutil verify`、ZIP `unzip -t` 通過，App 內含目前 provider 檔案。但 `latest-mac.yml` 目前仍指向英文命名資產，與實際中文檔名不一致，不能視為 updater-ready。
+- Windows 候選資產仍是 2026-07-20 CI 版本，落後 2026-07-22 AI 供應商修正，必須重新執行 Windows CI 後才可用於 v0.45.2 Release；macOS 已完成本機重建。乾淨實機安裝／啟動驗收仍未完成。
 
 ## 已知風險與未覆蓋項目
 
-- Windows 0.45.1 未使用 Authenticode 簽章，可能顯示 Unknown Publisher／SmartScreen；使用者須核對 SHA-256。
-- macOS 為 ad-hoc 簽章，未使用 Apple Developer ID 公證。
+- Windows v0.45.2 候選資產未使用 Authenticode 簽章，可能顯示 Unknown Publisher／SmartScreen；使用者須核對 SHA-256。
+- macOS v0.45.2 候選資產為 ad-hoc 簽章，未使用 Apple Developer ID 簽章或公證。
 - Windows 尚缺乾淨實機的安裝、解除安裝、捷徑與離線手冊動畫播放 smoke test。
 - npm audit 曾回報 high severity 建置依賴風險，尚待區分 runtime 與 build-only 影響。
 - GitHub Actions 使用的部分 action runtime 有 Node 20 deprecation 警告。
-- 真實 LLM 是否完全遵循所選語言仍受模型能力影響，AI 建議必須逐段確認；多語言版本尚未做 Windows／macOS 封裝與實機驗證。
+- 真實 LLM 是否完全遵循所選語言仍受模型能力影響，AI 建議必須逐段確認；多語言版本已完成 macOS 候選重建，但尚未完成跨平台乾淨實機驗證。
+- Groq／Gemini 目前僅以 contract mock 與本機 UI 驗證，尚未用真實供應商金鑰做外部 smoke test；Windows 候選包仍不含本次修正。
 
 ## 下一步優先順序
 
-1. Windows 11 實機 smoke test，保存版本、硬體、步驟、截圖與結果。
-2. 評估 Windows Authenticode 與 macOS Developer ID／公證。
-3. 盤點 npm audit 項目，按可達性與執行環境分類。
-4. 依 `AI-ROADMAP-0.50.md` 另行立項，未核准前不視為承諾功能。
+1. 修正並重新核對 macOS `latest-mac.yml` 與實際資產檔名，再建置 Windows 0.45.2 候選資產；核對兩平台來源、版本、SHA、內建資源與 updater metadata。
+2. Windows 11 與 macOS 乾淨實機 smoke test，保存版本、硬體、步驟、截圖與結果。
+3. 使用測試用 Groq／Gemini 帳號執行不含敏感資料的真實供應商 smoke test。
+4. 評估 Windows Authenticode、macOS Developer ID／公證，以及 npm audit runtime／build-only 影響。

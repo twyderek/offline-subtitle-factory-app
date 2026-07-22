@@ -71,6 +71,18 @@
 - 防回歸：optimizer、review UI 與 core API 測試覆蓋標準化、自訂語言、舊設定回退及注入型字串拒絕。
 - 剩餘風險：LLM 是否完全遵循目標語言仍受供應商模型能力影響，必須由使用者逐段確認建議。
 
+### BUG-010：Groq／Gemini 選項會被後端無聲回退
+
+- 日期／版本：2026-07-22／0.45.2 候選修正。
+- 現象：前端可選 Groq 或 Google Gemini，但儲存後供應商回到 `openai-compatible`；切換時可能殘留 Azure 欄位，Gemini 優化回應格式也與 optimizer 契約不一致。
+- 影響：使用者看到的供應商與實際執行者不同，profile／API Key 可能落入錯誤供應商槽位，Gemini 優化可能在回應驗證階段失敗。
+- 重現：對 `/api/ai/settings` 傳入 `provider: "groq"` 或 `"gemini"`，舊版 `normalizeAiSettings` 僅接受 OpenAI、OpenAI-compatible、Azure，因而回退預設值。
+- 根因：供應商清單分散在 HTML、server endpoint 與 adapter；新增 UI／adapter 時未同步後端三處白名單，Gemini adapter 又使用原生回應格式而未符合既有 optimizer 的 OpenAI choices 契約。
+- 修正：由 provider registry 匯出共同驗證函式；設定、profile、runtime key 與刪除金鑰 API 明確驗證供應商；Groq／Gemini profile 與 secrets 按 ID 隔離；Gemini 優化改用 OpenAI 相容 chat completions；UI 驗證 provider，非 Azure 欄位清空停用，連線前檢查已保存設定與金鑰。
+- 驗證：`test-ai-providers.mjs`、`test-review-ui.mjs`、`test-core.mjs` 與 2026-07-22 本機瀏覽器切換實測通過。
+- 防回歸：provider definitions、非法 provider 400、跨 provider 金鑰清除隔離與 UI 切換契約均納入 `npm test`。
+- 剩餘風險：尚未使用真實 Groq／Gemini 帳號執行外部 smoke test；既有 0.45.2 候選安裝包未包含本修正，須重新建置與驗證。
+
 ## 新缺陷處理
 
 發現新問題先在 `08-CHANGE-LOG.md` 記錄，再於本文件新增 `BUG-ID`。修正不得只寫「已解決」，必須包含可重現證據、根因與防回歸測試；若只能 workaround，須說明移除條件。

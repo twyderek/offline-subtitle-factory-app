@@ -167,6 +167,10 @@ try {
   const legacySettings = await legacySettingsResponse.json();
   assert.equal(legacySettings.ai.language, 'zh-TW', '舊設定檔的非法語言值應在啟動時安全回退繁中');
 
+  const providerSettingsModuleResponse = await api('/ai-provider-settings.mjs');
+  assert.equal(providerSettingsModuleResponse.status, 200, 'AI provider 表單狀態模組應可由 renderer 載入');
+  assert.match(providerSettingsModuleResponse.headers.get('content-type') || '', /^text\/javascript/, 'AI provider 表單狀態模組必須使用 JavaScript MIME type');
+
   const invalidGeneralSettingsResponse = await api('/api/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -197,6 +201,62 @@ try {
   const loadedAiSettings = await aiSettingsGetResponse.json();
   assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
   assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
+
+  const invalidProviderResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...loadedAiSettings.settings, provider: 'unsupported-provider' }),
+  });
+  assert.equal(invalidProviderResponse.status, 400, 'AI 設定 API 應明確拒絕不支援的供應商');
+
+  const invalidProfileResponse = await api('/api/ai/profile?provider=unsupported-provider');
+  assert.equal(invalidProfileResponse.status, 400, 'AI profile API 不可把非法供應商無聲回退到目前供應商');
+
+  const emptyAzureSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...loadedAiSettings.settings, provider: 'azure', baseUrl: '', model: '', deployment: '' }),
+  });
+  assert.equal(emptyAzureSettingsResponse.status, 200, '停用狀態下 Azure 空白 Base URL 應可保存');
+  assert.equal((await emptyAzureSettingsResponse.json()).settings.baseUrl, '', 'Azure 空白 Base URL 不可誤套 OpenAI 預設網址');
+
+  const groqSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...loadedAiSettings.settings,
+      provider: 'groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      model: 'llama-3.3-70b-versatile',
+      apiKey: 'groq-secret-must-not-leak',
+    }),
+  });
+  assert.equal(groqSettingsResponse.status, 200, 'Groq 設定應可保存');
+  const savedGroqSettings = await groqSettingsResponse.json();
+  assert.equal(savedGroqSettings.settings.provider, 'groq', 'Groq 不可被無聲回退成 OpenAI-compatible');
+  assert.equal(JSON.stringify(savedGroqSettings).includes('groq-secret-must-not-leak'), false, 'Groq API Key 不可出現在回應');
+  const groqProfile = await (await api('/api/ai/profile?provider=groq')).json();
+  assert.equal(groqProfile.profile.model, 'llama-3.3-70b-versatile', 'Groq profile 應依供應商隔離保存');
+  assert.equal(groqProfile.hasApiKey, true, 'Groq profile 應回報已有專屬金鑰');
+
+  const geminiRuntimeKeyResponse = await api('/api/ai/runtime-key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'gemini', apiKey: 'gemini-runtime-key' }),
+  });
+  assert.equal(geminiRuntimeKeyResponse.status, 200, 'Gemini runtime key 應可按供應商載入');
+  assert.equal((await (await api('/api/ai/profile?provider=gemini')).json()).hasApiKey, true, 'Gemini runtime key 不可落入其他供應商槽位');
+  const clearGroqKeyResponse = await api('/api/ai/key?provider=groq', { method: 'DELETE' });
+  assert.equal(clearGroqKeyResponse.status, 200, '應可明確清除 Groq 專屬金鑰');
+  assert.equal((await (await api('/api/ai/profile?provider=groq')).json()).hasApiKey, false, '清除 Groq 金鑰後不應殘留');
+  assert.equal((await (await api('/api/ai/profile?provider=gemini')).json()).hasApiKey, true, '清除 Groq 金鑰不可誤刪 Gemini 金鑰');
+
+  const restoreOpenAiCompatible = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(loadedAiSettings.settings),
+  });
+  assert.equal(restoreOpenAiCompatible.status, 200, '供應商隔離測試後應可恢復 OpenAI-compatible 設定');
 
   const customLanguageResponse = await api('/api/ai/settings', {
     method: 'POST',

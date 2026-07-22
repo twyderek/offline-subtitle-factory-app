@@ -135,7 +135,7 @@
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "artifactName": "${productName} ${version} macOS-${arch}.${ext}",
+      "artifactName": "offline-subtitle-factory-${version}-macos-${arch}.${ext}",
       "extraResources": [
         {
           "from": "docs/0.45.2",

@@ -44,6 +44,135 @@
 
 ---
 
+## 2026-07-22 — 修正 0.45.2 updater metadata 並完成發布準備
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求修正已知問題並完成 0.45.2 發布。
+- 關聯需求／缺陷：`NFR-003`、`NFR-004`、`NFR-008`、`BUG-011`
+- 變更等級：發布
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、測試、獨立審查、打包發布與結案流程（是）
+- 目標與成功條件：使 macOS artifact 檔名、`latest-mac.yml` URL、SHA、大小與實際產物一致；重新驗證 macOS 候選，取得 Windows 最新 CI 候選，完成獨立複審後發布 v0.45.2。
+- 不在範圍：正式 Apple Developer ID／公證、Windows Authenticode、乾淨實機驗收、真實 Groq／Gemini API smoke test；風險須在 Release notes 揭露。
+- 預計影響檔案／模組：`package.json` macOS artifact 命名、`dist/` 產物、治理文件與 GitHub Release。
+- 風險與回復方式：若 metadata、checksum、CI artifact 或審查不一致則停止發布；保留既有未提交修改，不使用破壞性 Git 操作。
+- 驗證計畫：完整回歸、macOS DMG／ZIP／metadata／SHA 驗證、Windows CI artifact 交叉核對、獨立 round2 複審、發布後 GitHub 資產核對與 `docs:check:final`。
+- 實際修改：待執行。
+- 開發驗證結果：待執行。
+- 獨立審查是否執行：待執行。
+- 獨立審查結論：待執行。
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
+  - 核准時間：2026-07-22 本次明確要求
+  - 核准範圍：修正問題、重建／核對資產並完成 v0.45.2 GitHub Release；接受未簽章、未公證、未完成實機與真實 API smoke test 風險之揭露。
+- 部署／發布結果：待執行。
+- 遺留風險與後續事項：待執行；若 Windows CI 無法取得最新來源資產，停止公開發布並回報。
+
+---
+
+## 2026-07-22 — 重建 0.45.2 AI 供應商修正版候選資產
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求繼續進行；承接已完成的 Groq／Gemini 供應商修正，重新建立可代表目前來源的 0.45.2 候選資產。
+- 關聯需求／缺陷：`FR-008`、`FR-009`、`FR-013`、`NFR-001`、`NFR-002`、`NFR-003`、`NFR-004`、`NFR-006`、`NFR-008`、`BUG-010`
+- 變更等級：發布（候選資產重建；本次不建立 GitHub Release、不上傳、不對外發布）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、打包發布、獨立審查與文件結案流程（是）
+- 目標與成功條件：依目前通過 round5 審查的來源重建可驗證的 macOS arm64 候選 DMG／ZIP；確認版本、runtime manifest、內建手冊／動畫／FFmpeg／Whisper／模型、ad-hoc 簽章與 SHA；Windows 候選若無本機 Windows 建置環境則保留既有 CI 資產為過期狀態，不冒充已重建。
+- 不在範圍：GitHub tag／Release、資產上傳、Windows CI 重新觸發、正式簽章／公證、乾淨實機安裝驗收、真實 Groq／Gemini 外部 smoke test。
+- 預計影響檔案／模組：`dist/`／electron-builder 產物、runtime manifest、`docs/project-management/00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄；不修改產品程式碼。
+- 風險與回復方式：封裝可能寫入未追蹤產物或更新 manifest；僅使用專案既定 build 指令與明確產物路徑，建置前保存 Git 狀態，資產不納入來源提交；checksum／版本／資源不一致即停止。
+- 驗證計畫：`npm run check`、`runtime:manifest:mac`、`runtime:verify:mac`、`electron:build:mac:dir`、DMG／ZIP／`hdiutil verify`／`unzip -t`／codesign／SHA／資產清單核對，最後由獨立發布候選審查代理驗證。
+- 實際修改：依既定指令重建 macOS arm64 未封裝 App、DMG、ZIP 與 blockmap；同步更新目前狀態、開發歷程與測試稽核，未修改產品程式碼。產物位於工作區 `dist/`，未納入來源提交。
+- 開發驗證結果：`npm run check` 通過；`electron:build:mac` 完成；App 通過 ad-hoc `codesign` 驗證；DMG `hdiutil verify` 通過；ZIP `unzip -t` 通過；App 內確認 `ai-provider-settings.mjs`、`review.js`、`server.mjs`。DMG SHA-256：`a9b41b8eaf8023a00f39944b2324210d022471e6fd04e821718cd6efaae7cd2d`；ZIP SHA-256：`61a984dd8d927246beeb848a3dbad17b09f2113a775bc7cab5b4115c8eca6e86`。發現 `latest-mac.yml` 使用英文資產檔名，但實際輸出為中文檔名，updater metadata 需修正後複驗。
+- 獨立審查是否執行：是（已啟動獨立審查代理；目前因其工具權限核准狀態停滯，報告尚未完成）。
+- 獨立審查結論：待執行；不得將本候選標示為完成或可發布。
+- 發布授權：
+  - 是否需要：是（候選封裝屬發布等級工作；本次不對外發布）
+  - 核准人／角色：需求提出者／產品負責人（本次對話使用者；承接 v0.45.2 已有授權）
+  - 核准時間：2026-07-20 12:16 CST 前之使用者明確回覆
+  - 核准範圍：同意重建 v0.45.2 候選資產；未簽章、未公證、未完成跨平台乾淨實機測試與本次不對外發布的限制均維持揭露，不將候選重建視為 GitHub Release。
+- 部署／發布結果：本次不部署、不上傳、不建立 Release。
+- 遺留風險與後續事項：先修正 `latest-mac.yml` 資產命名並重新驗證；Windows 候選資產需另由 CI 重建；正式簽章／公證、乾淨實機驗收與真實 Groq／Gemini smoke test 尚未完成；獨立審查代理需完成報告後才能結案。
+
+---
+
+## 2026-07-22 — 完成 0.45.2 AI 供應商整合缺口
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者提供 `AI-供應商功能待辦進度.md`，要求更新未完成的 0.45.2 已知進度問題。
+- 關聯需求／缺陷：`FR-008`、`FR-009`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`BUG-010`
+- 變更等級：高（涉及外部 AI 供應商、API Key、設定持久化、請求格式與錯誤處理；本次不執行發布）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、需求變更、開發、測試、獨立審查、偵錯與文件結案流程，以及使用者提供的待辦進度文件（是）
+- 目標與成功條件：Groq 與 Google Gemini 可被前後端一致識別、分供應商保存／清除金鑰及設定、使用正確驗證與請求協定；切換非 Azure 供應商不殘留 Azure 欄位；連線測試對未保存欄位與金鑰提供可採取行動的錯誤；自動測試覆蓋合法／非法供應商、設定持久化、金鑰隔離、URL／認證及 UI 狀態。
+- 不在範圍：新增圖片輸入／vision 功能；目前程式碼與字幕 AI 資料流未傳送圖片，外部待辦所述「5 張圖片超過 4 張限制」缺乏本專案可重現路徑，先列為待確認而不臆測修改。Hot Reload 屬開發流程改善，不納入本次 0.45.2 功能修復；本次不打包、不建立 GitHub Release。
+- 預計影響檔案／模組：`server.mjs`、`lib/ai/providers.mjs`、`lib/ai/openai-compatible.mjs`、`public/review.html`、`public/review.js`、AI provider／UI／核心測試，以及需求、設計、測試、偵錯、狀態與工作紀錄文件。
+- 風險與回復方式：Gemini 原生 API 與 OpenAI 相容介面格式不同，錯誤適配可能造成假成功或回應無法被 optimizer 驗證；供應商回退可能讓金鑰寫入錯誤槽位。採集中供應商白名單、明確拒絕非法值、分供應商 profile／secret 測試及 provider contract tests；修改可逐檔回復，不遷移字幕資料。
+- 驗證計畫：先執行 provider／review UI／core API 相關測試，涵蓋 Groq、Gemini、非法 provider、查詢參數認證不洩漏 Authorization、profile 與 runtime key 隔離、Azure 欄位切換、連線前欄位驗證；再執行 `npm run check`、必要實際 UI 驗證、`git diff --check` 與獨立六面向審查。
+- 實際修改：provider registry 新增 Groq／Gemini、共用合法 ID 與供應商預設 Base URL；server settings／profile／runtime-key／DELETE key 明確驗證 provider 並按供應商隔離 profile 與 secrets；Gemini models 使用 `x-goog-api-key`、OpenAI 相容 chat completions 使用 Bearer，API Key 不進 URL；UI 增加兩個供應商、非 Azure 欄位清空停用、清除指定供應商金鑰、連線前保存狀態驗證；新增 `ai-provider-settings.mjs` 保存 profile 快照並阻擋未儲存 provider／Base URL／model／Azure deployment／API version；同步更新需求、設計、歷程、測試、偵錯、狀態、Release notes 與封裝 renderer 驗證。
+- 開發驗證結果：2026-07-22 macOS／Node.js v22.22.3：provider、review UI、core API 與完整 `npm run check` 在允許本機 listen 的環境通過；本機瀏覽器實測 Groq／Gemini／Azure 切換、預設 URL 與 Azure 欄位狀態通過。round1 後新增可執行表單狀態測試及實際瀏覽器案例：已有 Groq key/profile 時把模型改為 `unsaved-model` 後按「測試連線」，畫面顯示「供應商、Base URL 或模型已有未儲存變更；請先儲存設定」、按鈕恢復可用，server log 無 `/api/ai/test` 請求。Google 官方文件核對 OpenAI 相容端點與 Bearer 認證完成。圖片限制問題經 `rg` 查證目前 AI 字幕資料流無圖片輸入／`image_url`，不做無重現修正。
+- 獨立審查是否執行：是（round1–round5；前兩輪阻擋由主要代理修正，round3 功能審查通過，round4／round5 依序補齊完整判定句及治理檢查器要求的精確欄位格式）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-22-ai-provider-integration-gaps-round1.md`
+  - round1 判定（逐字引用「綜合判定」）：**不通過**
+  - round1 處理狀態：已新增已保存 profile 快照、未保存欄位比較、可執行狀態測試與瀏覽器實測；測試前阻擋未保存 provider／Base URL／model，Azure 另比較 deployment／apiVersion，且確認阻擋時不發送 `/api/ai/test`。round1 報告保持原文、不覆寫，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-22-ai-provider-integration-gaps-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**不通過**
+  - round2 處理狀態：已將完整連線流程抽成可注入的 `runProviderConnectionTest` 控制器；自動測試實際執行控制器並計數 request，覆蓋未保存 provider／Base URL／model／Azure deployment／apiVersion／API Key 與無已保存 key 均為 0 次請求，已保存未變更 profile 為 1 次；阻擋、成功、HTTP 失敗及 fetch 例外後按鈕皆恢復可用。round2 報告保持原文、不覆寫，待 round3 複審。
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-22-ai-provider-integration-gaps-round3.md`
+  - round3 判定（逐字引用「綜合判定」）：**通過**
+  - round3 阻擋問題：無。
+  - 條件：不適用。
+  - 條件是否已被需求方接受：不適用。
+  - round4 審查檔案：`docs/project-management/reviews/2026-07-22-ai-provider-integration-gaps-round4.md`
+  - round4 判定（逐字引用「綜合判定」）：**本輪 round4 獨立審查結論為通過：必要最小複審確認 round3 已驗證的實際 handler 共用連線控制器、未保存設定與金鑰的零請求阻擋、合法設定的單次請求、所有成功與失敗路徑按鈕恢復、Groq／Gemini 契約、MIME、key 隔離及治理追溯均未回歸，且本輪未發現未處理阻擋問題。**
+  - round4 阻擋問題：無。
+  - 條件：不適用。
+  - 條件是否已被需求方接受：不適用。
+  - round5 審查檔案：`docs/project-management/reviews/2026-07-22-ai-provider-integration-gaps-round5.md`
+  - round5 判定（逐字引用「綜合判定」）：**本輪 round5 獨立審查結論為通過：必要最小複審確認 round3 已驗證的實際 handler 共用連線控制器、未保存設定與金鑰的零請求阻擋、合法設定的單次請求、所有成功與失敗路徑按鈕恢復、Groq／Gemini 契約、MIME、key 隔離及治理追溯均未回歸，且本輪未發現未處理阻擋問題。**
+  - round5 阻擋問題：無。
+  - 條件：不適用。
+  - 條件是否已被需求方接受：不適用。
+- 發布授權：
+  - 是否需要：不適用（本次不發布）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本次不部署、不打包、不發布。
+- 遺留風險與後續事項：真實 Groq／Gemini 外部 smoke test、修正後 Windows／macOS 候選重建與乾淨實機驗證尚未執行；圖片限制問題目前待確認其來源、重現資料與實際呼叫路徑，目前程式碼未發現圖片傳送功能。
+
+---
+
+## 2026-07-22 — 目前進度盤點
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求先更新本專案目前進度。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：低（治理與狀態盤點；未修改產品行為、未打包、未發布）
+- 執行前已讀：`AGENTS.md` 與治理文件 00–08（是）
+- 目標與成功條件：以目前工作樹、版本、分支、治理文件與既有驗證紀錄為依據，更新並回報可查證的開發／發布進度，區分公開版、候選版與未完成事項。
+- 不在範圍：產品功能修改、打包、部署、GitHub Release、跨平台實機驗收。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md`；本次不預期修改產品程式碼。
+- 風險與回復方式：工作樹已有使用者既存修改；僅新增本盤點紀錄，不覆蓋或重置既有變更，必要時可由 Git 差異回溯。
+- 驗證計畫：`npm run project:preflight`、Git 狀態／紀錄盤點、`npm run docs:check`、`git diff --check`。
+- 實際修改：新增本次進度盤點紀錄；確認目前版本 `0.45.2`、分支 `codex/release-v0.45.2`、公開版 `v0.45.1`、候選資產狀態及既有未完成風險。
+- 開發驗證結果：已完成 preflight；工作樹含既存修改與兩份 v0.45.2 發布審查報告；治理文件檢查與差異檢查於本條目完成後執行。
+- 獨立審查是否執行：否（本次為低等級只讀進度盤點與治理紀錄，不改產品行為、不發布；依獨立審查流程之低風險文件／盤點情境跳過）
+- 獨立審查結論：不適用。
+- 發布授權：
+  - 是否需要：不適用
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：不適用；本次未部署、未打包、未發布。
+- 遺留風險與後續事項：v0.45.2 仍是候選版本，尚未完成 GitHub Release、Windows／macOS 乾淨實機 smoke test、正式簽章／公證與 npm audit runtime/build-only 分類；既存工作樹修改仍待其原工作項目完成或結案。
+
+---
+
 ## 2026-07-20 — 發布多語言 LLM v0.45.2
 
 - 狀態：進行中
@@ -57,13 +186,17 @@
 - 預計影響檔案／模組：版本檔、Windows workflow、README、`RELEASE-NOTES-0.45.2.md`、`docs/0.45.2/`、治理文件、Git branch／commit／tag、macOS 與 Windows 發布資產。
 - 風險與回復方式：未簽章／未公證可能觸發 OS 警示；未實機測試可能遺漏平台問題；模型語言遵循受供應商影響。Release notes、狀態與交付均明確揭露；checksum 或封裝驗證不一致立即停止；已發布後若發現核心缺陷，停止導流並發布可追溯修正版，不靜默替換。
 - 驗證計畫：`npm run check`、`docs:check:final`、runtime manifest／verify、macOS unpacked／DMG／ZIP、codesign 與 SHA；Windows Actions 完整測試、archive／手冊／runtime／簽章狀態與 SHA；獨立六面向發布審查；GitHub Release 上傳後名稱／大小／digest／下載核對。
-- 實際修改：待執行。
-- 開發驗證結果：待執行。
+- 實際修改：版本更新為 0.45.2；新增多語言 Release notes 與內建 `docs/0.45.2` 手冊；README 更新版本與風險；macOS／Windows 均封裝 0.45.2 手冊；Windows workflow 更新為 0.45.2 分支／tag／artifact／手冊驗證；建立 `codex/release-v0.45.2`、commit `168abd7` 與 PR #6。
+- 開發驗證結果：`npm run check` 通過；macOS runtime verify、arm64 App、DMG、ZIP、`hdiutil verify`、`unzip -t`、版本、ad-hoc codesign、手冊／動畫／FFmpeg／Whisper／模型檢查通過；macOS SHA 已產生。Windows Actions run `29716922238` 在 Windows Server 2022 通過完整回歸、runtime、未簽章建置、archive、0.45.2 手冊及 artifact；下載 433 MB artifact 後，本機 SHA 與 runner 完全一致，Setup／Portable `7za t` 均為 `Everything is Ok`，Portable 清單包含語言模組、0.45.2 手冊／動畫、manifest 與模型。Actions 有 Node 20 淘汰警告但不影響本輪結果。
 - 獨立審查是否執行：是（發布資產完成後執行）
 - 獨立審查結論：
-  - 審查檔案：`docs/project-management/reviews/2026-07-20-release-v0-45-2-round1.md`
-  - 判定（逐字引用審查檔案結論句，並標注章節或行號）：待執行。
-  - 條件（若為有條件通過）：待確認。
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-20-release-v0-45-2-round1.md`
+  - round1 判定（逐字引用「綜合判定」）：**本輪 round1 獨立發布審查結論為不通過：候選 commit、PR／Windows CI、版本、SHA、Windows latest.yml、封裝內容與未簽章／ad-hoc 簽章證據均可追溯，Release notes 與發布授權也完整接受並揭露 Windows 未簽章、macOS 未公證及未完成跨平台乾淨實機測試；但 00-CURRENT-STATUS 仍列 0.45.1 資產並錯稱多語言版本尚未跨平台封裝，且 latest-mac.yml 指向不存在的非發布檔名，因此發布狀態真實性與 updater 資產一致性尚有兩項未處理阻擋。**
+  - round1 處理狀態：已將目前狀態改為區分 v0.45.1 公開版與 v0.45.2 候選資產，並明示候選封裝完成但乾淨實機驗證未完成；已將 `latest-mac.yml` 的 ZIP／DMG URL 與 path 改為實際 ASCII 發布檔名，保留並重新核對原檔 SHA-512 與大小，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-20-release-v0-45-2-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**本輪 round2 獨立發布審查結論為通過：round1 的狀態文件矛盾與 macOS updater 檔名不一致均已解除，00-CURRENT-STATUS 現在準確區分 v0.45.1 公開版與 v0.45.2 候選並明示 Windows 未簽章、macOS 未公證及未完成跨平台乾淨實機測試，latest-mac.yml 的 ASCII ZIP／DMG 名稱、實際大小與重新計算的 SHA-512 亦完全一致；結合候選 commit、Windows CI、完整回歸、版本、封裝、SHA 與簽章狀態證據，發布前六面向未發現未處理阻擋問題。**
+  - round2 阻擋問題：無；可進入 tag／Release 與上傳步驟，發布後仍須核對 GitHub 實際資產、digest、checksum、updater metadata 與下載 URL。
+  - 條件（若為有條件通過）：不適用。
   - 條件是否已被需求方接受：是；使用者明確接受本條所列未簽章、未公證與未完成跨平台乾淨實機測試風險。
 - 發布授權：
   - 是否需要：是
