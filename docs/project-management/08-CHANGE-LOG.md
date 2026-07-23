@@ -46,7 +46,7 @@
 
 ## 2026-07-23 — 將專案治理規範同步至 GitHub 共享
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者明確要求將專案規範與相關資料同步到 GitHub 共享。
 - 關聯需求／缺陷：`NFR-006`、`NFR-008`
@@ -57,9 +57,9 @@
 - 預計影響檔案／模組：本輪治理相關文件、`package.json`、preflight／docs checker／授權 validator 與測試、streamlined-governance 三輪審查報告、Git commit／remote branch／Draft PR。
 - 風險與回復方式：誤提交機密或無關工作；採明確檔案清單、差異／秘密掃描與 staged diff 複核。若 PR 內容有誤，以後續修正 commit 更新，不重寫或強推既有歷史。
 - 驗證計畫：`npm run docs:check`、`npm run check`、`git diff --check`、敏感檔名／常見秘密模式掃描、staged diff 核對、push 後 remote SHA／PR head 核對，最後由獨立代理六面向審查同步結果。
-- 實際修改：以明確檔案清單暫存並提交本輪治理規範、常設授權、preflight／驗證工具與測試、三輪獨立審查報告；排除無關的 `2026-07-23-github-sync-audit-round1.md`；建立 commit `e81aba6` 並推送至 `origin/codex/release-v0.46.0`。嘗試透過 GitHub 連接器建立 Draft PR，但 integration 回覆 HTTP 403；本機 `gh` token 亦失效，未偽稱 PR 已建立。
+- 實際修改：以明確檔案清單提交本輪治理規範、常設授權、preflight／驗證工具與測試、streamlined-governance 三輪及 GitHub sync 四輪獨立審查報告；排除無關的 `2026-07-23-github-sync-audit-round1.md`；建立並推送 `e81aba6`、`aff8afe`、`c71b636` 至 `origin/codex/release-v0.46.0`。嘗試透過 GitHub 連接器建立 Draft PR，但 integration 回覆 HTTP 403；本機 `gh` token 亦失效，未偽稱 PR 已建立。
 - 開發驗證結果：`npm run check`、`npm run docs:check`、`git diff --check`、staged diff check、敏感檔名及常見 GitHub／OpenAI／Google token、私鑰、簽章密碼模式掃描均通過；`git ls-remote` 與 push 證明 Git remote 憑證有效，遠端分支已由 `142b85d` 前進至 `e81aba6`。
-- 獨立審查是否執行：是（round1 通過；結案 validator 相容修正後須 round2）
+- 獨立審查是否執行：是（round1–round4；round4 通過）
 - 獨立審查結論：
   - 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round1.md`
   - 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round1 獨立審查結論為通過：commit `e81aba6` 的 19 檔範圍符合治理同步目標，無關的 `github-sync-audit-round1` 未納入提交，常見敏感檔名與秘密模式掃描無命中，完整 `npm run check` 通過，且即時 `git ls-remote` 證實 GitHub 遠端分支 SHA 與 local HEAD 均為 `e81aba6`，因此使用者核心需求「同步到 GitHub 共享」已由分支 push 達成；Draft PR 因 integration 403 紀錄與本機失效 token 尚未建立，屬可發現性與後續審閱流程的剩餘風險，不是本次核心共享的阻擋問題。**
@@ -81,8 +81,8 @@
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
   - 核准時間：2026-07-23（本次明確要求同步到 GitHub 共享）
   - 核准範圍：同意將本條列明的治理規範、常設授權、驗證工具／測試及獨立審查證據提交並推送至既有 GitHub repo，建立 Draft PR；不授權合併 PR、建立產品 Release、上傳安裝資產或提交無關／敏感檔案。
-- 部署／發布結果：治理資料已推送至 GitHub 分支 `codex/release-v0.46.0`；Draft PR 未建立，原因為 GitHub integration 缺少 PR 寫入權限（403）且本機 `gh` token 無效。
-- 遺留風險與後續事項：Draft PR 尚未建立，缺少集中 review／compare／合併入口；恢復 `gh` 登入或 integration PR 權限後應補建並核對 head SHA。常見秘密模式掃描不能涵蓋所有未知格式。本次不授權也不執行合併。
+- 部署／發布結果：治理資料、驗證工具／測試與審查證據已推送至 GitHub 分支 `codex/release-v0.46.0`；推送後核對 local HEAD 與 remote branch 均為 `c71b6365116723274940cf4ec6380596710e7d3e`。本結案工作紀錄以後續純文件 commit 推送，最終 remote SHA 另於交付回報核對。Draft PR 未建立，原因為 GitHub integration 缺少 PR 寫入權限（403）且本機 `gh` token 無效。
+- 遺留風險與後續事項：Draft PR 尚未建立，缺少集中 review／compare／合併入口；恢復 `gh` 登入或 integration PR 權限後應補建並核對 head SHA。常見秘密模式掃描不能涵蓋所有未知格式。自然語言授權 validator 採 60 字子句啟發式，不是完整語意理解。本次不授權也不執行合併。
 
 ---
 
