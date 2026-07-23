@@ -20,3 +20,7 @@
 
 - 版本：`0.46.0`
 - 標籤：`v0.46.0`
+- 公開 Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.46.0
+- Windows x64：CI run `29978500348` 已完成 unsigned Setup／Portable 候選與 SHA-256 驗證；因 artifact 下載／Release asset 複製未完成，本 Release 未直接附 Windows 檔案。
+- macOS arm64：DMG／ZIP 與 SHA-256 已上傳；因 ZIP 為手動重建，未上傳未重新證明一致的 updater metadata／blockmap。
+- 機密稽核：未發現 Git 追蹤或打包來源中的 env、密碼、token、API key、私鑰或憑證檔案。

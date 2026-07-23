@@ -46,7 +46,7 @@
 
 ## 2026-07-23 — 0.46.0 正式打包與發布
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求正式打包與發布 0.46。
 - 關聯需求／缺陷：`FR-016`、`FR-017`、`FR-018`、`FR-019`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
@@ -57,17 +57,21 @@
 - 預計影響檔案／模組：`package.json`、`package-lock.json`（若版本同步）、`RELEASE-NOTES-0.46.0.md`、workflow／內建手冊資源、治理狀態與發布資產。
 - 風險與回復方式：版本升級與 Release 不可靜默覆蓋既有 v0.45.2；若候選 checksum、metadata、封裝內容或審查不一致立即停止；正式發布前需逐項核准未簽章、未公證、未完成實機與 AI／FFmpeg 未覆蓋風險。
 - 驗證計畫：版本／來源核對、`npm run check`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA／updater metadata、獨立發布審查、發布後 GitHub 資產 digest／下載核對。
-- 實際修改：版本升級至 `0.46.0`；新增 0.46.0 Release Notes、Windows CI 發布標籤與資產命名；建立 macOS arm64 DMG／ZIP 候選與 SHA-256 清單；補強 `.gitignore` 與 Electron `build.files` 的 env／金鑰／機密檔排除規則；更新目前狀態、README 與發布相關治理紀錄。
-- 開發驗證結果：待執行。
-- 獨立審查是否執行：待執行。
-- 獨立審查結論：待執行。
+- 實際修改：版本升級至 `0.46.0`；新增 0.46.0 Release Notes、Windows CI 發布標籤與資產命名；建立 macOS arm64 DMG／ZIP 候選與 SHA-256 清單；補強 `.gitignore` 與 Electron `build.files` 的 env／金鑰／機密檔排除規則；更新目前狀態、README 與發布相關治理紀錄；建立公開 GitHub `v0.46.0` Release；修正 Windows workflow 未簽章 fallback 的步驟命名。
+- 開發驗證結果：本機受控環境 `npm run check` 通過；Windows CI run `29978500348` 通過來源與真實 FFmpeg 回歸、unsigned Setup／Portable 建置、EXE archive／手冊／SHA-256 驗證；macOS DMG `hdiutil verify`、ZIP `unzip -t`、SHA-256 與 GitHub digest 核對通過；機密檔案與常見秘密內容掃描未命中。
+- 獨立審查是否執行：是。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-release-v0-46-0-round1.md`
+  - 判定（逐字引用審查報告「完整單句結論」）：**本輪獨立發布審查結論為有條件通過：公開 v0.46.0 Release 已建立，但 Windows artifact 尚未完成審查代理端逐檔交叉檢查、macOS updater metadata／blockmap 尚未驗證；需求方已接受 Windows 未簽章、macOS 未公證、Windows／macOS 實機與 Electron smoke test 尚未完成的發布風險，且未核對資產不得上傳。**
+  - 條件：Windows artifact 未完成審查代理端逐檔下載交叉檢查；macOS updater metadata／blockmap 未重新證明一致，因此不發布該等資產；Windows unsigned、macOS ad-hoc 未公證及跨平台實機／Electron smoke test 未覆蓋。
+  - 條件是否已被需求方接受：是（本次明確同意接受上述發布風險）。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
   - 核准時間：2026-07-23（本次明確回覆「OK 請繼續」）
-  - 核准範圍：明確同意推送 `codex/release-v0.46.0`、建立公開 `v0.46.0` GitHub Release；接受 Windows 未 Authenticode、macOS ad-hoc 未公證、尚未完成跨平台／Electron smoke test、AI response contract／FFmpeg 未覆蓋與資產候選驗證風險；但機密稽核必須先通過，任何發現秘密即停止發布。
-- 部署／發布結果：待執行。
-- 遺留風險與後續事項：待執行。
+  - 核准範圍：明確同意推送 `codex/release-v0.46.0`、建立公開 `v0.46.0` GitHub Release；接受 Windows 未簽章（未 Authenticode）、macOS ad-hoc 未公證、尚未完成跨平台／Electron smoke test、AI response contract／FFmpeg 未覆蓋與資產候選驗證風險；但機密稽核必須先通過，任何發現秘密即停止發布。
+- 部署／發布結果：已建立公開 Release `v0.46.0`；上傳 macOS arm64 DMG／ZIP／SHA-256，GitHub digest 與本地 SHA-256 一致；Windows CI artifact 保留於 run `29978500348`，未直接附於 Release；未上傳未驗證一致的 updater metadata／blockmap。
+- 遺留風險與後續事項：Windows 使用者仍需從 CI artifact 取得 unsigned 候選並核對 SHA-256；後續應完成 Windows／macOS 乾淨實機、Electron packaged renderer、正式簽章／公證、真實 provider smoke test、AI 雙語 response contract 與 updater 資產驗證。
 
 ---
 

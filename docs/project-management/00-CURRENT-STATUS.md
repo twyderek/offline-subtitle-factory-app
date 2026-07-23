@@ -1,8 +1,8 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-07-23
-> 現行版本：0.46.0（發布候選）
-> 現行公開版本：0.45.2
+> 現行版本：0.46.0（已公開發布）
+> 現行公開版本：0.46.0
 > 主分支：`main`
 
 ## 已完成成果
@@ -47,6 +47,6 @@
 4. 評估 Windows Authenticode、macOS Developer ID／公證，以及 npm audit runtime／build-only 影響。
 5. 更新 0.45.3 Release notes、跨平台候選資產與 updater metadata，完成獨立發布審查。
 
-## 0.46.0 發布候選
+## 0.46.0 已公開發布
 
-0.46.0 功能來源已完成並經 round3 獨立審查有條件通過；目前進入發布候選階段。正式公開發布前仍需完成資產建置、checksum／updater metadata 核對，並揭露或補齊 AI response contract、FFmpeg、Electron、Windows／macOS 實機與封裝驗證。
+0.46.0 已於 2026-07-23 建立公開 Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.46.0。macOS arm64 DMG／ZIP 與 SHA-256 已上傳並核對 GitHub digest；Windows x64 由 CI run `29978500348` 完成真實 FFmpeg、EXE archive、手冊檔與 SHA-256 驗證，產出 unsigned artifact（保留 14 天），但未附 Authenticode 簽章。未核對一致性的 macOS updater metadata／blockmap 未上傳。
