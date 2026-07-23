@@ -37,7 +37,7 @@ jobs:
       - name: Run source and real FFmpeg regression tests
         run: npm run check
 
-      - name: Build signed NSIS Setup and Portable packages
+      - name: Build Authenticode-signed NSIS Setup and Portable packages
         if: env.CSC_LINK != ''
         env:
           CSC_LINK: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
