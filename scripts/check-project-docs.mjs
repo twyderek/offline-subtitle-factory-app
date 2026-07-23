@@ -2,11 +2,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { latestReviewReference, validateLatestEntry, validateReviewReport } from './project-docs-validator.mjs';
+import { validateStandingAuthorization } from './standing-authorization-validator.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = {
-  'AGENTS.md': ['每次任務的強制前置程序', '獨立上下文', 'docs:check:final'],
-  'docs/project-management/README.md': ['每次執行前必讀順序', '每次改版的固定流程', '文件更新責任矩陣'],
+  'AGENTS.md': ['任務開始', '獨立上下文審查代理', 'docs:check:final'],
+  'docs/project-management/README.md': ['精簡必讀與任務路由', '每次改版的固定流程', '文件更新責任矩陣'],
   'docs/project-management/00-CURRENT-STATUS.md': ['現行版本', '已知風險與未覆蓋項目'],
   'docs/project-management/01-PROJECT-GOVERNANCE.md': ['角色與責任', '階段關卡', '禁止事項', '審查證據獨立化', '發布授權（強制）', '待確認'],
   'docs/project-management/02-REQUIREMENTS-ANALYSIS.md': ['FR-001', 'NFR-001', '需求變更規則'],
@@ -16,6 +17,7 @@ const files = {
   'docs/project-management/06-TEST-AND-PROCESS-AUDIT.md': ['測試層級', '六面向獨立審查', '未覆蓋證據'],
   'docs/project-management/07-DEBUG-AND-FIX-HISTORY.md': ['BUG-001', 'BUG-008', '新缺陷處理'],
   'docs/project-management/08-CHANGE-LOG.md': ['紀錄範本', '變更等級', '執行前已讀', '獨立審查是否執行', '審查檔案', '發布授權'],
+  'docs/project-management/09-STANDING-AUTHORIZATIONS.md': ['AUTH-2026-07-23-01', '未簽章', '未公證', '明確排除', '撤銷方式'],
   'docs/project-management/workflows/01-REQUIREMENT-CHANGE.md': ['輸入', '步驟', '輸出', '停止條件'],
   'docs/project-management/workflows/02-DEVELOPMENT.md': ['輸入', '步驟', '輸出', '停止條件'],
   'docs/project-management/workflows/03-TEST-VALIDATION.md': ['輸入', '步驟', '輸出', '停止條件'],
@@ -46,6 +48,8 @@ const currentStatus = await readFile(path.join(root, 'docs/project-management/00
 if (!currentStatus.includes(`現行版本：${packageJson.version}`)) {
   errors.push(`00-CURRENT-STATUS.md 的現行版本未與 package.json ${packageJson.version} 同步`);
 }
+const standingAuthorization = await readFile(path.join(root, 'docs/project-management/09-STANDING-AUTHORIZATIONS.md'), 'utf8');
+errors.push(...validateStandingAuthorization(standingAuthorization));
 
 const changeLog = await readFile(path.join(root, 'docs/project-management/08-CHANGE-LOG.md'), 'utf8');
 if (!/^## \d{4}-\d{2}-\d{2} — /m.test(changeLog)) {

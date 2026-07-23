@@ -39,6 +39,10 @@
 - Groq／Gemini 目前僅以 contract mock 與本機 UI 驗證，尚未用真實供應商金鑰做外部 smoke test。
 - 已知 BUG-012：部分舊設定會顯示 OpenAI-compatible，但沿用 Gemini URL／模型；已排入 0.45.3，將加入安全遷移與回歸測試。
 
+## 有效常設授權
+
+- `AUTH-2026-07-23-01`：需求提出者／產品負責人已統一同意 Windows Authenticode 未簽章、macOS 未經 Apple Developer ID 簽章／公證狀態下對外發布。每次發布仍須引用授權 ID、揭露風險並完成測試、審查、SHA 與資產核對；未實機測試及其他風險不在此授權範圍。詳見 `09-STANDING-AUTHORIZATIONS.md`。
+
 ## 下一版本 0.45.3 工作重點
 
 1. BUG-012：修正 OpenAI-compatible／Gemini 舊設定遷移，確保 provider、Base URL、model 與 profile 一致。

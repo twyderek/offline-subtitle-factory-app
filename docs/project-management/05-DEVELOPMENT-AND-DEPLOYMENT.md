@@ -9,7 +9,7 @@
 ## 每次開發前
 
 ```bash
-npm run project:preflight
+npm run project:preflight -- --type=development
 git status --short
 ```
 
@@ -54,13 +54,19 @@ npm run electron:build:mac
 
 ## GitHub 發布清單
 
-1. 工作樹乾淨，版本號、分支、commit 與 Release tag 關係已記錄。
+1. 執行 `npm run project:preflight -- --type=release`；確認工作樹、版本號、分支、commit 與 Release tag 關係已記錄。
 2. CI build 與必要測試成功；來源 SHA 與 artifact 可追溯。
 3. 下載 artifact，核對 runner checksum；展開或列出封裝內容。
 4. 更新 Release notes：功能、修正、手冊、簽章狀態、已知風險。
 5. 上傳穩定 ASCII 檔名的資產，避免平台改名造成 checksum／updater 不一致。
 6. 發布後核對名稱、大小、GitHub digest、直接下載 URL、checksum 內容與 `latest.yml`。
 7. 更新 `00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`06-TEST-AND-PROCESS-AUDIT.md` 與 `08-CHANGE-LOG.md`。
+
+## 常設簽章風險授權
+
+- `AUTH-2026-07-23-01` 已同意 Windows Authenticode 未簽章及 macOS 未經 Apple Developer ID 簽章／公證狀態下公開發布。
+- 每次適用發布須在工作紀錄引用該 ID，並持續揭露 Windows Unknown Publisher／SmartScreen 與 macOS Gatekeeper 風險。
+- 此授權不涵蓋未實機測試、checksum／資產不一致、未驗證 updater metadata、機密洩漏或測試／審查失敗；完整範圍見 `09-STANDING-AUTHORIZATIONS.md`。
 
 ## 0.45.2 候選發布
 

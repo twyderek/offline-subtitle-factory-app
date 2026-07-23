@@ -1,6 +1,6 @@
 # 改版與工作紀錄
 
-本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；未完成欄位使用「待執行／待確認」，不得刪除。
+本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
 ## 範本修訂說明（2026-07-20 補強）
 
@@ -20,7 +20,7 @@
 - 需求來源：
 - 關聯需求／缺陷：`FR-xxx`、`NFR-xxx`、`BUG-xxx`
 - 變更等級：低／中／高／發布（依 `01-PROJECT-GOVERNANCE.md` 分類）
-- 執行前已讀：`AGENTS.md` 與治理文件 00–08（是／否）
+- 執行前已讀：`project:preflight -- --type=____` 列出的固定核心與任務路由（是／否）
 - 目標與成功條件：
 - 不在範圍：
 - 預計影響檔案／模組：
@@ -41,6 +41,65 @@
   - 核准範圍（例如是否同意未簽章發布、是否同意跳過實機測試）：
 - 部署／發布結果：
 - 遺留風險與後續事項：
+
+---
+
+## 2026-07-23 — 將專案治理規範同步至 GitHub 共享
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者明確要求將專案規範與相關資料同步到 GitHub 共享。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：發布（Git commit／push／GitHub Draft PR 外部共享；不建立產品安裝包或新 Release）
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：只提交本輪治理精簡、常設授權、驗證工具／測試與獨立審查證據；排除無關檔案與機密；推送目前分支並建立可查閱的 Draft PR；來源 commit 與 GitHub head 可核對。
+- 不在範圍：發布新產品版本、上傳安裝包、修改 GitHub Release、合併 PR、提交 `.DS_Store` 或不屬於本輪的 `2026-07-23-github-sync-audit-round1.md`。
+- 預計影響檔案／模組：本輪治理相關文件、`package.json`、preflight／docs checker／授權 validator 與測試、streamlined-governance 三輪審查報告、Git commit／remote branch／Draft PR。
+- 風險與回復方式：誤提交機密或無關工作；採明確檔案清單、差異／秘密掃描與 staged diff 複核。若 PR 內容有誤，以後續修正 commit 更新，不重寫或強推既有歷史。
+- 驗證計畫：`npm run docs:check`、`npm run check`、`git diff --check`、敏感檔名／常見秘密模式掃描、staged diff 核對、push 後 remote SHA／PR head 核對，最後由獨立代理六面向審查同步結果。
+- 實際修改：待執行
+- 開發驗證結果：待執行
+- 獨立審查是否執行：待執行
+- 獨立審查結論：待執行
+- 發布授權：
+  - 是否需要：是（外部 GitHub 共享，不是安裝包發布）
+  - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
+  - 核准時間：2026-07-23（本次明確要求同步到 GitHub 共享）
+  - 核准範圍：同意將本條列明的治理規範、常設授權、驗證工具／測試及獨立審查證據提交並推送至既有 GitHub repo，建立 Draft PR；不授權合併 PR、建立產品 Release、上傳安裝資產或提交無關／敏感檔案。
+- 部署／發布結果：待執行
+- 遺留風險與後續事項：待執行 GitHub push、Draft PR 與獨立審查。
+
+---
+
+## 2026-07-23 — 精簡治理必讀流程與建立常設簽章風險授權
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者指出每次任務完整讀取所有治理文件耗時，要求重新檢視並精簡；同時明確統一同意 Windows Authenticode 未簽章、macOS 未經 Apple Developer ID 公證狀態下對外發布。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：中（變更治理前置門檻、preflight 行為與發布授權政策；本次不實際發布）
+- 執行前已讀：依本次變更前規則完成 `npm run project:preflight`、AGENTS、治理文件 00–08 與需求／開發／測試／獨立審查／發布／結案流程（是）
+- 目標與成功條件：固定必讀上下文由 11 份降為最小核心集；按任務類型只讀相關文件；preflight 能列出精確路由；歷史證據不刪除；建立可追溯常設授權，未來發布可引用但仍須揭露風險與完成資產驗證。
+- 不在範圍：刪除歷史治理紀錄、降低測試／獨立審查／發布資產核對門檻、授權未實機測試或其他未明示風險、立即打包或發布任何版本。
+- 預計影響檔案／模組：上層與 repo `AGENTS.md`、治理 README／01／05／08、發布與結案 workflow、常設授權文件、`project-preflight.mjs`、治理檢查器與 fixture。
+- 風險與回復方式：過度精簡可能漏讀必要上下文；以固定核心集、任務路由、`--type` 驗證與保守未知類型回退避免。常設授權若被誤擴張；以授權 ID、明確範圍、排除項與可撤銷規則限制。
+- 驗證計畫：preflight 各任務類型正負案例、治理 fixture、`npm run docs:check`、`npm run check`、`git diff --check`；完成後由獨立代理六面向審查並產出獨立報告。
+- 實際修改：將上層與 repo AGENTS 精簡為任務型前置流程；README 改為 4 項固定核心＋`general/governance/requirements/development/debug/release/full` 路由；重寫 preflight 支援 `--type` 並只列必要文件；新增 preflight 正負測試並納入 `npm test`；新增 `09-STANDING-AUTHORIZATIONS.md` 與 `AUTH-2026-07-23-01`；同步治理、狀態、開發部署、測試稽核、發布與結案流程，以及 docs checker 的 09 文件檢查。
+- 開發驗證結果：2026-07-23 Asia/Taipei 執行 preflight／常設授權相關腳本 `node --check`、七類型完整路由矩陣、常設授權正負 fixture、`project:preflight -- --type=governance`、`npm run docs:check`、`git diff --check` 全部通過；`npm run check` 的文件、preflight、授權、治理 validator、媒體、雙語字幕、AI optimizer／provider、review UI 均通過；一次 sandbox 內核心測試因 loopback `EPERM` 中止，經授權於 sandbox 外重跑 `npm test` 全部通過。
+- 獨立審查是否執行：是（round1–round3；round3 通過）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round1.md`
+  - round1 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」獨立審查結論為不通過：七種類型路由、full 完整性、未知類型失敗、08 最新條目追溯與歷史保留、AUTH-2026-07-23-01 的平台範圍／排除項／發布操作分離均已人工驗證正確，且 npm run check 通過，但 preflight 自動測試未覆蓋 governance、requirements、development、debug 的完整路由，docs checker／fixture 亦未以正負案例鎖定常設授權的精確範圍與邊界，因此尚未滿足 NFR-006 所要求的完整自動測試與文件檢查。**
+  - round1 處理狀態：已新增七類型完整 expected matrix，以及常設授權結構驗證器與平台範圍、未實機排除、非立即發布、撤銷界線正負 fixture；round1 報告保持原文，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」round2 獨立審查結論為不通過：round1 所列七類型完整 preflight 矩陣，以及 Windows Authenticode、macOS Apple Developer ID 簽章／公證、未實機排除與非立即發布的 checker／fixture 缺口均已修正，npm run check 亦完整通過；但常設授權 validator 對撤銷界線只檢查「撤銷方式」字樣，實測「永久有效，不得撤銷或限縮」的矛盾條款仍回傳零錯誤，且測試未建立撤銷負例卻宣稱已涵蓋，因此 NFR-006 的文件防退化驗證仍未完整。**
+  - round2 處理狀態：已強制驗證需求方可撤銷／限縮、拒絕永久或不可撤銷文字，並要求以新條目保留授權歷史；新增移除、矛盾及歷史覆寫負例，待 round3 複審。
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round3.md`
+  - round3 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」round3 獨立審查結論為通過：round2 的撤銷界線阻擋已修正，validator 現要求需求提出者／產品負責人可撤銷或限縮、須以新指示及新條目保留歷史，並拒絕永久有效、不得撤銷、不可撤銷與不得限縮；相應移除、矛盾及覆寫歷史負例、七類型 preflight 矩陣與 npm run check 均實際通過，未發現未處理阻擋問題。**
+  - round3 阻擋問題：無。
+- 發布授權：不適用（本次不發布；本條另建立未來發布可引用的常設風險授權）
+- 部署／發布結果：不適用；本次不打包、不部署、不發布。
+- 遺留風險與後續事項：自然語言任務分類仍需執行者選擇最接近的 `--type`，無法判定時使用 `full`；字串驗證無法理解所有自然語言改寫，未來調整授權格式須同步更新 fixture。本次不替工作樹其他既有變更或發布資產背書。
 
 ---
 
@@ -231,7 +290,7 @@
 
 ## 2026-07-22 — 重建 0.45.2 AI 供應商修正版候選資產
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求繼續進行；承接已完成的 Groq／Gemini 供應商修正，重新建立可代表目前來源的 0.45.2 候選資產。
 - 關聯需求／缺陷：`FR-008`、`FR-009`、`FR-013`、`NFR-001`、`NFR-002`、`NFR-003`、`NFR-004`、`NFR-006`、`NFR-008`、`BUG-010`
@@ -481,3 +540,31 @@
   - **稽核註記（本次補強新增）：本條目未記錄審查檔案路徑，也未記錄發布授權所需的核准人、時間與範圍。0.45.1 屬「發布」等級；發布授權狀態為「待確認」，不得推定當時已核准未簽章、未公證或未實機測試等風險，也不得回溯補造證據。應由需求方／產品負責人另行確認或明確追認。**
 - 部署／發布結果：v0.45.1 已發布 macOS 與 Windows；線上手冊已部署。
 - 遺留風險與後續事項：Windows 實機 smoke test、正式簽章、公證、npm audit 分類。
+## 2026-07-23 — GitHub 同步與治理進度盤點
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求確認整個專案的開發規範、進度與管控是否已同步到 GitHub。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：低（只讀盤點；僅新增本次治理工作紀錄，不修改產品行為）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、GitHub／文件同步與結案流程（是）
+- 目標與成功條件：以本地 Git、GitHub 遠端 repository／分支／提交／Release 及治理文件逐項交叉核對，明確列出已同步、未同步、待確認與文件敘述不一致項目。
+- 不在範圍：不修改產品程式碼、不推送、不建立或修改 GitHub Release、不刪除或覆蓋任何遠端資料。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md`；查核過程不預期修改其他文件。
+- 風險與回復方式：遠端權限、API 可見性或歷史文件可能造成證據不完整；無法確認者標示「待確認」，不以本地文件推定遠端已同步。
+- 驗證計畫：本地 Git／遠端追蹤分支／差異盤點、GitHub repository／Release／分支查核、`npm run docs:check`、`git diff --check`，完成後進行獨立只讀審查。
+- 實際修改：新增本次 GitHub 同步盤點工作紀錄；未修改產品程式碼、未推送、未建立或修改 Release。
+- 開發驗證結果：本地 `codex/release-v0.46.0` HEAD `142b85d` 與 `origin/codex/release-v0.46.0` 一致；GitHub connector 查得 repository `twyderek/offline-subtitle-factory-app` 為公開 repo，分支清單包含目前分支，compare 顯示該分支相對 `main` 為 ahead 1 commit；本地 `git rev-list` 實測 release 分支相對本地 `main` 為 ahead 12 commits，兩項證據的基準／快取狀態不一致，已標示待確認。遠端分支上的治理文件可讀取。`npm run docs:check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-github-sync-audit-round1.md`
+  - 判定（逐字引用審查報告「完整單句結論」）：**本輪 GitHub 同步盤點獨立審查結論為不通過：本次查核紀錄尚未提交、`codex/release-v0.46.0` 與 `main` 不一致且本地實測為 ahead 12（工作紀錄誤載 ahead 1），GitHub 即時分支／治理文件／Release 資產因 DNS 與 cache miss 待確認，並仍存在 Windows 未簽章、Windows artifact 未直接附 Release 及 macOS updater metadata／blockmap 未核對等發布風險，因此目前不能判定整個專案已完整同步到 GitHub。**
+  - 條件：取得可用的 GitHub 即時網路證據後重新核對 branch／compare／治理檔案／Release assets；修正 ahead 數量與遠端狀態敘述；取得明確授權後提交並推送本次紀錄；另決定是否合併 release 分支至 main。
+  - 條件是否已被需求方接受：待確認（本輪只做查核，未取得推送／合併授權）。
+- 發布授權：
+  - 是否需要：否（本次不發布、不推送）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：不適用；本次未部署、未打包、未發布。
+- 遺留風險與後續事項：本地新增的本次紀錄與獨立審查報告尚未提交，因此尚未同步到 GitHub；`codex/release-v0.46.0` 尚未合併 `main`，而 `main` 仍顯示 0.46.0 為發布候選／公開版本為 0.45.2，治理狀態尚未在主分支同步。GitHub connector 與本地 Git 對 ahead 數量的證據不一致（ahead 1／ahead 12），且本地網路／Web cache 無法重新驗證 GitHub 即時 Release 資產；此差異待取得穩定遠端證據後確認。GitHub Release 與 repository 文件同步不代表所有 CI artifact 都是 Release assets；0.46.0 的 Windows unsigned artifact 未直接附於 Release，macOS updater metadata／blockmap 未上傳。若要達成完整同步，需另行授權提交／推送本次紀錄，並決定是否合併分支與修正主分支狀態。
