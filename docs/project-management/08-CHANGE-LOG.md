@@ -44,6 +44,125 @@
 
 ---
 
+## 2026-07-23 — 0.46.0 正式打包與發布
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求正式打包與發布 0.46。
+- 關聯需求／缺陷：`FR-016`、`FR-017`、`FR-018`、`FR-019`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布（版本升級、跨平台安裝包、Release 資產與 GitHub 公開發布）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、打包／發布、測試、獨立審查與文件結案流程（是）
+- 目標與成功條件：將已完成的 0.46 雙語字幕來源定版為 0.46.0，建立 Windows Setup／Portable 與 macOS arm64 DMG／ZIP，完成 runtime／封裝／checksum／updater metadata／Release notes 核對，取得發布前獨立審查與明確風險授權後建立 GitHub Release。
+- 不在範圍：補做未納入本輪的 Windows／macOS／Electron 實機驗收、正式 Windows Authenticode、macOS Developer ID／公證以外的臨時替代；未經授權不會以未簽章／未公證資產對外發布。
+- 預計影響檔案／模組：`package.json`、`package-lock.json`（若版本同步）、`RELEASE-NOTES-0.46.0.md`、workflow／內建手冊資源、治理狀態與發布資產。
+- 風險與回復方式：版本升級與 Release 不可靜默覆蓋既有 v0.45.2；若候選 checksum、metadata、封裝內容或審查不一致立即停止；正式發布前需逐項核准未簽章、未公證、未完成實機與 AI／FFmpeg 未覆蓋風險。
+- 驗證計畫：版本／來源核對、`npm run check`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA／updater metadata、獨立發布審查、發布後 GitHub 資產 digest／下載核對。
+- 實際修改：版本升級至 `0.46.0`；新增 0.46.0 Release Notes、Windows CI 發布標籤與資產命名；建立 macOS arm64 DMG／ZIP 候選與 SHA-256 清單；補強 `.gitignore` 與 Electron `build.files` 的 env／金鑰／機密檔排除規則；更新目前狀態、README 與發布相關治理紀錄。
+- 開發驗證結果：待執行。
+- 獨立審查是否執行：待執行。
+- 獨立審查結論：待執行。
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
+  - 核准時間：2026-07-23（本次明確回覆「OK 請繼續」）
+  - 核准範圍：明確同意推送 `codex/release-v0.46.0`、建立公開 `v0.46.0` GitHub Release；接受 Windows 未 Authenticode、macOS ad-hoc 未公證、尚未完成跨平台／Electron smoke test、AI response contract／FFmpeg 未覆蓋與資產候選驗證風險；但機密稽核必須先通過，任何發現秘密即停止發布。
+- 部署／發布結果：待執行。
+- 遺留風險與後續事項：待執行。
+
+---
+
+## 2026-07-23 — 0.46.0 雙語字幕完整功能
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求完成 0.46 所有規劃內容。
+- 關聯需求／缺陷：新增 `FR-016`、`FR-017`、`FR-018`、`FR-019`；`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：高（字幕資料模型、使用者可見校閱流程、輸出格式與舊專案相容性）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、需求變更、開發、測試、獨立審查與文件結案流程（是）
+- 目標與成功條件：完成雙語 cue 資料模型、單語舊專案無損載入、原文／譯文個別編輯、上下排列預覽、雙語 SRT／VTT／ASS 輸出、時間碼與 cue 數量保護，以及自動／人工驗證證據。
+- 不在範圍：完整介面多語本地化、本機 LLM、雙語以外的多軌剪輯、0.46 正式跨平台發布與簽章。
+- 預計影響檔案／模組：`server.mjs`、`public/review.html`、`public/review.js`、`public/styles.css`、字幕資料／輸出測試、需求／設計／歷程／測試／狀態文件。
+- 風險與回復方式：舊單語專案、AI session／撤銷、規則套用、修剪與硬字幕輸出可能依賴 `text`；採正規化雙語 cue、保留 `text` 相容欄位與單語回退，任何 cue 數量／時間碼不一致均拒絕寫入，失敗保留原字幕。
+- 驗證計畫：先建立資料模型／格式單元測試，再測試校閱 API、雙語輸出、舊專案遷移、時間碼／cue 數量邊界、完整 `npm run check`、必要 UI／FFmpeg 驗證，最後由獨立代理六面向審查。
+- 實際修改：新增 `public/bilingual-subtitles.mjs`，提供單語 SRT 遷移、雙語 cue 正規化、原文／譯文排列及 SRT／VTT 序列化；校閱頁加入原文／譯文分欄、排列控制與 ASS 下載；保存／自動保存校稿包加入 `bilingual-cues.json` 與排列設定；review-data 可載入雙語資料；規則 API 分別處理原文／譯文；AI request 明確攜帶雙語欄位並以譯文作為優化文字；分割／合併保留雙欄；新增 FR-016～FR-019、設計、歷程、測試稽核與 0.46 狀態文件。
+- 開發驗證結果：2026-07-23 `npm run check` 在受控環境通過；新增雙語資料模型測試、保存／載入／ASS 核心整合測試，驗證舊單語遷移、排列、SRT／VTT／ASS 輸出、cue 數量／時間碼保護、無效時間碼與空文字拒絕；review UI 契約、JavaScript 語法、治理、媒體、AI、provider、核心回歸均通過。
+- 獨立審查是否執行：是（round1–round3）。
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-23-0-46-bilingual-round1.md`；判定：不通過；已修正保存路徑阻擋。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-0-46-bilingual-round2.md`；判定：不通過；已補規則雙欄處理、AI 雙欄 request、分割／合併欄位保持。
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-0-46-bilingual-round3.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 round3 獨立複審結論為有條件通過：round2 的 save-review-package 路徑阻擋已修正，雙語保存／重新載入、cue 數量與時間碼比對、ASS 下載、規則雙欄處理、AI 雙欄 request、分割合併欄位保持及受控環境 `npm run check` 均已驗證；但 AI 雙語回應 contract、規則／分割合併專門測試、FFmpeg、Electron、Windows／macOS 實機驗證仍未覆蓋，因此 0.46 尚不可宣稱為正式發布完成。**
+  - 條件：維持未覆蓋項目揭露，完成正式發布前補齊 AI contract、專門回歸、FFmpeg 與跨平台實機／封裝驗證。
+  - 條件是否已被需求方接受：是（本次明確要求完成 0.46 開發內容，但未要求正式發布；未覆蓋項目維持揭露）。
+- 發布授權：
+  - 是否需要：否（本次不發布 0.46）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本次不打包、不部署、不發布；0.46 尚未正式發布。
+- 遺留風險與後續事項：0.46 功能來源與自動／核心 API 驗證已完成，但維持有條件通過；尚未完成 AI 雙語回應 contract、規則／分割合併專門回歸測試、FFmpeg 雙語 ASS 實際燒錄、Electron／Windows／macOS renderer／安裝後 smoke test，以及正式 0.46 封裝與發布。
+
+---
+
+## 2026-07-23 — 0.46 規劃與移除簡體中文設定選項
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求分析下一階段 0.46 工作與時程，並將設定中的簡體中文選項移除，納入目前版本。
+- 關聯需求／缺陷：`FR-013`、`NFR-006`、`BUG-013`
+- 變更等級：中（修改使用者可見設定選項、語言白名單與相容性測試；不涉及發布）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、需求變更、開發、測試、獨立審查與文件結案流程（是）
+- 目標與成功條件：移除介面語言與 AI 輸出語言中的簡體中文選項；保留既有資料與 BCP 47 API 的安全處理；補足選項不存在與舊設定回退測試；提出可執行的 0.46 工作拆解與時程估算。
+- 不在範圍：本次不實作雙語 cue 資料模型、雙語輸出、本機 LLM、完整介面在地化或 0.46 發布。
+- 預計影響檔案／模組：`public/index.html`、`public/app.js`、`public/review.html`、`server.mjs`、相關 UI／核心測試、需求／設計／測試／目前狀態／歷程文件。
+- 風險與回復方式：使用者既有 `zh-CN` 設定不可造成畫面顯示不存在的選項；載入時回退繁中並保留資料安全，BCP 47 自訂輸入是否仍允許 `zh-CN` 需與「移除選項」區分。若測試顯示 API 相容性受影響，僅回復 UI／介面白名單，不改動字幕資料。
+- 驗證計畫：語法檢查、UI 契約測試、核心設定回退測試、完整 `npm run check`、`git diff --check`，完成後由獨立代理依六面向審查。
+- 實際修改：移除 `public/index.html` 與 `public/review.html` 的簡體中文選項；`server.mjs` 將舊 `appLanguage: zh-CN` 安全回退 `zh-TW`；`public/app.js` 移除簡體介面狀態；`lib/ai/languages.mjs` 移除簡體中文常用 AI 語言選項；補上 UI／核心測試與治理文件、0.46 規劃。
+- 開發驗證結果：2026-07-23 執行 `npm run check` 通過，包含 `docs:check`、JavaScript 語法檢查、治理／媒體／optimizer／provider／review UI／core 測試；`git diff --check` 通過。核心測試實際驗證舊 `appLanguage: zh-CN` 回退 `zh-TW`，UI 測試驗證兩個選單不存在簡體中文。
+- 獨立審查是否執行：是（round1–round2）。
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-23-remove-simplified-chinese-round1.md`；判定：有條件通過。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-remove-simplified-chinese-round2.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 round2 獨立複審結論為有條件通過：語系選單已移除簡體中文，舊 `zh-CN` 介面設定會回退繁體中文，`npm run check` 已通過；但 Windows／macOS／Electron 的跨平台 UI smoke test 仍未覆蓋，因此本輪結論為有條件通過。**
+  - 條件：完成本工作紀錄結案欄位；保留未執行 Windows／macOS 實機 UI smoke test 的風險揭露；0.46 的 7–10 日估算仍需以舊專案樣本與輸出格式測試確認。
+  - 條件是否已被需求方接受：是（本次交付明確揭露未覆蓋項目，0.46 時程列為估算）。
+- 發布授權：
+  - 是否需要：否（本次不發布）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本次不部署、不打包、不發布。
+- 遺留風險與後續事項：尚未執行 Windows／macOS 實機設定 UI smoke test 或打包後 renderer 驗證；需在 0.45.3／0.46 發布前補齊。0.46 預估 7–10 個有效工作日，仍需以舊專案樣本與雙語輸出格式邊界測試校準。
+
+---
+
+## 2026-07-23 — 專案進度與版本規劃盤點
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求依專案進度與現況列出已完成事項及後續版本規劃。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`、`BUG-012`
+- 變更等級：低（只讀盤點與治理紀錄，不修改產品行為、不打包、不發布）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、`AI-ROADMAP-0.50.md`（是）
+- 目標與成功條件：以實際版本、Git 狀態、治理文件、Release notes、測試腳本與 roadmap 交叉核對目前完成事項、未完成風險及下一版本規劃。
+- 不在範圍：產品功能修改、版本升級、打包、部署、GitHub Release、外部供應商 smoke test。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md`。
+- 風險與回復方式：歷史文件可能保留候選版敘述；以 2026-07-22 的目前狀態、GitHub Release 與最新工作紀錄為準，若無法確認則標示未覆蓋，不改寫歷史證據。
+- 驗證計畫：`npm run project:preflight`、Git／package／roadmap 盤點、`npm run docs:check`、`git diff --check`。
+- 實際修改：新增本次進度盤點紀錄；確認目前版本 `0.45.2`、分支 `codex/release-v0.45.2`、工作樹乾淨且分支較 origin ahead 1；未修改產品程式碼。
+- 開發驗證結果：preflight 通過；已核對 0.45.2 GitHub Release、目前狀態、0.45.3 工作重點及 0.46～0.50 roadmap；文件檢查與差異檢查於本條目完成後執行。
+- 獨立審查是否執行：否（低風險只讀進度盤點與單一治理紀錄，未改變產品行為、測試、封裝或發布；依獨立審查流程之低風險跳過情境）。
+- 獨立審查結論：不適用。
+- 發布授權：
+  - 是否需要：否（本次不發布）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：不適用；本次未部署、未打包、未發布。
+- 遺留風險與後續事項：0.45.3 的 BUG-012 實機舊設定升級、proxy 邊界與跨平台驗收仍未完成；Windows Authenticode、macOS Developer ID／公證、乾淨實機驗收、真實 Groq／Gemini smoke test、npm audit runtime／build-only 分類仍未覆蓋。0.46.0 開始前需先建立單語舊專案無損遷移測試。
+
+---
+
 ## 2026-07-22 — 修正 OpenAI-compatible 載入 Gemini 舊設定並規劃 0.45.3
 
 - 狀態：完成

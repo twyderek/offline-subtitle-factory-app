@@ -47,9 +47,16 @@
 
 ## 多語言 LLM 開發中驗證
 
+## 0.46 雙語字幕驗證
+
+- `test-bilingual-subtitles.mjs`：驗證單語 SRT 無損轉為雙欄、原文／譯文排列、SRT／VTT 輸出，以及無效時間碼／空文字拒絕。
+- `test-review-ui.mjs`：驗證雙語排列控制、ASS 下載入口與原文／譯文欄位。
+- 核心 API／保存包需驗證 `bilingual-cues.json`、排列設定、cue 數量與時間碼保護；跨平台 renderer、FFmpeg 實際雙語燒錄仍需於封裝／實機階段補測。
+- 目前已完成受控環境核心保存／載入／ASS 整合驗證；未覆蓋項目明確包括 AI 雙語回應 contract、規則／分割合併專門案例、FFmpeg 實際解析／硬燒錄、Electron renderer 與 Windows／macOS 安裝後操作。
+
 - `test-ai-optimizer.mjs`：驗證 BCP 47 基本、variant、extension 標準化，惡意／無效值拒絕、舊設定回退、翻譯 Prompt、一般優化 Prompt，以及模型交換 cue 順序時必須拒絕。
-- `test-review-ui.mjs`：驗證常用語言選項、自訂語言欄位與送出時共用語言解析函式。
-- `test-core.mjs`：驗證自訂 `fr-CA` 可保存並標準化，專用 AI 設定、一般設定及 AI 任務 API 的非法語言值均回覆 400，舊版非法設定檔在啟動時回退繁中，AI 任務沿用多語設定。
+- `test-review-ui.mjs`：驗證常用語言選項、自訂語言欄位、簡體中文選項不存在與送出時共用語言解析函式。
+- `test-core.mjs`：驗證自訂 `fr-CA` 可保存並標準化，專用 AI 設定、一般設定及 AI 任務 API 的非法語言值均回覆 400，舊版 AI／介面簡體中文設定在啟動時回退繁中，AI 任務沿用多語設定。
 - 本項目完成自動測試與獨立審查前維持「開發中」，不得標示為 0.45.1 已發布功能。
 
 ## 發布稽核判定

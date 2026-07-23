@@ -1,0 +1,2 @@
+21e54b6906c871146ffc6b2587268d07144f9a6cf54490cd1cb1a228453026d0  offline-subtitle-factory-0.46.0-macos-arm64.dmg
+818c609fd1a7288af00129f381ce65f75cf44759c81fbcc5d808152db6b7d78c  offline-subtitle-factory-0.46.0-macos-arm64.zip

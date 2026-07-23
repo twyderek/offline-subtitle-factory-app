@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.45.2",
+  "version": "0.46.0",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -13,7 +13,7 @@
     "project:preflight": "node scripts/project-preflight.mjs",
     "docs:check": "node scripts/check-project-docs.mjs",
     "docs:check:final": "node scripts/check-project-docs.mjs --final",
-    "test": "node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
+  "test": "node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-bilingual-subtitles.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
     "check": "npm run docs:check && node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
     "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
@@ -57,9 +57,21 @@
       "RELEASE-NOTES-0.41.0.md",
       "RELEASE-NOTES-0.45.0.md",
       "RELEASE-NOTES-0.45.1.md",
-      "RELEASE-NOTES-0.45.2.md",
+    "RELEASE-NOTES-0.45.2.md",
+    "RELEASE-NOTES-0.46.0.md",
       "package.json",
-      ".gitignore"
+    ".gitignore",
+    "!**/.env",
+    "!**/.env.*",
+    "!**/*.pem",
+    "!**/*.key",
+    "!**/*.p12",
+    "!**/*.pfx",
+    "!**/*.cer",
+    "!**/*.crt",
+    "!**/*.mobileprovision",
+    "!**/secrets/**",
+    "!**/credentials/**"
     ],
     "nsis": {
       "artifactName": "offline-subtitle-factory-setup-${version}.${ext}"

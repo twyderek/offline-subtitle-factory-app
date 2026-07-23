@@ -23,7 +23,7 @@ Electron 主行程
 | 本機 API | `server.mjs` | HTTP API、任務狀態、檔案驗證、媒體／字幕工作協調 |
 | 首頁／任務 | `public/index.html`、`public/app.js` | 建立、匯入、任務管理、健康狀態 |
 | 修剪 | `public/trim.*`、`lib/media-edit.mjs` | In/Out、有效媒體、非破壞輸出與時間重算 |
-| 校閱 | `public/review.*` | 播放同步、文字／時間編輯、狀態、樣式與輸出 |
+| 校閱 | `public/review.*`、`public/bilingual-subtitles.mjs` | 播放同步、原文／譯文個別編輯、時間編輯、狀態、排列預覽、樣式與輸出 |
 | 字幕時間軸 | `lib/subtitle-timeline.mjs` | cue 時間計算與邊界處理 |
 | AI provider | `lib/ai/providers.mjs`、`openai-compatible.mjs` | 供應商差異、HTTP、逾時、取消與錯誤正規化 |
 | AI optimizer | `lib/ai/subtitle-optimizer.mjs` | Prompt、批次、回應驗證、建議、重試、checkpoint |
@@ -52,9 +52,13 @@ Electron 主行程
 
 ### 多語言 LLM 流程
 
-設定介面提供繁中、簡中、英文、日文、韓文、西班牙文、法文、德文、巴西葡萄牙文、越南文、泰文與印尼文，也允許輸入自訂 BCP 47 標籤。前端只負責選擇；伺服器會驗證並標準化語言標籤，設定檔及每次 AI 任務保存同一標準值。Prompt 只使用驗證後的標籤與內建名稱，避免把自由文字插入 system prompt。`translate` 模式明確要求完整翻譯，其他模式亦要求輸出為所選目標語言。既有設定缺少語言或含舊版無效值時回退 `zh-TW`，但新 API 輸入無效值會回覆 400。
+設定介面提供繁中、英文、日文、韓文、西班牙文、法文、德文、巴西葡萄牙文、越南文、泰文與印尼文，也允許輸入自訂 BCP 47 標籤；簡體中文不列入介面或 AI 輸出語言選單。前端只負責選擇；伺服器會驗證並標準化語言標籤，設定檔及每次 AI 任務保存同一標準值。Prompt 只使用驗證後的標籤與內建名稱，避免把自由文字插入 system prompt。`translate` 模式明確要求完整翻譯，其他模式亦要求輸出為所選目標語言。既有設定缺少語言或含舊版無效值時回退 `zh-TW`，但新 API 輸入無效值會回覆 400；既有 `appLanguage: zh-CN` 亦視為不再支援值並回退繁中。自訂 BCP 47 API 的 `zh-CN` 相容性仍由 FR-013 的標準化規則處理。
 
-本階段仍維持每個 cue 一個文字欄位；不包含原文／譯文雙欄資料模型或雙語輸出。
+### 0.46 雙語字幕設計
+
+每個 cue 的正規模型包含 `id`、`start`、`end`、`sourceText`、`translatedText`，並保留相容性的 `text`（等於 `translatedText || sourceText`）。載入單語 SRT 時，`sourceText` 與 `translatedText` 都填入原字幕文字；保存雙語校閱包時另存 `bilingual-cues.json` 與排列設定，`reviewed.srt` 則保存目前排列後的可播放／可匯入表示。
+
+校閱頁以兩個 textarea 分別編輯原文與譯文，排列設定只影響預覽與輸出，不改變 cue 數量、ID 或時間碼。SRT／VTT 使用雙行 cue 文字；ASS 使用 `\\N` 換行並清除可能破壞 ASS 結構的 `{}`，硬字幕沿用同一份 ASS。
 
 ### 發布流程
 

@@ -650,10 +650,10 @@ async function saveAppSettings() {
 }
 
 function applyInterfaceLanguage(language) {
-  document.documentElement.lang = language === 'en' ? 'en' : language === 'zh-CN' ? 'zh-Hans' : 'zh-Hant';
+  document.documentElement.lang = language === 'en' ? 'en' : 'zh-Hant';
   const formLanguage = form.elements.language;
   if (formLanguage && !currentJobId) {
-    formLanguage.value = language === 'en' ? 'en' : language === 'zh-CN' ? 'zh' : 'zh-TW';
+    formLanguage.value = language === 'en' ? 'en' : 'zh-TW';
   }
 }
 

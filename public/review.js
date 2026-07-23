@@ -1,4 +1,5 @@
 import { providerProfileSnapshot, runProviderConnectionTest } from './ai-provider-settings.mjs';
+import { normalizeBilingualCues, parseSrtBilingual, renderCueText, serializeSrt, serializeVtt } from './bilingual-subtitles.mjs';
 
 // API base URL — Web/Electron 都使用目前頁面的本機伺服器
 const API_BASE = window.location.origin.startsWith('http')
@@ -50,6 +51,7 @@ const state = {
   aiProjectSettings: { glossary: [], prompts: {} },
   aiSessionId: '',
   aiProviderProfileSnapshot: null,
+  bilingualLayout: 'source-top',
 };
 
 const ids = [
@@ -101,7 +103,15 @@ document.querySelectorAll('.ai-mode').forEach((button) => button.addEventListene
 }));
 document.getElementById('downloadSrt').addEventListener('click', downloadSrt);
 document.getElementById('downloadVtt').addEventListener('click', downloadVtt);
+document.getElementById('downloadAss').addEventListener('click', downloadAss);
 document.getElementById('saveSrt').addEventListener('click', saveSrt);
+document.getElementById('bilingualLayout').addEventListener('change', (event) => {
+  state.bilingualLayout = event.target.value;
+  renderCueList();
+  updateActiveCue(true);
+  updateBurnPreview();
+  markReviewDirty();
+});
 document.getElementById('saveReviewPackage').addEventListener('click', saveReviewPackage);
 document.getElementById('burnExport').addEventListener('click', burnExport);
 document.getElementById('back5').addEventListener('click', () => el.reviewVideo.currentTime = Math.max(0, el.reviewVideo.currentTime - 5));
@@ -450,7 +460,7 @@ function aiRequestCues() {
     : scope === 'search'
       ? state.cues.filter((cue) => cue.text.toLowerCase().includes(state.search.toLowerCase()))
       : scope === 'current' ? [state.cues[state.activeIndex]].filter(Boolean) : state.cues;
-  return source.map((cue) => ({ id: cue.id, start: cue.startRaw, end: cue.endRaw, text: cue.text }));
+  return source.map((cue) => ({ id: cue.id, start: cue.startRaw, end: cue.endRaw, text: cue.translatedText || cue.text, sourceText: cue.sourceText, translatedText: cue.translatedText || cue.text }));
 }
 
 function updateAiScopeEstimate() {
@@ -678,7 +688,7 @@ async function loadProjectPreset() {
     state.videoFileName = data.videoFileName || '';
     state.subtitleFileName = data.subtitleFileName || '';
     el.reviewVideo.src = data.videoUrl;
-    loadSrtText(data.subtitle, `已載入任務 ${jobId}`);
+    loadSrtText(data.subtitle, `已載入任務 ${jobId}`, data.bilingualCues, data.bilingualLayout);
     loadJobWaveform();
     restoreAiOptimizationStatus();
   } catch (error) {
@@ -815,8 +825,11 @@ function handleRuleFile(event) {
   statusMessage(file ? `已載入規則檔：${file.name}` : '已清除規則檔');
 }
 
-function loadSrtText(text, message) {
-  state.cues = parseSrt(text);
+function loadSrtText(text, message, bilingualCues = null, bilingualLayout = 'source-top') {
+  state.cues = Array.isArray(bilingualCues) ? normalizeBilingualCues(bilingualCues) : parseSrtBilingual(text);
+  state.bilingualLayout = bilingualLayout === 'translated-top' ? 'translated-top' : 'source-top';
+  const layoutSelect = document.getElementById('bilingualLayout');
+  if (layoutSelect) layoutSelect.value = state.bilingualLayout;
   state.aiSuggestions.clear();
   state.activeIndex = -1;
   state.changed.clear();
@@ -878,7 +891,7 @@ function renderCueList() {
   const fragment = document.createDocumentFragment();
   const query = state.search.toLowerCase();
   state.cues.forEach((cue, index) => {
-    if (query && !cue.text.toLowerCase().includes(query)) return;
+    if (query && !`${cue.sourceText} ${cue.translatedText}`.toLowerCase().includes(query)) return;
     const item = document.createElement('article');
     item.className = 'review-cue';
     item.dataset.index = String(index);
@@ -891,10 +904,11 @@ function renderCueList() {
       <div class="review-cue-content">
         <div class="review-cue-meta">
           <div class="review-time">${cue.startRaw} <span>→</span> ${cue.endRaw}</div>
-          <span class="${hasRuleWarning(cue.text) ? 'review-chip warn' : 'review-chip'}">${hasRuleWarning(cue.text) ? '待檢查' : '已確認'}</span>
+          <span class="${hasRuleWarning(cue.translatedText) ? 'review-chip warn' : 'review-chip'}">${hasRuleWarning(cue.translatedText) ? '待檢查' : '已確認'}</span>
           <button class="jump cue-more" type="button" title="跳到此字幕">•••</button>
         </div>
-        <textarea aria-label="字幕 ${index + 1}">${escapeHtml(cue.text)}</textarea>
+        <label class="bilingual-edit-field">原文<textarea class="source-text" aria-label="字幕 ${index + 1} 原文">${escapeHtml(cue.sourceText)}</textarea></label>
+        <label class="bilingual-edit-field">譯文<textarea class="translated-text" aria-label="字幕 ${index + 1} 譯文">${escapeHtml(cue.translatedText)}</textarea></label>
         ${aiSuggestion ? `<div class="review-ai-suggestion">
           <div><strong>AI 建議</strong><span>${escapeHtml(aiSuggestion.reason || '文字優化')}</span></div>
           <p>${escapeHtml(aiSuggestion.text)}</p>
@@ -941,9 +955,9 @@ function handleCueListClick(event) {
 }
 
 function handleCueListInput(event) {
-  if (!event.target.matches('textarea')) return;
+  if (!event.target.matches('textarea.source-text, textarea.translated-text')) return;
   const index = getCueEventIndex(event);
-  if (index >= 0) updateCue(index, event.target.value);
+  if (index >= 0) updateCue(index, event.target.value, event.target.classList.contains('source-text') ? 'sourceText' : 'translatedText');
 }
 
 function handleCueListChange(event) {
@@ -952,15 +966,16 @@ function handleCueListChange(event) {
   if (index >= 0) setCueDuration(index, Number(event.target.value));
 }
 
-function updateCue(index, value) {
-  state.cues[index].text = value;
+function updateCue(index, value, field = 'translatedText') {
+  state.cues[index][field] = value;
+  state.cues[index].text = state.cues[index].translatedText || state.cues[index].sourceText;
   syncChangedState(index);
   const cueNode = el.cueList.querySelector(`[data-index="${index}"]`);
   if (cueNode) {
     cueNode.classList.toggle('changed', state.changed.has(index));
     const chip = cueNode.querySelector('.review-chip');
-    chip.className = hasRuleWarning(value) ? 'review-chip warn' : 'review-chip';
-    chip.textContent = hasRuleWarning(value) ? '待檢查' : 'OK';
+    chip.className = hasRuleWarning(state.cues[index].translatedText) ? 'review-chip warn' : 'review-chip';
+    chip.textContent = hasRuleWarning(state.cues[index].translatedText) ? '待檢查' : 'OK';
   }
   if (index === state.activeIndex) setActiveCue(index);
   updateStats();
@@ -1021,9 +1036,9 @@ function setActiveCue(index) {
         });
       }
     }
-    el.currentText.textContent = cue.text || ' ';
+    el.currentText.textContent = renderCueText(cue, state.bilingualLayout) || ' ';
     el.currentMeta.textContent = `#${index + 1} ${cue.startRaw} - ${cue.endRaw}`;
-    el.currentRuleState.textContent = hasRuleWarning(cue.text) ? '待檢查' : '已校稿';
+    el.currentRuleState.textContent = hasRuleWarning(cue.translatedText) ? '待檢查' : '已校稿';
   } else {
     el.currentText.textContent = '目前沒有對應字幕';
     el.currentMeta.textContent = '尚未選取字幕';
@@ -1045,16 +1060,15 @@ async function applyRulesToAll() {
   button.disabled = true;
   statusMessage('正在套用規則檔...');
   try {
-    const form = new FormData();
-    form.set('ruleFile', state.ruleFile, state.ruleFile.name || 'review-rule.txt');
-    form.set('subtitle', new Blob([buildSrt()], { type: 'text/plain;charset=utf-8' }), 'current-review.srt');
-    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/apply-rules`, {
+    const ruleText = await state.ruleFile.text();
+    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/apply-bilingual-rules`, {
       method: 'POST',
-      body: form,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleText, bilingualCues: normalizeBilingualCues(state.cues) }),
     });
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
-    loadSrtText(result.subtitle, `已套用規則：${result.changedCues}/${result.totalCues} 段字幕有修改`);
+    loadSrtText(result.subtitle, `已套用規則：${result.changedCues}/${result.totalCues} 段字幕有修改`, result.bilingualCues, state.bilingualLayout);
   } catch (error) {
     statusMessage(`套用規則失敗：${error.message}`);
   } finally {
@@ -1086,8 +1100,8 @@ function splitCue(index, textarea) {
     statusMessage('這段字幕太短，無法分割');
     return;
   }
-  const firstText = cue.text.slice(0, splitAt).trim();
-  const secondText = cue.text.slice(splitAt).trim();
+  const firstText = cue.translatedText.slice(0, splitAt).trim();
+  const secondText = cue.translatedText.slice(splitAt).trim();
   if (!firstText || !secondText) {
     statusMessage('分割點前後都需要有文字');
     return;
@@ -1102,6 +1116,8 @@ function splitCue(index, textarea) {
     ...cue,
     end: splitTime,
     endRaw: formatSrtTime(splitTime),
+    sourceText: splitBilingualText(cue.sourceText, splitAt / Math.max(1, cue.translatedText.length))[0],
+    translatedText: firstText,
     text: firstText,
   };
   const secondCue = {
@@ -1109,6 +1125,8 @@ function splitCue(index, textarea) {
     id: cue.id + 1,
     start: splitTime,
     startRaw: formatSrtTime(splitTime),
+    sourceText: splitBilingualText(cue.sourceText, splitAt / Math.max(1, cue.translatedText.length))[1],
+    translatedText: secondText,
     text: secondText,
     originalText: cue.originalText,
     originalStartRaw: cue.originalStartRaw,
@@ -1143,6 +1161,13 @@ function getCueSplitIndex(text, textarea) {
   return candidates[0] || middle;
 }
 
+function splitBilingualText(text, ratio) {
+  const value = String(text || '').trim();
+  if (!value) return ['', ''];
+  const target = Math.max(1, Math.min(value.length - 1, Math.round(value.length * ratio)));
+  return [value.slice(0, target).trim(), value.slice(target).trim()];
+}
+
 function mergeCueWithNext(index) {
   const cue = state.cues[index];
   const nextCue = state.cues[index + 1];
@@ -1154,7 +1179,9 @@ function mergeCueWithNext(index) {
   if (!confirmed) return;
   cue.end = nextCue.end;
   cue.endRaw = nextCue.endRaw;
-  cue.text = [cue.text.trim(), nextCue.text.trim()].filter(Boolean).join('\n');
+  cue.sourceText = [cue.sourceText.trim(), nextCue.sourceText.trim()].filter(Boolean).join('\n');
+  cue.translatedText = [cue.translatedText.trim(), nextCue.translatedText.trim()].filter(Boolean).join('\n');
+  cue.text = cue.translatedText || cue.sourceText;
   state.cues.splice(index + 1, 1);
   rebuildCueIds();
   rebuildChangedSet();
@@ -1174,7 +1201,7 @@ function rebuildCueIds() {
 function rebuildChangedSet() {
   state.changed.clear();
   state.cues.forEach((cue, index) => {
-    if (cue.text !== cue.originalText || cue.startRaw !== cue.originalStartRaw || cue.endRaw !== cue.originalEndRaw) {
+    if (cue.sourceText !== cue.originalSourceText || cue.translatedText !== cue.originalTranslatedText || cue.startRaw !== cue.originalStartRaw || cue.endRaw !== cue.originalEndRaw) {
       state.changed.add(index);
     }
   });
@@ -1227,7 +1254,7 @@ function updateBurnPreview() {
   const settings = getBurnSettings();
   const cue = state.activeIndex >= 0 ? state.cues[state.activeIndex] : null;
   const preview = getAssPreviewMetrics();
-  el.burnCaption.textContent = cue?.text || '字幕燒錄樣式預覽';
+  el.burnCaption.textContent = cue ? renderCueText(cue, state.bilingualLayout) : '字幕燒錄樣式預覽';
   el.burnCaption.style.fontFamily = settings.fontFamily;
   el.burnCaption.style.fontSize = `${Math.max(1, settings.fontSize * preview.scale)}px`;
   el.burnCaption.style.fontWeight = settings.bold ? '800' : '400';
@@ -1281,13 +1308,15 @@ function getAssPreviewMetrics() {
 async function saveReviewPackage() {
   const payload = {
     subtitle: buildSrt(),
+    bilingualCues: normalizeBilingualCues(state.cues),
+    bilingualLayout: state.bilingualLayout,
     settings: getBurnSettings(),
     manifest: {
       jobId,
       savedAt: new Date().toISOString(),
       cueCount: state.cues.length,
       changedCount: state.changed.size,
-      warningCount: state.cues.filter((cue) => hasRuleWarning(cue.text)).length,
+      warningCount: state.cues.filter((cue) => hasRuleWarning(cue.translatedText)).length,
       sourceVideo: state.videoFileName,
       sourceSubtitle: state.subtitleFileName,
     },
@@ -1333,15 +1362,16 @@ async function burnExport() {
 }
 
 function buildSrt() {
-  return state.cues.map((cue, index) => `${index + 1}\n${cue.startRaw} --> ${cue.endRaw}\n${cue.text.trim()}`).join('\n\n') + '\n';
+  return serializeSrt(state.cues, state.bilingualLayout);
 }
 
 function buildVtt() {
-  const body = state.cues.map((cue) => [
-    `${cue.startRaw.replace(',', '.')} --> ${cue.endRaw.replace(',', '.')}`,
-    cue.text.trim(),
-  ].join('\n')).join('\n\n');
-  return `WEBVTT\n\n${body}${body ? '\n' : ''}`;
+  return serializeVtt(state.cues, state.bilingualLayout);
+}
+
+function downloadAss() {
+  const body = state.cues.map((cue) => `Dialogue: 0,${formatAssTime(cue.start)},${formatAssTime(cue.end)},Default,,0,0,0,,${renderCueText(cue, state.bilingualLayout).replace(/\r?\n/g, '\\N').replace(/[{}]/g, '').replace(/,/g, '，')}`).join('\n');
+  downloadBlob(new Blob([`[Script Info]\nTitle: Offline Subtitle Factory Bilingual Export\nScriptType: v4.00+\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${body}\n`], { type: 'text/plain;charset=utf-8' }), 'media.edited.ass');
 }
 
 async function downloadSubtitle(format) {
@@ -1386,7 +1416,7 @@ async function saveSrt(options = {}) {
     const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/save-review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subtitle: buildSrt() }),
+      body: JSON.stringify({ subtitle: buildSrt(), bilingualCues: normalizeBilingualCues(state.cues), bilingualLayout: state.bilingualLayout }),
     });
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || String(response.status));
@@ -1496,7 +1526,7 @@ function getCueEndLimit(index) {
 function syncChangedState(index) {
   const cue = state.cues[index];
   const timeChanged = cue.startRaw !== cue.originalStartRaw || cue.endRaw !== cue.originalEndRaw;
-  if (cue.text !== cue.originalText || timeChanged) state.changed.add(index);
+  if (cue.sourceText !== cue.originalSourceText || cue.translatedText !== cue.originalTranslatedText || timeChanged) state.changed.add(index);
   else state.changed.delete(index);
 }
 

@@ -90,7 +90,9 @@
           <div class="review-bottom-controls">
             <button id="downloadSrt" class="review-button" type="button">下載 SRT</button>
             <button id="downloadVtt" class="review-button" type="button">下載 VTT</button>
+            <button id="downloadAss" class="review-button" type="button">下載 ASS</button>
             <button id="saveSrt" class="review-button" type="button">另存 SRT</button>
+            <label class="review-layout-control">雙語排列<select id="bilingualLayout"><option value="source-top">原文在上／譯文在下</option><option value="translated-top">譯文在上／原文在下</option></select></label>
             <span>空白鍵播放・⌥←/→ 快退快進・⌘↑/↓ 切換字幕</span>
           </div>
         </section>
@@ -199,7 +201,7 @@
         <label><span>每批段落</span><input id="aiBatchSize" type="number" min="1" max="100" value="30"></label>
         <label class="full"><span>API Key</span><input id="aiApiKey" type="password" autocomplete="off" placeholder="留空表示沿用已保存金鑰"></label>
         <label class="full review-ai-consent"><span><input id="aiConsent" type="checkbox"> 我了解只會傳送畫面所列的字幕文字與前後文，不會傳送影片或音訊</span></label>
-        <label><span>輸出語言</span><select id="aiLanguage"><option value="zh-TW">繁體中文</option><option value="zh-CN">簡體中文</option><option value="en">英文</option><option value="ja">日文</option><option value="ko">韓文</option><option value="es">西班牙文</option><option value="fr">法文</option><option value="de">德文</option><option value="pt-BR">葡萄牙文（巴西）</option><option value="vi">越南文</option><option value="th">泰文</option><option value="id">印尼文</option><option value="custom">自訂 BCP 47…</option></select></label>
+        <label><span>輸出語言</span><select id="aiLanguage"><option value="zh-TW">繁體中文</option><option value="en">英文</option><option value="ja">日文</option><option value="ko">韓文</option><option value="es">西班牙文</option><option value="fr">法文</option><option value="de">德文</option><option value="pt-BR">葡萄牙文（巴西）</option><option value="vi">越南文</option><option value="th">泰文</option><option value="id">印尼文</option><option value="custom">自訂 BCP 47…</option></select></label>
         <label id="aiCustomLanguageField" hidden><span>自訂語言標籤</span><input id="aiCustomLanguage" type="text" maxlength="255" placeholder="例如 fr-CA、en-GB"><small>請使用 BCP 47 格式。</small></label>
         <label><span>請求逾時（秒）</span><input id="aiTimeoutSeconds" type="number" min="10" max="300" value="60"></label>
         <label><span>最大重試次數</span><input id="aiMaxRetries" type="number" min="0" max="8" value="3"></label>

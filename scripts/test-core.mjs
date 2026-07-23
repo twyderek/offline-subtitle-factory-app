@@ -12,7 +12,7 @@ const appDir = process.env.OFFLINE_SUBTITLE_TEST_APP_DIR
   : sourceAppDir;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-test-'));
 fs.mkdirSync(path.join(dataDir, 'config'), { recursive: true });
-fs.writeFileSync(path.join(dataDir, 'config', 'settings.json'), JSON.stringify({ ai: { language: 'invalid legacy value' } }));
+fs.writeFileSync(path.join(dataDir, 'config', 'settings.json'), JSON.stringify({ appLanguage: 'zh-CN', ai: { language: 'invalid legacy value' } }));
 const port = 19000 + Math.floor(Math.random() * 1000);
 const token = `test-${Date.now()}-${Math.random()}`;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -166,6 +166,7 @@ try {
   const legacySettingsResponse = await api('/api/settings');
   const legacySettings = await legacySettingsResponse.json();
   assert.equal(legacySettings.ai.language, 'zh-TW', '舊設定檔的非法語言值應在啟動時安全回退繁中');
+  assert.equal(legacySettings.appLanguage, 'zh-TW', '舊設定檔的簡體中文介面語言應安全回退繁中');
 
   const providerSettingsModuleResponse = await api('/ai-provider-settings.mjs');
   assert.equal(providerSettingsModuleResponse.status, 200, 'AI provider 表單狀態模組應可由 renderer 載入');
@@ -394,6 +395,28 @@ try {
   const vttText = await vttResponse.text();
   assert.ok(vttText.startsWith('WEBVTT'), 'VTT 內容應包含 WEBVTT header');
   assert.ok(vttText.includes('00:00:00.000 --> 00:00:01.000'), 'VTT 時間格式應使用小數點');
+
+  const bilingualSubtitle = '1\n00:00:00,000 --> 00:00:01,000\n原文測試\n譯文測試\n';
+  const bilingualPackageResponse = await api(`/api/jobs/${created.jobId}/save-review-package`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subtitle: bilingualSubtitle,
+      bilingualCues: [{ id: 1, start: 0, end: 1, sourceText: '原文測試', translatedText: '譯文測試' }],
+      bilingualLayout: 'source-top',
+      settings: { fontFamily: 'Arial', fontSize: 48, fontColor: '#ffffff', outlineColor: '#000000', outlineWidth: 2, subtitlePosition: 'bottom', marginV: 48, bold: false },
+      manifest: { cueCount: 1 },
+    }),
+  });
+  assert.equal(bilingualPackageResponse.status, 200, '雙語校稿包應可保存');
+  assert.ok(fs.existsSync(path.join(dataDir, created.jobId, 'review-output', 'bilingual-cues.json')), '雙語 cue 檔案應保存');
+  const bilingualReviewResponse = await api(`/api/jobs/${created.jobId}/review-data`);
+  const bilingualReview = await bilingualReviewResponse.json();
+  assert.equal(bilingualReview.bilingualCues[0].translatedText, '譯文測試', '雙語資料應可重新載入');
+
+  const bilingualAssResponse = await api(`/api/jobs/${created.jobId}/subtitle?format=ass`);
+  assert.equal(bilingualAssResponse.status, 200, '雙語 ASS 應可下載');
+  assert.match(await bilingualAssResponse.text(), /原文測試\\N譯文測試/, 'ASS 應使用單一換行控制碼');
 
   const reruleForm = new FormData();
   reruleForm.set('ruleFile', new Blob(['NORMALIZE_TERM: 測試 -> 完成\n'], { type: 'text/plain' }), 'review-rule.txt');

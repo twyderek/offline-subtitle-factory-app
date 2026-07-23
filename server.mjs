@@ -9,6 +9,7 @@ import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
+import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
 import { createProvider, isSupportedProvider, listProviderDefinitions, PROVIDER_CAPABILITIES, PROVIDER_DEFAULT_BASE_URLS } from './lib/ai/providers.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from './lib/ai/project-tools.mjs';
 import { canonicalizeLanguageTag, normalizeLanguageTag } from './lib/ai/languages.mjs';
@@ -366,7 +367,7 @@ function loadSettings() {
 
 function normalizeSettings(value = {}) {
   return {
-    appLanguage: ['zh-TW', 'zh-CN', 'en'].includes(value.appLanguage) ? value.appLanguage : defaultSettings.appLanguage,
+    appLanguage: ['zh-TW', 'en'].includes(value.appLanguage) ? value.appLanguage : defaultSettings.appLanguage,
     projectFolder: normalizeFolder(value.projectFolder) || defaultSettings.projectFolder,
     importFolder: normalizeFolder(value.importFolder),
     exportFolder: normalizeFolder(value.exportFolder),
@@ -3402,16 +3403,27 @@ async function handleApi(req, res) {
       if (!subtitlePath) throw new Error('No subtitle is available for this job.');
       const format = String(url.searchParams.get('format') || 'srt').toLowerCase();
       const srtContent = fs.readFileSync(subtitlePath, 'utf8');
+      const bilingualPath = path.join(job.jobRoot, 'review-output', 'bilingual-cues.json');
+      const bilingualLayoutPath = path.join(job.jobRoot, 'review-output', 'bilingual-layout.txt');
+      const bilingualLayout = fs.existsSync(bilingualLayoutPath) && fs.readFileSync(bilingualLayoutPath, 'utf8').trim() === 'translated-top' ? 'translated-top' : 'source-top';
+      const bilingualCues = fs.existsSync(bilingualPath) ? normalizeBilingualCues(JSON.parse(fs.readFileSync(bilingualPath, 'utf8'))) : null;
       const baseName = path.parse(displayFileName(job.config.files.video || jobId)).name || 'subtitle';
       const encodedBaseName = encodeURIComponent(baseName);
       if (format === 'vtt') {
-        const body = buildVttFromSrt(srtContent);
+        const body = bilingualCues ? serializeVtt(bilingualCues, bilingualLayout) : buildVttFromSrt(srtContent);
         res.writeHead(200, {
           'Content-Type': 'text/vtt; charset=utf-8',
           'Content-Disposition': `attachment; filename="subtitle.vtt"; filename*=UTF-8''${encodedBaseName}.vtt`,
           'Content-Length': Buffer.byteLength(body),
         });
         res.end(body);
+        return;
+      }
+      if (format === 'ass' && bilingualCues) {
+        const body = bilingualCues.map((cue) => `Dialogue: 0,${formatAssTime(cue.start)},${formatAssTime(cue.end)},Default,,0,0,0,,${renderCueText(cue, bilingualLayout).replace(/\r?\n/g, '\\N').replace(/[{}]/g, '').replace(/,/g, '，')}`).join('\n');
+        const ass = `[Script Info]\nTitle: Offline Subtitle Factory Bilingual Export\nScriptType: v4.00+\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${body}\n`;
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="subtitle.ass"; filename*=UTF-8''${encodedBaseName}.ass`, 'Content-Length': Buffer.byteLength(ass) });
+        res.end(ass);
         return;
       }
       if (format !== 'srt') throw new Error('Unsupported subtitle format.');
@@ -3506,12 +3518,16 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: '找不到任務影片' });
       return;
     }
+    const bilingualPath = path.join(job.jobRoot, 'review-output', 'bilingual-cues.json');
+    const bilingualCues = fs.existsSync(bilingualPath) ? JSON.parse(fs.readFileSync(bilingualPath, 'utf8')) : parseSrtBilingual(fs.readFileSync(subtitlePath, 'utf8'));
     sendJson(res, 200, {
       jobId,
       videoFileName: displayFileName(path.basename(videoPath)),
       subtitleFileName: displayFileName(path.basename(subtitlePath)),
       videoUrl: jobMediaUrl(job, videoPath),
       subtitle: fs.readFileSync(subtitlePath, 'utf8'),
+      bilingualCues,
+      bilingualLayout: fs.existsSync(path.join(job.jobRoot, 'review-output', 'bilingual-layout.txt')) ? fs.readFileSync(path.join(job.jobRoot, 'review-output', 'bilingual-layout.txt'), 'utf8').trim() : 'source-top',
     });
     return;
   }
@@ -3549,6 +3565,28 @@ async function handleApi(req, res) {
       sendJson(res, 400, { ok: false, error: error.message });
     } finally {
       upload?.cleanup();
+    }
+    return;
+  }
+  if (req.method === 'POST' && action === 'apply-bilingual-rules') {
+    try {
+      const payload = await readJsonBody(req);
+      const cues = normalizeBilingualCues(payload.bilingualCues);
+      if (cues.length === 0 || typeof payload.ruleText !== 'string' || !payload.ruleText.trim()) throw new Error('缺少雙語字幕或規則內容');
+      const rules = parseRules(payload.ruleText);
+      const forceTraditional = rules.forceTraditional ?? job.config.language === 'zh-TW';
+      const sourceSrt = serializeSrt(cues.map((cue) => ({ ...cue, translatedText: cue.sourceText })), 'source-top');
+      const translatedSrt = serializeSrt(cues.map((cue) => ({ ...cue, sourceText: cue.translatedText })), 'source-top');
+      const sourceResult = applyRulesToSrt(sourceSrt, rules, { forceTraditional });
+      const translatedResult = applyRulesToSrt(translatedSrt, rules, { forceTraditional });
+      const sourceCues = parseSrtBilingual(sourceResult.cleanedSrt);
+      const translatedCues = parseSrtBilingual(translatedResult.cleanedSrt);
+      if (sourceCues.length !== cues.length || translatedCues.length !== cues.length) throw new Error('規則處理改變了雙語 cue 數量');
+      const bilingualCues = cues.map((cue, index) => ({ ...cue, sourceText: sourceCues[index].sourceText, translatedText: translatedCues[index].sourceText, text: translatedCues[index].sourceText }));
+      const subtitle = serializeSrt(bilingualCues, payload.layout === 'translated-top' ? 'translated-top' : 'source-top');
+      sendJson(res, 200, { ok: true, subtitle, bilingualCues, totalCues: cues.length, changedCues: bilingualCues.filter((cue, index) => cue.sourceText !== cues[index].sourceText || cue.translatedText !== cues[index].translatedText).length });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
     }
     return;
   }
@@ -3660,9 +3698,17 @@ async function handleApi(req, res) {
       const reviewOutputDir = path.join(job.jobRoot, 'review-output');
       fs.mkdirSync(reviewOutputDir, { recursive: true });
       const subtitlePath = path.join(reviewOutputDir, 'reviewed.srt');
+      const bilingualPath = path.join(reviewOutputDir, 'bilingual-cues.json');
+      const layoutPath = path.join(reviewOutputDir, 'bilingual-layout.txt');
       fs.writeFileSync(subtitlePath, payload.subtitle.replace(/\r?\n/g, '\r\n'), 'utf8');
-      updateJob(job, { files: { ...(job.status.files || {}), reviewedSrt: subtitlePath } }, '已儲存校閱後字幕');
-      sendJson(res, 200, { ok: true, files: { subtitle: relativeToApp(subtitlePath) } });
+      const files = { subtitle: relativeToApp(subtitlePath) };
+      if (Array.isArray(payload.bilingualCues)) {
+        writeJson(bilingualPath, normalizeBilingualCues(payload.bilingualCues));
+        fs.writeFileSync(layoutPath, payload.bilingualLayout === 'translated-top' ? 'translated-top\n' : 'source-top\n', 'utf8');
+        files.bilingualCues = relativeToApp(bilingualPath);
+      }
+      updateJob(job, { files: { ...(job.status.files || {}), reviewedSrt: subtitlePath, ...(files.bilingualCues ? { bilingualCues: bilingualPath } : {}) } }, '已儲存校閱後字幕');
+      sendJson(res, 200, { ok: true, files });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message });
     }
@@ -3676,10 +3722,21 @@ async function handleApi(req, res) {
       const reviewOutputDir = path.join(job.jobRoot, 'review-output');
       fs.mkdirSync(reviewOutputDir, { recursive: true });
       const subtitlePath = path.join(reviewOutputDir, 'reviewed.srt');
+      const bilingualPath = path.join(reviewOutputDir, 'bilingual-cues.json');
+      const layoutPath = path.join(reviewOutputDir, 'bilingual-layout.txt');
       const settingsPath = path.join(reviewOutputDir, 'burn-settings.json');
       const stylePath = path.join(reviewOutputDir, 'burn-settings.ffmpeg-style.txt');
       const manifestPath = path.join(reviewOutputDir, 'export-manifest.json');
       const settings = normalizeBurnSettings(payload.settings);
+      const bilingualCues = Array.isArray(payload.bilingualCues) ? normalizeBilingualCues(payload.bilingualCues) : null;
+      if (bilingualCues) {
+        const serializedCues = parseSrtBilingual(payload.subtitle);
+        if (serializedCues.length !== bilingualCues.length) throw new Error('雙語字幕 cue 數量不一致');
+        serializedCues.forEach((cue, index) => {
+          const bilingual = bilingualCues[index];
+          if (Math.abs(cue.start - bilingual.start) > 0.001 || Math.abs(cue.end - bilingual.end) > 0.001) throw new Error(`雙語字幕第 ${index + 1} 段時間碼不一致`);
+        });
+      }
       const manifest = {
         ...(payload.manifest || {}),
         savedAt: new Date().toISOString(),
@@ -3688,14 +3745,19 @@ async function handleApi(req, res) {
           settings: relativeToApp(settingsPath),
           ffmpegStyle: relativeToApp(stylePath),
           manifest: relativeToApp(manifestPath),
+          ...(bilingualCues ? { bilingualCues: relativeToApp(bilingualPath) } : {}),
         },
       };
       fs.writeFileSync(subtitlePath, payload.subtitle.replace(/\r?\n/g, '\r\n'), 'utf8');
+      if (bilingualCues) {
+        writeJson(bilingualPath, bilingualCues);
+        fs.writeFileSync(layoutPath, payload.bilingualLayout === 'translated-top' ? 'translated-top\n' : 'source-top\n', 'utf8');
+      }
       writeJson(settingsPath, settings);
       fs.writeFileSync(stylePath, `${buildFfmpegStyle(settings)}\n`, 'utf8');
       writeJson(manifestPath, manifest);
       updateJob(job, {
-        files: { ...(job.status.files || {}), reviewedSrt: subtitlePath, burnSettings: settingsPath, ffmpegStyle: stylePath, manifest: manifestPath },
+        files: { ...(job.status.files || {}), reviewedSrt: subtitlePath, ...(bilingualCues ? { bilingualCues: bilingualPath } : {}), burnSettings: settingsPath, ffmpegStyle: stylePath, manifest: manifestPath },
       }, '已儲存完整校稿包');
       sendJson(res, 200, { ok: true, folder: relativeToApp(reviewOutputDir), files: manifest.files });
     } catch (error) {
