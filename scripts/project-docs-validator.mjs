@@ -23,7 +23,7 @@ export function validateReviewReport(review, reviewPath) {
   });
   const summary = review.match(/## 綜合判定\n([\s\S]*?)(?=\n## 審查代理聲明)/)?.[1] ?? '';
   if (!/- 結論：(通過|有條件通過|不通過)/.test(summary)) errors.push(`${reviewPath}: 缺少有效綜合結論`);
-  const quote = summary.match(/- 可逐字引用的完整結論句：\*\*(.+)\*\*/)?.[1].trim() ?? '';
+  const quote = summary.match(/- 可逐字引用(?:的)?完整結論句：\*\*(.+)\*\*/)?.[1].trim() ?? '';
   if (quote.length < 20) errors.push(`${reviewPath}: 缺少可逐字引用的完整結論句`);
   if (!/- 阻擋問題（若有）：/.test(summary)) errors.push(`${reviewPath}: 缺少阻擋問題欄位`);
   const declaration = '本審查代理除建立本報告外，僅執行讀取、指令執行與驗證，未修改任何其他專案檔案。';
@@ -82,8 +82,9 @@ export function validateLatestEntry(latest, reviewContent) {
     }
     const scope = auth.match(/^\s*- 核准範圍[^：]*：(.*)$/m)?.[1] ?? '';
     const normalizedScope = scope.replace(/[\s，。；、,.!！]/g, '');
-    if (/(拒絕|不同意|未核准|不接受)/.test(normalizedScope) || !/(同意|核准|接受)/.test(normalizedScope) || !/(打包|發布)/.test(normalizedScope)) {
-      errors.push('發布授權範圍必須明確記錄同意／核准／接受打包或發布，不能只記錄需求動作');
+    const explicitlyAuthorizedAction = /(同意|核准|接受)[^；。;.]{0,60}(打包|發布|提交|推送|共享)/.test(scope);
+    if (/(拒絕|不同意|未核准|不接受)/.test(normalizedScope) || !explicitlyAuthorizedAction) {
+      errors.push('發布授權範圍必須明確記錄同意／核准／接受打包、發布、提交、推送或共享，不能只記錄需求動作');
     }
     for (const risk of ['未簽章', '未公證', '未實機測試']) {
       if (latest.includes(risk) && (!scope.includes(risk) || /(拒絕|不同意|未核准|不接受)/.test(scope))) errors.push(`發布授權範圍未涵蓋條目揭露的風險「${risk}」`);

@@ -46,7 +46,7 @@
 
 ## 2026-07-23 — 將專案治理規範同步至 GitHub 共享
 
-- 狀態：完成
+- 狀態：進行中
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者明確要求將專案規範與相關資料同步到 GitHub 共享。
 - 關聯需求／缺陷：`NFR-006`、`NFR-008`
@@ -59,13 +59,23 @@
 - 驗證計畫：`npm run docs:check`、`npm run check`、`git diff --check`、敏感檔名／常見秘密模式掃描、staged diff 核對、push 後 remote SHA／PR head 核對，最後由獨立代理六面向審查同步結果。
 - 實際修改：以明確檔案清單暫存並提交本輪治理規範、常設授權、preflight／驗證工具與測試、三輪獨立審查報告；排除無關的 `2026-07-23-github-sync-audit-round1.md`；建立 commit `e81aba6` 並推送至 `origin/codex/release-v0.46.0`。嘗試透過 GitHub 連接器建立 Draft PR，但 integration 回覆 HTTP 403；本機 `gh` token 亦失效，未偽稱 PR 已建立。
 - 開發驗證結果：`npm run check`、`npm run docs:check`、`git diff --check`、staged diff check、敏感檔名及常見 GitHub／OpenAI／Google token、私鑰、簽章密碼模式掃描均通過；`git ls-remote` 與 push 證明 Git remote 憑證有效，遠端分支已由 `142b85d` 前進至 `e81aba6`。
-- 獨立審查是否執行：是（round1 通過）
+- 獨立審查是否執行：是（round1 通過；結案 validator 相容修正後須 round2）
 - 獨立審查結論：
   - 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round1.md`
   - 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round1 獨立審查結論為通過：commit `e81aba6` 的 19 檔範圍符合治理同步目標，無關的 `github-sync-audit-round1` 未納入提交，常見敏感檔名與秘密模式掃描無命中，完整 `npm run check` 通過，且即時 `git ls-remote` 證實 GitHub 遠端分支 SHA 與 local HEAD 均為 `e81aba6`，因此使用者核心需求「同步到 GitHub 共享」已由分支 push 達成；Draft PR 因 integration 403 紀錄與本機失效 token 尚未建立，屬可發現性與後續審閱流程的剩餘風險，不是本次核心共享的阻擋問題。**
   - 阻擋問題：無。
   - 條件：不適用。
   - 條件是否已被需求方接受：不適用。
+  - round1 後續處理：`docs:check:final` 發現審查標題同義格式及 GitHub 提交／推送授權動詞未被 validator 接受；主要代理未修改 round1 報告，已補相容規則與 fixture，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round2 獨立審查結論為不通過：round1 的「可逐字引用完整結論句」同義標題已能正確接受，既有籠統需求、否定與混合拒絕案例也未回歸，但 GitHub 外部共享授權仍只以同意詞與提交／推送／共享動作詞共現判斷，會誤接受「同意記錄需求；使用者要求推送治理資料」這類同意受詞無關的案例，因此明確核准外部動作的治理門檻與負向測試覆蓋尚未完成。**
+  - round2 處理狀態：已要求同意／核准／接受與外部動作出現在同一子句內，並新增無關同意＋要求／請求提交／推送／共享負例，待 round3 複審。
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round3.md`
+  - round3 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round3 獨立審查結論為不通過：同意／核准／接受與外部動作現在已限制於 60 字內且不跨中文全形分號或句號，round2 指定負例、既有正負 fixture 與完整 `npm run check` 均通過，但相同規則仍會跨越 ASCII `;` 與 `.`，誤接受「同意記錄需求; 使用者要求推送治理資料」等語意分離案例，因此發布授權子句邊界與等價標點負向覆蓋尚未完整。**
+  - round3 處理狀態：已將半形 `;`、`.` 納入不可跨越的子句邊界，新增兩個等價負例，待 round4 複審。
+  - round4 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round4.md`
+  - round4 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round4 獨立審查結論為通過：授權 validator 現已把同意／核准／接受與外部動作限制在同一個 60 字內子句，且中文全形與 ASCII 的 `；。;.` 均不可跨越，四個語意分離負例、直接發布與 GitHub 共享正例、既有否定／混合拒絕案例、長度邊界及完整 `npm run check` 全部符合預期，round2 與 round3 的發布授權誤接受阻擋已解除。**
+  - round4 阻擋問題：無。
 - 發布授權：
   - 是否需要：是（外部 GitHub 共享，不是安裝包發布）
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
