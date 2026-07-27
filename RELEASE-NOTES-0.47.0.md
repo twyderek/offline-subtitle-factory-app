@@ -16,3 +16,12 @@
 - `npm run check`：通過。
 - `npm run docs:check:final`：通過於發布條目完成後。
 - 獨立複審：rule-score fallback 與安全回落有條件通過；不代表 engine metadata 或跨平台實機完整驗收。
+
+## Windows 下載
+
+- Windows x64 package：GitHub Actions workflow run [30231912997](https://github.com/twyderek/offline-subtitle-factory-app/actions/runs/30231912997)
+- Artifact：`offline-subtitle-factory-0.47.0-windows-x64`
+- Artifact ID：`8640388049`
+- Artifact size：433,249,293 bytes
+- Artifact SHA-256：`d5bcf7dae361c11955e4d1c1054a09b6d2203280c064da89c1fc4a77d285c8d6`
+- Windows 安裝包未 Authenticode 簽章；請登入 GitHub 後從該 workflow 的 Artifacts 下載。
