@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { attachWhisperQuality, parseWhisperQualityJson } from '../lib/whisper-quality.mjs';
+
+const parsed = parseWhisperQualityJson({ transcription: [{ id: 1, offsets: { from: 0, to: 1000 }, confidence: 0.72, no_speech_prob: 0.1 }] });
+assert.deepEqual(parsed, [{ index: 0, id: 1, start: 0, end: 1, confidence: 0.72, noSpeechProbability: 0.1 }]);
+const attached = attachWhisperQuality([{ id: 1, start: 0, end: 1, text: '測試' }], parsed);
+assert.equal(attached.matched, true);
+assert.equal(attached.cues[0].confidence, 0.72);
+assert.equal(attached.cues[0].noSpeechProbability, 0.1);
+assert.equal(attachWhisperQuality([{ start: 0, end: 1 }], [{ start: 0, end: 2 }]).matched, false);
+assert.equal(attachWhisperQuality([{ start: 0, end: 1 }], []).reason, 'count-mismatch');
+assert.equal(parseWhisperQualityJson({ transcription: [{ offsets: { from: 0, to: 1000 }, confidence: null }] })[0].confidence, undefined);
+assert.deepEqual(parseWhisperQualityJson({ transcription: [], segments: [{ timestamps: { from: '00:00:01,000', to: '00:00:02,500' }, confidence: 1.2 }] }), [{ index: 0, start: 1, end: 2.5 }], '空 transcription 應回退 segments 且拒絕超界 confidence');
+assert.equal(parseWhisperQualityJson({ transcription: [{ offsets: { from: 0, to: 1000 }, confidence: -0.1 }] }).length, 1, '無效 quality 不應使 segment 消失');
+assert.equal(attachWhisperQuality([{ id: 1, start: 0, end: 1 }], [{ id: 2, start: 0, end: 1 }]).reason, 'timing-mismatch', 'cue ID 不一致不得靜默對應');
+assert.equal(attachWhisperQuality([{ id: 1, start: 0, end: 1 }], [{ start: 0, end: 1, confidence: 0.2 }]).matched, false, '缺少 segment ID 不得只靠時間對應');
+const standardSegments = parseWhisperQualityJson({ segments: [{ id: 1, start: 0, end: 1, confidence: 0.4 }] });
+assert.equal(standardSegments[0].id, 1);
+assert.equal(standardSegments[0].start, 0);
+assert.equal(standardSegments[0].confidence, 0.4);
+const existingPackage = attachWhisperQuality([{ id: 1, start: 0, end: 1, sourceText: '原文', translatedText: '譯文' }], [{ id: 1, start: 0, end: 1, confidence: 0.2, noSpeechProbability: 0.8 }]);
+assert.equal(existingPackage.cues[0].translatedText, '譯文');
+assert.equal(existingPackage.cues[0].confidence, 0.2);
+console.log('Whisper quality metadata 測試通過：JSON 解析、時間對應、缺失與不一致回落');

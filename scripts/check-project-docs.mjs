@@ -57,8 +57,9 @@ if (!/^## \d{4}-\d{2}-\d{2} — /m.test(changeLog)) {
 }
 
 if (process.argv.includes('--final')) {
-  const entries = [...changeLog.matchAll(/^## \d{4}-\d{2}-\d{2} — .*$(?:\n(?!## ).*)*/gm)];
-  const latest = entries[0]?.[0] || '';
+  const entries = [...changeLog.matchAll(/^## (\d{4}-\d{2}-\d{2}) — .*$(?:\n(?!## ).*)*/gm)];
+  const latestDate = entries.reduce((max, entry) => entry[1] > max ? entry[1] : max, '');
+  const latest = [...entries].reverse().find((entry) => entry[1] === latestDate)?.[0] || '';
   for (const marker of ['- 變更等級：', '- 獨立審查是否執行：', '- 發布授權：']) {
     if (!latest.includes(marker)) errors.push(`最新工作紀錄缺少必要欄位「${marker.slice(2)}」`);
   }

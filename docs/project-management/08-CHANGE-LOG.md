@@ -44,6 +44,119 @@
 
 ---
 
+## 2026-07-27 — 0.47 低可信片段工作流
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求繼續完成專案進度推到 0.47。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-006`
+- 變更等級：中
+- 執行前已讀：`project:preflight -- --type=development` 列出的固定核心與任務路由（是）
+- 目標與成功條件：保存可用品質指標而不偽造 confidence；以可重現規則標示低可信、過長、速度過快、重複文字與疑似專有名詞；校閱頁可依問題篩選與批次選取；AI 請求維持只含字幕文字與前後文，不含影音。
+- 不在範圍：本輪不新增音訊上傳、不宣稱完成 Windows／macOS 實機驗收、不補造 Whisper.cpp 尚未提供的 confidence。
+- 預計影響檔案／模組：`lib/subtitle-quality.mjs`、`public/review.js`、`public/review.html`、相關測試、需求／設計／狀態文件。
+- 風險與回復方式：風險分數是輔助排序，不取代人工判斷；品質欄位缺失時顯示「未提供」並改用規則分數。可由單一 commit 差異回復。
+- 驗證計畫：品質規則單元測試、JavaScript 語法、完整 `npm run check`、文件 final check、獨立六面向審查。
+- 實際修改：新增單一來源字幕品質評估器與 Node 回歸測試；正規化保存有效 confidence／no-speech 欄位；校閱頁新增品質篩選、風險 chip 與「只處理品質篩選結果」AI scope；更新 FR-020、0.47 設計與目前狀態。
+- 開發驗證結果：升級權限執行 `npm run check` 通過；`git diff --check` 通過；新增字幕品質測試通過；受限 sandbox 首次 check 的 listen EPERM 已以升級權限重跑並通過。
+- 獨立審查是否執行：是（round1 不通過後已修正，round2 複審為有條件通過）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-low-confidence-round1.md`
+  - 判定（逐字引用審查檔案結論句）：round1 不通過；詳情由 round2 複審取代。
+  - 條件（若為有條件通過）：維持未接入 Whisper.cpp metadata、未完成跨平台 renderer／實機與重啟驗證的風險揭露，後續補做並另行複審。
+  - 條件是否已被需求方接受：是（本次需求為推進 0.47 開發里程碑，未要求發布；上述未覆蓋項目保留於遺留風險）
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-low-confidence-round3.md`
+  - round3 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立複審結論為有條件通過：0.47 品質評估單一來源、缺失指標不偽造、有效品質欄位保存、品質篩選／AI scope、HTML escape、完整 `npm run check` 與技術風險揭露均已驗證；但 `docs:check:final` 仍因 round2 審查報告缺少 validator 要求的完整結論句／阻擋問題欄位／聲明而失敗，且 Whisper.cpp quality metadata、正式邊界／保存重載／quality scope 測試與跨平台 runtime 仍未覆蓋，因此尚不可宣稱 0.47 完整驗收完成。**
+  - round3 條件是否已被需求方接受：是（本次需求為推進 0.47 開發里程碑，未要求發布；上述未覆蓋項目保留於遺留風險）
+- 發布授權：
+  - 是否需要：否
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本輪不打包、不部署、不發布。
+- 遺留風險與後續事項：Whisper.cpp 實際品質 metadata 尚未由轉錄流程產出／映射，影響為目前品質篩選主要使用 rule-score；需補 mock／端到端欄位映射與跨平台 runtime 實測。Electron renderer、Windows／macOS 實機、保存重載與真實 Whisper 流程仍未驗證，後續應補測並以 round3 或新工作條目追蹤；本輪不發布。
+
+## 2026-07-27 — 補強 0.47 品質流程正式回歸
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47 round3 審查條件，補齊品質欄位邊界、保存重載與 quality AI scope 的正式回歸證據。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：正式測試涵蓋缺失品質值、雙語保存／載入、品質篩選 AI request 範圍與隱私邊界；不偽造 Whisper.cpp 尚未提供的 engine metadata；完成 `npm run check`、`docs:check:final` 與獨立審查。
+- 不在範圍：本輪不發布、不打包；不在沒有真實來源證據下宣稱 Whisper.cpp metadata 已接入；不執行跨平台實機驗收。
+- 預計影響檔案／模組：`public/ai-scope.mjs`、`public/review.js`、`scripts/test-subtitle-quality.mjs`、`scripts/test-bilingual-subtitles.mjs`、`scripts/test-review-ui.mjs`、`scripts/test-core.mjs`、治理工作紀錄與審查報告。
+- 風險與回復方式：只新增回歸測試與必要文件；若發現產品行為缺陷，保留原始變更並以最小修正處理，可由本輪差異逐檔回復。
+- 驗證計畫：品質單元、雙語保存／載入、review UI scope 契約、完整 `npm run check`、`docs:check:final`、獨立六面向審查。
+- 實際修改：將缺失值（null／undefined／空字串／空白／false／NaN／Infinity）、有效品質欄位保存與 JSON 重載、snake_case no-speech 正規化、品質篩選全部／問題範圍及 AI scope 隱私契約加入正式回歸測試；新增 `public/ai-scope.mjs` 供實際 payload 建立與測試共用；核心 API fixture 加入 confidence／no-speech 保存／重載斷言；清理 Node 端死碼註解；未修改 Whisper.cpp 轉錄參數或宣稱 engine metadata 已接入。
+- 開發驗證結果：新增與既有測試通過；受限環境因 loopback `EPERM` 無法啟動核心測試，經允許於受限環境外重跑 `npm run check` 通過；`npm run docs:check:final` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：有條件通過；報告指出 Whisper.cpp metadata、跨平台／Electron runtime 仍未驗證，並要求 API fixture 與實際 AI payload 測試。本輪已補上後兩項，保留原報告不覆寫；前述 runtime 缺口仍未解除。
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-quality-regression-round1.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 2026-07-27 0.47 品質流程正式回歸獨立審查結論為有條件通過：品質評估單一來源、缺失值不偽造、有效品質欄位正規化、文件 final gate、完整 `npm run check` 與本機校閱頁控制均已驗證；但 Whisper.cpp quality metadata 尚未由實際轉錄流程產出／映射，品質欄位尚未以 API 保存／重新載入專門 fixture 驗證，quality AI scope 尚未以含 cue 的實際 request payload 測試，且 Electron／Windows／macOS／真實 Whisper runtime 尚未驗收，因此不得宣稱 0.47 已完成完整驗收或發布核准。**
+  - 後續處理：已補 API 保存／重載 fixture、實際 quality AI payload 單元測試、`ai-scope` 共用模組與死碼清理；Whisper.cpp metadata、Electron／Windows／macOS／真實 runtime 仍需下一輪工作與複審。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：Whisper.cpp quality metadata 仍未產出／映射；Electron、Windows／macOS 實機與真實 Whisper 流程仍未驗證。quality filter 預設為 `all` 的產品語意仍待確認。上述項目完成後，另以新工作條目追蹤 metadata 接入與跨平台驗收。
+
+## 2026-07-27 — 接入 Whisper.cpp 品質 metadata 通道
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47 獨立審查，完成 Whisper.cpp 可取得 quality metadata 的輸出、解析與 cue 對應。
+- 關聯需求／缺陷：`FR-003`、`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：使用已驗證的 Whisper.cpp JSON full output；解析有效 confidence／no-speech 欄位並依 segment 時間／順序對應 SRT cue；metadata 缺失、格式錯誤或數量不一致時保留 SRT 並回落 rule-score，不阻斷轉錄完成。
+- 不在範圍：本輪不打包、不發布、不宣稱已完成 Windows／macOS／Electron 實機驗收；不以未知欄位推導或偽造 confidence。
+- 預計影響檔案／模組：`lib/whisper-quality.mjs`、`server.mjs`、`scripts/test-whisper-quality.mjs`、需求／設計／目前狀態／測試稽核與審查報告。
+- 風險與回復方式：CLI JSON schema 可能因版本或平台不同而缺欄位；採 schema-tolerant parser、嚴格時間／數量保護與可回溯 metadata 檔案，解析失敗不覆蓋原始 SRT。
+- 驗證計畫：CLI `--help`／實際 JSON smoke、parser 單元與負例、核心轉錄整合測試、完整 `npm run check`、獨立六面向審查。
+- 實際修改：新增 `lib/whisper-quality.mjs` 容錯解析 Whisper.cpp `transcription`／`segments` JSON、讀取明示 confidence／no-speech 欄位並依 SRT segment 時間與數量嚴格對應；Whisper.cpp 呼叫加入 `-oj`／`-ojf`；成功對應時保存 `working/quality-metadata.json`，review-data 載入品質欄位；新增 parser 正負例回歸測試與設計／狀態文件說明。
+- 開發驗證結果：`whisper-cli --help` 確認內建 CLI 支援 `--output-json`／`--output-json-full`；parser、負例、JavaScript 語法測試通過。以內建 tiny runtime 執行 1 秒靜音 JSON smoke 時 process exit 139，未產生 JSON；此 runtime／平台問題列為未完成驗收，不以 parser 測試替代實際轉錄證據。
+- 獨立審查是否執行：待執行（本輪實作完成後需獨立審查 parser、server fallback、runtime 失敗揭露與測試）。
+- 獨立審查結論：待執行；本輪不得視為 0.47 完整驗收或發布核准。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+
+## 2026-07-27 — 修正 Whisper quality metadata round3 阻擋
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：依 round3 獨立複審修正 `/start` stale metadata、segment ID 對應與標準 `segments[].start/end` schema。
+- 關聯需求／缺陷：`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：所有 start 路徑清除舊 quality metadata；parser 保留並嚴格比對 segment ID；支援標準 segments 時間欄位；完成回歸與獨立複審。
+- 不在範圍：不偽造目前 runtime 不提供的 confidence／no-speech；不宣稱跨平台實機或 Metal exit 139 已解決。
+- 預計影響檔案／模組：`server.mjs`、`lib/whisper-quality.mjs`、`scripts/test-whisper-quality.mjs`、治理審查報告。
+- 驗證計畫：parser、核心 API、完整 `npm run check`、`docs:check:final`、獨立 round4 複審。
+- 實際修改：在 `runJob` 與 `runWhisper` 清除 stale metadata；parser 保留 segment ID、拒絕缺失／錯誤 ID、壞時間／超界 quality，支援 `segments[].start/end`；新增 parser 與核心 `/start` stale metadata 回歸測試。
+- 開發驗證結果：parser 與完整 `npm run check` 通過；核心測試確認既有 SRT `/start` 不會沿用 stale quality metadata；round5 複審後完成本條目文件結案。
+- 獨立審查是否執行：是（round1–round5）。
+- 獨立審查結論：有條件通過；可將 0.47 rule-score fallback 與 metadata 安全回落視為條件完成並進入後續發布審查，但不代表 engine metadata 完成或發布核准。
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-whisper-quality-metadata-round5.md`
+  - 判定（逐字引用審查檔案判定範圍）：**0.47 的 rule-score fallback、品質 metadata 安全回落、round4 兩項阻擋可視為條件完成，並可進入後續發布審查；這不是 0.47 發布核准，也不是 engine metadata 完成判定。**
+  - 條件：完成本條目文件 final gate；發布時揭露 engine quality 未提供、rule-score fallback、Metal exit 139、跨平台／Electron／Python fallback 未驗收，並另行完成版本／資產／SHA／授權核對。
+  - 條件是否已被需求方接受：是（本次使用者要求完成並發布；發布風險仍須在發布條目逐項記錄）。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：目前內建 Whisper.cpp 真實 JSON 沒有 segment-level quality，Metal 路徑仍可能 exit 139；rule-score fallback 可用但 engine metadata 仍屬條件風險。發布前需完成 0.47 版本／資產／SHA／授權與發布後下載核對。
+
+## 2026-07-27 — 0.47.0 條件發布
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求完成並發布 0.47。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 目標與成功條件：將已通過條件複審的 0.47 rule-score fallback、品質篩選、品質欄位安全保存與 Whisper metadata 安全回落定版為 0.47.0；完成版本、Release notes、macOS／Windows 資產、runtime／封裝／SHA 核對、獨立發布審查與發布後資產核對。
+- 不在範圍：不宣稱內建 Whisper.cpp 已提供 segment-level confidence／no-speech；不隱瞞 Metal exit 139；不宣稱 Windows／macOS／Electron 實機驗收已完成；不使用未核對資產。
+- 預計影響檔案／模組：版本檔、`RELEASE-NOTES-0.47.0.md`、README／package build 設定、workflow、治理狀態、macOS／Windows 發布資產與 GitHub Release。
+- 風險與回復方式：採條件發布；若版本、封裝、SHA、簽章狀態、資產或 Release metadata 不一致立即停止；已發布後發現核心缺陷則停止導流並發布可追溯修正版。
+- 驗證計畫：`npm run check`、`docs:check:final`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA、獨立發布審查、發布後 GitHub digest／下載核對。
+- 發布授權：需要；核准人／角色：需求提出者／產品負責人（本次使用者要求完成並發布）；核准範圍：接受本條明列的 rule-score fallback、Whisper engine quality 未提供、Metal exit 139、未完成跨平台／Electron 實機驗收及未簽章／未公證風險，僅限 0.47.0 定義與資產核對通過後發布；不授權以未核對資產或未完成獨立發布審查直接發布。
+
+---
+
 ## 2026-07-23 — 將專案治理規範同步至 GitHub 共享
 
 - 狀態：完成

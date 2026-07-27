@@ -60,6 +60,14 @@ Electron 主行程
 
 校閱頁以兩個 textarea 分別編輯原文與譯文，排列設定只影響預覽與輸出，不改變 cue 數量、ID 或時間碼。SRT／VTT 使用雙行 cue 文字；ASS 使用 `\\N` 換行並清除可能破壞 ASS 結構的 `{}`，硬字幕沿用同一份 ASS。
 
+### 0.47 品質風險設計
+
+`lib/subtitle-quality.mjs` 與 `public/subtitle-quality.mjs` 對 cue 的 `confidence`、`noSpeechProbability`／`no_speech_prob`、時間長度與文字內容做純函式評估。可取得引擎指標時來源標示為 `engine-metrics`；指標缺失時來源為 `rule-score`，不得填入或推導假的 confidence。規則包含低 confidence、高 no-speech、過長、閱讀速度過快、重複文字與疑似專有名詞，輸出可重現的 score 與 reasons。
+
+Whisper.cpp 轉錄會要求 `--output-json` 與 `--output-json-full`，由 `lib/whisper-quality.mjs` 解析可取得的 segment quality 欄位，並以 segment 數量、開始／結束時間及容許誤差對應 SRT cue。JSON 缺失、格式錯誤、數量或時間不一致時不阻斷 SRT 完成，也不寫入偽造品質欄位；只有成功對應且包含有效 engine 欄位時才保存 `working/quality-metadata.json`，供校閱資料載入。
+
+校閱頁的品質篩選只改變顯示與批次選取範圍，不修改 cue；AI request 仍從文字欄位建立，不讀取或上傳影片／音訊。高可信 cue 不會因篩選流程自動改寫，所有 AI 變更仍須人工接受。
+
 ### 發布流程
 
 來源與版本確認 → runtime 準備及 hash 驗證 → `npm run check` → 平台打包 → 封裝內容／簽章／SHA 驗證 → 獨立審查 → Release notes 與資產上傳 → 發布後 digest 與下載核對。

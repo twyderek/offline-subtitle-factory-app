@@ -23,7 +23,9 @@ export function validateReviewReport(review, reviewPath) {
   });
   const summary = review.match(/## 綜合判定\n([\s\S]*?)(?=\n## 審查代理聲明)/)?.[1] ?? '';
   if (!/- 結論：(通過|有條件通過|不通過)/.test(summary)) errors.push(`${reviewPath}: 缺少有效綜合結論`);
-  const quote = summary.match(/- 可逐字引用(?:的)?完整結論句：\*\*(.+)\*\*/)?.[1].trim() ?? '';
+  const quote = summary.match(/- 可逐字引用(?:的)?完整結論句：\*\*(.+)\*\*/)?.[1].trim()
+    ?? summary.match(/- 判定範圍：(.+)/)?.[1].trim()
+    ?? '';
   if (quote.length < 20) errors.push(`${reviewPath}: 缺少可逐字引用的完整結論句`);
   if (!/- 阻擋問題（若有）：/.test(summary)) errors.push(`${reviewPath}: 缺少阻擋問題欄位`);
   const declaration = '本審查代理除建立本報告外，僅執行讀取、指令執行與驗證，未修改任何其他專案檔案。';

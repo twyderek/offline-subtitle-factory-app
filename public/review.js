@@ -1,5 +1,7 @@
 import { providerProfileSnapshot, runProviderConnectionTest } from './ai-provider-settings.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, renderCueText, serializeSrt, serializeVtt } from './bilingual-subtitles.mjs';
+import { assessSubtitleCue, filterQualityCues } from './subtitle-quality.mjs';
+import { selectAiCues } from './ai-scope.mjs';
 
 // API base URL — Web/Electron 都使用目前頁面的本機伺服器
 const API_BASE = window.location.origin.startsWith('http')
@@ -52,13 +54,14 @@ const state = {
   aiSessionId: '',
   aiProviderProfileSnapshot: null,
   bilingualLayout: 'source-top',
+  qualityFilter: 'all',
 };
 
 const ids = [
   'reviewVideo', 'reviewStatus', 'cueList', 'currentText', 'currentMeta', 'currentRuleState',
   'cueCount', 'changedCount', 'warningCount', 'clock', 'burnCaption', 'burnOverlay',
   'proofreadPanel', 'burnPanel', 'stageProofread', 'stageBurn', 'cueSearch', 'commandBox',
-  'timeAdjustSeconds', 'shortenAllCues', 'extendAllCues', 'followCue',
+  'timeAdjustSeconds', 'shortenAllCues', 'extendAllCues', 'followCue', 'qualityFilter',
   'reviewTimeline', 'timelineRuler', 'reviewWaveform', 'waveformStatus', 'timelinePlayhead',
 ];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -69,6 +72,7 @@ const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gem
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
 document.getElementById('reviewRuleFile').addEventListener('change', handleRuleFile);
+document.getElementById('qualityFilter').addEventListener('change', (event) => { state.qualityFilter = event.target.value; renderCueList(); updateStats(); });
 document.getElementById('loadProjectPreset').addEventListener('click', loadProjectPreset);
 document.getElementById('openTrim').addEventListener('click', () => {
   location.href = appUrl(`/trim/${encodeURIComponent(jobId)}`);
@@ -455,12 +459,7 @@ function setAiRunning(running) {
 
 function aiRequestCues() {
   const scope = document.getElementById('aiScope').value;
-  const source = scope === 'selected'
-    ? state.cues.filter((cue) => state.selectedCueIds.has(String(cue.id)))
-    : scope === 'search'
-      ? state.cues.filter((cue) => cue.text.toLowerCase().includes(state.search.toLowerCase()))
-      : scope === 'current' ? [state.cues[state.activeIndex]].filter(Boolean) : state.cues;
-  return source.map((cue) => ({ id: cue.id, start: cue.startRaw, end: cue.endRaw, text: cue.translatedText || cue.text, sourceText: cue.sourceText, translatedText: cue.translatedText || cue.text }));
+  return selectAiCues({ cues: state.cues, scope, selectedCueIds: state.selectedCueIds, search: state.search, qualityFilter: state.qualityFilter, activeIndex: state.activeIndex });
 }
 
 function updateAiScopeEstimate() {
@@ -890,8 +889,11 @@ function renderCueList() {
   el.cueList.innerHTML = '';
   const fragment = document.createDocumentFragment();
   const query = state.search.toLowerCase();
+  const qualityCues = new Set(filterQualityCues(state.cues, state.qualityFilter).map((cue) => cue.id));
   state.cues.forEach((cue, index) => {
     if (query && !`${cue.sourceText} ${cue.translatedText}`.toLowerCase().includes(query)) return;
+    if (!qualityCues.has(cue.id)) return;
+    const quality = assessSubtitleCue(cue);
     const item = document.createElement('article');
     item.className = 'review-cue';
     item.dataset.index = String(index);
@@ -904,7 +906,7 @@ function renderCueList() {
       <div class="review-cue-content">
         <div class="review-cue-meta">
           <div class="review-time">${cue.startRaw} <span>→</span> ${cue.endRaw}</div>
-          <span class="${hasRuleWarning(cue.translatedText) ? 'review-chip warn' : 'review-chip'}">${hasRuleWarning(cue.translatedText) ? '待檢查' : '已確認'}</span>
+          <span class="${quality.reasons.length || hasRuleWarning(cue.translatedText) ? 'review-chip warn' : 'review-chip'}">${quality.reasons.length ? escapeHtml(`風險 ${quality.score} · ${quality.reasons.join('、')}`) : (hasRuleWarning(cue.translatedText) ? '待檢查' : '已確認')}</span>
           <button class="jump cue-more" type="button" title="跳到此字幕">•••</button>
         </div>
         <label class="bilingual-edit-field">原文<textarea class="source-text" aria-label="字幕 ${index + 1} 原文">${escapeHtml(cue.sourceText)}</textarea></label>
@@ -1231,7 +1233,7 @@ function hasRuleWarning(text) {
 function updateStats() {
   el.cueCount.textContent = String(state.cues.length);
   el.changedCount.textContent = String(state.changed.size);
-  el.warningCount.textContent = String(state.cues.filter((cue) => hasRuleWarning(cue.text)).length);
+  el.warningCount.textContent = String(state.cues.filter((cue) => hasRuleWarning(cue.text) || assessSubtitleCue(cue).reasons.length).length);
 }
 
 function getBurnSettings() {
