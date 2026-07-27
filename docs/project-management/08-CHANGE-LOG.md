@@ -156,9 +156,9 @@
 - 發布授權：需要；核准人／角色：需求提出者／產品負責人（使用者明確同意推送至 GitHub，並授權完成 0.47.0 發布）；核准時間：2026-07-27（Asia/Taipei）；核准範圍：同意／接受打包、提交、推送與共享 0.47.0；接受本條明列的 rule-score fallback、Whisper engine quality 未提供、Metal exit 139、未完成跨平台／Electron 實機驗收、未簽章與未公證風險，僅限版本定義、驗證資產與獨立發布審查完成後發布；不授權以未核對資產或未完成獨立發布審查直接發布。
 - 實際修改：完成 0.47.0 版本定版、Release notes、品質 metadata 安全回落與測試；建立 `codex/release-v0.47.0`，提交 `7946f7f` 並推送至 `origin`；建立 GitHub Release `v0.47.0`。
 - 開發驗證結果：`npm run check` 通過；`npm run runtime:verify:mac` 通過；macOS arm64 DMG `hdiutil verify` 與 ZIP `unzip -t` 通過；Windows workflow run `30231912997` 成功，artifact `offline-subtitle-factory-0.47.0-windows-x64` 建置成功。macOS SHA-256 已記錄於 `RELEASE-SHA256SUMS-0.47.0-macos-arm64.txt`。
-- 獨立審查是否執行：是（round5 條件複審；發布審查結果與資產下載核對另列於後續發布收尾紀錄）。
-- 獨立審查結論：0.47 rule-score fallback、品質 metadata 安全回落與 round4 阻擋已條件通過；不代表 engine metadata 完成，也不代表跨平台／Electron 實機驗收完成。發布仍以本條已揭露風險為前提。
-- 部署／發布結果：GitHub Release `v0.47.0` 已建立並指向 `7946f7f`；macOS 資產待本輪完成上傳與發布後下載核對，Windows artifact 保留於成功的 Actions run，是否直接附 Release 以可驗證下載結果為準。
+- 獨立審查是否執行：是（round5 條件複審、release round1）。
+- 獨立審查結論：release round1 不通過。逐字引用 `docs/project-management/reviews/2026-07-27-release-v0.47.0-round1.md`：**目前 HEAD `7517dc3` 與 Release／Windows CI 目標 `7946f7f` 不一致；尚未取得 GitHub Release 資產清單及發布後下載 SHA 核對；獨立審查上下文未於時限內返回，報告已明確標記此阻擋。** 因此本條不可視為完成發布。
+- 部署／發布結果：GitHub Release `v0.47.0` 已建立並指向 `7946f7f`；macOS DMG、ZIP 與 SHA 清單已上傳，GitHub API digest 分別與本地 SHA 相符；Windows artifact 保留於成功的 Actions run，尚未直接附於 Release。
 - 遺留風險與後續事項：Windows 與 macOS 均未正式簽章／公證；Metal 路徑可能 exit 139；內建 Whisper.cpp JSON 未提供 segment-level confidence／no-speech；Windows／Electron／跨平台實機驗收未完成。
 
 ---
