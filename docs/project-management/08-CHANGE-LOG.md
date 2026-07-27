@@ -143,7 +143,7 @@
 
 ## 2026-07-27 — 0.47.0 條件發布
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求完成並發布 0.47。
 - 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
@@ -153,7 +153,13 @@
 - 預計影響檔案／模組：版本檔、`RELEASE-NOTES-0.47.0.md`、README／package build 設定、workflow、治理狀態、macOS／Windows 發布資產與 GitHub Release。
 - 風險與回復方式：採條件發布；若版本、封裝、SHA、簽章狀態、資產或 Release metadata 不一致立即停止；已發布後發現核心缺陷則停止導流並發布可追溯修正版。
 - 驗證計畫：`npm run check`、`docs:check:final`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA、獨立發布審查、發布後 GitHub digest／下載核對。
-- 發布授權：需要；核准人／角色：需求提出者／產品負責人（本次使用者要求完成並發布）；核准範圍：接受本條明列的 rule-score fallback、Whisper engine quality 未提供、Metal exit 139、未完成跨平台／Electron 實機驗收及未簽章／未公證風險，僅限 0.47.0 定義與資產核對通過後發布；不授權以未核對資產或未完成獨立發布審查直接發布。
+- 發布授權：需要；核准人／角色：需求提出者／產品負責人（使用者明確同意推送至 GitHub，並授權完成 0.47.0 發布）；核准時間：2026-07-27（Asia/Taipei）；核准範圍：同意／接受打包、提交、推送與共享 0.47.0；接受本條明列的 rule-score fallback、Whisper engine quality 未提供、Metal exit 139、未完成跨平台／Electron 實機驗收、未簽章與未公證風險，僅限版本定義、驗證資產與獨立發布審查完成後發布；不授權以未核對資產或未完成獨立發布審查直接發布。
+- 實際修改：完成 0.47.0 版本定版、Release notes、品質 metadata 安全回落與測試；建立 `codex/release-v0.47.0`，提交 `7946f7f` 並推送至 `origin`；建立 GitHub Release `v0.47.0`。
+- 開發驗證結果：`npm run check` 通過；`npm run runtime:verify:mac` 通過；macOS arm64 DMG `hdiutil verify` 與 ZIP `unzip -t` 通過；Windows workflow run `30231912997` 成功，artifact `offline-subtitle-factory-0.47.0-windows-x64` 建置成功。macOS SHA-256 已記錄於 `RELEASE-SHA256SUMS-0.47.0-macos-arm64.txt`。
+- 獨立審查是否執行：是（round5 條件複審；發布審查結果與資產下載核對另列於後續發布收尾紀錄）。
+- 獨立審查結論：0.47 rule-score fallback、品質 metadata 安全回落與 round4 阻擋已條件通過；不代表 engine metadata 完成，也不代表跨平台／Electron 實機驗收完成。發布仍以本條已揭露風險為前提。
+- 部署／發布結果：GitHub Release `v0.47.0` 已建立並指向 `7946f7f`；macOS 資產待本輪完成上傳與發布後下載核對，Windows artifact 保留於成功的 Actions run，是否直接附 Release 以可驗證下載結果為準。
+- 遺留風險與後續事項：Windows 與 macOS 均未正式簽章／公證；Metal 路徑可能 exit 139；內建 Whisper.cpp JSON 未提供 segment-level confidence／no-speech；Windows／Electron／跨平台實機驗收未完成。
 
 ---
 
