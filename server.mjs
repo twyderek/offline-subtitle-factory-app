@@ -8,6 +8,7 @@ import os from 'node:os';
 import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
+import { attachWhisperQuality, parseWhisperQualityJson } from './lib/whisper-quality.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
 import { createProvider, isSupportedProvider, listProviderDefinitions, PROVIDER_CAPABILITIES, PROVIDER_DEFAULT_BASE_URLS } from './lib/ai/providers.mjs';
@@ -1194,6 +1195,7 @@ async function runJob(job, signal) {
 
   const inputDir = path.join(job.jobRoot, 'input');
   const workingDir = path.join(job.jobRoot, 'working');
+  try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
   const existingSrtName = job.config.files.existingSrt;
   const trimmedSrtPath = path.join(job.jobRoot, 'review-output', 'trimmed.srt');
   const uploadedSrtPath = existingSrtName ? path.join(inputDir, existingSrtName) : '';
@@ -1281,6 +1283,7 @@ async function runJob(job, signal) {
 }
 
 async function runWhisper(job, inputDir, workingDir, signal) {
+  try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
   const videoFile = getEffectiveVideoPath(job);
   if (!videoFile) throw new Error('找不到可轉錄的有效影片');
   const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
@@ -1423,6 +1426,8 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
       '-f', audioFile,
       '-l', language,
       '-osrt',
+      '-oj',
+      '-ojf',
       '-of', outputBase,
       '-t', String(cpuThreads),
     ];
@@ -1480,6 +1485,12 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
         return;
       }
       fs.copyFileSync(outputSrt, path.join(workingDir, 'draft.srt'));
+      try {
+        const jsonPath = `${outputBase}.json`;
+        const quality = parseWhisperQualityJson(JSON.parse(fs.readFileSync(jsonPath, 'utf8')));
+        const matched = attachWhisperQuality(parseSrtCues(fs.readFileSync(outputSrt, 'utf8')), quality);
+        if (matched.matched && matched.reason === 'engine-metrics') writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map(({ id, start, end, confidence, noSpeechProbability }) => ({ id, start, end, confidence, noSpeechProbability })));
+      } catch { /* malformed or incompatible metadata must not block SRT completion */ }
       finish(resolve);
     });
   });
@@ -3519,7 +3530,13 @@ async function handleApi(req, res) {
       return;
     }
     const bilingualPath = path.join(job.jobRoot, 'review-output', 'bilingual-cues.json');
-    const bilingualCues = fs.existsSync(bilingualPath) ? JSON.parse(fs.readFileSync(bilingualPath, 'utf8')) : parseSrtBilingual(fs.readFileSync(subtitlePath, 'utf8'));
+    let bilingualCues = fs.existsSync(bilingualPath) ? JSON.parse(fs.readFileSync(bilingualPath, 'utf8')) : parseSrtBilingual(fs.readFileSync(subtitlePath, 'utf8'));
+    const qualityPath = path.join(job.jobRoot, 'working', 'quality-metadata.json');
+    if (fs.existsSync(qualityPath)) {
+      const qualityCues = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
+      const attached = attachWhisperQuality(normalizeBilingualCues(bilingualCues), qualityCues);
+      if (attached.matched) bilingualCues = attached.cues;
+    }
     sendJson(res, 200, {
       jobId,
       videoFileName: displayFileName(path.basename(videoPath)),

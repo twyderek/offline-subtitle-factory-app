@@ -297,6 +297,8 @@ try {
   const createdResponse = await api('/api/jobs', { method: 'POST', body: form });
   if (createdResponse.status !== 201) throw new Error(await createdResponse.text());
   const created = await createdResponse.json();
+  fs.mkdirSync(path.join(dataDir, created.jobId, 'working'), { recursive: true });
+  fs.writeFileSync(path.join(dataDir, created.jobId, 'working', 'quality-metadata.json'), JSON.stringify([{ id: 1, start: 0, end: 1, confidence: 0.1 }]));
 
   const disabledAiResponse = await api(`/api/jobs/${created.jobId}/ai-optimize`, {
     method: 'POST',
@@ -389,6 +391,7 @@ try {
   assert.equal(started.status, 202, '任務應可啟動');
   const completed = await waitForJob(created.jobId, ['completed']);
   assert.equal(completed.stage, 'ready-review');
+  assert.equal(fs.existsSync(path.join(dataDir, created.jobId, 'working', 'quality-metadata.json')), false, '既有 SRT /start 路徑不得沿用 stale quality metadata');
 
   const vttResponse = await api(`/api/jobs/${created.jobId}/subtitle?format=vtt`);
   assert.equal(vttResponse.status, 200, '已完成任務應可下載 VTT');
@@ -402,7 +405,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       subtitle: bilingualSubtitle,
-      bilingualCues: [{ id: 1, start: 0, end: 1, sourceText: '原文測試', translatedText: '譯文測試' }],
+      bilingualCues: [{ id: 1, start: 0, end: 1, sourceText: '原文測試', translatedText: '譯文測試', confidence: 0.25, no_speech_prob: 0.7 }],
       bilingualLayout: 'source-top',
       settings: { fontFamily: 'Arial', fontSize: 48, fontColor: '#ffffff', outlineColor: '#000000', outlineWidth: 2, subtitlePosition: 'bottom', marginV: 48, bold: false },
       manifest: { cueCount: 1 },
@@ -413,6 +416,13 @@ try {
   const bilingualReviewResponse = await api(`/api/jobs/${created.jobId}/review-data`);
   const bilingualReview = await bilingualReviewResponse.json();
   assert.equal(bilingualReview.bilingualCues[0].translatedText, '譯文測試', '雙語資料應可重新載入');
+  assert.equal(bilingualReview.bilingualCues[0].confidence, 0.25, '品質 confidence 應可經 API 保存／重新載入');
+  assert.equal(bilingualReview.bilingualCues[0].noSpeechProbability, 0.7, '品質 no-speech 應可經 API 保存／重新載入');
+  fs.writeFileSync(path.join(dataDir, created.jobId, 'review-output', 'bilingual-cues.json'), JSON.stringify([{ id: 1, start: 0, end: 1, sourceText: '原文測試', translatedText: '譯文測試' }]));
+  fs.writeFileSync(path.join(dataDir, created.jobId, 'working', 'quality-metadata.json'), JSON.stringify([{ id: 1, start: 0, end: 1, confidence: 0.2, noSpeechProbability: 0.8 }]));
+  const mergedQualityReview = await (await api(`/api/jobs/${created.jobId}/review-data`)).json();
+  assert.equal(mergedQualityReview.bilingualCues[0].confidence, 0.2, '既有雙語校稿包也應合併 engine quality metadata');
+  assert.equal(mergedQualityReview.bilingualCues[0].noSpeechProbability, 0.8, '既有雙語校稿包也應合併 no-speech metadata');
 
   const bilingualAssResponse = await api(`/api/jobs/${created.jobId}/subtitle?format=ass`);
   assert.equal(bilingualAssResponse.status, 200, '雙語 ASS 應可下載');

@@ -22,7 +22,15 @@ export function normalizeBilingualCue(cue, index = 0) {
     sourceText,
     translatedText,
     text: translatedText || sourceText,
+    ...(finiteQuality(cue?.confidence) === null ? {} : { confidence: finiteQuality(cue.confidence) }),
+    ...(finiteQuality(cue?.noSpeechProbability ?? cue?.no_speech_prob) === null ? {} : { noSpeechProbability: finiteQuality(cue?.noSpeechProbability ?? cue?.no_speech_prob) }),
   };
+}
+
+function finiteQuality(value) {
+  if (value === null || value === undefined || typeof value === 'string' && value.trim() === '' || value === false) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 export function normalizeBilingualCues(cues) {

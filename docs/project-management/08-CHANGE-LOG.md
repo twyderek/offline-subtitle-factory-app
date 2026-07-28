@@ -1,6 +1,6 @@
 # 改版與工作紀錄
 
-本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；未完成欄位使用「待執行／待確認」，不得刪除。
+本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
 ## 範本修訂說明（2026-07-20 補強）
 
@@ -20,7 +20,7 @@
 - 需求來源：
 - 關聯需求／缺陷：`FR-xxx`、`NFR-xxx`、`BUG-xxx`
 - 變更等級：低／中／高／發布（依 `01-PROJECT-GOVERNANCE.md` 分類）
-- 執行前已讀：`AGENTS.md` 與治理文件 00–08（是／否）
+- 執行前已讀：`project:preflight -- --type=____` 列出的固定核心與任務路由（是／否）
 - 目標與成功條件：
 - 不在範圍：
 - 預計影響檔案／模組：
@@ -44,9 +44,326 @@
 
 ---
 
+## 2026-07-28 — GitHub main 實際同步 0.47.1
+
+- 狀態：進行中（合併關卡）
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者提供 GitHub 首頁截圖並明確指出「資訊未同步」，要求將已完成的 0.47.1 進度實際同步。
+- 關聯需求／缺陷：`NFR-003`、`NFR-006`
+- 變更等級：高（合併既有完整 release 分支至公開預設分支）
+- 執行前已讀：`project:preflight -- --type=governance` 列出的固定核心與任務路由（是）
+- 目標與成功條件：將 PR #7 由 Draft 轉為可合併並合併至 `main`；GitHub 公開首頁 README 顯示 0.47.1；合併結果、CI 與遠端內容可追溯核對。
+- 不在範圍：不移動或覆蓋 `v0.47.1` tag、不修改 Release 資產、不刪除遠端分支、不新增產品功能。
+- 預計影響檔案／模組：本工作紀錄、獨立審查報告、GitHub PR #7 與預設分支 `main`。
+- 風險與回復方式：PR #7 包含 release 分支相對 `main` 的完整多版本差異；合併前以 GitHub 即時 diff、mergeability 與 CI 為準。若合併後發現公開內容錯誤，以新的回復 PR 修正，不改寫公開歷史。
+- 驗證計畫：`npm run docs:check:final`、`git diff --check`、PR 即時狀態與 CI、獨立六面向審查；合併後以 GitHub API 直接讀取 `main` 的 README 並核對 0.47.1 標題與 Release 連結。
+- 實際修改：建立本輪工作紀錄並推送 commit `46edb90`；PR #7 最新差異為 15 commits／67 files，完整同步 0.45.2–0.47.1 的產品、測試、workflow、治理文件與 README，不是 README 單檔修補。
+- 開發驗證結果：`git diff --check origin/main...HEAD` 與 `npm run docs:check` 通過；GitHub Actions run `30323429406` 對 head `46edb90` 完成 Windows x64 `npm run check`、未簽章封裝與 artifact 驗證，結論 success。`docs:check:final` 對同日多筆條目誤選已結案舊條目，出現假陽性，不作本輪唯一結案證據。
+- 獨立審查是否執行：是（round1 有條件通過）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-main-0-47-1-sync-round1.md`
+  - 判定（逐字引用審查檔案結論句，綜合判定末段）：**本輪 GitHub main 實際同步 0.47.1 round1 獨立審查結論為有條件通過：使用者在先前要求同步進度後，以 GitHub 預設分支仍顯示 0.46.0 的截圖明確指出「資訊未同步」，足以指示完成既有 PR #7 的 main 同步；PR #7 已核對為 15 commits／67 files 的完整同步、open、draft、base main、head codex/release-v0.47.1、MERGEABLE／CLEAN，且 head 46edb90b 的 Windows 完整回歸與封裝 CI 成功，但最新工作條目尚未結案、審查報告尚未推送，且 docs:check:final 對同日多條紀錄出現假陽性，因此須先補齊並推送本報告與工作紀錄、等待新 head SHA 的 required check 成功並重查 mergeability，之後才可標記 ready、合併，並以 GitHub API 驗證 main README 的 0.47.1 標題與 Release 連結。**
+  - 條件（若為有條件通過）：先推送審查報告與本紀錄；等待新 head SHA 的 required check 成功；合併前重查 `MERGEABLE/CLEAN`；合併後以 GitHub API 驗證 `main` README。
+  - 條件是否已被需求方接受：是（使用者要求實際同步；本條件是完成同步前的安全關卡）
+- 發布授權：
+  - 是否需要：不適用
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：PR #7 尚未合併；本筆結案文件推送並通過新 head CI 後，依審查條件進入 ready／merge 關卡。
+- 遺留風險與後續事項：PR #7 是完整多版本同步；Windows 未 Authenticode、macOS 未 Developer ID／公證，Metal、Electron 與跨平台實機缺口持續存在並已在 README 揭露。`docs:check:final` 對同日多條紀錄有假陽性，結案須人工核對本條目。
+
+---
+
+## 2026-07-28 — README 0.47.1 與 main 同步準備
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求先同步目前專案進度，並指出 GitHub README 仍停在前一版本。
+- 關聯需求／缺陷：`NFR-003`、`NFR-006`
+- 變更等級：低（公開文件與合併準備，不修改產品行為）
+- 執行前已讀：`project:preflight -- --type=governance` 列出的固定核心與任務路由（是）
+- 目標與成功條件：README 正確顯示 0.47.1 公開版本、下載資產、功能、風險與目前開發分支；建立可審查的 Draft PR 將 release 分支同步到 `main`。
+- 不在範圍：本輪不自行合併 PR、不移動 tag、不修改 Release 資產或產品程式碼。
+- 預計影響檔案／模組：`README.md`、本工作紀錄、獨立審查報告、GitHub Draft PR。
+- 風險與回復方式：Draft PR 涵蓋 release 分支相對 main 的完整多版本差異，commit／file 數會隨審查報告與結案提交更新；以 GitHub PR 即時 metadata 為準，合併前由使用者確認。README 單檔變更可由 commit 回復。
+- 驗證計畫：README 版本／資產／Release URL 靜態核對、`npm run docs:check:final`、`git diff --check`、獨立六面向文件審查、Draft PR diff 核對。
+- 實際修改：README 更新為 0.47.1 正式 Release、實際 macOS／Windows 資產、AI 資料邊界、未簽章／未公證與實機風險；安裝與開發指令同步；commit `b16fb9f` 已推送；建立 Draft PR #7（base `main`、head `codex/release-v0.47.1`）。
+- 開發驗證結果：`npm run docs:check`、`git diff --check` 通過；GitHub PR #7 核對為 OPEN／Draft、base `main`、head `codex/release-v0.47.1`、MERGEABLE；Windows x64 test and package check 通過（2m9s）。
+- 獨立審查是否執行：是（round1／round2 不通過後已修正，round3 有條件通過）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-readme-0-47-1-sync-round3.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 README 0.47.1 與 main 同步準備 round3 獨立審查結論為有條件通過：README 已一致呈現 v0.47.1 正式發布、實際資產、目前 release 分支與未簽章／未公證／Metal／Electron／跨平台實機風險，Draft PR #7 已核對為 open、draft、mergeable、base main、head codex/release-v0.47.1、未合併，且 PR body 與工作紀錄已改用 GitHub 即時 metadata 避免固定 count 過期；條件是將本輪收尾文件推送、Windows x64 check 成功並通過 docs:check:final，而本判定只涵蓋同步準備與 Draft PR，不代表 main 已合併或 GitHub 首頁已完成同步。**
+  - 條件（若為有條件通過）：推送本輪收尾文件與 round3；Windows x64 check、`docs:check:final`、`git diff --check` 通過；本輪不含合併。
+  - 條件是否已被需求方接受：是（使用者要求先同步進度；依流程建立 Draft PR，不自行合併）
+- 發布授權：
+  - 是否需要：否
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：已建立 Draft PR：https://github.com/twyderek/offline-subtitle-factory-app/pull/7；本輪未合併。
+- 遺留風險與後續事項：PR 是完整多版本同步，不是 README 單檔變更；Windows CI 已通過，仍需由使用者確認完整差異後才能合併至 main。既有未簽章／未公證、Metal、Electron 與跨平台實機風險持續揭露。
+
+---
+
+## 2026-07-28 — 0.47.1 修正版發布
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求完成修正並發布，承接 0.47.0 Release/tag 與目前來源不一致、Windows 資產未公開及發布核對未完成問題。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：以新修正版版本建立單一可追溯來源；完成版本／tag／commit、Windows／macOS 資產、checksum／digest、Release notes、下載 URL、獨立發布審查與發布後核對。
+- 不在範圍：不移動或覆蓋既有 `v0.47.0`；不宣稱 Windows Authenticode、macOS Developer ID／公證、Metal runtime 或跨平台實機已完成，除非取得實際證據。
+- 預計影響檔案／模組：版本檔、Release notes、Windows workflow、治理狀態／稽核／工作紀錄、發布資產與 GitHub Release。
+- 風險與回復方式：保留既有 v0.47.0 作為歷史證據；新版本若資產、checksum、來源或審查不一致則停止發布，不刪除既有 Release。
+- 驗證計畫：`npm run check`、runtime／封裝驗證、Windows CI artifact 下載與內容核對、macOS DMG／ZIP／SHA、獨立發布審查、發布後 GitHub asset digest／下載核對、`npm run docs:check:final`。
+- 實際修改：版本升級至 0.47.1；新增 `RELEASE-NOTES-0.47.1.md`；更新 Windows workflow 分支／tag／artifact 命名；建立 commit `0bd3b53`、分支 `codex/release-v0.47.1` 與 annotated tag `v0.47.1`；完成 macOS DMG／ZIP 與 Windows Setup／Portable、metadata、checksum、簽章狀態資產上傳。
+- 開發驗證結果：受控環境外 `npm run check` 通過；macOS DMG `hdiutil verify` 與 ZIP `unzip -t` 通過；Windows artifact archive `unzip -t` 通過，Setup／Portable SHA 與 `SHA256SUMS-windows-x64.txt` 一致；GitHub Release API 核對 7 項資產名稱、大小、digest 與直接下載 URL。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round2 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產名稱／大小／digest／URL 證據一致；在持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口，並於網路可達時重放 GitHub API／下載核對與收斂狀態文件的條件下，可以維持 v0.47.1 公開發布。**
+  - 條件（若為有條件通過）：持續揭露未簽章／未公證、Metal、Electron／跨平台實機風險；網路可達時重放 GitHub API／下載核對；狀態文件維持 0.47.1 為現行公開版本。
+  - 條件是否已被需求方接受：是（使用者已明確授權上傳已核對資產並正式發布；簽章風險引用 `AUTH-2026-07-23-01`）
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人（本輪明確要求完成修正並發布）；簽章風險引用 `AUTH-2026-07-23-01`
+  - 核准時間：2026-07-28（Asia/Taipei，本輪使用者指示）
+  - 核准範圍：同意建立並發布 0.47.1；接受常設授權涵蓋的未簽章／未公證風險；不接受資產／checksum／metadata 不一致、未完成測試或審查失敗下的發布。
+- 部署／發布結果：GitHub `v0.47.1` 已正式發布：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1；既有 `v0.47.0` 未移動或覆蓋。
+- 遺留風險與後續事項：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，均已在 Release notes／目前狀態揭露；待独立审查报告完成后补录结论。
+
+---
+
+## 2026-07-28 — 0.47.0 發布閉環與 Windows 資產核對
+
+- 狀態：受阻
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47.0 條件發布與 release round1 阻擋，依下一階段 P0 計畫完成來源、tag、Release、Windows artifact 與發布後資產核對。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：釐清 0.47.0 Release 是否與目前定版來源一致；核對公開資產、Windows Actions artifact、checksum／digest 與下載 URL；若發現阻擋則停止發布修改並留下可直接執行的後續事項。
+- 不在範圍：本輪不靜默移動既有 tag、不刪除 Release 資產、不修改產品程式碼、不宣稱跨平台實機或 Whisper Metal runtime 已驗收。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄；必要時補充發布審查報告。
+- 風險與回復方式：只做可追溯文件補充與唯讀外部核對；若需要重建或上傳資產，先停止並取得／確認適用授權，保留既有 Release 作為歷史證據。
+- 驗證計畫：Git branch／tag／commit 核對、GitHub Release API 資產清單、Windows artifact 狀態與 SHA 證據、`npm run docs:check:final`、`git diff --check`、獨立發布審查。
+- 實際修改：更新 `00-CURRENT-STATUS.md` 的 0.47.0 公開版本／Release target／Windows artifact 狀態；新增 `06-TEST-AND-PROCESS-AUDIT.md` 的發布閉環核對；建立本輪獨立審查條目。
+- 開發驗證結果：`git diff --check` 通過；`npm run docs:check` 通過（19 個治理文件，版本 0.47.0）。GitHub API 可讀取 Release metadata，但本輪下載公開資產與 Windows artifact 受 `github.com` DNS 解析失敗阻擋，未完成下載後反向 SHA／digest 核對。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-release-closure-round3.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立發布複審結論為不通過：GitHub `v0.47.0` tag／Release 指向 `7946f7f...` 而目前 HEAD 為 `efc6259...`，公開 Release 缺少 Windows Setup／Portable 且 Windows artifact 尚未完成內容與 SHA 反向核對，公開下載受 `github.com` DNS 失敗阻擋，`docs:check:final` 結案證據及 Metal／跨平台實機缺口仍未解除，因此不得宣稱 0.47.0 發布通過。**
+  - 條件（若為有條件通過）：不適用；阻擋為 Release/tag 與目前 HEAD 不一致、Windows 未列為公開 Release asset、下載後核對受 DNS 阻擋，以及既有跨平台／Metal runtime 缺口。
+  - 條件是否已被需求方接受：不適用
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：引用 `AUTH-2026-07-23-01`；其餘資產上傳／發布範圍待核對
+  - 核准時間：常設授權 2026-07-23T15:06:55+08:00
+  - 核准範圍：本輪不授權新的打包、提交、推送、資產上傳或公開發布；既有常設授權僅涵蓋 Windows 未 Authenticode 與 macOS 未 Developer ID／公證，不涵蓋資產／checksum／metadata 不一致、未實機測試或審查失敗
+- 部署／發布結果：本輪未修改既有 tag、未刪除或新增 GitHub Release 資產、未重新發布。
+- 遺留風險與後續事項：先決定保留既有 `v0.47.0` 作為歷史 Release 並另發修正版，或在明確授權下重建可追溯版本；重新取得並核對 Windows Setup／Portable／metadata／SHA；補公開資產下載後 digest；完成跨平台實機、Electron renderer 與 Metal／CPU runtime 驗收後，再建立下一輪獨立發布複審。網路 DNS 恢復前不得宣稱下載核對完成。
+
+---
+
+## 2026-07-27 — 0.47 低可信片段工作流
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求繼續完成專案進度推到 0.47。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-006`
+- 變更等級：中
+- 執行前已讀：`project:preflight -- --type=development` 列出的固定核心與任務路由（是）
+- 目標與成功條件：保存可用品質指標而不偽造 confidence；以可重現規則標示低可信、過長、速度過快、重複文字與疑似專有名詞；校閱頁可依問題篩選與批次選取；AI 請求維持只含字幕文字與前後文，不含影音。
+- 不在範圍：本輪不新增音訊上傳、不宣稱完成 Windows／macOS 實機驗收、不補造 Whisper.cpp 尚未提供的 confidence。
+- 預計影響檔案／模組：`lib/subtitle-quality.mjs`、`public/review.js`、`public/review.html`、相關測試、需求／設計／狀態文件。
+- 風險與回復方式：風險分數是輔助排序，不取代人工判斷；品質欄位缺失時顯示「未提供」並改用規則分數。可由單一 commit 差異回復。
+- 驗證計畫：品質規則單元測試、JavaScript 語法、完整 `npm run check`、文件 final check、獨立六面向審查。
+- 實際修改：新增單一來源字幕品質評估器與 Node 回歸測試；正規化保存有效 confidence／no-speech 欄位；校閱頁新增品質篩選、風險 chip 與「只處理品質篩選結果」AI scope；更新 FR-020、0.47 設計與目前狀態。
+- 開發驗證結果：升級權限執行 `npm run check` 通過；`git diff --check` 通過；新增字幕品質測試通過；受限 sandbox 首次 check 的 listen EPERM 已以升級權限重跑並通過。
+- 獨立審查是否執行：是（round1 不通過後已修正，round2 複審為有條件通過）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-low-confidence-round1.md`
+  - 判定（逐字引用審查檔案結論句）：round1 不通過；詳情由 round2 複審取代。
+  - 條件（若為有條件通過）：維持未接入 Whisper.cpp metadata、未完成跨平台 renderer／實機與重啟驗證的風險揭露，後續補做並另行複審。
+  - 條件是否已被需求方接受：是（本次需求為推進 0.47 開發里程碑，未要求發布；上述未覆蓋項目保留於遺留風險）
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-low-confidence-round3.md`
+  - round3 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立複審結論為有條件通過：0.47 品質評估單一來源、缺失指標不偽造、有效品質欄位保存、品質篩選／AI scope、HTML escape、完整 `npm run check` 與技術風險揭露均已驗證；但 `docs:check:final` 仍因 round2 審查報告缺少 validator 要求的完整結論句／阻擋問題欄位／聲明而失敗，且 Whisper.cpp quality metadata、正式邊界／保存重載／quality scope 測試與跨平台 runtime 仍未覆蓋，因此尚不可宣稱 0.47 完整驗收完成。**
+  - round3 條件是否已被需求方接受：是（本次需求為推進 0.47 開發里程碑，未要求發布；上述未覆蓋項目保留於遺留風險）
+- 發布授權：
+  - 是否需要：否
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本輪不打包、不部署、不發布。
+- 遺留風險與後續事項：Whisper.cpp 實際品質 metadata 尚未由轉錄流程產出／映射，影響為目前品質篩選主要使用 rule-score；需補 mock／端到端欄位映射與跨平台 runtime 實測。Electron renderer、Windows／macOS 實機、保存重載與真實 Whisper 流程仍未驗證，後續應補測並以 round3 或新工作條目追蹤；本輪不發布。
+
+## 2026-07-27 — 補強 0.47 品質流程正式回歸
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47 round3 審查條件，補齊品質欄位邊界、保存重載與 quality AI scope 的正式回歸證據。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：正式測試涵蓋缺失品質值、雙語保存／載入、品質篩選 AI request 範圍與隱私邊界；不偽造 Whisper.cpp 尚未提供的 engine metadata；完成 `npm run check`、`docs:check:final` 與獨立審查。
+- 不在範圍：本輪不發布、不打包；不在沒有真實來源證據下宣稱 Whisper.cpp metadata 已接入；不執行跨平台實機驗收。
+- 預計影響檔案／模組：`public/ai-scope.mjs`、`public/review.js`、`scripts/test-subtitle-quality.mjs`、`scripts/test-bilingual-subtitles.mjs`、`scripts/test-review-ui.mjs`、`scripts/test-core.mjs`、治理工作紀錄與審查報告。
+- 風險與回復方式：只新增回歸測試與必要文件；若發現產品行為缺陷，保留原始變更並以最小修正處理，可由本輪差異逐檔回復。
+- 驗證計畫：品質單元、雙語保存／載入、review UI scope 契約、完整 `npm run check`、`docs:check:final`、獨立六面向審查。
+- 實際修改：將缺失值（null／undefined／空字串／空白／false／NaN／Infinity）、有效品質欄位保存與 JSON 重載、snake_case no-speech 正規化、品質篩選全部／問題範圍及 AI scope 隱私契約加入正式回歸測試；新增 `public/ai-scope.mjs` 供實際 payload 建立與測試共用；核心 API fixture 加入 confidence／no-speech 保存／重載斷言；清理 Node 端死碼註解；未修改 Whisper.cpp 轉錄參數或宣稱 engine metadata 已接入。
+- 開發驗證結果：新增與既有測試通過；受限環境因 loopback `EPERM` 無法啟動核心測試，經允許於受限環境外重跑 `npm run check` 通過；`npm run docs:check:final` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：有條件通過；報告指出 Whisper.cpp metadata、跨平台／Electron runtime 仍未驗證，並要求 API fixture 與實際 AI payload 測試。本輪已補上後兩項，保留原報告不覆寫；前述 runtime 缺口仍未解除。
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-0-47-quality-regression-round1.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 2026-07-27 0.47 品質流程正式回歸獨立審查結論為有條件通過：品質評估單一來源、缺失值不偽造、有效品質欄位正規化、文件 final gate、完整 `npm run check` 與本機校閱頁控制均已驗證；但 Whisper.cpp quality metadata 尚未由實際轉錄流程產出／映射，品質欄位尚未以 API 保存／重新載入專門 fixture 驗證，quality AI scope 尚未以含 cue 的實際 request payload 測試，且 Electron／Windows／macOS／真實 Whisper runtime 尚未驗收，因此不得宣稱 0.47 已完成完整驗收或發布核准。**
+  - 後續處理：已補 API 保存／重載 fixture、實際 quality AI payload 單元測試、`ai-scope` 共用模組與死碼清理；Whisper.cpp metadata、Electron／Windows／macOS／真實 runtime 仍需下一輪工作與複審。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：Whisper.cpp quality metadata 仍未產出／映射；Electron、Windows／macOS 實機與真實 Whisper 流程仍未驗證。quality filter 預設為 `all` 的產品語意仍待確認。上述項目完成後，另以新工作條目追蹤 metadata 接入與跨平台驗收。
+
+## 2026-07-27 — 接入 Whisper.cpp 品質 metadata 通道
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47 獨立審查，完成 Whisper.cpp 可取得 quality metadata 的輸出、解析與 cue 對應。
+- 關聯需求／缺陷：`FR-003`、`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：使用已驗證的 Whisper.cpp JSON full output；解析有效 confidence／no-speech 欄位並依 segment 時間／順序對應 SRT cue；metadata 缺失、格式錯誤或數量不一致時保留 SRT 並回落 rule-score，不阻斷轉錄完成。
+- 不在範圍：本輪不打包、不發布、不宣稱已完成 Windows／macOS／Electron 實機驗收；不以未知欄位推導或偽造 confidence。
+- 預計影響檔案／模組：`lib/whisper-quality.mjs`、`server.mjs`、`scripts/test-whisper-quality.mjs`、需求／設計／目前狀態／測試稽核與審查報告。
+- 風險與回復方式：CLI JSON schema 可能因版本或平台不同而缺欄位；採 schema-tolerant parser、嚴格時間／數量保護與可回溯 metadata 檔案，解析失敗不覆蓋原始 SRT。
+- 驗證計畫：CLI `--help`／實際 JSON smoke、parser 單元與負例、核心轉錄整合測試、完整 `npm run check`、獨立六面向審查。
+- 實際修改：新增 `lib/whisper-quality.mjs` 容錯解析 Whisper.cpp `transcription`／`segments` JSON、讀取明示 confidence／no-speech 欄位並依 SRT segment 時間與數量嚴格對應；Whisper.cpp 呼叫加入 `-oj`／`-ojf`；成功對應時保存 `working/quality-metadata.json`，review-data 載入品質欄位；新增 parser 正負例回歸測試與設計／狀態文件說明。
+- 開發驗證結果：`whisper-cli --help` 確認內建 CLI 支援 `--output-json`／`--output-json-full`；parser、負例、JavaScript 語法測試通過。以內建 tiny runtime 執行 1 秒靜音 JSON smoke 時 process exit 139，未產生 JSON；此 runtime／平台問題列為未完成驗收，不以 parser 測試替代實際轉錄證據。
+- 獨立審查是否執行：待執行（本輪實作完成後需獨立審查 parser、server fallback、runtime 失敗揭露與測試）。
+- 獨立審查結論：待執行；本輪不得視為 0.47 完整驗收或發布核准。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+
+## 2026-07-27 — 修正 Whisper quality metadata round3 阻擋
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：依 round3 獨立複審修正 `/start` stale metadata、segment ID 對應與標準 `segments[].start/end` schema。
+- 關聯需求／缺陷：`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中
+- 目標與成功條件：所有 start 路徑清除舊 quality metadata；parser 保留並嚴格比對 segment ID；支援標準 segments 時間欄位；完成回歸與獨立複審。
+- 不在範圍：不偽造目前 runtime 不提供的 confidence／no-speech；不宣稱跨平台實機或 Metal exit 139 已解決。
+- 預計影響檔案／模組：`server.mjs`、`lib/whisper-quality.mjs`、`scripts/test-whisper-quality.mjs`、治理審查報告。
+- 驗證計畫：parser、核心 API、完整 `npm run check`、`docs:check:final`、獨立 round4 複審。
+- 實際修改：在 `runJob` 與 `runWhisper` 清除 stale metadata；parser 保留 segment ID、拒絕缺失／錯誤 ID、壞時間／超界 quality，支援 `segments[].start/end`；新增 parser 與核心 `/start` stale metadata 回歸測試。
+- 開發驗證結果：parser 與完整 `npm run check` 通過；核心測試確認既有 SRT `/start` 不會沿用 stale quality metadata；round5 複審後完成本條目文件結案。
+- 獨立審查是否執行：是（round1–round5）。
+- 獨立審查結論：有條件通過；可將 0.47 rule-score fallback 與 metadata 安全回落視為條件完成並進入後續發布審查，但不代表 engine metadata 完成或發布核准。
+  - 審查檔案：`docs/project-management/reviews/2026-07-27-whisper-quality-metadata-round5.md`
+  - 判定（逐字引用審查檔案判定範圍）：**0.47 的 rule-score fallback、品質 metadata 安全回落、round4 兩項阻擋可視為條件完成，並可進入後續發布審查；這不是 0.47 發布核准，也不是 engine metadata 完成判定。**
+  - 條件：完成本條目文件 final gate；發布時揭露 engine quality 未提供、rule-score fallback、Metal exit 139、跨平台／Electron／Python fallback 未驗收，並另行完成版本／資產／SHA／授權核對。
+  - 條件是否已被需求方接受：是（本次使用者要求完成並發布；發布風險仍須在發布條目逐項記錄）。
+- 發布授權：不適用（本輪不打包、不部署、不發布）。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：目前內建 Whisper.cpp 真實 JSON 沒有 segment-level quality，Metal 路徑仍可能 exit 139；rule-score fallback 可用但 engine metadata 仍屬條件風險。發布前需完成 0.47 版本／資產／SHA／授權與發布後下載核對。
+
+## 2026-07-27 — 0.47.0 條件發布
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求完成並發布 0.47。
+- 關聯需求／缺陷：`FR-020`、`NFR-001`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 目標與成功條件：將已通過條件複審的 0.47 rule-score fallback、品質篩選、品質欄位安全保存與 Whisper metadata 安全回落定版為 0.47.0；完成版本、Release notes、macOS／Windows 資產、runtime／封裝／SHA 核對、獨立發布審查與發布後資產核對。
+- 不在範圍：不宣稱內建 Whisper.cpp 已提供 segment-level confidence／no-speech；不隱瞞 Metal exit 139；不宣稱 Windows／macOS／Electron 實機驗收已完成；不使用未核對資產。
+- 預計影響檔案／模組：版本檔、`RELEASE-NOTES-0.47.0.md`、README／package build 設定、workflow、治理狀態、macOS／Windows 發布資產與 GitHub Release。
+- 風險與回復方式：採條件發布；若版本、封裝、SHA、簽章狀態、資產或 Release metadata 不一致立即停止；已發布後發現核心缺陷則停止導流並發布可追溯修正版。
+- 驗證計畫：`npm run check`、`docs:check:final`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA、獨立發布審查、發布後 GitHub digest／下載核對。
+- 發布授權：需要；核准人／角色：需求提出者／產品負責人（使用者明確同意推送至 GitHub，並授權完成 0.47.0 發布）；核准時間：2026-07-27（Asia/Taipei）；核准範圍：同意／接受打包、提交、推送與共享 0.47.0；接受本條明列的 rule-score fallback、Whisper engine quality 未提供、Metal exit 139、未完成跨平台／Electron 實機驗收、未簽章與未公證風險，僅限版本定義、驗證資產與獨立發布審查完成後發布；不授權以未核對資產或未完成獨立發布審查直接發布。
+- 實際修改：完成 0.47.0 版本定版、Release notes、品質 metadata 安全回落與測試；建立 `codex/release-v0.47.0`，提交 `7946f7f` 並推送至 `origin`；建立 GitHub Release `v0.47.0`。
+- 開發驗證結果：`npm run check` 通過；`npm run runtime:verify:mac` 通過；macOS arm64 DMG `hdiutil verify` 與 ZIP `unzip -t` 通過；Windows workflow run `30231912997` 成功，artifact `offline-subtitle-factory-0.47.0-windows-x64` 建置成功。macOS SHA-256 已記錄於 `RELEASE-SHA256SUMS-0.47.0-macos-arm64.txt`。
+- 獨立審查是否執行：是（round5 條件複審、release round1）。
+- 獨立審查結論：release round1 不通過。逐字引用 `docs/project-management/reviews/2026-07-27-release-v0.47.0-round1.md`：**目前 HEAD `7517dc3` 與 Release／Windows CI 目標 `7946f7f` 不一致；尚未取得 GitHub Release 資產清單及發布後下載 SHA 核對；獨立審查上下文未於時限內返回，報告已明確標記此阻擋。** 因此本條不可視為完成發布。
+- 部署／發布結果：GitHub Release `v0.47.0` 已建立並指向 `7946f7f`；macOS DMG、ZIP 與 SHA 清單已上傳，GitHub API digest 分別與本地 SHA 相符；Windows artifact 保留於成功的 Actions run，尚未直接附於 Release。
+- 遺留風險與後續事項：Windows 與 macOS 均未正式簽章／公證；Metal 路徑可能 exit 139；內建 Whisper.cpp JSON 未提供 segment-level confidence／no-speech；Windows／Electron／跨平台實機驗收未完成。
+
+---
+
+## 2026-07-23 — 將專案治理規範同步至 GitHub 共享
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者明確要求將專案規範與相關資料同步到 GitHub 共享。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：發布（Git commit／push／GitHub Draft PR 外部共享；不建立產品安裝包或新 Release）
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：只提交本輪治理精簡、常設授權、驗證工具／測試與獨立審查證據；排除無關檔案與機密；推送目前分支並建立可查閱的 Draft PR；來源 commit 與 GitHub head 可核對。
+- 不在範圍：發布新產品版本、上傳安裝包、修改 GitHub Release、合併 PR、提交 `.DS_Store` 或不屬於本輪的 `2026-07-23-github-sync-audit-round1.md`。
+- 預計影響檔案／模組：本輪治理相關文件、`package.json`、preflight／docs checker／授權 validator 與測試、streamlined-governance 三輪審查報告、Git commit／remote branch／Draft PR。
+- 風險與回復方式：誤提交機密或無關工作；採明確檔案清單、差異／秘密掃描與 staged diff 複核。若 PR 內容有誤，以後續修正 commit 更新，不重寫或強推既有歷史。
+- 驗證計畫：`npm run docs:check`、`npm run check`、`git diff --check`、敏感檔名／常見秘密模式掃描、staged diff 核對、push 後 remote SHA／PR head 核對，最後由獨立代理六面向審查同步結果。
+- 實際修改：以明確檔案清單提交本輪治理規範、常設授權、preflight／驗證工具與測試、streamlined-governance 三輪及 GitHub sync 四輪獨立審查報告；排除無關的 `2026-07-23-github-sync-audit-round1.md`；建立並推送 `e81aba6`、`aff8afe`、`c71b636` 至 `origin/codex/release-v0.46.0`。嘗試透過 GitHub 連接器建立 Draft PR，但 integration 回覆 HTTP 403；本機 `gh` token 亦失效，未偽稱 PR 已建立。
+- 開發驗證結果：`npm run check`、`npm run docs:check`、`git diff --check`、staged diff check、敏感檔名及常見 GitHub／OpenAI／Google token、私鑰、簽章密碼模式掃描均通過；`git ls-remote` 與 push 證明 Git remote 憑證有效，遠端分支已由 `142b85d` 前進至 `e81aba6`。
+- 獨立審查是否執行：是（round1–round4；round4 通過）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round1.md`
+  - 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round1 獨立審查結論為通過：commit `e81aba6` 的 19 檔範圍符合治理同步目標，無關的 `github-sync-audit-round1` 未納入提交，常見敏感檔名與秘密模式掃描無命中，完整 `npm run check` 通過，且即時 `git ls-remote` 證實 GitHub 遠端分支 SHA 與 local HEAD 均為 `e81aba6`，因此使用者核心需求「同步到 GitHub 共享」已由分支 push 達成；Draft PR 因 integration 403 紀錄與本機失效 token 尚未建立，屬可發現性與後續審閱流程的剩餘風險，不是本次核心共享的阻擋問題。**
+  - 阻擋問題：無。
+  - 條件：不適用。
+  - 條件是否已被需求方接受：不適用。
+  - round1 後續處理：`docs:check:final` 發現審查標題同義格式及 GitHub 提交／推送授權動詞未被 validator 接受；主要代理未修改 round1 報告，已補相容規則與 fixture，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round2 獨立審查結論為不通過：round1 的「可逐字引用完整結論句」同義標題已能正確接受，既有籠統需求、否定與混合拒絕案例也未回歸，但 GitHub 外部共享授權仍只以同意詞與提交／推送／共享動作詞共現判斷，會誤接受「同意記錄需求；使用者要求推送治理資料」這類同意受詞無關的案例，因此明確核准外部動作的治理門檻與負向測試覆蓋尚未完成。**
+  - round2 處理狀態：已要求同意／核准／接受與外部動作出現在同一子句內，並新增無關同意＋要求／請求提交／推送／共享負例，待 round3 複審。
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round3.md`
+  - round3 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round3 獨立審查結論為不通過：同意／核准／接受與外部動作現在已限制於 60 字內且不跨中文全形分號或句號，round2 指定負例、既有正負 fixture 與完整 `npm run check` 均通過，但相同規則仍會跨越 ASCII `;` 與 `.`，誤接受「同意記錄需求; 使用者要求推送治理資料」等語意分離案例，因此發布授權子句邊界與等價標點負向覆蓋尚未完整。**
+  - round3 處理狀態：已將半形 `;`、`.` 納入不可跨越的子句邊界，新增兩個等價負例，待 round4 複審。
+  - round4 審查檔案：`docs/project-management/reviews/2026-07-23-governance-github-sync-round4.md`
+  - round4 判定（逐字引用「綜合判定」）：**本輪 GitHub 治理同步 round4 獨立審查結論為通過：授權 validator 現已把同意／核准／接受與外部動作限制在同一個 60 字內子句，且中文全形與 ASCII 的 `；。;.` 均不可跨越，四個語意分離負例、直接發布與 GitHub 共享正例、既有否定／混合拒絕案例、長度邊界及完整 `npm run check` 全部符合預期，round2 與 round3 的發布授權誤接受阻擋已解除。**
+  - round4 阻擋問題：無。
+- 發布授權：
+  - 是否需要：是（外部 GitHub 共享，不是安裝包發布）
+  - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
+  - 核准時間：2026-07-23（本次明確要求同步到 GitHub 共享）
+  - 核准範圍：同意將本條列明的治理規範、常設授權、驗證工具／測試及獨立審查證據提交並推送至既有 GitHub repo，建立 Draft PR；不授權合併 PR、建立產品 Release、上傳安裝資產或提交無關／敏感檔案。
+- 部署／發布結果：治理資料、驗證工具／測試與審查證據已推送至 GitHub 分支 `codex/release-v0.46.0`；推送後核對 local HEAD 與 remote branch 均為 `c71b6365116723274940cf4ec6380596710e7d3e`。本結案工作紀錄以後續純文件 commit 推送，最終 remote SHA 另於交付回報核對。Draft PR 未建立，原因為 GitHub integration 缺少 PR 寫入權限（403）且本機 `gh` token 無效。
+- 遺留風險與後續事項：Draft PR 尚未建立，缺少集中 review／compare／合併入口；恢復 `gh` 登入或 integration PR 權限後應補建並核對 head SHA。常見秘密模式掃描不能涵蓋所有未知格式。自然語言授權 validator 採 60 字子句啟發式，不是完整語意理解。本次不授權也不執行合併。
+
+---
+
+## 2026-07-23 — 精簡治理必讀流程與建立常設簽章風險授權
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者指出每次任務完整讀取所有治理文件耗時，要求重新檢視並精簡；同時明確統一同意 Windows Authenticode 未簽章、macOS 未經 Apple Developer ID 公證狀態下對外發布。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：中（變更治理前置門檻、preflight 行為與發布授權政策；本次不實際發布）
+- 執行前已讀：依本次變更前規則完成 `npm run project:preflight`、AGENTS、治理文件 00–08 與需求／開發／測試／獨立審查／發布／結案流程（是）
+- 目標與成功條件：固定必讀上下文由 11 份降為最小核心集；按任務類型只讀相關文件；preflight 能列出精確路由；歷史證據不刪除；建立可追溯常設授權，未來發布可引用但仍須揭露風險與完成資產驗證。
+- 不在範圍：刪除歷史治理紀錄、降低測試／獨立審查／發布資產核對門檻、授權未實機測試或其他未明示風險、立即打包或發布任何版本。
+- 預計影響檔案／模組：上層與 repo `AGENTS.md`、治理 README／01／05／08、發布與結案 workflow、常設授權文件、`project-preflight.mjs`、治理檢查器與 fixture。
+- 風險與回復方式：過度精簡可能漏讀必要上下文；以固定核心集、任務路由、`--type` 驗證與保守未知類型回退避免。常設授權若被誤擴張；以授權 ID、明確範圍、排除項與可撤銷規則限制。
+- 驗證計畫：preflight 各任務類型正負案例、治理 fixture、`npm run docs:check`、`npm run check`、`git diff --check`；完成後由獨立代理六面向審查並產出獨立報告。
+- 實際修改：將上層與 repo AGENTS 精簡為任務型前置流程；README 改為 4 項固定核心＋`general/governance/requirements/development/debug/release/full` 路由；重寫 preflight 支援 `--type` 並只列必要文件；新增 preflight 正負測試並納入 `npm test`；新增 `09-STANDING-AUTHORIZATIONS.md` 與 `AUTH-2026-07-23-01`；同步治理、狀態、開發部署、測試稽核、發布與結案流程，以及 docs checker 的 09 文件檢查。
+- 開發驗證結果：2026-07-23 Asia/Taipei 執行 preflight／常設授權相關腳本 `node --check`、七類型完整路由矩陣、常設授權正負 fixture、`project:preflight -- --type=governance`、`npm run docs:check`、`git diff --check` 全部通過；`npm run check` 的文件、preflight、授權、治理 validator、媒體、雙語字幕、AI optimizer／provider、review UI 均通過；一次 sandbox 內核心測試因 loopback `EPERM` 中止，經授權於 sandbox 外重跑 `npm test` 全部通過。
+- 獨立審查是否執行：是（round1–round3；round3 通過）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round1.md`
+  - round1 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」獨立審查結論為不通過：七種類型路由、full 完整性、未知類型失敗、08 最新條目追溯與歷史保留、AUTH-2026-07-23-01 的平台範圍／排除項／發布操作分離均已人工驗證正確，且 npm run check 通過，但 preflight 自動測試未覆蓋 governance、requirements、development、debug 的完整路由，docs checker／fixture 亦未以正負案例鎖定常設授權的精確範圍與邊界，因此尚未滿足 NFR-006 所要求的完整自動測試與文件檢查。**
+  - round1 處理狀態：已新增七類型完整 expected matrix，以及常設授權結構驗證器與平台範圍、未實機排除、非立即發布、撤銷界線正負 fixture；round1 報告保持原文，待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round2.md`
+  - round2 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」round2 獨立審查結論為不通過：round1 所列七類型完整 preflight 矩陣，以及 Windows Authenticode、macOS Apple Developer ID 簽章／公證、未實機排除與非立即發布的 checker／fixture 缺口均已修正，npm run check 亦完整通過；但常設授權 validator 對撤銷界線只檢查「撤銷方式」字樣，實測「永久有效，不得撤銷或限縮」的矛盾條款仍回傳零錯誤，且測試未建立撤銷負例卻宣稱已涵蓋，因此 NFR-006 的文件防退化驗證仍未完整。**
+  - round2 處理狀態：已強制驗證需求方可撤銷／限縮、拒絕永久或不可撤銷文字，並要求以新條目保留授權歷史；新增移除、矛盾及歷史覆寫負例，待 round3 複審。
+  - round3 審查檔案：`docs/project-management/reviews/2026-07-23-streamlined-governance-and-standing-authorization-round3.md`
+  - round3 判定（逐字引用「綜合判定」）：**本輪「精簡治理必讀流程與建立常設簽章風險授權」round3 獨立審查結論為通過：round2 的撤銷界線阻擋已修正，validator 現要求需求提出者／產品負責人可撤銷或限縮、須以新指示及新條目保留歷史，並拒絕永久有效、不得撤銷、不可撤銷與不得限縮；相應移除、矛盾及覆寫歷史負例、七類型 preflight 矩陣與 npm run check 均實際通過，未發現未處理阻擋問題。**
+  - round3 阻擋問題：無。
+- 發布授權：不適用（本次不發布；本條另建立未來發布可引用的常設風險授權）
+- 部署／發布結果：不適用；本次不打包、不部署、不發布。
+- 遺留風險與後續事項：自然語言任務分類仍需執行者選擇最接近的 `--type`，無法判定時使用 `full`；字串驗證無法理解所有自然語言改寫，未來調整授權格式須同步更新 fixture。本次不替工作樹其他既有變更或發布資產背書。
+
+---
+
 ## 2026-07-23 — 0.46.0 正式打包與發布
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求正式打包與發布 0.46。
 - 關聯需求／缺陷：`FR-016`、`FR-017`、`FR-018`、`FR-019`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
@@ -57,17 +374,21 @@
 - 預計影響檔案／模組：`package.json`、`package-lock.json`（若版本同步）、`RELEASE-NOTES-0.46.0.md`、workflow／內建手冊資源、治理狀態與發布資產。
 - 風險與回復方式：版本升級與 Release 不可靜默覆蓋既有 v0.45.2；若候選 checksum、metadata、封裝內容或審查不一致立即停止；正式發布前需逐項核准未簽章、未公證、未完成實機與 AI／FFmpeg 未覆蓋風險。
 - 驗證計畫：版本／來源核對、`npm run check`、runtime manifest／verify、macOS dir／DMG／ZIP、Windows CI Setup／Portable、封裝內容／SHA／updater metadata、獨立發布審查、發布後 GitHub 資產 digest／下載核對。
-- 實際修改：版本升級至 `0.46.0`；新增 0.46.0 Release Notes、Windows CI 發布標籤與資產命名；建立 macOS arm64 DMG／ZIP 候選與 SHA-256 清單；補強 `.gitignore` 與 Electron `build.files` 的 env／金鑰／機密檔排除規則；更新目前狀態、README 與發布相關治理紀錄。
-- 開發驗證結果：待執行。
-- 獨立審查是否執行：待執行。
-- 獨立審查結論：待執行。
+- 實際修改：版本升級至 `0.46.0`；新增 0.46.0 Release Notes、Windows CI 發布標籤與資產命名；建立 macOS arm64 DMG／ZIP 候選與 SHA-256 清單；補強 `.gitignore` 與 Electron `build.files` 的 env／金鑰／機密檔排除規則；更新目前狀態、README 與發布相關治理紀錄；建立公開 GitHub `v0.46.0` Release；修正 Windows workflow 未簽章 fallback 的步驟命名。
+- 開發驗證結果：本機受控環境 `npm run check` 通過；Windows CI run `29978500348` 通過來源與真實 FFmpeg 回歸、unsigned Setup／Portable 建置、EXE archive／手冊／SHA-256 驗證；macOS DMG `hdiutil verify`、ZIP `unzip -t`、SHA-256 與 GitHub digest 核對通過；機密檔案與常見秘密內容掃描未命中。
+- 獨立審查是否執行：是。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-release-v0-46-0-round1.md`
+  - 判定（逐字引用審查報告「完整單句結論」）：**本輪獨立發布審查結論為有條件通過：公開 v0.46.0 Release 已建立，但 Windows artifact 尚未完成審查代理端逐檔交叉檢查、macOS updater metadata／blockmap 尚未驗證；需求方已接受 Windows 未簽章、macOS 未公證、Windows／macOS 實機與 Electron smoke test 尚未完成的發布風險，且未核對資產不得上傳。**
+  - 條件：Windows artifact 未完成審查代理端逐檔下載交叉檢查；macOS updater metadata／blockmap 未重新證明一致，因此不發布該等資產；Windows unsigned、macOS ad-hoc 未公證及跨平台實機／Electron smoke test 未覆蓋。
+  - 條件是否已被需求方接受：是（本次明確同意接受上述發布風險）。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人（本次對話使用者）
   - 核准時間：2026-07-23（本次明確回覆「OK 請繼續」）
-  - 核准範圍：明確同意推送 `codex/release-v0.46.0`、建立公開 `v0.46.0` GitHub Release；接受 Windows 未 Authenticode、macOS ad-hoc 未公證、尚未完成跨平台／Electron smoke test、AI response contract／FFmpeg 未覆蓋與資產候選驗證風險；但機密稽核必須先通過，任何發現秘密即停止發布。
-- 部署／發布結果：待執行。
-- 遺留風險與後續事項：待執行。
+  - 核准範圍：明確同意推送 `codex/release-v0.46.0`、建立公開 `v0.46.0` GitHub Release；接受 Windows 未簽章（未 Authenticode）、macOS ad-hoc 未公證、尚未完成跨平台／Electron smoke test、AI response contract／FFmpeg 未覆蓋與資產候選驗證風險；但機密稽核必須先通過，任何發現秘密即停止發布。
+- 部署／發布結果：已建立公開 Release `v0.46.0`；上傳 macOS arm64 DMG／ZIP／SHA-256，GitHub digest 與本地 SHA-256 一致；Windows CI artifact 保留於 run `29978500348`，未直接附於 Release；未上傳未驗證一致的 updater metadata／blockmap。
+- 遺留風險與後續事項：Windows 使用者仍需從 CI artifact 取得 unsigned 候選並核對 SHA-256；後續應完成 Windows／macOS 乾淨實機、Electron packaged renderer、正式簽章／公證、真實 provider smoke test、AI 雙語 response contract 與 updater 資產驗證。
 
 ---
 
@@ -227,7 +548,7 @@
 
 ## 2026-07-22 — 重建 0.45.2 AI 供應商修正版候選資產
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求繼續進行；承接已完成的 Groq／Gemini 供應商修正，重新建立可代表目前來源的 0.45.2 候選資產。
 - 關聯需求／缺陷：`FR-008`、`FR-009`、`FR-013`、`NFR-001`、`NFR-002`、`NFR-003`、`NFR-004`、`NFR-006`、`NFR-008`、`BUG-010`
@@ -477,3 +798,66 @@
   - **稽核註記（本次補強新增）：本條目未記錄審查檔案路徑，也未記錄發布授權所需的核准人、時間與範圍。0.45.1 屬「發布」等級；發布授權狀態為「待確認」，不得推定當時已核准未簽章、未公證或未實機測試等風險，也不得回溯補造證據。應由需求方／產品負責人另行確認或明確追認。**
 - 部署／發布結果：v0.45.1 已發布 macOS 與 Windows；線上手冊已部署。
 - 遺留風險與後續事項：Windows 實機 smoke test、正式簽章、公證、npm audit 分類。
+## 2026-07-23 — GitHub 同步與治理進度盤點
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求確認整個專案的開發規範、進度與管控是否已同步到 GitHub。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：低（只讀盤點；僅新增本次治理工作紀錄，不修改產品行為）
+- 執行前已讀：`AGENTS.md`、治理文件 00–08、GitHub／文件同步與結案流程（是）
+- 目標與成功條件：以本地 Git、GitHub 遠端 repository／分支／提交／Release 及治理文件逐項交叉核對，明確列出已同步、未同步、待確認與文件敘述不一致項目。
+- 不在範圍：不修改產品程式碼、不推送、不建立或修改 GitHub Release、不刪除或覆蓋任何遠端資料。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md`；查核過程不預期修改其他文件。
+- 風險與回復方式：遠端權限、API 可見性或歷史文件可能造成證據不完整；無法確認者標示「待確認」，不以本地文件推定遠端已同步。
+- 驗證計畫：本地 Git／遠端追蹤分支／差異盤點、GitHub repository／Release／分支查核、`npm run docs:check`、`git diff --check`，完成後進行獨立只讀審查。
+- 實際修改：新增本次 GitHub 同步盤點工作紀錄；未修改產品程式碼、未推送、未建立或修改 Release。
+- 開發驗證結果：本地 `codex/release-v0.46.0` HEAD `142b85d` 與 `origin/codex/release-v0.46.0` 一致；GitHub connector 查得 repository `twyderek/offline-subtitle-factory-app` 為公開 repo，分支清單包含目前分支，compare 顯示該分支相對 `main` 為 ahead 1 commit；本地 `git rev-list` 實測 release 分支相對本地 `main` 為 ahead 12 commits，兩項證據的基準／快取狀態不一致，已標示待確認。遠端分支上的治理文件可讀取。`npm run docs:check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-23-github-sync-audit-round1.md`
+  - 判定（逐字引用審查報告「完整單句結論」）：**本輪 GitHub 同步盤點獨立審查結論為不通過：本次查核紀錄尚未提交、`codex/release-v0.46.0` 與 `main` 不一致且本地實測為 ahead 12（工作紀錄誤載 ahead 1），GitHub 即時分支／治理文件／Release 資產因 DNS 與 cache miss 待確認，並仍存在 Windows 未簽章、Windows artifact 未直接附 Release 及 macOS updater metadata／blockmap 未核對等發布風險，因此目前不能判定整個專案已完整同步到 GitHub。**
+  - 條件：取得可用的 GitHub 即時網路證據後重新核對 branch／compare／治理檔案／Release assets；修正 ahead 數量與遠端狀態敘述；取得明確授權後提交並推送本次紀錄；另決定是否合併 release 分支至 main。
+  - 條件是否已被需求方接受：待確認（本輪只做查核，未取得推送／合併授權）。
+- 發布授權：
+  - 是否需要：否（本次不發布、不推送）
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：不適用；本次未部署、未打包、未發布。
+- 遺留風險與後續事項：本地新增的本次紀錄與獨立審查報告尚未提交，因此尚未同步到 GitHub；`codex/release-v0.46.0` 尚未合併 `main`，而 `main` 仍顯示 0.46.0 為發布候選／公開版本為 0.45.2，治理狀態尚未在主分支同步。GitHub connector 與本地 Git 對 ahead 數量的證據不一致（ahead 1／ahead 12），且本地網路／Web cache 無法重新驗證 GitHub 即時 Release 資產；此差異待取得穩定遠端證據後確認。GitHub Release 與 repository 文件同步不代表所有 CI artifact 都是 Release assets；0.46.0 的 Windows unsigned artifact 未直接附於 Release，macOS updater metadata／blockmap 未上傳。若要達成完整同步，需另行授權提交／推送本次紀錄，並決定是否合併分支與修正主分支狀態。
+
+---
+
+## 2026-07-28 — 0.47.1 發布結案
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者明確授權完成修正並發布 0.47.1。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release`（是）
+- 目標與成功條件：完成可追溯版本、跨平台資產、checksum／digest、Release notes、發布後核對與獨立審查。
+- 不在範圍：不移動 v0.47.0；不宣稱簽章、公證、Metal、Electron 或實機驗收已完成。
+- 預計影響檔案／模組：版本檔、Release notes、Windows workflow、治理文件與 GitHub Release。
+- 風險與回復方式：保留 v0.47.0 歷史 Release；若發現資產或 checksum 不一致則停止導流並發布修正版。
+- 驗證計畫：`npm run check`、macOS `hdiutil verify`／`unzip -t`、Windows artifact 解壓／SHA／metadata、GitHub API asset 核對、獨立發布審查與 `npm run docs:check:final`。
+- 實際修改：完成 0.47.1 版本與 workflow 修正，建立 commit `0bd3b53`、tag `v0.47.1`；正式發布 GitHub Release 並上傳 7 項資產，更新狀態、稽核與 Release notes。
+- 開發驗證結果：上述測試與核對均通過；GitHub `v0.47.1` 為正式 Release，7 項資產名稱／大小／digest／直接 URL 已核對。
+- 獨立審查是否執行：是（round1 不通過後 round2 複審）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round2 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產名稱／大小／digest／URL 證據一致；在持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口，並於網路可達時重放 GitHub API／下載核對與收斂狀態文件的條件下，可以維持 v0.47.1 公開發布。**
+  - 條件（若為有條件通過）：持續揭露未簽章／未公證、Metal、Electron／跨平台實機風險；網路可達時重放 GitHub API／下載核對；狀態文件維持 0.47.1 為現行公開版本。
+  - 條件是否已被需求方接受：是
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人；簽章風險引用 `AUTH-2026-07-23-01`
+  - 核准時間：2026-07-28（Asia/Taipei）
+  - 核准範圍：同意打包、提交、推送、共享並正式發布 0.47.1；接受未簽章／未公證風險；資產／checksum 一致與審查通過為發布前置條件。
+- 部署／發布結果：GitHub `v0.47.1` 正式發布：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1。
+- 遺留風險與後續事項：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，已於 Release notes／狀態文件揭露。
+
+- round3 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round3.md`
+- round3 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產證據一致；在網路可達時重放 GitHub API／下載核對、收斂狀態文件，並持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口的條件下，可以維持 v0.47.1 公開發布。**
+- round3 條件是否已被需求方接受：是

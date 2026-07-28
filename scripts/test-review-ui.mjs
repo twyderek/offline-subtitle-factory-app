@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { providerProfileMatches, providerProfileSnapshot, runProviderConnectionTest, validateProviderConnectionForm } from '../public/ai-provider-settings.mjs';
+import { selectAiCues } from '../public/ai-scope.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(appDir, 'public', 'review.html'), 'utf8');
@@ -25,6 +26,19 @@ assert.match(html, /id="bilingualLayout"/);
 assert.match(html, /原文在上／譯文在下/);
 assert.match(html, /id="downloadAss"/);
 assert.match(js, /normalizeBilingualCues/);
+assert.match(html, /<select id="qualityFilter">/);
+assert.match(html, /<option value="issues">全部問題<\/option>/);
+assert.match(html, /<option value="low-confidence">低可信<\/option>/);
+assert.match(html, /<option value="quality">只處理品質篩選結果<\/option>/);
+assert.match(js, /filterQualityCues\(state\.cues, state\.qualityFilter\)/);
+assert.doesNotMatch(js, /scope === 'quality'[\s\S]{0,500}(reviewVideo|reviewVideoFile|audio|video\.src)/);
+const scopeCues = [
+  { id: 1, startRaw: '00:00:00,000', endRaw: '00:00:02,000', text: '正常字幕', translatedText: '正常字幕', confidence: 0.95 },
+  { id: 2, startRaw: '00:00:02,000', endRaw: '00:00:04,000', text: '低可信字幕', translatedText: '低可信字幕', confidence: 0.1, filePath: '/private/video.mp4' },
+];
+const qualityPayload = selectAiCues({ cues: scopeCues, scope: 'quality', qualityFilter: 'low-confidence' });
+assert.deepEqual(qualityPayload.map((cue) => cue.id), [2], 'quality scope 應只送出篩選後 cue');
+assert.deepEqual(Object.keys(qualityPayload[0]).sort(), ['end', 'id', 'sourceText', 'start', 'text', 'translatedText'], 'AI payload 不得含 raw quality 或影音欄位');
 assert.match(js, /source-text/);
 assert.match(js, /translated-text/);
 assert.match(html, /id="aiCustomLanguageField" hidden/);

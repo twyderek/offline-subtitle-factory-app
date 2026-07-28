@@ -13,6 +13,8 @@
 | 實機 | 安裝、啟動、轉錄、校閱、輸出、解除安裝 | 正式或公開發布 |
 | 發布 | Release 資產、digest、checksum、下載 URL | 每次 Release |
 
+治理前置流程另以 `test-project-preflight.mjs` 驗證任務路由，確保一般任務不載入完整歷史，發布與 full 類型仍包含必要治理／授權文件；未知類型必須失敗。
+
 ## 六面向獨立審查
 
 審查代理必須提供證據並逐項判定：
@@ -91,3 +93,18 @@
 - BUG-012：`test-core.mjs` 驗證 `openai-compatible` 搭配 Gemini URL／`gemini-*` 模型時，會回復空 Base URL／空模型，且不影響供應商金鑰隔離。
 - 必測：正常 OpenAI-compatible 自訂 endpoint、正常 Gemini profile、舊混用設定、空值、非法 provider、重啟後設定持久化。
 - 實機：以既有 0.45.2 使用者設定升級到 0.45.3，確認 UI 不再顯示跨供應商資料。
+
+## 0.47.0 發布閉環核對（2026-07-28）
+
+- 本機核對：`git rev-parse HEAD` 為 `efc6259140640e65f9273284811c365da473bc88`；既有 release round1 報告記錄的 Release／Windows CI 目標為 `7946f7fa8e080f28a65639053f674fa8babcd5fe`，來源尚未一致。
+- GitHub Release API 核對（2026-07-28 可取得的回應）：`v0.47.0` target 為 `7946f7f`；公開資產為 `offline-subtitle-factory-0.47.0-macos-arm64.dmg`、`offline-subtitle-factory-0.47.0-macos-arm64.zip`、`RELEASE-SHA256SUMS-0.47.0-macos-arm64.txt`，未見 Windows Release asset。
+- Windows 證據：workflow run `30231912997`／artifact `8640388049`、名稱 `offline-subtitle-factory-0.47.0-windows-x64` 與 SHA-256 已記錄於 `RELEASE-NOTES-0.47.0.md`；本輪未能重新下載 artifact，內容逐檔核對與發布後下載核對仍待執行。
+- 判定：發布閉環未完成；來源 commit 不一致與 Windows 未公開／未反向核對為阻擋項。未簽章／未公證、Metal exit 139、Electron 與跨平台實機缺口仍為揭露中的條件風險，不得由 CI 成功取代。
+
+## 0.47.1 發布後核對（2026-07-28）
+
+- 來源：annotated tag `v0.47.1` 解析至 commit `0bd3b53be0cd523d7c7beb3078b5b46dad2f81b1`；GitHub Release 已由 draft 正式發布。
+- 開發驗證：受控環境外 `npm run check` 通過；`hdiutil verify` 驗證 macOS DMG；`unzip -t` 驗證 macOS ZIP 與 Windows artifact archive；Windows `latest.yml`、Setup／Portable 與 SHA-256 清單一致。
+- 發布資產：GitHub Release `v0.47.1` 公開 7 項資產，API 已核對名稱、大小、digest 與直接下載 URL；macOS DMG／ZIP 的 GitHub digest 分別為 `88cc9ce8f76a2b720a74e52780d8c2340acd25cf324895233d41051cbaa35f04`、`1411e242136908a54bd8ad7cc95088e18a383c216004fa3afcbff2e5c0b7fb8e`；Windows Setup／Portable digest 分別為 `323b08300b2724b0dabf9a8e6c5aef7dfed850df7707328412a3794d24f352a9`、`5e1445b67f4a84f5c09d0dd80b854c05146cdc0efa34f1481de6fa46ae48f237`。
+- 限制：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，Release notes 已揭露。
+- 独立审查：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`；结论为有条件通过，条件与剩余风险详见该报告及工作纪录。

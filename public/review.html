@@ -100,6 +100,7 @@
         <section class="review-editor">
           <div class="review-editor-toolbar">
             <input id="cueSearch" class="review-search" type="search" placeholder="搜尋字幕">
+            <label class="review-quality-filter">品質篩選<select id="qualityFilter"><option value="all">全部字幕</option><option value="issues">全部問題</option><option value="low-confidence">低可信</option><option value="long">過長</option><option value="fast">速度過快</option><option value="repeat">重複文字</option><option value="proper-noun">疑似專有名詞</option></select></label>
             <div class="review-metrics">
               <div class="review-metric"><span>字幕</span><strong id="cueCount">0</strong></div>
               <div class="review-metric"><span>已修改</span><strong id="changedCount">0</strong></div>
@@ -130,7 +131,7 @@
                   </div>
                   <div class="review-ai-actions">
                     <label class="review-ai-check"><input id="aiPreserveTiming" type="checkbox" checked> 鎖定時間碼</label>
-                    <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="selected">只處理勾選字幕</option><option value="search">只處理搜尋結果</option><option value="current">只處理目前字幕</option></select>
+                    <select id="aiScope" aria-label="AI 優化範圍"><option value="all">處理全部字幕</option><option value="quality">只處理品質篩選結果</option><option value="selected">只處理勾選字幕</option><option value="search">只處理搜尋結果</option><option value="current">只處理目前字幕</option></select>
                     <span id="aiScopeEstimate" class="review-ai-estimate">預計 0 段</span>
                     <button id="runAiOptimize" class="review-button primary" type="button">開始 AI 優化</button>
                     <button id="resumeAiOptimize" class="review-button primary" type="button" hidden>繼續未完成任務</button>
