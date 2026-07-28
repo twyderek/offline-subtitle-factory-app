@@ -12,6 +12,8 @@ import { attachWhisperQuality, parseWhisperQualityJson } from './lib/whisper-qua
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
 import { createProvider, isSupportedProvider, listProviderDefinitions, PROVIDER_CAPABILITIES, PROVIDER_DEFAULT_BASE_URLS } from './lib/ai/providers.mjs';
+import { aiEndpointPrivacy, isLocalAiProvider, isLoopbackAiUrl, localAiCandidates } from './lib/ai/local-ai.mjs';
+import { inspectModelCapabilities } from './lib/ai/model-capabilities.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from './lib/ai/project-tools.mjs';
 import { canonicalizeLanguageTag, normalizeLanguageTag } from './lib/ai/languages.mjs';
 
@@ -379,6 +381,7 @@ function normalizeSettings(value = {}) {
 function normalizeAiSettings(value = {}) {
   const provider = isSupportedProvider(value.provider) ? value.provider : defaultSettings.ai.provider;
   const providerDefaultBaseUrl = PROVIDER_DEFAULT_BASE_URLS[provider] ?? defaultSettings.ai.baseUrl;
+  const localProvider = isLocalAiProvider(provider);
   let baseUrl = String(Object.hasOwn(value, 'baseUrl') ? value.baseUrl : providerDefaultBaseUrl).trim().replace(/\/+$/, '');
   let model = String(value.model || '').trim();
   const looksLikeGeminiSetting = /generativelanguage\.googleapis\.com/i.test(baseUrl) || /(^|[-_.])gemini([-.0-9]|$)/i.test(model);
@@ -391,7 +394,7 @@ function normalizeAiSettings(value = {}) {
     provider,
     baseUrl,
     model,
-    batchSize: clampNumber(value.batchSize, 1, 100, defaultSettings.ai.batchSize),
+    batchSize: clampNumber(value.batchSize, 1, localProvider ? 20 : 100, localProvider ? 8 : defaultSettings.ai.batchSize),
     language: normalizeLanguageTag(value.language, defaultSettings.ai.language),
     timeoutSeconds: clampNumber(value.timeoutSeconds, 10, 300, defaultSettings.ai.timeoutSeconds),
     maxRetries: clampNumber(value.maxRetries, 0, 8, defaultSettings.ai.maxRetries),
@@ -437,13 +440,51 @@ function clearAiApiKey(provider = appSettings.ai.provider) {
 function publicAiSettings() {
   const provider = appSettings.ai.provider;
   const { profiles, ...settings } = appSettings.ai;
-  return { ...settings, hasApiKey: Boolean(readAiApiKey(provider)), keySource: process.env.SUBTITLE_AI_API_KEY ? 'environment' : (runtimeAiKeys[provider] ? 'runtime' : (readAiApiKey(provider) ? 'encrypted-or-legacy' : 'none')), providers: listProviderDefinitions() };
+  const privacy = aiEndpointPrivacy(settings.baseUrl);
+  return {
+    ...settings,
+    endpointPrivacy: privacy,
+    requiresApiKey: privacy !== 'local',
+    hasApiKey: Boolean(readAiApiKey(provider)),
+    keySource: process.env.SUBTITLE_AI_API_KEY ? 'environment' : (runtimeAiKeys[provider] ? 'runtime' : (readAiApiKey(provider) ? 'encrypted-or-legacy' : 'none')),
+    providers: listProviderDefinitions(),
+  };
 }
 
 function aiProviderConfig() {
   const provider = appSettings.ai.provider;
   const profile = appSettings.ai.profiles?.[provider] || {};
   return { ...appSettings.ai, ...profile, provider, apiKey: readAiApiKey(provider), capabilities: PROVIDER_CAPABILITIES[provider] };
+}
+
+async function discoverLocalAiServices() {
+  const results = await Promise.all(localAiCandidates().map(async (candidate) => {
+    try {
+      const models = await createProvider({
+        provider: candidate.provider,
+        baseUrl: candidate.baseUrl,
+        apiKey: '',
+        timeoutSeconds: 2,
+      }).listModels();
+      return {
+        provider: candidate.provider,
+        label: candidate.label,
+        baseUrl: candidate.baseUrl,
+        available: true,
+        models: models.map((model) => String(model?.id || '')).filter(Boolean),
+      };
+    } catch (error) {
+      return {
+        provider: candidate.provider,
+        label: candidate.label,
+        baseUrl: candidate.baseUrl,
+        available: false,
+        models: [],
+        error: String(error?.message || '無法連線').slice(0, 200),
+      };
+    }
+  }));
+  return results;
 }
 
 function getProjectAiSettingsPath(job) { return path.join(job.jobRoot, 'ai-output', 'project-settings.json'); }
@@ -582,9 +623,10 @@ function startAiOptimizationJob(job, payload, previous = null) {
   const jobId = job.config.jobId;
   const config = aiProviderConfig();
   if (!config.enabled) throw new Error('AI 字幕優化尚未啟用');
-  if (!config.apiKey || !config.model) throw new Error('AI API Key 或模型尚未設定');
+  if (!config.model) throw new Error('AI 模型尚未設定');
+  if (!config.apiKey && !isLoopbackAiUrl(config.baseUrl)) throw new Error('AI API Key 尚未設定');
   if (config.provider === 'azure' && !config.deployment) throw new Error('Azure Deployment 尚未設定');
-  if (!config.consentGrantedAt && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${config.baseUrl}/`)) throw new Error('首次使用雲端 AI 前必須確認資料傳送同意');
+  if (!config.consentGrantedAt && !isLoopbackAiUrl(config.baseUrl)) throw new Error('首次使用雲端 AI 前必須確認資料傳送同意');
   const request = previous?.request || payload;
   if (!Array.isArray(request?.cues) || request.cues.length === 0) throw new Error('Missing subtitle cues');
   request.language = canonicalizeLanguageTag(request.language || config.language);
@@ -3256,6 +3298,40 @@ async function handleApi(req, res) {
       else delete runtimeAiKeys[provider];
       sendJson(res, 200, { ok: true, hasApiKey: Boolean(runtimeAiKeys[provider]) });
     } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/ai/local-services') {
+    sendJson(res, 200, { ok: true, services: await discoverLocalAiServices() });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/ai/models') {
+    try {
+      const config = aiProviderConfig();
+      if (!config.baseUrl) throw new Error('請先儲存 API Base URL');
+      const models = await createProvider(config).listModels();
+      sendJson(res, 200, {
+        ok: true,
+        endpointPrivacy: aiEndpointPrivacy(config.baseUrl),
+        models: models.map((model) => ({ id: String(model?.id || '') })).filter((model) => model.id),
+      });
+    } catch (error) {
+      sendJson(res, 422, { ok: false, error: error.message });
+    }
+    return;
+  }
+  if (req.method === 'POST' && url.pathname === '/api/ai/capabilities') {
+    try {
+      const config = aiProviderConfig();
+      if (!config.baseUrl || !config.model) throw new Error('請先儲存 Base URL 與模型名稱');
+      const capabilities = await inspectModelCapabilities(config, createProvider(config));
+      sendJson(res, 200, {
+        ok: true,
+        endpointPrivacy: aiEndpointPrivacy(config.baseUrl),
+        capabilities,
+      });
+    } catch (error) {
+      sendJson(res, 422, { ok: false, error: error.message });
+    }
     return;
   }
   if (req.method === 'POST' && url.pathname === '/api/ai/test') {

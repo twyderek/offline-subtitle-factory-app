@@ -44,6 +44,37 @@
 
 ---
 
+## 2026-07-28 — 0.48 本機 LLM 基礎支援
+
+- 狀態：進行中（基礎實作完成，真實模型驗收待執行）
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求開始進行 0.48 版本；承接 `AI-ROADMAP-0.50.md` 的 0.48 本機 LLM 里程碑。
+- 關聯需求／缺陷：`FR-008`、`FR-009`、`FR-010`、`FR-021`、`NFR-001`、`NFR-002`、`NFR-003`、`NFR-005`、`NFR-006`
+- 變更等級：高（新增本機 AI provider、端點探測、設定與外部傳輸安全邊界）
+- 執行前已讀：`project:preflight -- --type=development` 列出的固定核心與任務路由（是）
+- 目標與成功條件：支援 Ollama 與 LM Studio 的本機 OpenAI-compatible 端點；可探測常見 localhost 端點並列出模型；清楚區分本機／雲端與隱私差異；本機服務無 API Key 仍可使用；本機採較小批次與嚴格回應驗證；以 mock、自動回歸及可取得的本機服務證據驗證，且不讓雲端同意、金鑰、cue ID／數量／時間碼保護退步。
+- 不在範圍：不自動下載或刪除大型模型、不替使用者選擇模型儲存位置、不發布 0.48、不宣稱尚未實測的 Ollama／LM Studio 模型或跨平台安裝版已通過。
+- 預計影響檔案／模組：AI provider／設定模組、`server.mjs` AI API、校閱頁設定介面、provider／核心／UI 測試、需求／設計／狀態／測試稽核文件。
+- 風險與回復方式：localhost 判定錯誤可能繞過雲端同意或把字幕送到非本機端點；模型回應不穩可能破壞字幕契約；端點探測可能造成非預期請求。採集中且嚴格的 loopback URL 分類、固定候選端點、逾時／取消、模型清單與 schema 驗證；原字幕維持不覆蓋。可由本輪分支與 commit 回復。
+- 驗證計畫：需求到測試追溯；provider contract、設定正規化、localhost／非 localhost／IPv4／IPv6／非法 URL、無 Key、本機模型清單、錯誤／逾時、批次策略、cue 契約、核心 API 與 UI 測試；`npm run check`、實際畫面驗證、可取得時執行 Ollama／LM Studio 端到端與斷網驗證；獨立六面向審查。
+- 實際修改：版本升至 0.48.0；新增 `FR-021`、Ollama／LM Studio provider、嚴格 loopback URL 分類、無 Key 本機請求、固定端點服務探測、模型清單與模型能力檢查；本機 provider 批次上限縮小；設定介面新增本機／雲端隱私狀態、掃描、模型清單與能力檢查。同步 Roadmap、目前狀態、功能設計與測試稽核。round1 發現 redirect 可繞過 loopback 安全邊界後，已在共用 transport 設定 `redirect: manual` 並拒絕 301／302／303／307／308，錯誤不可重試。
+- 開發驗證結果：redirect 修正後 `npm run check` 與 `git diff --check` 完整通過；provider contract 覆蓋 IPv4／IPv6 loopback、惡意 localhost 子網域、遠端端點 Key 門檻、無 Key Authorization 省略與五種 redirect；核心以雙 listener 實測 307 目標第二站收到 0 次請求。fake OpenAI-compatible server 驗證無 Key／無雲端同意的模型列表、連線、能力檢查與完整 AI 批次／重試。實際瀏覽器驗證 Ollama 預設 URL、批次 8、免 Key、隱私標示及遠端 URL 安全回落；掃描無服務時顯示錯誤且按鈕恢復。主機未安裝／未啟動 Ollama 或 LM Studio，兩個預設端點皆 connection refused，故真實模型與斷網端到端尚未執行。
+- 獨立審查是否執行：是（round1 不通過；redirect 阻擋修正後 round2 有條件通過）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-48-local-llm-round2.md`（round1 保留於同 slug `round1.md`）。
+  - 判定（逐字引用審查檔案結論句，綜合判定末段）：**本輪「2026-07-28 — 0.48 本機 LLM 基礎支援」round2 獨立複審結論為有條件通過：共用 AI transport 已以 manual 模式拒絕 301／302／303／307／308，錯誤標示為不可重試的 redirect_blocked；provider contract、兩個真實 listener 的跨 hostname 307 測試及本輪另做的 loopback→loopback 307 測試均確認第二站收到 0 次請求，round1 的字幕 body 跨資料邊界外送阻擋已解除，完整 npm run check 與 git diff --check 亦通過；但真實 Ollama／LM Studio 各一模型、斷網端到端及 Electron／Windows／macOS 封裝後驗收仍未完成，因此只允許基礎實作進入後續開發，不得宣稱 0.48 已完成或可發布。**
+  - 條件（若為有條件通過）：0.48 完成／發布候選前，以 Ollama、LM Studio 各一個真實模型完成探索、能力、字幕建議、人工接受、取消／恢復及斷網端到端；補 Electron、Windows／macOS 封裝後驗收。
+  - 條件是否已被需求方接受：是（使用者授權開始 0.48 開發；本輪保持開發中，未要求在缺少真實模型／實機證據下完成或發布）。
+- 發布授權：
+  - 是否需要：不適用
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：本輪不部署、不打包、不發布。
+- 遺留風險與後續事項：真實 Ollama／LM Studio 各一模型、斷網流程、Windows／macOS／Electron 封裝後驗收仍待執行；在取得這些證據前 0.48 保持開發中，不宣稱完成或發布。模型 context 長度若服務未在模型 metadata 宣告會顯示「服務未提供」；繁體中文能力探測只驗證指定輸出，實際品質仍須人工評估。
+
+---
+
 ## 2026-07-28 — GitHub main 實際同步 0.47.1
 
 - 狀態：完成

@@ -1,4 +1,4 @@
-import { providerProfileSnapshot, runProviderConnectionTest } from './ai-provider-settings.mjs';
+import { isLoopbackAiUrl, providerProfileSnapshot, runProviderConnectionTest } from './ai-provider-settings.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, renderCueText, serializeSrt, serializeVtt } from './bilingual-subtitles.mjs';
 import { assessSubtitleCue, filterQualityCues } from './subtitle-quality.mjs';
 import { selectAiCues } from './ai-scope.mjs';
@@ -67,7 +67,7 @@ const ids = [
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
 const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiDeployment', 'aiApiVersion', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiCustomLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
-const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gemini'];
+const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gemini', 'ollama', 'lm-studio'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -82,6 +82,9 @@ document.getElementById('openAiSettings').addEventListener('click', openAiSettin
 document.getElementById('closeAiSettings').addEventListener('click', closeAiSettings);
 document.getElementById('saveAiSettings').addEventListener('click', saveAiSettings);
 document.getElementById('testAiConnection').addEventListener('click', testAiConnection);
+document.getElementById('discoverLocalAi').addEventListener('click', discoverLocalAi);
+document.getElementById('loadAiModels').addEventListener('click', loadAiModels);
+document.getElementById('inspectAiModel').addEventListener('click', inspectAiModel);
 document.getElementById('runAiOptimize').addEventListener('click', runAiOptimize);
 document.getElementById('toggleAiToolbar').addEventListener('click', () => {
   setAiToolbarCollapsed(!document.getElementById('aiToolbar').classList.contains('collapsed'));
@@ -95,6 +98,7 @@ document.getElementById('exportAiGlossary').addEventListener('click', exportAiGl
 document.getElementById('importAiGlossary').addEventListener('click', importAiGlossary);
 document.getElementById('aiPromptMode').addEventListener('change', showAiPromptTemplate);
 document.getElementById('aiProvider').addEventListener('change', loadAiProviderProfile);
+document.getElementById('aiBaseUrl').addEventListener('input', updateAiPrivacyStatus);
 document.getElementById('aiLanguage').addEventListener('change', updateAiLanguageControls);
 document.getElementById('aiScope').addEventListener('change', updateAiScopeEstimate);
 document.getElementById('undoAiSession').addEventListener('click', () => applyAiSessionDirection('undo'));
@@ -242,10 +246,10 @@ function applyAiSettings(settings) {
   const azure = settings.provider === 'azure';
   document.getElementById('aiDeployment').disabled = !azure;
   document.getElementById('aiApiVersion').disabled = !azure;
-  document.getElementById('aiBatchSize').value = settings.batchSize || 30;
+  document.getElementById('aiBatchSize').value = settings.batchSize || (['ollama', 'lm-studio'].includes(settings.provider) ? 8 : 30);
   document.getElementById('aiApiKey').value = '';
   document.getElementById('aiApiKey').dataset.hasKey = settings.hasApiKey ? 'true' : 'false';
-  document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : '請輸入 API Key';
+  document.getElementById('aiApiKey').placeholder = settings.hasApiKey ? '已安全保存；留空表示沿用' : (settings.requiresApiKey === false ? '本機 loopback 端點可留空' : '請輸入 API Key');
   setAiLanguage(settings.language || 'zh-TW');
   document.getElementById('aiTimeoutSeconds').value = settings.timeoutSeconds || 60;
   document.getElementById('aiMaxRetries').value = settings.maxRetries ?? 3;
@@ -253,10 +257,22 @@ function applyAiSettings(settings) {
   document.getElementById('aiInstructions').value = settings.instructions || '';
   document.getElementById('aiConsent').checked = Boolean(settings.consentGrantedAt);
   const badge = document.getElementById('aiConnectionBadge');
-  const ready = Boolean(settings.enabled && settings.model && settings.hasApiKey);
+  const ready = Boolean(settings.enabled && settings.model && (settings.hasApiKey || settings.requiresApiKey === false));
   badge.textContent = ready ? 'AI 已設定' : '尚未設定';
   badge.classList.toggle('offline', !ready);
   state.aiProviderProfileSnapshot = providerProfileSnapshot(settings);
+  updateAiPrivacyStatus();
+}
+
+function updateAiPrivacyStatus() {
+  const baseUrl = document.getElementById('aiBaseUrl').value.trim();
+  const local = isLoopbackAiUrl(baseUrl);
+  const status = document.getElementById('aiPrivacyStatus');
+  status.textContent = local
+    ? '本機模式：字幕只送往此電腦的 loopback 服務；不需要雲端同意或 API Key。'
+    : '雲端／遠端模式：字幕文字會離開此電腦，必須保存 API Key 並確認資料傳送同意。';
+  document.getElementById('aiConsent').disabled = local;
+  document.getElementById('clearAiKey').disabled = local && document.getElementById('aiApiKey').dataset.hasKey !== 'true';
 }
 
 async function loadAiSettings() {
@@ -296,7 +312,7 @@ async function saveAiSettings() {
   setAiSettingsStatus('正在儲存…');
   try {
     const settings = collectAiSettings();
-    if (settings.enabled && !settings.consentGrantedAt && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${settings.baseUrl}/`)) throw new Error('請先勾選雲端資料傳送同意');
+    if (settings.enabled && !settings.consentGrantedAt && !isLoopbackAiUrl(settings.baseUrl)) throw new Error('請先勾選雲端資料傳送同意');
     if (settings.apiKey && window.electronAPI?.saveAiKey) {
       await window.electronAPI.saveAiKey(settings.provider, settings.apiKey);
       const runtimeResponse = await fetch(`${API_BASE}/api/ai/runtime-key`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider: settings.provider, apiKey: settings.apiKey }) });
@@ -400,6 +416,8 @@ async function loadAiProviderProfile() {
     gemini: 'https://generativelanguage.googleapis.com',
     azure: '',
     'openai-compatible': '',
+    ollama: 'http://127.0.0.1:11434/v1',
+    'lm-studio': 'http://127.0.0.1:1234/v1',
   };
   document.getElementById('aiBaseUrl').value = profile.baseUrl || defaults[provider] || '';
   document.getElementById('aiModel').value = profile.model || '';
@@ -408,12 +426,79 @@ async function loadAiProviderProfile() {
   document.getElementById('aiDeployment').disabled = !azure;
   document.getElementById('aiApiVersion').value = azure ? (profile.apiVersion || '2024-12-01-preview') : '';
   document.getElementById('aiApiVersion').disabled = !azure;
+  document.getElementById('aiBatchSize').value = profile.batchSize || (['ollama', 'lm-studio'].includes(provider) ? 8 : 30);
   const keyInput = document.getElementById('aiApiKey');
   keyInput.value = '';
   keyInput.dataset.hasKey = result.hasApiKey ? 'true' : 'false';
-  keyInput.placeholder = result.hasApiKey ? '此供應商已有安全金鑰' : '請輸入此供應商的 API Key';
+  keyInput.placeholder = result.hasApiKey ? '此供應商已有安全金鑰' : (isLoopbackAiUrl(document.getElementById('aiBaseUrl').value) ? '本機 loopback 端點可留空' : '請輸入此供應商的 API Key');
   state.aiProviderProfileSnapshot = providerProfileSnapshot({ provider, ...profile, baseUrl: profile.baseUrl || defaults[provider] || '' });
+  updateAiPrivacyStatus();
   setAiSettingsStatus(`已切換供應商；JSON Schema：${result.capabilities.jsonSchema ? '支援' : '依服務而定'}，模型列表：${result.capabilities.modelList ? '支援' : '不支援'}`);
+}
+
+function showAiModels(models = []) {
+  const datalist = document.getElementById('aiModelOptions');
+  datalist.replaceChildren(...models.map((model) => {
+    const option = document.createElement('option');
+    option.value = model.id;
+    return option;
+  }));
+}
+
+async function loadAiModels() {
+  setAiSettingsStatus('正在載入模型清單…');
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/models`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    showAiModels(result.models);
+    setAiSettingsStatus(`已載入 ${result.models.length} 個模型；端點：${result.endpointPrivacy === 'local' ? '本機' : '雲端／遠端'}`);
+  } catch (error) {
+    setAiSettingsStatus(`模型載入失敗：${error.message}`);
+  }
+}
+
+async function discoverLocalAi() {
+  const button = document.getElementById('discoverLocalAi');
+  button.disabled = true;
+  setAiSettingsStatus('正在掃描 Ollama 與 LM Studio…');
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/local-services`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const available = result.services.filter((service) => service.available);
+    if (!available.length) throw new Error('找不到已啟動的 Ollama 或 LM Studio 本機服務');
+    const selected = available[0];
+    document.getElementById('aiProvider').value = selected.provider;
+    document.getElementById('aiBaseUrl').value = selected.baseUrl;
+    showAiModels(selected.models.map((id) => ({ id })));
+    if (!document.getElementById('aiModel').value && selected.models.length) document.getElementById('aiModel').value = selected.models[0];
+    document.getElementById('aiBatchSize').value = 8;
+    updateAiPrivacyStatus();
+    setAiSettingsStatus(`已找到 ${selected.label}，共 ${selected.models.length} 個模型；請儲存設定`);
+  } catch (error) {
+    setAiSettingsStatus(`本機掃描失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function inspectAiModel() {
+  const button = document.getElementById('inspectAiModel');
+  button.disabled = true;
+  setAiSettingsStatus('正在檢查模型 JSON 與繁體中文能力…');
+  try {
+    const response = await fetch(`${API_BASE}/api/ai/capabilities`, { method: 'POST' });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const capability = result.capabilities;
+    const context = capability.contextLength ? `${capability.contextLength} tokens` : '服務未提供';
+    setAiSettingsStatus(`模型能力：模型${capability.modelAvailable ? '存在' : '未列出'}；JSON ${capability.jsonOutput ? '通過' : '失敗'}；繁中指令 ${capability.traditionalChinese ? '通過' : '需人工確認'}；context ${context}`);
+  } catch (error) {
+    setAiSettingsStatus(`模型能力檢查失敗：${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function testAiConnection() {

@@ -16,12 +16,22 @@ export function providerProfileMatches(saved, current) {
   return Object.keys(left).every((key) => left[key] === right[key]);
 }
 
+export function isLoopbackAiUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return ['http:', 'https:'].includes(url.protocol)
+      && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export function validateProviderConnectionForm(saved, current, hasSavedKey) {
   const profile = providerProfileSnapshot(current);
   if (!profile.baseUrl) return '請先填寫 API Base URL 並儲存設定';
   if (!profile.model) return '請先填寫模型名稱並儲存設定';
   if (String(current?.apiKey || '').trim()) return '請先儲存設定與 API Key，再測試連線';
-  if (!hasSavedKey) return '請先輸入 API Key 並儲存設定';
+  if (!hasSavedKey && !isLoopbackAiUrl(profile.baseUrl)) return '請先輸入 API Key 並儲存設定';
   if (!providerProfileMatches(saved, profile)) return '供應商、Base URL 或模型已有未儲存變更；請先儲存設定';
   return '';
 }

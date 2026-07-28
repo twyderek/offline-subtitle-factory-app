@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { providerProfileMatches, providerProfileSnapshot, runProviderConnectionTest, validateProviderConnectionForm } from '../public/ai-provider-settings.mjs';
+import { isLoopbackAiUrl, providerProfileMatches, providerProfileSnapshot, runProviderConnectionTest, validateProviderConnectionForm } from '../public/ai-provider-settings.mjs';
 import { selectAiCues } from '../public/ai-scope.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,6 +47,12 @@ assert.match(js, /function getAiLanguage\(\)/);
 assert.match(js, /language: getAiLanguage\(\)/);
 assert.match(html, /<option value="groq">Groq<\/option>/);
 assert.match(html, /<option value="gemini">Google Gemini<\/option>/);
+assert.match(html, /<option value="ollama">Ollama（本機）<\/option>/);
+assert.match(html, /<option value="lm-studio">LM Studio（本機）<\/option>/);
+assert.match(html, /id="discoverLocalAi"/);
+assert.match(html, /id="loadAiModels"/);
+assert.match(html, /id="inspectAiModel"/);
+assert.match(html, /id="aiPrivacyStatus"/);
 assert.match(js, /VALID_AI_PROVIDERS/);
 assert.match(js, /aiDeployment'\)\.disabled = !azure/);
 assert.match(js, /aiApiVersion'\)\.disabled = !azure/);
@@ -69,6 +75,10 @@ assert.match(validateProviderConnectionForm(savedGroq, { ...savedGroq, baseUrl: 
 assert.match(validateProviderConnectionForm(savedGroq, { ...savedGroq, model: 'different-model', apiKey: '' }, true), /未儲存變更/, '未保存 model 不可進入連線 fetch');
 assert.match(validateProviderConnectionForm(savedGroq, { ...savedGroq, apiKey: 'new-key' }, true), /先儲存設定與 API Key/, '輸入中但未保存的 API Key 不可進入連線 fetch');
 assert.match(validateProviderConnectionForm(savedGroq, { ...savedGroq, apiKey: '' }, false), /先輸入 API Key 並儲存設定/, '沒有已保存金鑰不可進入連線 fetch');
+const savedOllama = providerProfileSnapshot({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen-local' });
+assert.equal(validateProviderConnectionForm(savedOllama, { ...savedOllama, apiKey: '' }, false), '', 'loopback 本機服務不應強制 API Key');
+assert.equal(isLoopbackAiUrl('http://[::1]:1234/v1'), true, 'UI 應辨識 IPv6 loopback');
+assert.equal(isLoopbackAiUrl('http://localhost.example.com/v1'), false, 'UI 不可把 localhost 子網域誤認為本機');
 
 async function exerciseConnectionController({ savedProfile = savedGroq, currentSettings = { ...savedGroq, apiKey: '' }, hasSavedKey = true, response = { ok: true, status: 200, body: { ok: true, modelAvailable: true } } } = {}) {
   const button = { disabled: false };

@@ -1,20 +1,23 @@
 import assert from 'node:assert/strict';
 import { createProvider, listProviderDefinitions } from '../lib/ai/providers.mjs';
+import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
+import { modelContextLength, parseCapabilityProbe } from '../lib/ai/model-capabilities.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from '../lib/ai/project-tools.mjs';
 
 const originalFetch = globalThis.fetch;
 const requests = [];
-globalThis.fetch = async (url, options = {}) => {
+const providerMockFetch = async (url, options = {}) => {
   requests.push({ url: String(url), options });
   const body = options.method === 'POST'
     ? { choices: [{ message: { content: '{"cues":[]}' } }] }
     : { data: [{ id: 'test-model' }] };
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 };
+globalThis.fetch = providerMockFetch;
 
 try {
   const definitions = listProviderDefinitions();
-  assert.deepEqual(definitions.map((item) => item.id).sort(), ['azure', 'gemini', 'groq', 'openai', 'openai-compatible']);
+  assert.deepEqual(definitions.map((item) => item.id).sort(), ['azure', 'gemini', 'groq', 'lm-studio', 'ollama', 'openai', 'openai-compatible']);
 
   for (const provider of ['openai', 'openai-compatible', 'groq']) {
     const adapter = createProvider({ provider, baseUrl: 'https://example.test/v1', apiKey: `key-${provider}`, model: 'test-model' });
@@ -38,6 +41,44 @@ try {
   const groqRequest = requests.at(-1);
   assert.match(groqRequest.url, /\/models$/);
   assert.equal(groqRequest.options.headers.Authorization, 'Bearer groq-key');
+
+  for (const [provider, baseUrl] of [['ollama', 'http://127.0.0.1:11434/v1'], ['lm-studio', 'http://localhost:1234/v1']]) {
+    const local = createProvider({ provider, baseUrl, apiKey: '', model: 'test-model' });
+    assert.equal((await local.test()).ok, true, `${provider} loopback 不應強制 API Key`);
+    assert.equal(requests.at(-1).options.headers.Authorization, undefined, `${provider} 無 Key 時不得送出空 Authorization`);
+  }
+  assert.equal(isLoopbackAiUrl('http://[::1]:1234/v1'), true, 'IPv6 loopback 應視為本機');
+  assert.equal(isLoopbackAiUrl('http://localhost.example.com:1234/v1'), false, 'localhost 子網域不得視為本機');
+  assert.equal(aiEndpointPrivacy('https://example.test/v1'), 'cloud');
+  assert.equal(modelContextLength({ context_length: 32768 }), 32768);
+  assert.equal(modelContextLength({ details: { context_length: '8192' } }), 8192);
+  assert.equal(modelContextLength({}), null);
+  assert.deepEqual(
+    parseCapabilityProbe({ choices: [{ message: { content: '```json\n{"traditionalChinese":"繁體中文"}\n```' } }] }),
+    { jsonOutput: true, traditionalChinese: true, responseSample: '{"traditionalChinese":"繁體中文"}' },
+  );
+  assert.equal(parseCapabilityProbe({ choices: [{ message: { content: 'not json' } }] }).jsonOutput, false);
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'https://ollama.example.test/v1', apiKey: '', model: 'test-model' }).test(),
+    /尚未設定 AI API Key/,
+    '遠端 Ollama 端點不得因 provider 名稱繞過金鑰門檻',
+  );
+
+  for (const status of [301, 302, 303, 307, 308]) {
+    let redirectRequests = 0;
+    globalThis.fetch = async (_url, options = {}) => {
+      redirectRequests += 1;
+      assert.equal(options.redirect, 'manual', 'AI transport 必須停用自動 redirect');
+      return new Response('', { status, headers: { Location: 'http://0.0.0.0:6553/receive' } });
+    };
+    await assert.rejects(
+      () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model' }).optimize({ model: 'test-model', messages: [] }),
+      (error) => error.code === 'redirect_blocked' && error.retryable === false,
+      `HTTP ${status} 必須被拒絕且不可重試`,
+    );
+    assert.equal(redirectRequests, 1, `HTTP ${status} 不得送達 redirect 第二站`);
+  }
+  globalThis.fetch = providerMockFetch;
 
   const gemini = createProvider({ provider: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com', apiKey: 'gemini-key', model: 'gemini-1.5-flash' });
   assert.equal((await gemini.test()).ok, true);

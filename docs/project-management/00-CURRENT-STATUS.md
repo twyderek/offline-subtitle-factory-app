@@ -1,7 +1,7 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-07-28
-> 現行版本：0.47.1
+> 現行版本：0.48.0（開發中）
 > 現行公開版本：0.47.1
 > 主分支：`main`
 
@@ -43,13 +43,13 @@
 
 - `AUTH-2026-07-23-01`：需求提出者／產品負責人已統一同意 Windows Authenticode 未簽章、macOS 未經 Apple Developer ID 簽章／公證狀態下對外發布。每次發布仍須引用授權 ID、揭露風險並完成測試、審查、SHA 與資產核對；未實機測試及其他風險不在此授權範圍。詳見 `09-STANDING-AUTHORIZATIONS.md`。
 
-## 下一版本 0.45.3 工作重點
+## 0.48.0 開發中工作重點
 
-1. BUG-012：修正 OpenAI-compatible／Gemini 舊設定遷移，確保 provider、Base URL、model 與 profile 一致。
-2. 執行 Windows 11／macOS 乾淨實機安裝、啟動、解除安裝與離線手冊操作驗收。
-3. 使用測試用 Groq／Gemini 帳號執行不含敏感資料的真實供應商 smoke test。
-4. 評估 Windows Authenticode、macOS Developer ID／公證，以及 npm audit runtime／build-only 影響。
-5. 更新 0.45.3 Release notes、跨平台候選資產與 updater metadata，完成獨立發布審查。
+1. `FR-021`：新增 Ollama／LM Studio 本機 provider、固定常見端點探測與模型清單。
+2. 只有精確 loopback hostname 才免 API Key 與雲端資料傳送同意；遠端端點維持既有安全門檻。
+3. 本機 provider 使用較小批次，沿用 cue ID／數量／順序／時間碼保護與人工接受流程。
+4. 提供本機／雲端隱私標示及模型 JSON、繁體中文、context 能力檢查；不自動下載模型。
+5. Ollama／LM Studio 各至少一個模型與斷網端到端尚待實機驗證；0.48.0 尚未發布。
 
 ## 0.46.0 已公開發布
 

@@ -19,9 +19,20 @@ const baseUrl = `http://127.0.0.1:${port}`;
 let output = '';
 const serverCommand = process.env.OFFLINE_SUBTITLE_TEST_NODE || process.execPath;
 const fakeAiPort = 21000 + Math.floor(Math.random() * 1000);
+const redirectReceiverPort = 22000 + Math.floor(Math.random() * 1000);
 let fakeAiMode = 'retry-once';
 let fakeAiCalls = 0;
+let redirectedAiRequests = 0;
 const fakeAiCueIds = [];
+const redirectReceiver = createServer((_req, res) => {
+  redirectedAiRequests += 1;
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end('{}');
+});
+await new Promise((resolve, reject) => {
+  redirectReceiver.once('error', reject);
+  redirectReceiver.listen(redirectReceiverPort, '0.0.0.0', resolve);
+});
 const fakeAiServer = createServer((req, res) => {
   if (req.url === '/v1/models') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -29,16 +40,26 @@ const fakeAiServer = createServer((req, res) => {
     return;
   }
   if (req.url === '/v1/chat/completions' && req.method === 'POST') {
+    if (fakeAiMode === 'redirect-307') {
+      res.writeHead(307, { Location: `http://0.0.0.0:${redirectReceiverPort}/receive` });
+      res.end();
+      return;
+    }
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', () => {
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if (body.messages?.[1]?.content?.includes('Return exactly')) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ choices: [{ message: { content: '{"traditionalChinese":"繁體中文"}' } }] }));
+        return;
+      }
       fakeAiCalls += 1;
       if (fakeAiMode === 'retry-once' && fakeAiCalls === 1) {
         res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '0' });
         res.end(JSON.stringify({ error: { message: 'test rate limit', code: 'rate_limit' } }));
         return;
       }
-      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       const marker = '待處理字幕：\n';
       const content = body.messages?.[1]?.content || '';
       const cues = JSON.parse(content.slice(content.indexOf(marker) + marker.length));
@@ -203,6 +224,50 @@ try {
   assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
   assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
 
+  const localAiSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...loadedAiSettings.settings,
+      enabled: true,
+      provider: 'ollama',
+      baseUrl: `http://127.0.0.1:${fakeAiPort}/v1`,
+      model: 'test-model',
+      batchSize: 30,
+      consentGrantedAt: '',
+    }),
+  });
+  assert.equal(localAiSettingsResponse.status, 200, 'Ollama loopback 應可在無 API Key 與雲端同意下啟用');
+  const localAiSettings = await localAiSettingsResponse.json();
+  assert.equal(localAiSettings.settings.requiresApiKey, false, 'loopback 設定應明確回報不需要 API Key');
+  assert.equal(localAiSettings.settings.endpointPrivacy, 'local', 'loopback 設定應標示為本機');
+  assert.equal(localAiSettings.settings.batchSize, 20, '本機 provider 批次上限應小於雲端 provider');
+  const localModelsResponse = await api('/api/ai/models');
+  assert.equal(localModelsResponse.status, 200, '本機模型清單應可在無 Key 下讀取');
+  const localModels = await localModelsResponse.json();
+  assert.deepEqual(localModels.models, [{ id: 'test-model' }], '本機模型清單應只回傳正規模型 ID');
+  assert.equal((await api('/api/ai/test', { method: 'POST' })).status, 200, '本機 provider 應可在無 Key 下測試連線');
+  const localCapabilitiesResponse = await api('/api/ai/capabilities', { method: 'POST' });
+  const localCapabilities = await localCapabilitiesResponse.json();
+  assert.equal(localCapabilitiesResponse.status, 200, `本機模型能力檢查應可在無 Key 下執行：${localCapabilities.error || ''}`);
+  assert.equal(localCapabilities.capabilities.jsonOutput, true, '能力檢查應驗證 JSON 輸出');
+  assert.equal(localCapabilities.capabilities.traditionalChinese, true, '能力檢查應驗證指定繁體中文回應');
+  fakeAiMode = 'redirect-307';
+  redirectedAiRequests = 0;
+  const redirectedCapabilityResponse = await api('/api/ai/capabilities', { method: 'POST' });
+  assert.equal(redirectedCapabilityResponse.status, 422, 'loopback AI redirect 必須被 transport 拒絕');
+  assert.equal((await redirectedCapabilityResponse.json()).error, 'AI 服務重新導向已被安全政策拒絕');
+  assert.equal(redirectedAiRequests, 0, '字幕請求不得送達 redirect 的非 allowlist 第二站');
+  fakeAiMode = 'retry-once';
+  fakeAiCalls = 0;
+
+  const restoreAfterLocalResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(loadedAiSettings.settings),
+  });
+  assert.equal(restoreAfterLocalResponse.status, 200, '本機 provider 測試後應可恢復原設定');
+
   const migratedLegacyGeminiResponse = await api('/api/ai/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -312,7 +377,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       enabled: true,
-      provider: 'openai-compatible',
+      provider: 'ollama',
       baseUrl: `http://127.0.0.1:${fakeAiPort}/v1`,
       model: 'test-model',
       batchSize: 1,
@@ -323,7 +388,7 @@ try {
       instructions: '測試可靠性',
     }),
   });
-  assert.equal(enabledAiSettingsResponse.status, 200, 'AI 可靠性測試設定應可啟用');
+  assert.equal(enabledAiSettingsResponse.status, 200, '本機 AI 可靠性測試設定應可在無專屬 Key 下啟用');
   const reliabilityCues = [
     { id: 1, start: '00:00:00,000', end: '00:00:01,000', text: '第一段' },
     { id: 2, start: '00:00:01,000', end: '00:00:02,000', text: '第二段' },
@@ -537,5 +602,6 @@ try {
 } finally {
   server.kill('SIGTERM');
   await new Promise((resolve) => fakeAiServer.close(resolve));
+  await new Promise((resolve) => redirectReceiver.close(resolve));
   fs.rmSync(dataDir, { recursive: true, force: true });
 }

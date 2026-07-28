@@ -194,14 +194,15 @@
       </header>
       <div class="review-ai-settings-grid">
         <label><span>啟用 AI 優化</span><input id="aiEnabled" type="checkbox"></label>
-        <label><span>服務類型</span><select id="aiProvider"><option value="openai-compatible">OpenAI-compatible</option><option value="openai">OpenAI</option><option value="azure">Azure OpenAI</option><option value="groq">Groq</option><option value="gemini">Google Gemini</option></select></label>
+        <label><span>服務類型</span><select id="aiProvider"><option value="ollama">Ollama（本機）</option><option value="lm-studio">LM Studio（本機）</option><option value="openai-compatible">OpenAI-compatible</option><option value="openai">OpenAI</option><option value="azure">Azure OpenAI</option><option value="groq">Groq</option><option value="gemini">Google Gemini</option></select></label>
         <label class="full"><span>API Base URL</span><input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1"></label>
-        <label><span>模型</span><input id="aiModel" type="text" placeholder="請輸入模型名稱"></label>
+        <label><span>模型</span><input id="aiModel" type="text" list="aiModelOptions" placeholder="請輸入或掃描模型名稱"><datalist id="aiModelOptions"></datalist></label>
         <label><span>Azure Deployment</span><input id="aiDeployment" type="text" placeholder="僅 Azure 使用"></label>
         <label><span>Azure API Version</span><input id="aiApiVersion" type="text" value="2024-12-01-preview"></label>
         <label><span>每批段落</span><input id="aiBatchSize" type="number" min="1" max="100" value="30"></label>
         <label class="full"><span>API Key</span><input id="aiApiKey" type="password" autocomplete="off" placeholder="留空表示沿用已保存金鑰"></label>
         <label class="full review-ai-consent"><span><input id="aiConsent" type="checkbox"> 我了解只會傳送畫面所列的字幕文字與前後文，不會傳送影片或音訊</span></label>
+        <div class="full review-hint" id="aiPrivacyStatus" role="status">尚未判定端點；只有 localhost、127.0.0.1 或 ::1 會視為本機。</div>
         <label><span>輸出語言</span><select id="aiLanguage"><option value="zh-TW">繁體中文</option><option value="en">英文</option><option value="ja">日文</option><option value="ko">韓文</option><option value="es">西班牙文</option><option value="fr">法文</option><option value="de">德文</option><option value="pt-BR">葡萄牙文（巴西）</option><option value="vi">越南文</option><option value="th">泰文</option><option value="id">印尼文</option><option value="custom">自訂 BCP 47…</option></select></label>
         <label id="aiCustomLanguageField" hidden><span>自訂語言標籤</span><input id="aiCustomLanguage" type="text" maxlength="255" placeholder="例如 fr-CA、en-GB"><small>請使用 BCP 47 格式。</small></label>
         <label><span>請求逾時（秒）</span><input id="aiTimeoutSeconds" type="number" min="10" max="300" value="60"></label>
@@ -215,6 +216,9 @@
       </div>
       <div class="review-ai-settings-actions">
         <span id="aiSettingsStatus">設定尚未載入</span>
+        <button id="discoverLocalAi" class="review-button" type="button">掃描本機服務</button>
+        <button id="loadAiModels" class="review-button" type="button">載入模型</button>
+        <button id="inspectAiModel" class="review-button" type="button">檢查模型能力</button>
         <button id="testAiConnection" class="review-button" type="button">測試連線</button>
         <button id="clearAiKey" class="review-button" type="button">清除金鑰</button>
         <button id="exportAiGlossary" class="review-button" type="button">匯出術語 JSON</button>

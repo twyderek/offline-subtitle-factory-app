@@ -108,3 +108,11 @@
 - 發布資產：GitHub Release `v0.47.1` 公開 7 項資產，API 已核對名稱、大小、digest 與直接下載 URL；macOS DMG／ZIP 的 GitHub digest 分別為 `88cc9ce8f76a2b720a74e52780d8c2340acd25cf324895233d41051cbaa35f04`、`1411e242136908a54bd8ad7cc95088e18a383c216004fa3afcbff2e5c0b7fb8e`；Windows Setup／Portable digest 分別為 `323b08300b2724b0dabf9a8e6c5aef7dfed850df7707328412a3794d24f352a9`、`5e1445b67f4a84f5c09d0dd80b854c05146cdc0efa34f1481de6fa46ae48f237`。
 - 限制：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，Release notes 已揭露。
 - 独立审查：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`；结论为有条件通过，条件与剩余风险详见该报告及工作纪录。
+
+## 0.48 本機 LLM 驗證計畫
+
+- `test-ai-providers.mjs`：驗證 Ollama／LM Studio registry、loopback IPv4／IPv6、localhost 子網域拒絕、無 Key 不送 Authorization、遠端本機-provider 名稱仍不得繞過 Key，以及模型能力回應解析。
+- `test-review-ui.mjs`：驗證本機 provider 選項、服務掃描、模型清單、能力檢查、隱私狀態與 loopback 無 Key 連線表單。
+- `test-core.mjs`：以本機 fake OpenAI-compatible server 驗證無 Key／無雲端同意設定、模型列表、連線、模型能力與完整 AI 批次／重試／cue 契約。
+- 實機門檻：Ollama 與 LM Studio 各至少一個模型完成模型探索、能力檢查、字幕建議、人工接受、取消／恢復；移除外網後重跑本機流程。
+- 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows／macOS 封裝或斷網端到端標示為通過。

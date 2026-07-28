@@ -12,7 +12,7 @@ Electron 主行程
   ├─ 專案／任務／校閱／修剪
   ├─ 媒體與字幕 API
   ├─ FFmpeg / FFprobe / Whisper.cpp
-  └─ 選用 AI adapters（lib/ai/）→ 使用者設定的外部服務
+  └─ 選用 AI adapters（lib/ai/）→ loopback 本機 LLM 或使用者設定的雲端服務
 ```
 
 ## 主要模組
@@ -25,7 +25,7 @@ Electron 主行程
 | 修剪 | `public/trim.*`、`lib/media-edit.mjs` | In/Out、有效媒體、非破壞輸出與時間重算 |
 | 校閱 | `public/review.*`、`public/bilingual-subtitles.mjs` | 播放同步、原文／譯文個別編輯、時間編輯、狀態、排列預覽、樣式與輸出 |
 | 字幕時間軸 | `lib/subtitle-timeline.mjs` | cue 時間計算與邊界處理 |
-| AI provider | `lib/ai/providers.mjs`、`openai-compatible.mjs` | 供應商差異、HTTP、逾時、取消與錯誤正規化 |
+| AI provider | `lib/ai/providers.mjs`、`openai-compatible.mjs`、`local-ai.mjs` | 供應商差異、loopback 安全分類、本機服務探測、HTTP、逾時、取消與錯誤正規化 |
 | AI optimizer | `lib/ai/subtitle-optimizer.mjs` | Prompt、批次、回應驗證、建議、重試、checkpoint |
 | AI languages | `lib/ai/languages.mjs` | BCP 47 驗證、標準化、常用語言名稱與不可注入的 Prompt 指令 |
 | AI settings migration | `server.mjs`、`scripts/test-core.mjs` | 載入設定時檢查 provider 與 Base URL／model 一致性；只遷移可辨識的 legacy Gemini／OpenAI-compatible 混用值 |
@@ -48,7 +48,15 @@ Electron 主行程
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。
 
-供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑，保留 optimizer 預期的 `choices[].message.content` 回應契約。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
+供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑，保留 optimizer 預期的 `choices[].message.content` 回應契約。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
+
+### 0.48 本機 LLM 設計
+
+Provider registry 新增 `ollama` 與 `lm-studio`，兩者均使用 OpenAI-compatible `/models` 與 `/chat/completions` 契約。只有 URL 經標準解析後 hostname 精確為 `localhost`、`127.0.0.1` 或 `::1` 才分類為 loopback；不得以字串前綴判定，避免 `localhost.example.com` 等非本機位址繞過雲端同意與金鑰門檻。
+
+本機服務探測只請求固定候選端點，採短逾時並只回傳可連線服務及模型 ID，不掃描任意連接埠。Ollama 預設 `http://127.0.0.1:11434/v1`，LM Studio 預設 `http://127.0.0.1:1234/v1`。使用者仍可保存其他 loopback port；非 loopback URL 一律視為雲端／遠端服務。
+
+loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼叫；HTTP client 會完全省略 Authorization header。非 loopback 端點維持既有 API Key 與資料傳送同意門檻。本機 provider 預設較小批次，仍沿用 optimizer 的嚴格 cue ID、數量、順序與時間碼保護，所有結果只形成待人工接受的建議。不自動下載、啟動、停止或刪除模型。
 
 ### 多語言 LLM 流程
 
