@@ -121,4 +121,5 @@
 - 實機門檻：Ollama 與 LM Studio 各至少一個模型完成模型探索、能力檢查、字幕建議、人工接受、取消／恢復；移除外網後重跑本機流程。
 - Ollama 真實模型證據（2026-07-28）：本機 Ollama 0.32.5 以 `llama3.2:1b` 完成 `/v1/models`、能力檢查與專案 API 的 1 cue `proofread` 優化；任務 `completed`、provider／model 正確、0 retries。首次能力檢查的 `traditionalChinese` 為 false，實際建議將中文句號改成英文句點；round5 重放同類能力 prompt 得到 true，單 cue 直接回應另出現額外缺少 id 的物件，顯示能力／品質結果不穩定。已確認模型可用但品質不能直接接受，需保存完整 prompt／參數／原始 response，並由人工審核／後續提示詞或模型調整。
 - 可重放證據：`node scripts/probe-ollama-live.mjs` 會保存版本、模型清單、完整 capability／single-cue 請求與原始回應；本輪 artifact 為 `docs/project-management/evidence/2026-07-28-ollama-llama3.2-1b-live.json`。該次 capability 回應使用 `Traditional Chinese` 鍵而非產品要求的 `traditionalChinese`，single-cue 回應使用 `cue`、改動時間碼並附 Markdown／自然語言，正好證明 strict contract 與人工審核仍必要。Probe 另以 `isLoopbackAiUrl`、`aiEndpointPrivacy` 與所有 fetch `redirect: manual` 保護資料邊界；本機 probe exit 0，遠端 `OLLAMA_BASE_URL` 負例在 fetch 前 exit 1。
+- Probe 安全矩陣：`http://localhost:11434/v1` 實際 probe 成功；`localhost.example.com` 在 fetch 前拒絕；`[::1]` 通過 loopback 分類但因 Ollama 僅監聽 IPv4 而連線失敗，未被誤判為遠端或送出資料。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
