@@ -46,7 +46,7 @@
 
 ## 2026-07-28 — README 0.47.1 與 main 同步準備
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求先同步目前專案進度，並指出 GitHub README 仍停在前一版本。
 - 關聯需求／缺陷：`NFR-003`、`NFR-006`
@@ -55,23 +55,23 @@
 - 目標與成功條件：README 正確顯示 0.47.1 公開版本、下載資產、功能、風險與目前開發分支；建立可審查的 Draft PR 將 release 分支同步到 `main`。
 - 不在範圍：本輪不自行合併 PR、不移動 tag、不修改 Release 資產或產品程式碼。
 - 預計影響檔案／模組：`README.md`、本工作紀錄、獨立審查報告、GitHub Draft PR。
-- 風險與回復方式：更新遠端引用後，Draft PR 顯示 release 分支相對 main 為 12 commits／65 files；以 Draft PR 呈現完整差異，合併前由使用者確認。README 單檔變更可由 commit 回復。
+- 風險與回復方式：Draft PR 涵蓋 release 分支相對 main 的完整多版本差異，commit／file 數會隨審查報告與結案提交更新；以 GitHub PR 即時 metadata 為準，合併前由使用者確認。README 單檔變更可由 commit 回復。
 - 驗證計畫：README 版本／資產／Release URL 靜態核對、`npm run docs:check:final`、`git diff --check`、獨立六面向文件審查、Draft PR diff 核對。
 - 實際修改：README 更新為 0.47.1 正式 Release、實際 macOS／Windows 資產、AI 資料邊界、未簽章／未公證與實機風險；安裝與開發指令同步；commit `b16fb9f` 已推送；建立 Draft PR #7（base `main`、head `codex/release-v0.47.1`）。
-- 開發驗證結果：`npm run docs:check`、`git diff --check` 通過；GitHub PR #7 核對為 OPEN／Draft、12 commits、65 files、2619 additions／128 deletions；Windows x64 test and package check 目前 pending。
-- 獨立審查是否執行：是（round1 不通過後已修正，round2 複審中）。
+- 開發驗證結果：`npm run docs:check`、`git diff --check` 通過；GitHub PR #7 核對為 OPEN／Draft、base `main`、head `codex/release-v0.47.1`、MERGEABLE；Windows x64 test and package check 通過（2m9s）。
+- 獨立審查是否執行：是（round1／round2 不通過後已修正，round3 有條件通過）。
 - 獨立審查結論：
-  - 審查檔案：待執行
-  - 判定（逐字引用審查檔案結論句）：待執行
-  - 條件（若為有條件通過）：待執行
-  - 條件是否已被需求方接受：不適用
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-readme-0-47-1-sync-round3.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 README 0.47.1 與 main 同步準備 round3 獨立審查結論為有條件通過：README 已一致呈現 v0.47.1 正式發布、實際資產、目前 release 分支與未簽章／未公證／Metal／Electron／跨平台實機風險，Draft PR #7 已核對為 open、draft、mergeable、base main、head codex/release-v0.47.1、未合併，且 PR body 與工作紀錄已改用 GitHub 即時 metadata 避免固定 count 過期；條件是將本輪收尾文件推送、Windows x64 check 成功並通過 docs:check:final，而本判定只涵蓋同步準備與 Draft PR，不代表 main 已合併或 GitHub 首頁已完成同步。**
+  - 條件（若為有條件通過）：推送本輪收尾文件與 round3；Windows x64 check、`docs:check:final`、`git diff --check` 通過；本輪不含合併。
+  - 條件是否已被需求方接受：是（使用者要求先同步進度；依流程建立 Draft PR，不自行合併）
 - 發布授權：
   - 是否需要：否
   - 核准人／角色：不適用
   - 核准時間：不適用
   - 核准範圍：不適用
 - 部署／發布結果：已建立 Draft PR：https://github.com/twyderek/offline-subtitle-factory-app/pull/7；本輪未合併。
-- 遺留風險與後續事項：PR 涵蓋 12 commits／65 files，不是 README 單檔變更；Windows CI 尚在執行，需等待 check 完成並由使用者確認完整差異後才能合併至 main。既有未簽章／未公證、Metal、Electron 與跨平台實機風險持續揭露。
+- 遺留風險與後續事項：PR 是完整多版本同步，不是 README 單檔變更；Windows CI 已通過，仍需由使用者確認完整差異後才能合併至 main。既有未簽章／未公證、Metal、Electron 與跨平台實機風險持續揭露。
 
 ---
 
