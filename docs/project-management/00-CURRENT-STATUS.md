@@ -51,7 +51,7 @@
 4. 提供本機／雲端隱私標示及模型 JSON、繁體中文、context 能力檢查；不自動下載模型。
 5. 自動回歸已分別覆蓋 Ollama 的模型探索／能力／redirect 防護，以及 LM Studio 的完整優化、重試、取消、checkpoint／續跑；已修正「已有 checkpoint 的取消任務被誤標不可續跑」問題；macOS arm64 未簽章目錄版已完成 runtime、打包與 Electron renderer 預封裝驗證。
 6. macOS arm64 目錄版、DMG、ZIP 與 Windows x64 未簽章目錄版／Setup／Portable 均已產出並完成 runtime／資產驗證；Windows renderer 仍待 Windows 實機啟動，macOS DMG／ZIP 安裝後仍待驗收。
-7. Ollama／LM Studio 各至少一個真實模型、真正移除外網後的端到端仍待實機驗證；0.48.0 尚未發布。
+7. Ollama 已完成 `llama3.2:1b` 真實模型的模型列表、能力檢查與 1 cue 優化；能力檢查的繁中旗標為 false，實際結果把中文句號改為英文句點，仍需人工品質驗收。LM Studio、真正移除外網後的端到端仍待實機驗證；0.48.0 尚未發布。
 
 ## 0.46.0 已公開發布
 
