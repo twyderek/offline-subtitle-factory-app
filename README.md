@@ -1,13 +1,18 @@
 # 離線字幕工廠
 
-## 0.47.0 條件發布重點
+## 0.47.1 發布重點
 
-0.47.0 新增低可信片段品質評估、問題篩選、批次校閱與品質欄位安全保存；缺失 Whisper engine quality 時使用 rule-score，不偽造 confidence。正式資產與跨平台驗證狀態以 GitHub Release 說明為準。
+0.47.1 已正式發布，是 0.47 品質校閱工作流的可追溯修正版。它新增低可信片段品質評估、問題篩選、批次校閱與品質欄位安全保存；缺失 Whisper engine quality 時使用 rule-score，不偽造 confidence。
+
+- 正式 Release：[v0.47.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1)
+- macOS Apple Silicon：DMG 與 ZIP。
+- Windows x64：NSIS Setup 與 Portable，另附 `latest.yml`、SHA-256 與簽章狀態說明。
 
 - 舊單語字幕可無損載入為雙語 cue。
 - 可分別編輯原文與譯文並切換上下排列。
 - 校稿包保存雙語 cue 與排列設定。
-- Windows 未簽章、macOS 未公證或未完成實機驗收時，請先核對 SHA-256 並在非關鍵環境測試。
+- 內建 Whisper.cpp 未提供 segment-level confidence／no-speech 時，以可重現規則協助排序，不偽造引擎品質值。
+- Windows 未 Authenticode 簽章；macOS 未 Apple Developer ID 簽章／公證；Metal、Electron 與跨平台完整實機驗收仍有未覆蓋項目，請先核對 SHA-256 並在非關鍵環境測試。
 
 ## 0.45.2 發布重點
 
@@ -64,7 +69,7 @@
 
 此預覽版在核定的深藍側欄首頁與字幕校對工作區上，新增單一區間、非破壞式影片修剪。macOS 版使用內建 Whisper.cpp、Apple Metal、FFmpeg 與多語模型，不需要另外安裝 Python。
 
-離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。
+離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。只有使用者主動啟用自行設定的 AI 供應商時，字幕文字才會送往該服務，影音不會上傳。
 
 ## 安裝版
 
@@ -73,22 +78,22 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-離線字幕工廠 0.45.2 macOS-arm64.dmg
+offline-subtitle-factory-0.47.1-macos-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.45.2 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。可從 GitHub 的 `v0.45.2` Release 下載，或前往 **Actions → Build Windows 0.45.2** 取得 `offline-subtitle-factory-0.45.2-windows-x64` artifact。
+Windows 0.47.1 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。可直接從 GitHub 的 [`v0.47.1` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1) 下載 `offline-subtitle-factory-setup-0.47.1.exe` 或 `offline-subtitle-factory-portable-0.47.1.exe`。
 
-目前 Windows 預覽成品尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先在測試機驗證檔案雜湊，再由「其他資訊 → 仍要執行」啟動；不建議在完成實機驗收前對外正式發布。
+目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
 ## 不需要自行安裝其他軟體
 
-0.45.2 安裝包已內建：
+0.47.1 安裝包已內建：
 
-- 完整離線操作手冊：`resources/docs/0.45.2/USER-GUIDE.html`
+- 完整離線操作手冊（目前內建手冊版本）：`resources/docs/0.45.2/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
 
 - Electron／Node 本機服務執行環境。
@@ -140,12 +145,14 @@ Windows 0.45.2 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出
 
 ## 開發與測試
 
+目前 0.47.1 發布與治理收尾位於 `codex/release-v0.47.1`；GitHub 專案首頁以 `main` 為預設分支，本次同步完成後新 checkout 應以 `main` 為準。
+
 ### Windows 11 x64
 
 ```powershell
 git clone https://github.com/twyderek/offline-subtitle-factory-app.git
 cd offline-subtitle-factory-app
-git switch codex/0.45-ai-workflow
+git switch main
 npm ci
 Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\prepare-windows-runtime.ps1

@@ -799,3 +799,34 @@
 - round3 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round3.md`
 - round3 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產證據一致；在網路可達時重放 GitHub API／下載核對、收斂狀態文件，並持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口的條件下，可以維持 v0.47.1 公開發布。**
 - round3 條件是否已被需求方接受：是
+
+---
+
+## 2026-07-28 — README 0.47.1 與 main 同步準備
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求先同步目前專案進度，並指出 GitHub README 仍停在前一版本。
+- 關聯需求／缺陷：`NFR-003`、`NFR-006`
+- 變更等級：低（公開文件與合併準備，不修改產品行為）
+- 執行前已讀：`project:preflight -- --type=governance` 列出的固定核心與任務路由（是）
+- 目標與成功條件：README 正確顯示 0.47.1 公開版本、下載資產、功能、風險與目前開發分支；建立可審查的 Draft PR 將 release 分支同步到 `main`。
+- 不在範圍：本輪不自行合併 PR、不移動 tag、不修改 Release 資產或產品程式碼。
+- 預計影響檔案／模組：`README.md`、本工作紀錄、獨立審查報告、GitHub Draft PR。
+- 風險與回復方式：main 與 release 分支差距 22 commits；以 Draft PR 呈現完整差異，合併前由使用者確認。README 單檔變更可由 commit 回復。
+- 驗證計畫：README 版本／資產／Release URL 靜態核對、`npm run docs:check:final`、`git diff --check`、獨立六面向文件審查、Draft PR diff 核對。
+- 實際修改：待執行。
+- 開發驗證結果：待執行。
+- 獨立審查是否執行：待執行。
+- 獨立審查結論：
+  - 審查檔案：待執行
+  - 判定（逐字引用審查檔案結論句）：待執行
+  - 條件（若為有條件通過）：待執行
+  - 條件是否已被需求方接受：不適用
+- 發布授權：
+  - 是否需要：否
+  - 核准人／角色：不適用
+  - 核准時間：不適用
+  - 核准範圍：不適用
+- 部署／發布結果：待執行。
+- 遺留風險與後續事項：待執行。
