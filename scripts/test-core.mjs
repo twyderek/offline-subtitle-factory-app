@@ -70,7 +70,7 @@ const fakeAiServer = createServer((req, res) => {
       const content = body.messages?.[1]?.content || '';
       const cues = JSON.parse(content.slice(content.indexOf(marker) + marker.length));
       fakeAiCueIds.push(...cues.map((cue) => cue.id));
-      if (fakeAiMode === 'slow') {
+      if (fakeAiMode === 'slow' || (fakeAiMode === 'slow-after-first' && cues.some((cue) => Number(cue.id) === 2))) {
         const timer = setTimeout(() => {
           if (!res.destroyed) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -458,6 +458,31 @@ try {
   const cancelledAi = await waitForAi(created.jobId, ['cancelled']);
   assert.equal(cancelledAi.retryable, false, '尚無 checkpoint 的取消任務不應標記為可續跑');
   await waitFor(() => slowAiRequestsClosed > 0, '取消後應中止送往本機模型的 HTTP 請求');
+
+  fakeAiMode = 'slow-after-first';
+  fakeAiCalls = 0;
+  slowAiRequestsClosed = 0;
+  fakeAiCueIds.length = 0;
+  const checkpointCancelResponse = await api(`/api/jobs/${created.jobId}/ai-optimize`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cues: reliabilityCues, mode: 'proofread' }),
+  });
+  assert.equal(checkpointCancelResponse.status, 202, '已有批次的本機 AI 任務應可啟動');
+  await waitFor(() => {
+    try { return JSON.parse(fs.readFileSync(path.join(dataDir, created.jobId, 'ai-output', 'checkpoint.json'), 'utf8')).checkpoint.nextBatchIndex === 1; }
+    catch { return false; }
+  }, '取消前應先完成第一批並寫入 checkpoint');
+  const checkpointCancel = await api(`/api/jobs/${created.jobId}/cancel-ai-optimize`, { method: 'POST' });
+  assert.equal(checkpointCancel.status, 200, '第二批執行中時本機 AI 任務應可取消');
+  const checkpointCancelledAi = await waitForAi(created.jobId, ['cancelled']);
+  assert.equal(checkpointCancelledAi.retryable, true, '已有 checkpoint 的取消任務應可續跑');
+  await waitFor(() => slowAiRequestsClosed > 0, '第二批取消後應中止本機 HTTP 請求');
+  fakeAiMode = 'success';
+  fakeAiCueIds.length = 0;
+  const checkpointResumeResponse = await api(`/api/jobs/${created.jobId}/resume-ai-optimize`, { method: 'POST' });
+  assert.equal(checkpointResumeResponse.status, 202, '已有 checkpoint 的取消任務應可恢復');
+  const checkpointResumedAi = await waitForAi(created.jobId, ['completed', 'failed']);
+  assert.equal(checkpointResumedAi.status, 'completed', checkpointResumedAi.error);
+  assert.deepEqual(fakeAiCueIds, [2], '取消後續跑不可重送已完成的第一批');
 
   fakeAiMode = 'fail-second';
   fakeAiCalls = 0;

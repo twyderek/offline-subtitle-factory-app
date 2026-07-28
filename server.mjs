@@ -680,7 +680,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
   }).catch((error) => {
     record.status = controller.signal.aborted ? 'cancelled' : 'failed';
     record.error = error.message;
-    record.retryable = !controller.signal.aborted && (Boolean(error.retryable) || record.checkpoint.nextBatchIndex > 0);
+    record.retryable = record.checkpoint.nextBatchIndex > 0 || (!controller.signal.aborted && Boolean(error.retryable));
     delete record.controller;
     persistAiRecord(job, record);
   });
