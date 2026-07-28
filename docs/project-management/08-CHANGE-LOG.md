@@ -46,7 +46,7 @@
 
 ## 2026-07-28 — 0.47.1 修正版發布
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求完成修正並發布，承接 0.47.0 Release/tag 與目前來源不一致、Windows 資產未公開及發布核對未完成問題。
 - 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
@@ -57,21 +57,21 @@
 - 預計影響檔案／模組：版本檔、Release notes、Windows workflow、治理狀態／稽核／工作紀錄、發布資產與 GitHub Release。
 - 風險與回復方式：保留既有 v0.47.0 作為歷史證據；新版本若資產、checksum、來源或審查不一致則停止發布，不刪除既有 Release。
 - 驗證計畫：`npm run check`、runtime／封裝驗證、Windows CI artifact 下載與內容核對、macOS DMG／ZIP／SHA、獨立發布審查、發布後 GitHub asset digest／下載核對、`npm run docs:check:final`。
-- 實際修改：待執行。
-- 開發驗證結果：待執行。
-- 獨立審查是否執行：待執行。
+- 實際修改：版本升級至 0.47.1；新增 `RELEASE-NOTES-0.47.1.md`；更新 Windows workflow 分支／tag／artifact 命名；建立 commit `0bd3b53`、分支 `codex/release-v0.47.1` 與 annotated tag `v0.47.1`；完成 macOS DMG／ZIP 與 Windows Setup／Portable、metadata、checksum、簽章狀態資產上傳。
+- 開發驗證結果：受控環境外 `npm run check` 通過；macOS DMG `hdiutil verify` 與 ZIP `unzip -t` 通過；Windows artifact archive `unzip -t` 通過，Setup／Portable SHA 與 `SHA256SUMS-windows-x64.txt` 一致；GitHub Release API 核對 7 項資產名稱、大小、digest 與直接下載 URL。
+- 獨立審查是否執行：是（round1）。
 - 獨立審查結論：
-  - 審查檔案：待執行
-  - 判定（逐字引用審查檔案結論句）：待執行
-  - 條件（若為有條件通過）：待執行
-  - 條件是否已被需求方接受：待確認
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round2 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產名稱／大小／digest／URL 證據一致；在持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口，並於網路可達時重放 GitHub API／下載核對與收斂狀態文件的條件下，可以維持 v0.47.1 公開發布。**
+  - 條件（若為有條件通過）：持續揭露未簽章／未公證、Metal、Electron／跨平台實機風險；網路可達時重放 GitHub API／下載核對；狀態文件維持 0.47.1 為現行公開版本。
+  - 條件是否已被需求方接受：是（使用者已明確授權上傳已核對資產並正式發布；簽章風險引用 `AUTH-2026-07-23-01`）
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人（本輪明確要求完成修正並發布）；簽章風險引用 `AUTH-2026-07-23-01`
   - 核准時間：2026-07-28（Asia/Taipei，本輪使用者指示）
   - 核准範圍：同意建立並發布 0.47.1；接受常設授權涵蓋的未簽章／未公證風險；不接受資產／checksum／metadata 不一致、未完成測試或審查失敗下的發布。
-- 部署／發布結果：待執行。
-- 遺留風險與後續事項：待執行。
+- 部署／發布結果：GitHub `v0.47.1` 已正式發布：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1；既有 `v0.47.0` 未移動或覆蓋。
+- 遺留風險與後續事項：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，均已在 Release notes／目前狀態揭露；待独立审查报告完成后补录结论。
 
 ---
 
@@ -764,3 +764,38 @@
   - 核准範圍：不適用
 - 部署／發布結果：不適用；本次未部署、未打包、未發布。
 - 遺留風險與後續事項：本地新增的本次紀錄與獨立審查報告尚未提交，因此尚未同步到 GitHub；`codex/release-v0.46.0` 尚未合併 `main`，而 `main` 仍顯示 0.46.0 為發布候選／公開版本為 0.45.2，治理狀態尚未在主分支同步。GitHub connector 與本地 Git 對 ahead 數量的證據不一致（ahead 1／ahead 12），且本地網路／Web cache 無法重新驗證 GitHub 即時 Release 資產；此差異待取得穩定遠端證據後確認。GitHub Release 與 repository 文件同步不代表所有 CI artifact 都是 Release assets；0.46.0 的 Windows unsigned artifact 未直接附於 Release，macOS updater metadata／blockmap 未上傳。若要達成完整同步，需另行授權提交／推送本次紀錄，並決定是否合併分支與修正主分支狀態。
+
+---
+
+## 2026-07-28 — 0.47.1 發布結案
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者明確授權完成修正並發布 0.47.1。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release`（是）
+- 目標與成功條件：完成可追溯版本、跨平台資產、checksum／digest、Release notes、發布後核對與獨立審查。
+- 不在範圍：不移動 v0.47.0；不宣稱簽章、公證、Metal、Electron 或實機驗收已完成。
+- 預計影響檔案／模組：版本檔、Release notes、Windows workflow、治理文件與 GitHub Release。
+- 風險與回復方式：保留 v0.47.0 歷史 Release；若發現資產或 checksum 不一致則停止導流並發布修正版。
+- 驗證計畫：`npm run check`、macOS `hdiutil verify`／`unzip -t`、Windows artifact 解壓／SHA／metadata、GitHub API asset 核對、獨立發布審查與 `npm run docs:check:final`。
+- 實際修改：完成 0.47.1 版本與 workflow 修正，建立 commit `0bd3b53`、tag `v0.47.1`；正式發布 GitHub Release 並上傳 7 項資產，更新狀態、稽核與 Release notes。
+- 開發驗證結果：上述測試與核對均通過；GitHub `v0.47.1` 為正式 Release，7 項資產名稱／大小／digest／直接 URL 已核對。
+- 獨立審查是否執行：是（round1 不通過後 round2 複審）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round2 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產名稱／大小／digest／URL 證據一致；在持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口，並於網路可達時重放 GitHub API／下載核對與收斂狀態文件的條件下，可以維持 v0.47.1 公開發布。**
+  - 條件（若為有條件通過）：持續揭露未簽章／未公證、Metal、Electron／跨平台實機風險；網路可達時重放 GitHub API／下載核對；狀態文件維持 0.47.1 為現行公開版本。
+  - 條件是否已被需求方接受：是
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人；簽章風險引用 `AUTH-2026-07-23-01`
+  - 核准時間：2026-07-28（Asia/Taipei）
+  - 核准範圍：同意打包、提交、推送、共享並正式發布 0.47.1；接受未簽章／未公證風險；資產／checksum 一致與審查通過為發布前置條件。
+- 部署／發布結果：GitHub `v0.47.1` 正式發布：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1。
+- 遺留風險與後續事項：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，已於 Release notes／狀態文件揭露。
+
+- round3 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-1-release-round3.md`
+- round3 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立發布複審結論為有條件通過：本地 `v0.47.1` tag／commit、macOS DMG／ZIP 完整性與 SHA、Windows artifact 展開內容／SHA／`latest.yml`，以及主要代理提供的 GitHub `isDraft=false`、7 項公開資產證據一致；在網路可達時重放 GitHub API／下載核對、收斂狀態文件，並持續揭露 Windows 未簽章、macOS 未公證、Metal／Electron／跨平台實機缺口的條件下，可以維持 v0.47.1 公開發布。**
+- round3 條件是否已被需求方接受：是

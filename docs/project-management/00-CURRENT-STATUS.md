@@ -1,8 +1,8 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-07-28
-> 現行版本：0.47.1（修正版發布準備中）
-> 現行公開版本：0.47.0（發布資產閉環待補）
+> 現行版本：0.47.1
+> 現行公開版本：0.47.1
 > 主分支：`main`
 
 ## 已完成成果
@@ -22,9 +22,9 @@
 - 自動測試、雙平台 CI／封裝與獨立審查已通過；v0.45.2 已公開發布。
 - 目前工作樹新增語系選項調整：設定與 AI 輸出選單移除簡體中文；既有 `zh-CN` 介面設定載入時回退繁體中文，待本輪測試與獨立審查完成後納入下一個修正版。
 
-## 發布資產狀態
+## 歷史 0.45.2 發布資產狀態
 
-- 現行公開 Release 已為 v0.45.2；GitHub Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.45.2。
+- v0.45.2 為歷史公開 Release；目前公開版本已更新為 v0.47.1。
 - v0.45.2 Windows 發布資產來自 CI run `29886823270`：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`latest.yml` 與 SHA 已核對。
 - v0.45.2 macOS arm64 發布資產為 ASCII DMG／ZIP；`latest-mac.yml` URL／path／size 與實際資產一致，DMG `hdiutil verify`、ZIP `unzip -t` 通過。
 
@@ -55,12 +55,13 @@
 
 0.46.0 已於 2026-07-23 建立公開 Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.46.0。macOS arm64 DMG／ZIP 與 SHA-256 已上傳並核對 GitHub digest；Windows x64 由 CI run `29978500348` 完成真實 FFmpeg、EXE archive、手冊檔與 SHA-256 驗證，產出 unsigned artifact（保留 14 天），但未附 Authenticode 簽章。未核對一致性的 macOS updater metadata／blockmap 未上傳。
 
-## 0.47.1 修正版發布準備中
+## 0.47.1 修正版已公開發布
 
 - 已加入品質風險評估與校閱頁篩選：低 confidence／高 no-speech、過長、閱讀速度過快、重複文字與疑似專有名詞。
 - 引擎品質指標缺失時只保存 `rule-score` 來源與規則結果，不偽造 confidence；已接入 Whisper.cpp JSON quality metadata 的容錯解析與 cue 對應通道，但本機內建 runtime smoke 發生 exit 139，尚未完成跨平台實際欄位映射與實機驗收。
 - 0.47 rule-score fallback、quality metadata 安全回落、stale metadata 防護與 strict cue ID／時間／數量驗證已完成條件複審。
-- GitHub `v0.47.0` Release 已保留為歷史發布，target commit 為 `7946f7f`；本版不移動或覆蓋該 tag。
-- 本版以 `v0.47.1` 建立新的可追溯來源；在來源、tag、Release notes、Windows artifact、macOS／Windows 公開資產與 checksum／digest 一致性完成前，不得宣稱發布完成。
+- GitHub `v0.47.0` Release 已保留為歷史發布，target commit 為 `7946f7f`；本版未移動或覆蓋該 tag。
+- GitHub `v0.47.1` 已公開發布，annotated tag `v0.47.1` 解析至修正版 commit `0bd3b53`；Release 已包含 macOS arm64 DMG／ZIP、Windows Setup／Portable、`latest.yml`、Windows SHA-256 與簽章狀態說明。
+- 发布后 GitHub API 已核对 7 项公开资产的名称、大小、SHA-256 digest 与直接下载 URL；本地 macOS DMG／ZIP 与 Windows artifact 内容及清单 SHA 已核对一致。
 - 0.47.0 的 rule-score fallback、quality metadata 安全回落、stale metadata 防護與 strict cue ID／時間／數量驗證延續至本版；Metal exit 139、未簽章／未公證與跨平台實機缺口仍須如實揭露。
-- 下一步：完成 v0.47.1 commit／tag／CI、Release 資產與發布後下載核對，再補獨立發布複審。
+- 发布后仍须持续揭露 Windows 未 Authenticode、macOS 未 Developer ID／公证、Metal exit 139、Electron 与跨平台实机缺口；本版发布独立审查结果记录于工作纪錄与 reviews。

@@ -17,3 +17,10 @@
 
 - `npm run check`、封裝驗證、資產 checksum／digest 與發布後下載核對結果，均以本版工作紀錄與獨立發布審查為準。
 - 未完成的簽章、公證、Metal、Electron 或實機項目不得描述為已完成。
+
+## 公開資產
+
+- macOS arm64：`offline-subtitle-factory-0.47.1-macos-arm64.dmg`、`offline-subtitle-factory-0.47.1-macos-arm64.zip`
+- Windows x64：`offline-subtitle-factory-setup-0.47.1.exe`、`offline-subtitle-factory-portable-0.47.1.exe`
+- Windows `latest.yml`、`SHA256SUMS-windows-x64.txt` 與 `SIGNING-STATUS-windows-x64.txt` 同步附於本 Release。
+- Windows 安裝包未 Authenticode 簽章；請先核對 SHA-256。
