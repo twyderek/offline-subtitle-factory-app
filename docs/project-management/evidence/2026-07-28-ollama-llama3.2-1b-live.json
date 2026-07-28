@@ -1,0 +1,108 @@
+{
+  "capturedAt": "2026-07-28T06:31:17.080Z",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "version": {
+    "version": "0.32.5"
+  },
+  "model": "llama3.2:1b",
+  "models": {
+    "object": "list",
+    "data": [
+      {
+        "id": "llama3.2:1b",
+        "object": "model",
+        "created": 1785219617,
+        "owned_by": "library"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "name": "capability",
+      "pathname": "/chat/completions",
+      "body": {
+        "model": "llama3.2:1b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only valid JSON. Do not use Markdown."
+          },
+          {
+            "role": "user",
+            "content": "Return exactly {\"traditionalChinese\":\"繁體中文\"}."
+          }
+        ],
+        "max_tokens": 80
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-628",
+          "object": "chat.completion",
+          "created": 1785220275,
+          "model": "llama3.2:1b",
+          "system_fingerprint": "fp_ollama",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\n    \"traditionalChinese\": \"\\u4f60\\u5165\"\n}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 46,
+            "completion_tokens": 17,
+            "total_tokens": 63
+          }
+        }
+      }
+    },
+    {
+      "name": "singleCue",
+      "pathname": "/chat/completions",
+      "body": {
+        "model": "llama3.2:1b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only valid JSON with a cues array. Preserve cue id, start, and end exactly."
+          },
+          {
+            "role": "user",
+            "content": "待處理字幕：\n[{\"id\":1,\"start\":\"00:00:00,000\",\"end\":\"00:00:02,000\",\"text\":\"這是一個測試字幕。\"}]"
+          }
+        ],
+        "max_tokens": 240
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-268",
+          "object": "chat.completion",
+          "created": 1785220277,
+          "model": "llama3.2:1b",
+          "system_fingerprint": "fp_ollama",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "_valid-subtats.json_\n\n```\n[\n  {\"id\":1,\"start\":\"00:00:00,000\",\"end\":\"00:00:02,000\",\"text\":\"這是一個測試字幕.\"}\n]\n```\n\n因為您要求只儲存著cue的 JSON格式，而無列出的ID、時間等其他部分。例如："
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 86,
+            "completion_tokens": 75,
+            "total_tokens": 161
+          }
+        }
+      }
+    }
+  ]
+}
