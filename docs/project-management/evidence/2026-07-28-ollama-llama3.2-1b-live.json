@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-07-28T06:31:17.080Z",
+  "capturedAt": "2026-07-28T06:45:22.812Z",
   "endpoint": "http://127.0.0.1:11434/v1",
   "endpointPrivacy": "local",
   "version": {
@@ -38,9 +38,9 @@
       "response": {
         "status": 200,
         "body": {
-          "id": "chatcmpl-628",
+          "id": "chatcmpl-256",
           "object": "chat.completion",
-          "created": 1785220275,
+          "created": 1785221121,
           "model": "llama3.2:1b",
           "system_fingerprint": "fp_ollama",
           "choices": [
@@ -48,15 +48,15 @@
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "{\n    \"traditionalChinese\": \"\\u4f60\\u5165\"\n}"
+                "content": "\"\"\\\" traditional Chinese \"\\\"\""
               },
               "finish_reason": "stop"
             }
           ],
           "usage": {
             "prompt_tokens": 46,
-            "completion_tokens": 17,
-            "total_tokens": 63
+            "completion_tokens": 6,
+            "total_tokens": 52
           }
         }
       }
@@ -81,9 +81,9 @@
       "response": {
         "status": 200,
         "body": {
-          "id": "chatcmpl-268",
+          "id": "chatcmpl-119",
           "object": "chat.completion",
-          "created": 1785220277,
+          "created": 1785221122,
           "model": "llama3.2:1b",
           "system_fingerprint": "fp_ollama",
           "choices": [
@@ -91,7 +91,7 @@
               "index": 0,
               "message": {
                 "role": "assistant",
-                "content": "_valid-subtats.json_\n\n```\n[\n  {\"id\":1,\"start\":\"00:00:00,000\",\"end\":\"00:00:02,000\",\"text\":\"這是一個測試字幕.\"}\n]\n```\n\n因為您要求只儲存著cue的 JSON格式，而無列出的ID、時間等其他部分。例如："
+                "content": "您 requested 這個格式的 JSON:\n\n```json\n[\n  {\n    \"id\":1,\n    \"start\":\"00:00:00,000\",\n    \"end\":\"00:00:02,000\"\n  }\n]\n```\n\n因為提供的字串 only 有一個結尾時ो,我需繪製整行結尾。"
               },
               "finish_reason": "stop"
             }
