@@ -30,6 +30,19 @@
     "parsedCueIds": [1],
     "changedCues": 0
   },
+  "interruptionRecovery": {
+    "serverStopped": true,
+    "projectProbeWhileStopped": {
+      "ok": false,
+      "error": "AI 網路請求失敗：fetch failed"
+    },
+    "serverRestarted": true,
+    "projectProbeAfterRestart": {
+      "ok": true,
+      "modelAvailable": true,
+      "modelCount": 3
+    }
+  },
   "limitations": [
     "Loopback evidence only; true offline and disconnect behavior not tested.",
     "This artifact covers one direct JSON response, not full human quality acceptance."
