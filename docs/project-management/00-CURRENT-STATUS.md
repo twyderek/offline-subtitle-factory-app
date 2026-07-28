@@ -1,8 +1,8 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-07-27
-> 現行版本：0.47.0（條件發布準備中）
-> 現行公開版本：0.46.0
+> 最後查證日期：2026-07-28
+> 現行版本：0.47.1（修正版發布準備中）
+> 現行公開版本：0.47.0（發布資產閉環待補）
 > 主分支：`main`
 
 ## 已完成成果
@@ -55,8 +55,12 @@
 
 0.46.0 已於 2026-07-23 建立公開 Release：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.46.0。macOS arm64 DMG／ZIP 與 SHA-256 已上傳並核對 GitHub digest；Windows x64 由 CI run `29978500348` 完成真實 FFmpeg、EXE archive、手冊檔與 SHA-256 驗證，產出 unsigned artifact（保留 14 天），但未附 Authenticode 簽章。未核對一致性的 macOS updater metadata／blockmap 未上傳。
 
-## 0.47.0 條件發布準備中
+## 0.47.1 修正版發布準備中
 
 - 已加入品質風險評估與校閱頁篩選：低 confidence／高 no-speech、過長、閱讀速度過快、重複文字與疑似專有名詞。
 - 引擎品質指標缺失時只保存 `rule-score` 來源與規則結果，不偽造 confidence；已接入 Whisper.cpp JSON quality metadata 的容錯解析與 cue 對應通道，但本機內建 runtime smoke 發生 exit 139，尚未完成跨平台實際欄位映射與實機驗收。
-- 0.47 rule-score fallback、quality metadata 安全回落、stale metadata 防護與 strict cue ID／時間／數量驗證已完成條件複審；尚未完成 0.47.0 公開 Release。
+- 0.47 rule-score fallback、quality metadata 安全回落、stale metadata 防護與 strict cue ID／時間／數量驗證已完成條件複審。
+- GitHub `v0.47.0` Release 已保留為歷史發布，target commit 為 `7946f7f`；本版不移動或覆蓋該 tag。
+- 本版以 `v0.47.1` 建立新的可追溯來源；在來源、tag、Release notes、Windows artifact、macOS／Windows 公開資產與 checksum／digest 一致性完成前，不得宣稱發布完成。
+- 0.47.0 的 rule-score fallback、quality metadata 安全回落、stale metadata 防護與 strict cue ID／時間／數量驗證延續至本版；Metal exit 139、未簽章／未公證與跨平台實機缺口仍須如實揭露。
+- 下一步：完成 v0.47.1 commit／tag／CI、Release 資產與發布後下載核對，再補獨立發布複審。

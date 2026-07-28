@@ -44,6 +44,68 @@
 
 ---
 
+## 2026-07-28 — 0.47.1 修正版發布
+
+- 狀態：進行中
+- 執行者：Codex 主要開發代理
+- 需求來源：使用者要求完成修正並發布，承接 0.47.0 Release/tag 與目前來源不一致、Windows 資產未公開及發布核對未完成問題。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：以新修正版版本建立單一可追溯來源；完成版本／tag／commit、Windows／macOS 資產、checksum／digest、Release notes、下載 URL、獨立發布審查與發布後核對。
+- 不在範圍：不移動或覆蓋既有 `v0.47.0`；不宣稱 Windows Authenticode、macOS Developer ID／公證、Metal runtime 或跨平台實機已完成，除非取得實際證據。
+- 預計影響檔案／模組：版本檔、Release notes、Windows workflow、治理狀態／稽核／工作紀錄、發布資產與 GitHub Release。
+- 風險與回復方式：保留既有 v0.47.0 作為歷史證據；新版本若資產、checksum、來源或審查不一致則停止發布，不刪除既有 Release。
+- 驗證計畫：`npm run check`、runtime／封裝驗證、Windows CI artifact 下載與內容核對、macOS DMG／ZIP／SHA、獨立發布審查、發布後 GitHub asset digest／下載核對、`npm run docs:check:final`。
+- 實際修改：待執行。
+- 開發驗證結果：待執行。
+- 獨立審查是否執行：待執行。
+- 獨立審查結論：
+  - 審查檔案：待執行
+  - 判定（逐字引用審查檔案結論句）：待執行
+  - 條件（若為有條件通過）：待執行
+  - 條件是否已被需求方接受：待確認
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人（本輪明確要求完成修正並發布）；簽章風險引用 `AUTH-2026-07-23-01`
+  - 核准時間：2026-07-28（Asia/Taipei，本輪使用者指示）
+  - 核准範圍：同意建立並發布 0.47.1；接受常設授權涵蓋的未簽章／未公證風險；不接受資產／checksum／metadata 不一致、未完成測試或審查失敗下的發布。
+- 部署／發布結果：待執行。
+- 遺留風險與後續事項：待執行。
+
+---
+
+## 2026-07-28 — 0.47.0 發布閉環與 Windows 資產核對
+
+- 狀態：受阻
+- 執行者：Codex 主要開發代理
+- 需求來源：延續 0.47.0 條件發布與 release round1 阻擋，依下一階段 P0 計畫完成來源、tag、Release、Windows artifact 與發布後資產核對。
+- 關聯需求／缺陷：`NFR-003`、`NFR-005`、`NFR-006`、`NFR-008`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：釐清 0.47.0 Release 是否與目前定版來源一致；核對公開資產、Windows Actions artifact、checksum／digest 與下載 URL；若發現阻擋則停止發布修改並留下可直接執行的後續事項。
+- 不在範圍：本輪不靜默移動既有 tag、不刪除 Release 資產、不修改產品程式碼、不宣稱跨平台實機或 Whisper Metal runtime 已驗收。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄；必要時補充發布審查報告。
+- 風險與回復方式：只做可追溯文件補充與唯讀外部核對；若需要重建或上傳資產，先停止並取得／確認適用授權，保留既有 Release 作為歷史證據。
+- 驗證計畫：Git branch／tag／commit 核對、GitHub Release API 資產清單、Windows artifact 狀態與 SHA 證據、`npm run docs:check:final`、`git diff --check`、獨立發布審查。
+- 實際修改：更新 `00-CURRENT-STATUS.md` 的 0.47.0 公開版本／Release target／Windows artifact 狀態；新增 `06-TEST-AND-PROCESS-AUDIT.md` 的發布閉環核對；建立本輪獨立審查條目。
+- 開發驗證結果：`git diff --check` 通過；`npm run docs:check` 通過（19 個治理文件，版本 0.47.0）。GitHub API 可讀取 Release metadata，但本輪下載公開資產與 Windows artifact 受 `github.com` DNS 解析失敗阻擋，未完成下載後反向 SHA／digest 核對。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-47-release-closure-round3.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 round3 獨立發布複審結論為不通過：GitHub `v0.47.0` tag／Release 指向 `7946f7f...` 而目前 HEAD 為 `efc6259...`，公開 Release 缺少 Windows Setup／Portable 且 Windows artifact 尚未完成內容與 SHA 反向核對，公開下載受 `github.com` DNS 失敗阻擋，`docs:check:final` 結案證據及 Metal／跨平台實機缺口仍未解除，因此不得宣稱 0.47.0 發布通過。**
+  - 條件（若為有條件通過）：不適用；阻擋為 Release/tag 與目前 HEAD 不一致、Windows 未列為公開 Release asset、下載後核對受 DNS 阻擋，以及既有跨平台／Metal runtime 缺口。
+  - 條件是否已被需求方接受：不適用
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：引用 `AUTH-2026-07-23-01`；其餘資產上傳／發布範圍待核對
+  - 核准時間：常設授權 2026-07-23T15:06:55+08:00
+  - 核准範圍：本輪不授權新的打包、提交、推送、資產上傳或公開發布；既有常設授權僅涵蓋 Windows 未 Authenticode 與 macOS 未 Developer ID／公證，不涵蓋資產／checksum／metadata 不一致、未實機測試或審查失敗
+- 部署／發布結果：本輪未修改既有 tag、未刪除或新增 GitHub Release 資產、未重新發布。
+- 遺留風險與後續事項：先決定保留既有 `v0.47.0` 作為歷史 Release 並另發修正版，或在明確授權下重建可追溯版本；重新取得並核對 Windows Setup／Portable／metadata／SHA；補公開資產下載後 digest；完成跨平台實機、Electron renderer 與 Metal／CPU runtime 驗收後，再建立下一輪獨立發布複審。網路 DNS 恢復前不得宣稱下載核對完成。
+
+---
+
 ## 2026-07-27 — 0.47 低可信片段工作流
 
 - 狀態：完成
