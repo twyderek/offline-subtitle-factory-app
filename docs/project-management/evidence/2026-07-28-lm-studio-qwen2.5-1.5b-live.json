@@ -43,6 +43,15 @@
       "modelCount": 3
     }
   },
+  "multiCueRun": {
+    "totalCues": 3,
+    "totalBatches": 3,
+    "processedCues": 3,
+    "totalRetries": 0,
+    "status": "completed",
+    "changedCues": 1,
+    "qualityObservation": "Cue 2 suggestion included prompt-template markers; manual review remains required."
+  },
   "limitations": [
     "Loopback evidence only; true offline and disconnect behavior not tested.",
     "This artifact covers one direct JSON response, not full human quality acceptance."
