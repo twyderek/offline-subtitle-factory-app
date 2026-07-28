@@ -116,6 +116,7 @@
 - `test-core.mjs`：以本機 fake OpenAI-compatible server 分別驗證 Ollama 的無 Key／無雲端同意設定、模型列表、連線、有效與無效模型能力回應、redirect 第二站零請求，以及 LM Studio 的完整 AI 批次、429 重試、無 checkpoint／有 checkpoint 取消時關閉 HTTP 請求、取消後只續跑未完成批次與 cue 契約。
 - macOS 預封裝：`runtime:manifest:mac`、`runtime:verify:mac` 與 `electron:build:mac:dir` 已通過；`verify-electron-renderer.mjs` 已在產出的 arm64 App 驗證 Electron bridge、設定 modal、上傳／啟動／完成、review AI 資產、術語 round-trip，以及七個 provider（含 Ollama／LM Studio）。此證據僅涵蓋目前主機的未簽章目錄版，不等同 DMG 安裝後驗收。
 - Windows 預封裝：`runtime:manifest`、`runtime:verify` 與 `electron:build:dir` 已成功產出 `dist/win-unpacked` 及 Windows x64 executable；本機為 macOS，未直接啟動 Windows renderer，故不等同 Windows 實機安裝後驗收。
+- Windows 發布資產：`electron:build:unsigned` 已建立 x64 Setup 與 Portable；兩者均由 `file` 識別為 PE32 NSIS executable。Setup SHA-256 為 `d05a3f8d4df31048d398839666f34954c523f6928bc2500a1d98a785f7a20955`，Portable SHA-256 為 `3a1ad56e0b6e914151e7f3447966d104c426544245e68e455d5df49eaeddf1f6`；未簽章且未在 Windows 實機安裝／啟動。
 - macOS 發布資產：arm64 DMG 可由 `hdiutil imageinfo` 讀取；ZIP 改用 macOS `ditto` 直接由已驗證 App 封裝，`unzip -t` 通過。DMG SHA-256 為 `906559f20242f01f2b51618280b4af65875cd83bd05aef16bc22f3eb10d3562f`，ZIP SHA-256 為 `04de598018929d687887329582488d3fa809abffed2b919a3bd7851325f46bc7`。DMG 唯讀掛載成功；直接從唯讀卷啟動未取得 DevTools target，但複製到專用暫存安裝位置後，`verify-electron-renderer.mjs` 已通過 bridge、設定、上傳／完成、review AI 資產、術語 round-trip 與七個 provider，且暫存目錄已清理。這是本機複製安裝 smoke test，不等同乾淨使用者帳號或正式簽章／公證驗收。
 - 實機門檻：Ollama 與 LM Studio 各至少一個模型完成模型探索、能力檢查、字幕建議、人工接受、取消／恢復；移除外網後重跑本機流程。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
