@@ -46,7 +46,7 @@
 
 ## 2026-07-28 — GitHub main 實際同步 0.47.1
 
-- 狀態：進行中
+- 狀態：進行中（合併關卡）
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者提供 GitHub 首頁截圖並明確指出「資訊未同步」，要求將已完成的 0.47.1 進度實際同步。
 - 關聯需求／缺陷：`NFR-003`、`NFR-006`
@@ -57,21 +57,21 @@
 - 預計影響檔案／模組：本工作紀錄、獨立審查報告、GitHub PR #7 與預設分支 `main`。
 - 風險與回復方式：PR #7 包含 release 分支相對 `main` 的完整多版本差異；合併前以 GitHub 即時 diff、mergeability 與 CI 為準。若合併後發現公開內容錯誤，以新的回復 PR 修正，不改寫公開歷史。
 - 驗證計畫：`npm run docs:check:final`、`git diff --check`、PR 即時狀態與 CI、獨立六面向審查；合併後以 GitHub API 直接讀取 `main` 的 README 並核對 0.47.1 標題與 Release 連結。
-- 實際修改：待執行。
-- 開發驗證結果：待執行。
-- 獨立審查是否執行：待執行。
+- 實際修改：建立本輪工作紀錄並推送 commit `46edb90`；PR #7 最新差異為 15 commits／67 files，完整同步 0.45.2–0.47.1 的產品、測試、workflow、治理文件與 README，不是 README 單檔修補。
+- 開發驗證結果：`git diff --check origin/main...HEAD` 與 `npm run docs:check` 通過；GitHub Actions run `30323429406` 對 head `46edb90` 完成 Windows x64 `npm run check`、未簽章封裝與 artifact 驗證，結論 success。`docs:check:final` 對同日多筆條目誤選已結案舊條目，出現假陽性，不作本輪唯一結案證據。
+- 獨立審查是否執行：是（round1 有條件通過）。
 - 獨立審查結論：
-  - 審查檔案：待執行。
-  - 判定（逐字引用審查檔案結論句，並標注章節或行號）：待執行。
-  - 條件（若為有條件通過）：待執行。
-  - 條件是否已被需求方接受：待確認。
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-main-0-47-1-sync-round1.md`
+  - 判定（逐字引用審查檔案結論句，綜合判定末段）：**本輪 GitHub main 實際同步 0.47.1 round1 獨立審查結論為有條件通過：使用者在先前要求同步進度後，以 GitHub 預設分支仍顯示 0.46.0 的截圖明確指出「資訊未同步」，足以指示完成既有 PR #7 的 main 同步；PR #7 已核對為 15 commits／67 files 的完整同步、open、draft、base main、head codex/release-v0.47.1、MERGEABLE／CLEAN，且 head 46edb90b 的 Windows 完整回歸與封裝 CI 成功，但最新工作條目尚未結案、審查報告尚未推送，且 docs:check:final 對同日多條紀錄出現假陽性，因此須先補齊並推送本報告與工作紀錄、等待新 head SHA 的 required check 成功並重查 mergeability，之後才可標記 ready、合併，並以 GitHub API 驗證 main README 的 0.47.1 標題與 Release 連結。**
+  - 條件（若為有條件通過）：先推送審查報告與本紀錄；等待新 head SHA 的 required check 成功；合併前重查 `MERGEABLE/CLEAN`；合併後以 GitHub API 驗證 `main` README。
+  - 條件是否已被需求方接受：是（使用者要求實際同步；本條件是完成同步前的安全關卡）
 - 發布授權：
   - 是否需要：不適用
   - 核准人／角色：不適用
   - 核准時間：不適用
   - 核准範圍：不適用
-- 部署／發布結果：待執行。
-- 遺留風險與後續事項：待執行。
+- 部署／發布結果：PR #7 尚未合併；本筆結案文件推送並通過新 head CI 後，依審查條件進入 ready／merge 關卡。
+- 遺留風險與後續事項：PR #7 是完整多版本同步；Windows 未 Authenticode、macOS 未 Developer ID／公證，Metal、Electron 與跨平台實機缺口持續存在並已在 README 揭露。`docs:check:final` 對同日多條紀錄有假陽性，結案須人工核對本條目。
 
 ---
 
