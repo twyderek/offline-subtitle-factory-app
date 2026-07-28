@@ -49,7 +49,8 @@
 2. 只有精確 loopback hostname 才免 API Key 與雲端資料傳送同意；遠端端點維持既有安全門檻。
 3. 本機 provider 使用較小批次，沿用 cue ID／數量／順序／時間碼保護與人工接受流程。
 4. 提供本機／雲端隱私標示及模型 JSON、繁體中文、context 能力檢查；不自動下載模型。
-5. Ollama／LM Studio 各至少一個模型與斷網端到端尚待實機驗證；0.48.0 尚未發布。
+5. 自動回歸已分別覆蓋 Ollama 的模型探索／能力／redirect 防護，以及 LM Studio 的完整優化、重試、取消、checkpoint／續跑；macOS arm64 未簽章目錄版已完成 runtime、打包與 Electron renderer 預封裝驗證。
+6. Ollama／LM Studio 各至少一個真實模型、真正移除外網後的端到端、Windows 封裝與 macOS 安裝版仍待實機驗證；0.48.0 尚未發布。
 
 ## 0.46.0 已公開發布
 

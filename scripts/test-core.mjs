@@ -23,6 +23,7 @@ const redirectReceiverPort = 22000 + Math.floor(Math.random() * 1000);
 let fakeAiMode = 'retry-once';
 let fakeAiCalls = 0;
 let redirectedAiRequests = 0;
+let slowAiRequestsClosed = 0;
 const fakeAiCueIds = [];
 const redirectReceiver = createServer((_req, res) => {
   redirectedAiRequests += 1;
@@ -50,6 +51,11 @@ const fakeAiServer = createServer((req, res) => {
     req.on('end', () => {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if (body.messages?.[1]?.content?.includes('Return exactly')) {
+        if (fakeAiMode === 'invalid-capability') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ choices: [{ message: { content: 'not json' } }] }));
+          return;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ choices: [{ message: { content: '{"traditionalChinese":"繁體中文"}' } }] }));
         return;
@@ -64,6 +70,20 @@ const fakeAiServer = createServer((req, res) => {
       const content = body.messages?.[1]?.content || '';
       const cues = JSON.parse(content.slice(content.indexOf(marker) + marker.length));
       fakeAiCueIds.push(...cues.map((cue) => cue.id));
+      if (fakeAiMode === 'slow') {
+        const timer = setTimeout(() => {
+          if (!res.destroyed) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ cues: [] }) } }] }));
+          }
+        }, 5000);
+        timer.unref();
+        res.once('close', () => {
+          clearTimeout(timer);
+          slowAiRequestsClosed += 1;
+        });
+        return;
+      }
       if (fakeAiMode === 'fail-second' && cues.some((cue) => Number(cue.id) === 2)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: { message: 'test permanent batch error', code: 'bad_request' } }));
@@ -146,6 +166,15 @@ async function waitForAi(jobId, expectedStatuses, timeoutMs = 10000) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`AI 任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}`);
+}
+
+async function waitFor(predicate, message, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(message);
 }
 
 function createTestWav() {
@@ -252,6 +281,12 @@ try {
   assert.equal(localCapabilitiesResponse.status, 200, `本機模型能力檢查應可在無 Key 下執行：${localCapabilities.error || ''}`);
   assert.equal(localCapabilities.capabilities.jsonOutput, true, '能力檢查應驗證 JSON 輸出');
   assert.equal(localCapabilities.capabilities.traditionalChinese, true, '能力檢查應驗證指定繁體中文回應');
+  fakeAiMode = 'invalid-capability';
+  const invalidCapabilitiesResponse = await api('/api/ai/capabilities', { method: 'POST' });
+  const invalidCapabilities = await invalidCapabilitiesResponse.json();
+  assert.equal(invalidCapabilitiesResponse.status, 200, '不支援 JSON 的本機模型應回傳能力結果而非造成服務崩潰');
+  assert.equal(invalidCapabilities.capabilities.jsonOutput, false, '無效 JSON 回應必須標記模型不支援結構化輸出');
+  assert.equal(invalidCapabilities.capabilities.traditionalChinese, false, '無效能力回應不得誤判為支援繁體中文');
   fakeAiMode = 'redirect-307';
   redirectedAiRequests = 0;
   const redirectedCapabilityResponse = await api('/api/ai/capabilities', { method: 'POST' });
@@ -377,7 +412,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       enabled: true,
-      provider: 'ollama',
+      provider: 'lm-studio',
       baseUrl: `http://127.0.0.1:${fakeAiPort}/v1`,
       model: 'test-model',
       batchSize: 1,
@@ -388,7 +423,7 @@ try {
       instructions: '測試可靠性',
     }),
   });
-  assert.equal(enabledAiSettingsResponse.status, 200, '本機 AI 可靠性測試設定應可在無專屬 Key 下啟用');
+  assert.equal(enabledAiSettingsResponse.status, 200, 'LM Studio 可靠性測試設定應可在無專屬 Key 下啟用');
   const reliabilityCues = [
     { id: 1, start: '00:00:00,000', end: '00:00:01,000', text: '第一段' },
     { id: 2, start: '00:00:01,000', end: '00:00:02,000', text: '第二段' },
@@ -408,6 +443,21 @@ try {
   assert.equal(retriedAi.status, 'completed', retriedAi.error);
   assert.equal(retriedAi.result.totalRetries, 1, '429 應依設定完成一次自動重試');
   assert.equal(retriedAi.result.changedCues, 2);
+  assert.equal(retriedAi.provider, 'lm-studio', 'LM Studio 應完成完整字幕優化流程');
+
+  fakeAiMode = 'slow';
+  fakeAiCalls = 0;
+  slowAiRequestsClosed = 0;
+  const slowAiResponse = await api(`/api/jobs/${created.jobId}/ai-optimize`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cues: reliabilityCues, mode: 'proofread' }),
+  });
+  assert.equal(slowAiResponse.status, 202, 'LM Studio 慢速任務應可啟動');
+  await waitFor(() => fakeAiCalls > 0, '慢速 AI 請求未抵達本機模型服務');
+  const cancelAiResponse = await api(`/api/jobs/${created.jobId}/cancel-ai-optimize`, { method: 'POST' });
+  assert.equal(cancelAiResponse.status, 200, '進行中的本機 AI 任務應可取消');
+  const cancelledAi = await waitForAi(created.jobId, ['cancelled']);
+  assert.equal(cancelledAi.retryable, false, '尚無 checkpoint 的取消任務不應標記為可續跑');
+  await waitFor(() => slowAiRequestsClosed > 0, '取消後應中止送往本機模型的 HTTP 請求');
 
   fakeAiMode = 'fail-second';
   fakeAiCalls = 0;

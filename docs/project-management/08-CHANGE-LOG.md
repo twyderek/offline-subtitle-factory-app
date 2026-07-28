@@ -57,13 +57,13 @@
 - 預計影響檔案／模組：AI provider／設定模組、`server.mjs` AI API、校閱頁設定介面、provider／核心／UI 測試、需求／設計／狀態／測試稽核文件。
 - 風險與回復方式：localhost 判定錯誤可能繞過雲端同意或把字幕送到非本機端點；模型回應不穩可能破壞字幕契約；端點探測可能造成非預期請求。採集中且嚴格的 loopback URL 分類、固定候選端點、逾時／取消、模型清單與 schema 驗證；原字幕維持不覆蓋。可由本輪分支與 commit 回復。
 - 驗證計畫：需求到測試追溯；provider contract、設定正規化、localhost／非 localhost／IPv4／IPv6／非法 URL、無 Key、本機模型清單、錯誤／逾時、批次策略、cue 契約、核心 API 與 UI 測試；`npm run check`、實際畫面驗證、可取得時執行 Ollama／LM Studio 端到端與斷網驗證；獨立六面向審查。
-- 實際修改：版本升至 0.48.0；新增 `FR-021`、Ollama／LM Studio provider、嚴格 loopback URL 分類、無 Key 本機請求、固定端點服務探測、模型清單與模型能力檢查；本機 provider 批次上限縮小；設定介面新增本機／雲端隱私狀態、掃描、模型清單與能力檢查。同步 Roadmap、目前狀態、功能設計與測試稽核。round1 發現 redirect 可繞過 loopback 安全邊界後，已在共用 transport 設定 `redirect: manual` 並拒絕 301／302／303／307／308，錯誤不可重試。
-- 開發驗證結果：redirect 修正後 `npm run check` 與 `git diff --check` 完整通過；provider contract 覆蓋 IPv4／IPv6 loopback、惡意 localhost 子網域、遠端端點 Key 門檻、無 Key Authorization 省略與五種 redirect；核心以雙 listener 實測 307 目標第二站收到 0 次請求。fake OpenAI-compatible server 驗證無 Key／無雲端同意的模型列表、連線、能力檢查與完整 AI 批次／重試。實際瀏覽器驗證 Ollama 預設 URL、批次 8、免 Key、隱私標示及遠端 URL 安全回落；掃描無服務時顯示錯誤且按鈕恢復。主機未安裝／未啟動 Ollama 或 LM Studio，兩個預設端點皆 connection refused，故真實模型與斷網端到端尚未執行。
-- 獨立審查是否執行：是（round1 不通過；redirect 阻擋修正後 round2 有條件通過）。
+- 實際修改：版本升至 0.48.0；新增 `FR-021`、Ollama／LM Studio provider、嚴格 loopback URL 分類、無 Key 本機請求、固定端點服務探測、模型清單與模型能力檢查；本機 provider 批次上限縮小；設定介面新增本機／雲端隱私狀態、掃描、模型清單與能力檢查。同步 Roadmap、目前狀態、功能設計與測試稽核。round1 發現 redirect 可繞過 loopback 安全邊界後，已在共用 transport 設定 `redirect: manual` 並拒絕 301／302／303／307／308，錯誤不可重試。第二階段再將兩個本機 provider 拆分端到端測試，新增無效能力回應、取消中止 HTTP、checkpoint／續跑驗證與 macOS Electron 預封裝檢查。
+- 開發驗證結果：redirect 修正後 `npm run check` 與 `git diff --check` 完整通過；provider contract 覆蓋 IPv4／IPv6 loopback、惡意 localhost 子網域、遠端端點 Key 門檻、無 Key Authorization 省略與五種 redirect；核心以雙 listener 實測 307 目標第二站收到 0 次請求。fake OpenAI-compatible server 分別驗證 Ollama 的無 Key／無雲端同意、模型列表、連線、有效／無效能力回應與 redirect，以及 LM Studio 的完整批次、429 重試、取消關閉連線、checkpoint／續跑。實際瀏覽器驗證 Ollama 預設 URL、批次 8、免 Key、隱私標示及遠端 URL 安全回落；掃描無服務時顯示錯誤且按鈕恢復。macOS arm64 已通過 runtime manifest／verify、未簽章目錄版打包及實際 Electron renderer 驗證，包含 bridge、設定 modal、上傳／完成、review AI 資產、術語 round-trip 與七個 provider。主機未安裝／未啟動 Ollama 或 LM Studio，兩個預設端點皆 connection refused，故真實模型與真正斷網端到端尚未執行；macOS 證據也不等同 DMG 安裝後驗收。
+- 獨立審查是否執行：是（round1 不通過；redirect 阻擋修正後 round2 有條件通過；第二階段 round3 有條件通過且無新阻擋）。
 - 獨立審查結論：
-  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-48-local-llm-round2.md`（round1 保留於同 slug `round1.md`）。
-  - 判定（逐字引用審查檔案結論句，綜合判定末段）：**本輪「2026-07-28 — 0.48 本機 LLM 基礎支援」round2 獨立複審結論為有條件通過：共用 AI transport 已以 manual 模式拒絕 301／302／303／307／308，錯誤標示為不可重試的 redirect_blocked；provider contract、兩個真實 listener 的跨 hostname 307 測試及本輪另做的 loopback→loopback 307 測試均確認第二站收到 0 次請求，round1 的字幕 body 跨資料邊界外送阻擋已解除，完整 npm run check 與 git diff --check 亦通過；但真實 Ollama／LM Studio 各一模型、斷網端到端及 Electron／Windows／macOS 封裝後驗收仍未完成，因此只允許基礎實作進入後續開發，不得宣稱 0.48 已完成或可發布。**
-  - 條件（若為有條件通過）：0.48 完成／發布候選前，以 Ollama、LM Studio 各一個真實模型完成探索、能力、字幕建議、人工接受、取消／恢復及斷網端到端；補 Electron、Windows／macOS 封裝後驗收。
+  - 審查檔案：`docs/project-management/reviews/2026-07-28-0-48-local-llm-round3.md`（round1、round2 保留於同 slug 的前兩輪檔案）。
+  - 判定（逐字引用審查檔案結論句，綜合判定末段）：**本輪「2026-07-28 — 0.48 本機 LLM 基礎支援」round3 獨立複審結論為有條件通過：第二階段已以可執行核心測試分別覆蓋 Ollama 的模型探索、有效／無效能力與 redirect 防護，以及 LM Studio 的完整字幕優化、429 重試、取消時中止 HTTP、checkpoint 與只續跑未完成批次；獨立重跑 npm run check 與 git diff --check 通過，macOS arm64 runtime、未簽章目錄版打包及實際 Electron renderer 亦確認 bridge、設定、任務完成、review AI 資產、術語 round-trip 與七個 provider，文件對上述證據及限制的描述準確；但這些 AI 測試仍使用 fake OpenAI-compatible server，真實 Ollama／LM Studio、真正斷網、Windows 封裝及 macOS DMG 安裝後尚未驗收，因此 0.48 必須維持開發中，不得宣稱完成或發布就緒。**
+  - 條件（若為有條件通過）：0.48 完成／發布候選前，以 Ollama、LM Studio 各一個真實模型完成探索、能力、字幕建議、人工接受、取消／恢復及真正斷網端到端；補 Windows 封裝與 macOS DMG 安裝後驗收。
   - 條件是否已被需求方接受：是（使用者授權開始 0.48 開發；本輪保持開發中，未要求在缺少真實模型／實機證據下完成或發布）。
 - 發布授權：
   - 是否需要：不適用
@@ -71,7 +71,7 @@
   - 核准時間：不適用
   - 核准範圍：不適用
 - 部署／發布結果：本輪不部署、不打包、不發布。
-- 遺留風險與後續事項：真實 Ollama／LM Studio 各一模型、斷網流程、Windows／macOS／Electron 封裝後驗收仍待執行；在取得這些證據前 0.48 保持開發中，不宣稱完成或發布。模型 context 長度若服務未在模型 metadata 宣告會顯示「服務未提供」；繁體中文能力探測只驗證指定輸出，實際品質仍須人工評估。
+- 遺留風險與後續事項：真實 Ollama／LM Studio 各一模型、真正斷網流程、Windows 封裝與 macOS DMG 安裝後驗收仍待執行；在取得這些證據前 0.48 保持開發中，不宣稱完成或發布。模型 context 長度若服務未在模型 metadata 宣告會顯示「服務未提供」；繁體中文能力探測只驗證指定輸出，實際品質仍須人工評估。
 
 ---
 
