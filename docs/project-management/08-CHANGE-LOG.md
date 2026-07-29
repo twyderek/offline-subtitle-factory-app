@@ -58,6 +58,7 @@
 - 實際修改：新增 Ollama 原生 `/api/chat` adapter；使用 `format` JSON Schema、動態 `minItems/maxItems` 鎖定批次 cue 數量，並將原生回應映射回既有 provider contract；移除容易被小模型照抄的 JSON 示例佔位字。
 - 開發驗證結果：`npm test` 通過；新增 native `/api/chat` contract 測試，覆蓋 `format` 動態 cue 數量 schema、`stream:false` 與 temperature 0。實際 Ollama `llama3.2:1b` 單 cue 已 completed、有效 JSON、cue 數量 1/1、0 retries，輸出將中文句號改為英文句點，仍須人工品質確認。LM Studio 尚未切換至結構化輸出路徑。
 - LM Studio：已加入 JSON Schema request path；重新啟動 LM Studio 並載入 Qwen 1.5B 後，真實請求回 HTTP 400，確認該模型／目前服務組合不接受此 schema。持久設定已還原為 Ollama `llama3.2:1b`；LM Studio structured output 須改用支援模型（官方也提醒 7B 以下模型可能不支援）後再驗收。
+- Ollama 品質補強：Prompt 已明確要求保留中文全形標點；真實 `llama3.2:1b` 重測仍將「。」改為「.」，但流程 completed、JSON／cue contract 正常，標點差異維持人工品質風險，不放寬驗證或自動套用。
 - 獨立審查結論：`docs/project-management/reviews/2026-07-28-0-48-local-llm-round9.md`；有條件通過。條件：補 native `/api/chat` provider contract 測試、完成 LM Studio 結構化輸出與真正斷網驗收；中文句號轉換仍須人工品質確認。
 - 發布授權：不適用。
 
