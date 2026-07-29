@@ -63,6 +63,7 @@
 - AI 模式對應驗證：新增五種模式（錯字與標點、斷句、術語、贅詞、翻譯）的 instruction matrix regression test；確認 UI mode、request mode 與 optimizer instruction 對應一致。
 - Session UI 說明優化：將「可稽核與復原」改為「本次紀錄：Session ID；可查看決策、撤銷或重新套用」，待確認提示改為明確的「AI 已完成／有幾段建議待你確認」，並為撤銷／重新套用補充操作說明。
 - Cue ID 安全補強：結構化輸出 schema 現在為每批次加入原始 cue ID enum，Ollama／LM Studio 只能回傳該批次既有 ID；後端原有順序、重複與數量驗證仍保留。
+- 術語建議品質補強：terms 模式拒絕相對原文過短的模型輸出（原文達 8 字以上時至少保留 60% 長度），避免 `E3;平台名稱` 類脫離原句建議進入人工接受清單；新增回歸測試。
 - 獨立審查結論：`docs/project-management/reviews/2026-07-29-0-48-local-llm-round10.md`；有條件通過。全形標點 Prompt 與 native/strict contract 無新安全阻擋；條件：完成 LM Studio 結構化輸出、真正斷網與跨平台驗收，中文句號轉換仍須人工品質確認。
 - 發布授權：不適用。
 

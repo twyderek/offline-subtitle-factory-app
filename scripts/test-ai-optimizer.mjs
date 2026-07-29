@@ -49,6 +49,11 @@ for (const [mode, instruction] of [['proofread', '修正錯字'], ['breaks', '�
   } });
   assert.match(modeBodies[0].messages[0].content, new RegExp(instruction), `${mode} mode 應傳送對應 instruction`);
 }
+await assert.rejects(
+  () => optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '這是一段需要統一術語的完整字幕。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3;平台名稱', reason: '' }] }) } }] }) }),
+  /術語建議過短/,
+  '術語模式應拒絕脫離原句的過短建議',
+);
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, language: 'bad value', complete }), /BCP 47/);
 
 const invalid = async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: '缺一段' }] }) } }] });
