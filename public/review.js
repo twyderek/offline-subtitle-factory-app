@@ -701,7 +701,9 @@ function rejectAiSuggestion(index) {
 function updateAiSuggestionActions() {
   const count = state.aiSuggestions.size;
   document.getElementById('aiSuggestionActions').hidden = count === 0;
-  document.getElementById('aiSuggestionSummary').textContent = `${count} 段 AI 建議等待確認`;
+  document.getElementById('aiSuggestionSummary').textContent = count
+    ? `本次 AI 已完成；有 ${count} 段建議待你確認`
+    : '本次 AI 已完成；目前沒有待確認建議';
 }
 
 function acceptAllAiSuggestions() {
@@ -739,7 +741,9 @@ function updateAiSessionControls() {
   const available = Boolean(state.aiSessionId);
   document.getElementById('undoAiSession').disabled = !available;
   document.getElementById('redoAiSession').disabled = !available;
-  document.getElementById('aiSessionSummary').textContent = available ? `Session ${state.aiSessionId.slice(0, 8)}・可稽核與復原` : '尚無 AI 優化紀錄';
+  document.getElementById('aiSessionSummary').textContent = available
+    ? `本次紀錄：${state.aiSessionId.slice(0, 8)}；可查看決策、撤銷或重新套用`
+    : '尚無 AI 優化紀錄';
 }
 
 function recordAiDecision(id, decision) { return recordAiDecisions({ [String(id)]: decision }); }
