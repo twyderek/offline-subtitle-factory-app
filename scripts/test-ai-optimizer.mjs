@@ -41,6 +41,14 @@ const multilingualComplete = async (body) => {
 await optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, mode: 'translate', language: 'fr-CA', complete: multilingualComplete });
 assert.match(multilingualBodies[0].messages[0].content, /BCP 47：fr-CA/);
 assert.match(multilingualBodies[0].messages[0].content, /所有字幕翻譯/);
+for (const [mode, instruction] of [['proofread', '修正錯字'], ['breaks', '改善斷句'], ['terms', '統一專有名詞'], ['fillers', '移除不影響原意'], ['translate', '翻譯成指定輸出語言']]) {
+  const modeBodies = [];
+  await optimizeSubtitleCues({ cues: source.slice(0, 1), config: { model: 'test', batchSize: 1 }, mode, complete: async (body) => {
+    modeBodies.push(body);
+    return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: source[0].text, reason: '' }] }) } }] };
+  } });
+  assert.match(modeBodies[0].messages[0].content, new RegExp(instruction), `${mode} mode 應傳送對應 instruction`);
+}
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, language: 'bad value', complete }), /BCP 47/);
 
 const invalid = async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: '缺一段' }] }) } }] });
