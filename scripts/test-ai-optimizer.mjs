@@ -54,6 +54,11 @@ await assert.rejects(
   /術語建議過短/,
   '術語模式應拒絕脫離原句的過短建議',
 );
+await assert.rejects(
+  () => optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 匯入的方式。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3: E3 will enter', reason: '' }] }) } }] }) }),
+  /術語建議語系不一致/,
+  '中文術語模式應拒絕轉成英文的異常建議',
+);
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, language: 'bad value', complete }), /BCP 47/);
 
 const invalid = async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: '缺一段' }] }) } }] });
