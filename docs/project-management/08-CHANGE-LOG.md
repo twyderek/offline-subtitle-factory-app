@@ -46,6 +46,20 @@
 
 ## 2026-07-28 — 0.48 本機 LLM 基礎支援
 
+### 2026-07-29 — 本機 LLM 結構化輸出修正
+
+- 狀態：受阻（第一版 OpenAI-compatible structured-output 調整未通過真實 Ollama）
+- 執行者：Codex 主要開發代理
+- 需求來源：Ollama／LM Studio 實測發生無效 JSON，要求依建議調整。
+- 變更等級：中
+- 執行前已讀：`project:preflight -- --type=development`（是）
+- 目標與成功條件：Ollama 與 LM Studio 使用 JSON Schema／JSON mode；保留 cue ID、數量、順序、時間碼與長度驗證；補齊 provider contract 與回應格式回歸測試。
+- 不在範圍：不放寬錯誤 JSON 或 cue 長度驗證，不自動套用未經人工確認的字幕建議。
+- 實際修改：新增 Ollama 原生 `/api/chat` adapter；使用 `format` JSON Schema、動態 `minItems/maxItems` 鎖定批次 cue 數量，並將原生回應映射回既有 provider contract；移除容易被小模型照抄的 JSON 示例佔位字。
+- 開發驗證結果：`npm test` 通過；實際 Ollama `llama3.2:1b` 單 cue 已 completed、有效 JSON、cue 數量 1/1、0 retries，輸出將中文句號改為英文句點，仍須人工品質確認。LM Studio 尚未切換至結構化輸出路徑。
+- 獨立審查結論：待執行。
+- 發布授權：不適用。
+
 - 狀態：進行中（本機真實模型已驗證，品質與離線驗收待執行）
 - 執行者：Codex 主要開發代理
 - 需求來源：使用者要求開始進行 0.48 版本；承接 `AI-ROADMAP-0.50.md` 的 0.48 本機 LLM 里程碑。
