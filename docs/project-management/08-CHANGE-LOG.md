@@ -56,7 +56,7 @@
 - 目標與成功條件：Ollama 與 LM Studio 使用 JSON Schema／JSON mode；保留 cue ID、數量、順序、時間碼與長度驗證；補齊 provider contract 與回應格式回歸測試。
 - 不在範圍：不放寬錯誤 JSON 或 cue 長度驗證，不自動套用未經人工確認的字幕建議。
 - 實際修改：新增 Ollama 原生 `/api/chat` adapter；使用 `format` JSON Schema、動態 `minItems/maxItems` 鎖定批次 cue 數量，並將原生回應映射回既有 provider contract；移除容易被小模型照抄的 JSON 示例佔位字。
-- 開發驗證結果：`npm test` 通過；實際 Ollama `llama3.2:1b` 單 cue 已 completed、有效 JSON、cue 數量 1/1、0 retries，輸出將中文句號改為英文句點，仍須人工品質確認。LM Studio 尚未切換至結構化輸出路徑。
+- 開發驗證結果：`npm test` 通過；新增 native `/api/chat` contract 測試，覆蓋 `format` 動態 cue 數量 schema、`stream:false` 與 temperature 0。實際 Ollama `llama3.2:1b` 單 cue 已 completed、有效 JSON、cue 數量 1/1、0 retries，輸出將中文句號改為英文句點，仍須人工品質確認。LM Studio 尚未切換至結構化輸出路徑。
 - 獨立審查結論：`docs/project-management/reviews/2026-07-28-0-48-local-llm-round9.md`；有條件通過。條件：補 native `/api/chat` provider contract 測試、完成 LM Studio 結構化輸出與真正斷網驗收；中文句號轉換仍須人工品質確認。
 - 發布授權：不適用。
 

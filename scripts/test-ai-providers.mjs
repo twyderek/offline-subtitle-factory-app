@@ -47,6 +47,16 @@ try {
     assert.equal((await local.test()).ok, true, `${provider} loopback 不應強制 API Key`);
     assert.equal(requests.at(-1).options.headers.Authorization, undefined, `${provider} 無 Key 時不得送出空 Authorization`);
   }
+  const ollamaNative = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model' });
+  await ollamaNative.optimize({ model: 'test-model', subtitle_cue_count: 2, messages: [{ role: 'user', content: 'test' }] });
+  const ollamaNativeRequest = requests.at(-1);
+  assert.match(ollamaNativeRequest.url, /127\.0\.0\.1:11434\/api\/chat$/, 'Ollama 應使用原生 chat endpoint');
+  const ollamaNativeBody = JSON.parse(ollamaNativeRequest.options.body);
+  assert.equal(ollamaNativeBody.stream, false);
+  assert.equal(ollamaNativeBody.options.temperature, 0);
+  assert.equal(ollamaNativeBody.format.minItems, undefined);
+  assert.equal(ollamaNativeBody.format.properties.cues.minItems, 2);
+  assert.equal(ollamaNativeBody.format.properties.cues.maxItems, 2);
   assert.equal(isLoopbackAiUrl('http://[::1]:1234/v1'), true, 'IPv6 loopback 應視為本機');
   assert.equal(isLoopbackAiUrl('http://localhost.example.com:1234/v1'), false, 'localhost 子網域不得視為本機');
   assert.equal(aiEndpointPrivacy('https://example.test/v1'), 'cloud');
