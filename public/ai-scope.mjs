@@ -1,6 +1,6 @@
 import { filterQualityCues } from './subtitle-quality.mjs';
 
-export function selectAiCues({ cues, scope, selectedCueIds = new Set(), search = '', qualityFilter = 'all', activeIndex = -1 }) {
+export function selectAiCues({ cues, scope, selectedCueIds = new Set(), search = '', qualityFilter = 'all', activeIndex = -1, mode = 'proofread' }) {
   const allCues = Array.isArray(cues) ? cues : [];
   const source = scope === 'selected'
     ? allCues.filter((cue) => selectedCueIds.has(String(cue.id)))
@@ -15,7 +15,7 @@ export function selectAiCues({ cues, scope, selectedCueIds = new Set(), search =
     id: cue.id,
     start: cue.startRaw,
     end: cue.endRaw,
-    text: cue.translatedText || cue.text,
+    text: mode === 'translate' ? (cue.sourceText || cue.text) : (cue.translatedText || cue.text),
     sourceText: cue.sourceText,
     translatedText: cue.translatedText || cue.text,
   }));

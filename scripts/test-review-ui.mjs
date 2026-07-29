@@ -39,6 +39,8 @@ const scopeCues = [
 const qualityPayload = selectAiCues({ cues: scopeCues, scope: 'quality', qualityFilter: 'low-confidence' });
 assert.deepEqual(qualityPayload.map((cue) => cue.id), [2], 'quality scope 應只送出篩選後 cue');
 assert.deepEqual(Object.keys(qualityPayload[0]).sort(), ['end', 'id', 'sourceText', 'start', 'text', 'translatedText'], 'AI payload 不得含 raw quality 或影音欄位');
+const translationPayload = selectAiCues({ cues: [{ ...scopeCues[1], sourceText: 'Source sentence', translatedText: '既有譯文' }], scope: 'selected', selectedCueIds: new Set(['2']), mode: 'translate' });
+assert.equal(translationPayload[0].text, 'Source sentence', '翻譯模式應以原文作為輸入');
 assert.match(js, /source-text/);
 assert.match(js, /translated-text/);
 assert.match(html, /id="aiCustomLanguageField" hidden/);

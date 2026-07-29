@@ -108,6 +108,8 @@ document.getElementById('aiSettingsModal').addEventListener('click', (event) => 
 });
 document.querySelectorAll('.ai-mode').forEach((button) => button.addEventListener('click', () => {
   document.querySelectorAll('.ai-mode').forEach((item) => item.classList.toggle('active', item === button));
+  document.getElementById('aiPromptMode').value = button.dataset.aiMode || 'proofread';
+  showAiPromptTemplate();
 }));
 document.getElementById('downloadSrt').addEventListener('click', downloadSrt);
 document.getElementById('downloadVtt').addEventListener('click', downloadVtt);
@@ -544,7 +546,8 @@ function setAiRunning(running) {
 
 function aiRequestCues() {
   const scope = document.getElementById('aiScope').value;
-  return selectAiCues({ cues: state.cues, scope, selectedCueIds: state.selectedCueIds, search: state.search, qualityFilter: state.qualityFilter, activeIndex: state.activeIndex });
+  const mode = document.querySelector('.ai-mode.active')?.dataset.aiMode || 'proofread';
+  return selectAiCues({ cues: state.cues, scope, mode, selectedCueIds: state.selectedCueIds, search: state.search, qualityFilter: state.qualityFilter, activeIndex: state.activeIndex });
 }
 
 function updateAiScopeEstimate() {
