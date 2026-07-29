@@ -660,6 +660,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
     instructions: request.instructions,
     promptTemplate: loadProjectAiSettings(job).prompts[request.mode],
     glossary: loadProjectAiSettings(job).glossary,
+    search: request.search,
     language: request.language || config.language,
     signal: controller.signal,
     complete,

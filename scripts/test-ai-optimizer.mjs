@@ -49,6 +49,13 @@ for (const [mode, instruction] of [['proofread', '修正錯字'], ['breaks', '�
   } });
   assert.match(modeBodies[0].messages[0].content, new RegExp(instruction), `${mode} mode 應傳送對應 instruction`);
 }
+const searchBodies = [];
+await optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 會入的方式。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', search: '會入', complete: async (body) => {
+  searchBodies.push(body);
+  return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 匯入的方式。', reason: '' }] }) } }] };
+} });
+assert.match(searchBodies[0].messages[0].content, /搜尋詞為「會入」/);
+assert.match(searchBodies[0].messages[0].content, /搜尋詞以外的內容/);
 await assert.rejects(
   () => optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '這是一段需要統一術語的完整字幕。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3;平台名稱', reason: '' }] }) } }] }) }),
   /術語建議過短/,

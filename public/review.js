@@ -575,6 +575,7 @@ async function runAiOptimize() {
         mode,
         preserveTiming: document.getElementById('aiPreserveTiming').checked,
         language: getAiLanguage(),
+        search: document.getElementById('aiScope').value === 'search' ? state.search : '',
         instructions: document.getElementById('aiInstructions').value.trim(),
       }),
     });
