@@ -10,7 +10,7 @@
 
 - Windows 10／11 x64：NSIS Setup 與 Portable 已建置並發布。
 - Apple Silicon macOS 12+：DMG 與 ZIP 已發布。
-- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.45.2>
+- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0>
 - 線上完整操作說明：<https://offline-subtitle-factory-0451-guide.derek62101.chatgpt.site>
 - Windows 安裝包內含 `resources/docs/0.45.2/USER-GUIDE.html`、圖文資產與三段操作動畫。
 - 0.45.1 已修正 Azure OpenAI GPT-5 的 `max_completion_tokens` 與 `temperature` 相容性，並加入可收合 AI 優化面板。
@@ -25,7 +25,7 @@
 
 ## 歷史 0.45.2 發布資產狀態
 
-- v0.45.2 為歷史公開 Release；目前公開版本已更新為 v0.47.1。
+- v0.45.2 為歷史公開 Release；目前公開版本已更新為 v0.48.0。
 - v0.45.2 Windows 發布資產來自 CI run `29886823270`：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`latest.yml` 與 SHA 已核對。
 - v0.45.2 macOS arm64 發布資產為 ASCII DMG／ZIP；`latest-mac.yml` URL／path／size 與實際資產一致，DMG `hdiutil verify`、ZIP `unzip -t` 通過。
 

@@ -57,7 +57,7 @@
 - 預計影響檔案／模組：GitHub `codex/0.48-local-llm`、`main`、Release `v0.48.0`；`README.md`、`00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件。
 - 風險與回復方式：錯誤目標或缺檔會造成 Latest 指向不完整版本；先維持草稿並核對 9 項資產，通過後才公開。若文件同步錯誤，以後續 commit 更正，不移動或覆寫已發布二進位內容。
 - 驗證計畫：GitHub branch／README 比對、Release draft／target／asset digest 核對、正式發布後 Latest／URL／資產清單核對、兩平台 SHA 重算、完整回歸、獨立發布審查。
-- 實際修改：將本機文件收尾 commit `4cdb017` 推送至遠端 0.48 分支；把 `v0.48.0` 草稿 target 從舊 `main` 改為 `codex/0.48-local-llm`，覆蓋 metadata／SHA 並補齊 macOS DMG／ZIP、Windows Setup／Portable；正式發布並標示 Latest。同步 README、目前狀態、發展歷程與測試稽核為已公開狀態。
+- 實際修改：將本機文件收尾 commit `4cdb017` 推送至遠端 0.48 分支；把 `v0.48.0` 草稿 target 從舊 `main` 改為 `codex/0.48-local-llm`，覆蓋 metadata／SHA 並補齊 macOS DMG／ZIP、Windows Setup／Portable；正式發布並標示 Latest。同步 README、目前狀態、發展歷程與測試稽核為已公開狀態；快轉 `main` 至發布後文件 commit `cedb638`。獨立審查發現狀態文件兩處舊版文字與 Release notes 實機缺口揭露不足後，已更正並重新同步 GitHub Release body。
 - 開發驗證結果：GitHub API／CLI 確認 `isDraft=false`、`isPrerelease=false`、Latest、tag `v0.48.0` → `4cdb0177d84693a334fac79b96c596e1b416456f`；9 項資產均為 uploaded 且正式 URL 使用 `/releases/download/v0.48.0/`。四項二進位 GitHub digest 與本機 SHA 一致；重新下載 SHA／metadata／簽章狀態檔後逐檔 `cmp` 一致；Windows Setup 正式 URL 回覆 302 至 GitHub release-assets。`npm run check`、`npm run docs:check`、`git diff --check` 通過。
 - 獨立審查是否執行：進行中。
 - 獨立審查結論：進行中。
