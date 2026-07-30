@@ -1,8 +1,9 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-07-28
-> 現行版本：0.48.0（開發中）
-> 現行公開版本：0.47.1
+> 最後查證日期：2026-07-30
+> 現行版本：0.48.0（正式候選；來源分支已推送）
+> 現行公開版本：0.47.1（`v0.48.0` 資產上傳／公開狀態仍待 GitHub 反向核對）
+> 來源分支：`codex/0.48-local-llm`，commit `dc143d24064b50ca4ddf645037d339a73d60baf4`
 > 主分支：`main`
 
 ## 已完成成果
@@ -43,7 +44,7 @@
 
 - `AUTH-2026-07-23-01`：需求提出者／產品負責人已統一同意 Windows Authenticode 未簽章、macOS 未經 Apple Developer ID 簽章／公證狀態下對外發布。每次發布仍須引用授權 ID、揭露風險並完成測試、審查、SHA 與資產核對；未實機測試及其他風險不在此授權範圍。詳見 `09-STANDING-AUTHORIZATIONS.md`。
 
-## 0.48.0 開發中工作重點
+## 0.48.0 正式候選狀態
 
 1. `FR-021`：新增 Ollama／LM Studio 本機 provider、固定常見端點探測與模型清單。
 2. 只有精確 loopback hostname 才免 API Key 與雲端資料傳送同意；遠端端點維持既有安全門檻。
@@ -51,7 +52,14 @@
 4. 提供本機／雲端隱私標示及模型 JSON、繁體中文、context 能力檢查；不自動下載模型。
 5. 自動回歸已分別覆蓋 Ollama 的模型探索／能力／redirect 防護，以及 LM Studio 的完整優化、重試、取消、checkpoint／續跑；已修正「已有 checkpoint 的取消任務被誤標不可續跑」問題；macOS arm64 未簽章目錄版已完成 runtime、打包與 Electron renderer 預封裝驗證。
 6. macOS arm64 目錄版、DMG、ZIP 與 Windows x64 未簽章目錄版／Setup／Portable 均已產出並完成 runtime／資產驗證；Windows renderer 仍待 Windows 實機啟動，macOS DMG／ZIP 安裝後仍待驗收。
-7. Ollama 已完成 `llama3.2:1b` 真實模型的模型列表、能力檢查與 1 cue 優化；能力檢查的繁中旗標為 false，實際結果把中文句號改為英文句點，仍需人工品質驗收。LM Studio、真正移除外網後的端到端仍待實機驗證；0.48.0 尚未發布。
+7. Ollama 已完成 `llama3.2:1b` 真實模型的模型列表、能力檢查與字幕優化；另以 `llama3.2:3b` 驗證日文翻譯與模型解說文字清理。小模型輸出品質仍需逐段人工確認。
+8. 正式候選 commit `dc143d2` 已推送至 `origin/codex/0.48-local-llm`；macOS DMG／ZIP、Windows Setup／Portable、updater metadata、兩平台 SHA 與 Windows 未簽章說明均已產出。GitHub `v0.48.0` Release 正由需求方終端上傳，公開資產名稱、大小、digest 與直接下載 URL 尚待網路可達後反向核對，因此目前不把 `v0.48.0` 記為已確認公開版本。
+
+## 本機封裝儲存空間整理（2026-07-30）
+
+- 已移除 `dist/` 中 0.21–0.47.1 的歷史 Release 複本、Google Drive 分片、舊 Windows/macOS 封裝與舊建置快取；這些版本的公開／歷史證據仍保留於 GitHub Release、tag 與專案治理文件。
+- 保留 0.48.0 正式候選的 macOS DMG／ZIP、Windows Setup／Portable、blockmap、`latest.yml`／`latest-mac.yml`、SHA、簽章狀態，以及 `mac-arm64`／`win-unpacked` 驗證目錄。
+- `dist/` 由約 10 GB 降至約 1.9 GB；刪除命令的目標容量合計輸出約 8.44 GiB。清理前逐檔輸出未保存成獨立證據，因此該數值只能作為操作摘要，不能由目前檔案重新計算。被刪除的封裝不在垃圾桶內，若需重取須由 GitHub Release 下載或重新建置。
 
 ## 0.46.0 已公開發布
 

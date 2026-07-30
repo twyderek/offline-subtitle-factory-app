@@ -123,3 +123,13 @@
 - 可重放證據：`npm run probe:ollama:live`（底層為 `scripts/probe-ollama-live.mjs`）會保存版本、模型清單、完整 capability／single-cue 請求與原始回應；本輪 artifact 為 `docs/project-management/evidence/2026-07-28-ollama-llama3.2-1b-live.json`。該次 capability 回應使用 `Traditional Chinese` 鍵而非產品要求的 `traditionalChinese`，single-cue 回應使用 `cue`、改動時間碼並附 Markdown／自然語言，正好證明 strict contract 與人工審核仍必要。Probe 另以 `isLoopbackAiUrl`、`aiEndpointPrivacy` 與所有 fetch `redirect: manual` 保護資料邊界；本機 probe exit 0，遠端 `OLLAMA_BASE_URL` 負例在 fetch 前 exit 1。
 - Probe 安全矩陣：`http://localhost:11434/v1` 實際 probe 成功；`localhost.example.com` 在 fetch 前拒絕；`[::1]` 通過 loopback 分類但因 Ollama 僅監聽 IPv4 而連線失敗，未被誤判為遠端或送出資料。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
+
+## 0.48.0 正式候選與本機封裝清理稽核（2026-07-30）
+
+- 來源：`codex/0.48-local-llm` commit `dc143d24064b50ca4ddf645037d339a73d60baf4`；本機 remote-tracking ref `origin/codex/0.48-local-llm` 與 HEAD 一致。
+- 開發驗證：`npm run check` 通過；`npm run docs:check:final` 通過；macOS runtime、DMG／ZIP 與 Windows runtime、Setup／Portable 已建立。macOS ZIP `unzip -t` 通過。
+- 目前 SHA-256：macOS DMG `334e50b59a70c97314629faad88de1dd22f6680018265c54da5f1703becfbeee`、macOS ZIP `53ca4e3886155e221048d36f103b0933a8d49647f5e509098fcac29f2c652f80`、Windows Setup `7be0392fca7610647f1b351db182ceccbd509fdd44f79ca3eb089c09c76ebd54`、Windows Portable `b187823c1c4981211cc2b71f8a31676d6f58866589b2bf8fb61c945e75a13ca5`。兩平台 SHA 清單均已涵蓋主要安裝資產；GitHub 發布後 digest 仍待反向核對。
+- GitHub 狀態：來源分支推送已由本機 remote-tracking ref 證實；`v0.48.0` Release 由需求方終端上傳中。因本執行環境無法解析 `github.com`，尚未取得公開 Release metadata、資產 digest、下載 URL 與最新 Release 指向的反向證據。
+- 清理前 `dist/` 約 10 GB。逐項移除 `archive/`、`releases/`、`build-cache/`、`windows-0.45.0/`，以及根目錄 0.45.0–0.47.1 歷史封裝／blockmap／舊 checksum；刪除命令的目標容量合計輸出約 8.44 GiB，清理後約 1.9 GB。清理前逐檔輸出未保存為獨立檔案，故目前只能以 `docs/project-management/evidence/2026-07-30-dist-cleanup-summary.md` 作操作摘要，不得宣稱該數值仍可獨立重算。
+- 清理後檢查：`dist/` 根目錄只保留 0.48.0 DMG／ZIP／Setup／Portable、其 blockmap、`latest.yml`／`latest-mac.yml`、兩平台 SHA、Windows 未簽章說明與 builder metadata；另保留目前的 `mac-arm64/`、`win-unpacked/` 驗證目錄。
+- 回復：歷史封裝已永久移除而未送入垃圾桶；可由對應 GitHub Release 重新下載，或從既有 tag 重新建置。來源碼、tag、GitHub Release、使用者任務資料與 bundled runtime 未刪除。

@@ -44,6 +44,34 @@
 
 ---
 
+## 2026-07-30 — 專案狀態同步與舊版封裝清理
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方要求在 0.48.0 推送期間同步專案資料、開發進度與說明，並整理已發布至 GitHub 的過期本機軟體產物以釋放空間。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`
+- 變更等級：高（包含本機既有封裝產物刪除與發布狀態文件同步）
+- 執行前已讀：`project:preflight -- --type=full` 列出的固定核心與任務路由（是）
+- 目標與成功條件：查證 GitHub 與本機 0.48.0 狀態；更新目前狀態、發展歷程、測試／發布稽核與 README；只清理已發布歷史版本且非 0.48.0 正式候選的本機封裝檔，記錄刪除範圍與釋放容量。
+- 不在範圍：刪除 GitHub Release、tag、來源碼、使用者任務資料、runtime、目前 0.48.0 正式資產或未能確認來源的檔案。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`08-CHANGE-LOG.md`、`README.md`；專案上層 `dist/` 中已確認可清理的歷史版本封裝。
+- 風險與回復方式：本機封裝刪除後需由 GitHub Release 重新下載；先以檔名、版本、GitHub 公開資產與大小清單核對，保留 0.48.0、updater metadata 與未能確認的檔案。
+- 驗證計畫：Git／GitHub 公開狀態核對、清理前後逐檔清單與容量比較、`npm run docs:check:final`、`git diff --check`、獨立六面向審查。
+- 實際修改：更新 README 的 0.48.0 安裝檔名與 Release 入口、補齊 Release notes 的 macOS updater／SHA 資產；同步目前狀態、發展歷程與測試稽核。永久移除 `dist/` 中 0.21–0.47.1 歷史封裝、Google Drive 分片、舊 build cache 與重複 blockmap／checksum；保留全部 0.48.0 正式候選及 unpacked 驗證目錄。另補入 Windows Portable SHA-256 至目前 Windows 清單。
+- 開發驗證結果：`npm run check`、`npm run docs:check` 與 `git diff --check` 通過；兩平台四項主要資產以 SHA 清單重算均為 OK。清理後 `dist/` 約 1.9 GB，根目錄只見 0.48.0 主要資產／metadata／SHA／簽章狀態及 builder metadata；刪除命令的目標容量合計輸出約 8.44 GiB。清理前逐檔輸出未保存為獨立檔案，現僅保留操作摘要 `docs/project-management/evidence/2026-07-30-dist-cleanup-summary.md`，不得把它描述為可獨立重算的原始證據。HEAD 與 `origin/codex/0.48-local-llm` 均為 `dc143d2`；GitHub Release 公開資產因本環境 DNS 不可達仍待反向核對。
+- 獨立審查是否執行：是。
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-07-30-project-sync-cleanup-round1.md`
+  - round1 判定（逐字引用「綜合判定」，第 67 行）：**本輪獨立審查判定為不通過；本機清理後邊界、0.48.0 正式候選檔案、checksum、updater metadata 與封裝完整性均已通過獨立驗證，但 README 的未驗證公開下載斷言及 `docs:check:final` 未實際覆蓋本輪工作條目，分別違反 `NFR-008` 與 `NFR-006`，在修正並複審前不能結案。**
+  - round1 修正：README 改為候選／上傳後核對用語；本輪改為置頂二級工作條目，已證明進行中狀態會使 `docs:check:final` 失敗；建立清理操作摘要並揭露清理前逐檔證據未保存、8.44 GiB 不可由目前檔案獨立重算。
+  - round2 審查檔案：`docs/project-management/reviews/2026-07-30-project-sync-cleanup-round2.md`
+  - round2 判定（逐字引用「綜合判定」，第 67 行）：**本輪獨立複審判定為通過；round1 的公開下載狀態矛盾、最新工作未受結案檢查約束及 8.44 GiB 證據強度誤述均已修正，文件現在忠實區分本機正式候選、GitHub 待反向核對與不可重算的事後清理摘要，且必要文件、完整回歸、checksum、清理後邊界及結案負向關卡均通過獨立複審。**
+- 發布授權：不適用；本工作不新增或覆蓋公開 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：GitHub `v0.48.0` 公開 metadata、資產名稱／大小／digest、直接下載 URL 與 latest Release 指向仍待網路可達後反向核對；在此之前 `00-CURRENT-STATUS.md` 維持 0.47.1 為已確認公開版本。清理前逐檔輸出未另存，8.44 GiB 僅為操作摘要、不可由目前檔案獨立重算。歷史封裝為永久刪除，只能由可取得的 GitHub Release 下載或從 tag 重建；Windows 未簽章、macOS 未公證與跨平台乾淨實機缺口持續揭露。
+
+---
+
 ## 2026-07-28 — 0.48 本機 LLM 基礎支援
 
 ### 2026-07-30 — 0.48.0 正式發布準備

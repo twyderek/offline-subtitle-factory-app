@@ -23,6 +23,7 @@
 
 - macOS arm64：`offline-subtitle-factory-0.48.0-macos-arm64.dmg`、`offline-subtitle-factory-0.48.0-macos-arm64.zip`
 - Windows x64：`offline-subtitle-factory-setup-0.48.0.exe`、`offline-subtitle-factory-portable-0.48.0.exe`
+- macOS：`latest-mac.yml`、`SHA256SUMS-macos-arm64.txt`
 - Windows：`latest.yml`、`SHA256SUMS-windows-x64.txt`、`SIGNING-STATUS-windows-x64.txt`
 
 ## 已知限制

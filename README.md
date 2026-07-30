@@ -1,8 +1,8 @@
 # 離線字幕工廠
 
-## 0.48.0 正式發布
+## 0.48.0 正式候選與發布資料
 
-0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。
+0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。雙平台正式候選已產出，GitHub Release 上傳完成後仍須核對公開資產與 digest。
 
 - 正式 Release：[v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)
 - macOS Apple Silicon：DMG 與 ZIP。
@@ -91,20 +91,20 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-offline-subtitle-factory-0.47.1-macos-arm64.dmg
+offline-subtitle-factory-0.48.0-macos-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.47.1 版由 GitHub Actions 在 Windows Server 2022 x64 建置，輸出 NSIS Setup 與 Portable。可直接從 GitHub 的 [`v0.47.1` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.47.1) 下載 `offline-subtitle-factory-setup-0.47.1.exe` 或 `offline-subtitle-factory-portable-0.47.1.exe`。
+Windows 0.48.0 x64 版提供 NSIS Setup 與 Portable。GitHub [`v0.48.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0) 完成公開並核對後，預計提供 `offline-subtitle-factory-setup-0.48.0.exe` 與 `offline-subtitle-factory-portable-0.48.0.exe`。
 
 目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
 ## 不需要自行安裝其他軟體
 
-0.47.1 安裝包已內建：
+0.48.0 安裝包已內建：
 
 - 完整離線操作手冊（目前內建手冊版本）：`resources/docs/0.45.2/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
