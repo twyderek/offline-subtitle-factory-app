@@ -59,15 +59,19 @@
 - 驗證計畫：GitHub branch／README 比對、Release draft／target／asset digest 核對、正式發布後 Latest／URL／資產清單核對、兩平台 SHA 重算、完整回歸、獨立發布審查。
 - 實際修改：將本機文件收尾 commit `4cdb017` 推送至遠端 0.48 分支；把 `v0.48.0` 草稿 target 從舊 `main` 改為 `codex/0.48-local-llm`，覆蓋 metadata／SHA 並補齊 macOS DMG／ZIP、Windows Setup／Portable；正式發布並標示 Latest。同步 README、目前狀態、發展歷程與測試稽核為已公開狀態；快轉 `main` 至發布後文件 commit `cedb638`。獨立審查發現狀態文件兩處舊版文字與 Release notes 實機缺口揭露不足後，已更正並重新同步 GitHub Release body。
 - 開發驗證結果：GitHub API／CLI 確認 `isDraft=false`、`isPrerelease=false`、Latest、tag `v0.48.0` → `4cdb0177d84693a334fac79b96c596e1b416456f`；9 項資產均為 uploaded 且正式 URL 使用 `/releases/download/v0.48.0/`。四項二進位 GitHub digest 與本機 SHA 一致；重新下載 SHA／metadata／簽章狀態檔後逐檔 `cmp` 一致；Windows Setup 正式 URL 回覆 302 至 GitHub release-assets。`npm run check`、`npm run docs:check`、`git diff --check` 通過。
-- 獨立審查是否執行：進行中。
-- 獨立審查結論：進行中。
+- 獨立審查是否執行：是。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-07-30-release-v0.48.0-sync-round1.md`
+  - 判定（逐字引用「綜合判定」，第 107 行）：**本輪獨立發布審查判定為「有條件通過」：v0.48.0 的 tag／Latest、9 項資產、正式 URL、GitHub digest、SHA 清單、updater metadata、兩個遠端分支、公開風險揭露與完整自動回歸均核對一致，審查中發現的 Release notes／CURRENT-STATUS 缺漏也已修正；但 `AUTH-2026-07-23-01` 明確排除未實機測試，且本工作條目未記錄需求方對該缺口的明確接受，故須取得並記錄未實機風險接受後，方可解除本輪條件。**
+  - 條件：取得需求方對 Windows／macOS 乾淨實機安裝與跨平台離線端到端未覆蓋風險的明確接受。
+  - 條件是否已被需求方接受：否；待需求方明確確認，不以「要求發布」推定風險接受。
 - 發布授權：
   - 是否需要：是。
   - 核准人／角色：需求提出者／產品負責人。
   - 核准時間：2026-07-30；並引用有效常設授權 `AUTH-2026-07-23-01`。
   - 核准範圍：需求方明確要求正式推送／發布 0.48.0；常設授權涵蓋 Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證的公開發布，Release notes 持續揭露。
 - 部署／發布結果：`v0.48.0` 已於 2026-07-30T03:58:52Z 公開：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0；9 項資產與 Latest 狀態已核對。
-- 遺留風險與後續事項：進行中。
+- 遺留風險與後續事項：GitHub 對外資料、main、Latest、tag、9 項資產與 SHA 均已同步完成。治理上尚待需求方明確接受 Windows／macOS 乾淨實機安裝及跨平台離線端到端未覆蓋；`AUTH-2026-07-23-01` 只涵蓋未簽章／未公證，不能替代此接受。Windows 未 Authenticode、macOS 未 Developer ID／公證、小模型品質與真實 LM Studio 實機差異持續揭露。
 
 ---
 
