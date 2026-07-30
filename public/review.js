@@ -54,6 +54,7 @@ const state = {
   aiSessionId: '',
   aiProviderProfileSnapshot: null,
   bilingualLayout: 'source-top',
+  showBilingual: true,
   qualityFilter: 'all',
 };
 
@@ -96,7 +97,11 @@ document.getElementById('rejectAllAiSuggestions').addEventListener('click', reje
 document.getElementById('clearAiKey').addEventListener('click', clearAiKey);
 document.getElementById('exportAiGlossary').addEventListener('click', exportAiGlossary);
 document.getElementById('importAiGlossary').addEventListener('click', importAiGlossary);
-document.getElementById('aiPromptMode').addEventListener('change', showAiPromptTemplate);
+document.getElementById('aiPromptMode').addEventListener('change', (event) => {
+  const mode = event.target.value || 'proofread';
+  document.querySelectorAll('.ai-mode').forEach((item) => item.classList.toggle('active', item.dataset.aiMode === mode));
+  showAiPromptTemplate();
+});
 document.getElementById('aiProvider').addEventListener('change', loadAiProviderProfile);
 document.getElementById('aiBaseUrl').addEventListener('input', updateAiPrivacyStatus);
 document.getElementById('aiLanguage').addEventListener('change', updateAiLanguageControls);
@@ -121,6 +126,11 @@ document.getElementById('bilingualLayout').addEventListener('change', (event) =>
   updateActiveCue(true);
   updateBurnPreview();
   markReviewDirty();
+});
+document.getElementById('showBilingual').addEventListener('change', (event) => {
+  state.showBilingual = event.target.checked;
+  renderCueList();
+  updateActiveCue(true);
 });
 document.getElementById('saveReviewPackage').addEventListener('click', saveReviewPackage);
 document.getElementById('burnExport').addEventListener('click', burnExport);
@@ -546,7 +556,7 @@ function setAiRunning(running) {
 
 function aiRequestCues() {
   const scope = document.getElementById('aiScope').value;
-  const mode = document.querySelector('.ai-mode.active')?.dataset.aiMode || 'proofread';
+  const mode = document.getElementById('aiPromptMode').value || 'proofread';
   return selectAiCues({ cues: state.cues, scope, mode, selectedCueIds: state.selectedCueIds, search: state.search, qualityFilter: state.qualityFilter, activeIndex: state.activeIndex });
 }
 
@@ -563,7 +573,10 @@ async function runAiOptimize() {
     return;
   }
   setAiToolbarCollapsed(false);
-  const mode = document.querySelector('.ai-mode.active')?.dataset.aiMode || 'proofread';
+  const mode = document.getElementById('aiPromptMode').value || 'proofread';
+  state.aiSuggestions.clear();
+  updateAiSuggestionActions();
+  renderCueList();
   setAiRunning(true);
   setAiProgress({ processedCues: 0, totalCues: cues.length, completedBatches: 0, totalBatches: 1 }, '正在啟動 AI 優化…');
   try {
@@ -683,7 +696,7 @@ function acceptAiSuggestion(index) {
   if (!cue || !suggestion) return;
   state.aiSuggestions.delete(String(cue.id));
   recordAiDecision(cue.id, 'accepted');
-  updateCue(index, suggestion.text);
+  updateCue(index, suggestion.text, 'translatedText');
   updateAiSuggestionActions();
   renderCueList();
   statusMessage(`已接受第 ${index + 1} 段 AI 建議，時間碼未變更`);
@@ -713,7 +726,8 @@ function acceptAllAiSuggestions() {
   state.cues.forEach((cue, index) => {
     const suggestion = state.aiSuggestions.get(String(cue.id));
     if (!suggestion) return;
-    cue.text = suggestion.text;
+    cue.translatedText = suggestion.text;
+    cue.text = cue.translatedText || cue.sourceText;
     decisions[String(cue.id)] = 'accepted';
     syncChangedState(index);
     accepted += 1;
@@ -760,7 +774,7 @@ async function applyAiSessionDirection(direction) {
   if (!response.ok) throw new Error(result.error || 'AI Session 操作失敗');
   for (const change of result.changes) {
     const index = state.cues.findIndex((cue) => String(cue.id) === String(change.id));
-    if (index >= 0) updateCue(index, change.text);
+    if (index >= 0) updateCue(index, change.text, 'translatedText');
   }
   renderCueList();
   statusMessage(`${direction === 'undo' ? '撤銷' : '重新套用'} ${result.changes.length} 段；${result.conflicts.length} 段因後續人工修改而保留`);
@@ -994,6 +1008,13 @@ function renderCueList() {
     item.classList.toggle('changed', state.changed.has(index));
     item.classList.toggle('selected', state.selectedCueIds.has(String(cue.id)));
     const aiSuggestion = state.aiSuggestions.get(String(cue.id));
+    const aiModeLabel = {
+      proofread: '錯字與標點',
+      breaks: '斷句優化',
+      terms: '術語統一',
+      fillers: '移除贅詞',
+      translate: '翻譯',
+    }[aiSuggestion?.mode] || 'AI 優化';
     item.innerHTML = `
       <div class="review-cue-number"><input class="review-cue-select" type="checkbox" aria-label="選取字幕 ${index + 1}" ${state.selectedCueIds.has(String(cue.id)) ? 'checked' : ''}><br>${index + 1}</div>
       <div class="review-cue-content">
@@ -1005,7 +1026,7 @@ function renderCueList() {
         <label class="bilingual-edit-field">原文<textarea class="source-text" aria-label="字幕 ${index + 1} 原文">${escapeHtml(cue.sourceText)}</textarea></label>
         <label class="bilingual-edit-field">譯文<textarea class="translated-text" aria-label="字幕 ${index + 1} 譯文">${escapeHtml(cue.translatedText)}</textarea></label>
         ${aiSuggestion ? `<div class="review-ai-suggestion">
-          <div><strong>AI 建議</strong><span>${escapeHtml(aiSuggestion.reason || '文字優化')}</span></div>
+          <div><strong>AI 建議</strong><span>${escapeHtml(aiModeLabel)}</span></div>
           <p>${escapeHtml(aiSuggestion.text)}</p>
           <div><button class="accept-ai-suggestion" type="button">接受</button><button class="reject-ai-suggestion" type="button">略過</button></div>
         </div>` : ''}
@@ -1131,7 +1152,7 @@ function setActiveCue(index) {
         });
       }
     }
-    el.currentText.textContent = renderCueText(cue, state.bilingualLayout) || ' ';
+    el.currentText.textContent = renderCueText(cue, state.bilingualLayout, state.showBilingual) || ' ';
     el.currentMeta.textContent = `#${index + 1} ${cue.startRaw} - ${cue.endRaw}`;
     el.currentRuleState.textContent = hasRuleWarning(cue.translatedText) ? '待檢查' : '已校稿';
   } else {
@@ -1349,7 +1370,7 @@ function updateBurnPreview() {
   const settings = getBurnSettings();
   const cue = state.activeIndex >= 0 ? state.cues[state.activeIndex] : null;
   const preview = getAssPreviewMetrics();
-  el.burnCaption.textContent = cue ? renderCueText(cue, state.bilingualLayout) : '字幕燒錄樣式預覽';
+  el.burnCaption.textContent = cue ? renderCueText(cue, state.bilingualLayout, state.showBilingual) : '字幕燒錄樣式預覽';
   el.burnCaption.style.fontFamily = settings.fontFamily;
   el.burnCaption.style.fontSize = `${Math.max(1, settings.fontSize * preview.scale)}px`;
   el.burnCaption.style.fontWeight = settings.bold ? '800' : '400';
@@ -1457,15 +1478,15 @@ async function burnExport() {
 }
 
 function buildSrt() {
-  return serializeSrt(state.cues, state.bilingualLayout);
+  return serializeSrt(state.cues, state.bilingualLayout, state.showBilingual);
 }
 
 function buildVtt() {
-  return serializeVtt(state.cues, state.bilingualLayout);
+  return serializeVtt(state.cues, state.bilingualLayout, state.showBilingual);
 }
 
 function downloadAss() {
-  const body = state.cues.map((cue) => `Dialogue: 0,${formatAssTime(cue.start)},${formatAssTime(cue.end)},Default,,0,0,0,,${renderCueText(cue, state.bilingualLayout).replace(/\r?\n/g, '\\N').replace(/[{}]/g, '').replace(/,/g, '，')}`).join('\n');
+  const body = state.cues.map((cue) => `Dialogue: 0,${formatAssTime(cue.start)},${formatAssTime(cue.end)},Default,,0,0,0,,${renderCueText(cue, state.bilingualLayout, state.showBilingual).replace(/\r?\n/g, '\\N').replace(/[{}]/g, '').replace(/,/g, '，')}`).join('\n');
   downloadBlob(new Blob([`[Script Info]\nTitle: Offline Subtitle Factory Bilingual Export\nScriptType: v4.00+\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${body}\n`], { type: 'text/plain;charset=utf-8' }), 'media.edited.ass');
 }
 

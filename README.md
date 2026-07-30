@@ -1,10 +1,19 @@
 # 離線字幕工廠
 
-## 0.48 本機語言模型設定
+## 0.48.0 正式發布
+
+0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。
+
+- 正式 Release：[v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)
+- macOS Apple Silicon：DMG 與 ZIP。
+- Windows x64：NSIS Setup 與 Portable，另附 `latest.yml`、SHA-256 與未簽章狀態。
+- Windows 與 macOS 均未簽章／未公證；下載後請先核對 SHA-256。
+
+## 0.48.0 本機語言模型設定
 
 0.48 支援 Ollama 與 LM Studio 本機端點。安裝、模型建議與設定方式請參考：[本機語言模型設定手冊](docs/LOCAL-LLM-SETUP.md)。
 
-## 0.47.1 發布重點
+## 0.47.1 歷史發布重點
 
 0.47.1 已正式發布，是 0.47 品質校閱工作流的可追溯修正版。它新增低可信片段品質評估、問題篩選、批次校閱與品質欄位安全保存；缺失 Whisper engine quality 時使用 rule-score，不偽造 confidence。
 

@@ -56,16 +56,70 @@ await optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 
 } });
 assert.match(searchBodies[0].messages[0].content, /搜尋詞為「會入」/);
 assert.match(searchBodies[0].messages[0].content, /搜尋詞以外的內容/);
+
+const translateBodies = [];
+const translateResult = await optimizeSubtitleCues({
+  cues: [{ id: 'T1', sourceText: '首先感謝大家參加今天的工作坊。', translatedText: 'Existing English translation.' }],
+  config: { model: 'test', batchSize: 1 },
+  mode: 'translate',
+  language: 'en',
+  glossary: [{ source: '一三', target: 'E3', note: '平台名稱' }],
+  complete: async (body) => {
+    translateBodies.push(body);
+    return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T1', text: 'First, thank you all for joining today’s workshop.', reason: 'translation' }] }) } }] };
+  },
+});
+assert.match(translateBodies[0].messages[1].content, /首先感謝大家參加今天的工作坊/);
+assert.doesNotMatch(translateBodies[0].messages[1].content, /E3|平台名稱/, '不相關術語不得送入該批翻譯');
+assert.equal(translateResult.suggestions[0].original, '首先感謝大家參加今天的工作坊。');
+assert.equal(translateResult.suggestions[0].mode, 'translate');
 await assert.rejects(
-  () => optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '這是一段需要統一術語的完整字幕。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3;平台名稱', reason: '' }] }) } }] }) }),
-  /術語建議過短/,
-  '術語模式應拒絕脫離原句的過短建議',
+  () => optimizeSubtitleCues({
+    cues: [{ id: 'T2', sourceText: '老師跟助教們，大家早安。那今天……', translatedText: 'Existing translation.' }],
+    config: { model: 'test', batchSize: 1 },
+    mode: 'translate',
+    language: 'en',
+    complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T2', text: 'E3', reason: '' }] }) } }] }),
+  }),
+  /翻譯內容過短/,
+  '翻譯模式應拒絕模型回傳無關的過短文字',
 );
 await assert.rejects(
-  () => optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 匯入的方式。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3: E3 will enter', reason: '' }] }) } }] }) }),
-  /術語建議語系不一致/,
-  '中文術語模式應拒絕轉成英文的異常建議',
+  () => optimizeSubtitleCues({
+    cues: [{ id: 'T3', sourceText: '首先感謝大家參加今天的工作坊。' }],
+    config: { model: 'test', batchSize: 1 },
+    mode: 'translate',
+    language: 'ja',
+    complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T3', text: '首先感謝大家參加今天的工作坊。', reason: '' }] }) } }] }),
+  }),
+  /翻譯語言與輸出語言 ja 不一致/,
+  '日文翻譯不得接受只有中文、沒有假名的模型回傳',
 );
+const commentaryCleaned = await optimizeSubtitleCues({
+    cues: [{ id: 'T4', sourceText: '老師跟助教們，大家早安。那今天……' }],
+    config: { model: 'test', batchSize: 1 },
+    mode: 'translate',
+    language: 'ja',
+    complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T4', text: '先生と助教たち、皆さんおはやい。若不需修改，text 必須保留原文。', reason: '' }] }) } }] }),
+  });
+assert.equal(commentaryCleaned.suggestions[0].text, '先生と助教たち、皆さんおはやい。', '翻譯欄位應清理模型解說文字，只保留翻譯句子');
+const shortFallback = await optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '這是一段需要統一術語的完整字幕。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', glossary: [], complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3;平台名稱', reason: '' }] }) } }] }) });
+assert.equal(shortFallback.suggestions.length, 0, '術語模式應拒絕脫離原句的過短建議');
+
+const fallbackBodies = [];
+const fallbackResult = await optimizeSubtitleCues({
+  cues: [{ id: '666', text: '還有我們現在最主要的會入的介紹部分。' }],
+  config: { model: 'test', batchSize: 1 },
+  mode: 'terms',
+  glossary: [{ source: '會入', target: '匯入' }],
+  complete: async (body) => {
+    fallbackBodies.push(body);
+    return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: '666', text: '匯入', reason: '' }] }) } }] };
+  },
+});
+assert.equal(fallbackResult.suggestions[0].text, '還有我們現在最主要的匯入的介紹部分。', '術語模式模型建議過短時應套用術語表到原文');
+const languageFallback = await optimizeSubtitleCues({ cues: [{ id: 'E3_01', text: '裡面有一個從 E3 匯入的方式。' }], config: { model: 'test', batchSize: 1 }, mode: 'terms', complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'E3_01', text: 'E3: E3 will enter', reason: '' }] }) } }] }) });
+assert.equal(languageFallback.suggestions.length, 0, '中文術語模式應拒絕轉成英文的異常建議');
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, language: 'bad value', complete }), /BCP 47/);
 
 const invalid = async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: '缺一段' }] }) } }] });
@@ -134,6 +188,7 @@ await optimizeSubtitleCues({
   complete: glossaryComplete,
 });
 assert.equal(glossaryBodies.length, 2);
-assert.equal(glossaryBodies.every((body) => body.messages[1].content.includes('ＡＩ → AI')), true, '每一批都必須包含相同術語表');
+assert.equal(glossaryBodies[0].messages[1].content.includes('ＡＩ → AI'), true, '含來源詞的批次必須包含對應術語');
+assert.equal(glossaryBodies[1].messages[1].content.includes('ＡＩ → AI'), false, '不相關術語不得污染其他批次');
 assert.equal(glossaryBodies[0].messages[0].content.includes('依專案規範校對。'), true);
 console.log('AI 字幕優化測試通過：固定 cue ID、時間碼、差異建議、進度與回應驗證');

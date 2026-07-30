@@ -58,19 +58,20 @@ export function parseSrtBilingual(text) {
   }).filter(Boolean));
 }
 
-export function renderCueText(cue, layout = 'source-top') {
+export function renderCueText(cue, layout = 'source-top', showBilingual = true) {
   const source = String(cue.sourceText ?? cue.text ?? '').trim();
   const translated = String(cue.translatedText ?? cue.text ?? source).trim();
+  if (!showBilingual) return translated || source;
   if (!translated || translated === source) return source || translated;
   return layout === 'translated-top' ? `${translated}\n${source}` : `${source}\n${translated}`;
 }
 
-export function serializeSrt(cues, layout = 'source-top') {
-  return normalizeBilingualCues(cues).map((cue, index) => `${index + 1}\n${cue.startRaw} --> ${cue.endRaw}\n${renderCueText(cue, layout)}`).join('\n\n') + (cues.length ? '\n' : '');
+export function serializeSrt(cues, layout = 'source-top', showBilingual = true) {
+  return normalizeBilingualCues(cues).map((cue, index) => `${index + 1}\n${cue.startRaw} --> ${cue.endRaw}\n${renderCueText(cue, layout, showBilingual)}`).join('\n\n') + (cues.length ? '\n' : '');
 }
 
-export function serializeVtt(cues, layout = 'source-top') {
-  const body = normalizeBilingualCues(cues).map((cue) => `${cue.startRaw.replace(',', '.')} --> ${cue.endRaw.replace(',', '.')}\n${renderCueText(cue, layout)}`).join('\n\n');
+export function serializeVtt(cues, layout = 'source-top', showBilingual = true) {
+  const body = normalizeBilingualCues(cues).map((cue) => `${cue.startRaw.replace(',', '.')} --> ${cue.endRaw.replace(',', '.')}\n${renderCueText(cue, layout, showBilingual)}`).join('\n\n');
   return `WEBVTT\n\n${body}${body ? '\n' : ''}`;
 }
 
