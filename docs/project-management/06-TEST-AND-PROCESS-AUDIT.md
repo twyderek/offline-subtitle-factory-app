@@ -133,3 +133,12 @@
 - 清理前 `dist/` 約 10 GB。逐項移除 `archive/`、`releases/`、`build-cache/`、`windows-0.45.0/`，以及根目錄 0.45.0–0.47.1 歷史封裝／blockmap／舊 checksum；刪除命令的目標容量合計輸出約 8.44 GiB，清理後約 1.9 GB。清理前逐檔輸出未保存為獨立檔案，故目前只能以 `docs/project-management/evidence/2026-07-30-dist-cleanup-summary.md` 作操作摘要，不得宣稱該數值仍可獨立重算。
 - 清理後檢查：`dist/` 根目錄只保留 0.48.0 DMG／ZIP／Setup／Portable、其 blockmap、`latest.yml`／`latest-mac.yml`、兩平台 SHA、Windows 未簽章說明與 builder metadata；另保留目前的 `mac-arm64/`、`win-unpacked/` 驗證目錄。
 - 回復：歷史封裝已永久移除而未送入垃圾桶；可由對應 GitHub Release 重新下載，或從既有 tag 重新建置。來源碼、tag、GitHub Release、使用者任務資料與 bundled runtime 未刪除。
+
+## 0.48.0 GitHub 發布後核對（2026-07-30）
+
+- 發布狀態：`v0.48.0` 已於 `2026-07-30T03:58:52Z` 正式公開，`isDraft=false`、`isPrerelease=false`，`gh release list` 顯示 `Latest`。
+- 來源：tag `v0.48.0` 與遠端 `codex/0.48-local-llm` 在發布時均解析至 `4cdb0177d84693a334fac79b96c596e1b416456f`；Release URL 為 `https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0`。
+- 資產完整性：GitHub Release 共 9 項 uploaded 資產；macOS DMG `224057671` bytes／`334e50b...beee`、ZIP `229406028` bytes／`53ca4e...2f80`、Windows Setup `216165301` bytes／`7be039...bd54`、Portable `215460201` bytes／`b18782...3ca5`，均與本機 SHA-256 一致。
+- metadata：`latest.yml` 380 bytes、`latest-mac.yml` 570 bytes；`SHA256SUMS-windows-x64.txt` 219 bytes，已同時列出 Setup 與 Portable；macOS SHA 與 Windows 未簽章狀態檔均存在。
+- 下載 URL：9 項資產皆已由草稿 `untagged-*` URL 切換為 `/releases/download/v0.48.0/<asset>` 正式 URL。
+- 既有風險：Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證；小模型翻譯品質與跨平台乾淨實機缺口仍依 Release notes 揭露，不因 GitHub 發布完成而視為消失。

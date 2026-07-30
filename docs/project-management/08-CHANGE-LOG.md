@@ -44,6 +44,33 @@
 
 ---
 
+## 2026-07-30 — v0.48.0 GitHub 發布同步與閉環核對
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：需求方要求檢查 GitHub 推送進度、補齊未完成內容並確保顯示最新版本資料。
+- 關聯需求／缺陷：`NFR-008`、`REL-0.48.0`
+- 變更等級：發布
+- 執行前已讀：`project:preflight -- --type=release` 固定核心與任務路由（是）
+- 目標與成功條件：遠端 0.48 分支包含最新文件 commit；`v0.48.0` 正式公開、標示 Latest、目標 commit 正確；macOS／Windows 四項安裝資產、metadata、SHA 與未簽章說明齊全且 digest 一致；`main` 與 README／目前狀態同步至 0.48.0。
+- 不在範圍：重新建置已驗證資產、刪除歷史 Release、簽章／公證或新增產品功能。
+- 預計影響檔案／模組：GitHub `codex/0.48-local-llm`、`main`、Release `v0.48.0`；`README.md`、`00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件。
+- 風險與回復方式：錯誤目標或缺檔會造成 Latest 指向不完整版本；先維持草稿並核對 9 項資產，通過後才公開。若文件同步錯誤，以後續 commit 更正，不移動或覆寫已發布二進位內容。
+- 驗證計畫：GitHub branch／README 比對、Release draft／target／asset digest 核對、正式發布後 Latest／URL／資產清單核對、兩平台 SHA 重算、完整回歸、獨立發布審查。
+- 實際修改：將本機文件收尾 commit `4cdb017` 推送至遠端 0.48 分支；把 `v0.48.0` 草稿 target 從舊 `main` 改為 `codex/0.48-local-llm`，覆蓋 metadata／SHA 並補齊 macOS DMG／ZIP、Windows Setup／Portable；正式發布並標示 Latest。同步 README、目前狀態、發展歷程與測試稽核為已公開狀態。
+- 開發驗證結果：GitHub API／CLI 確認 `isDraft=false`、`isPrerelease=false`、Latest、tag `v0.48.0` → `4cdb0177d84693a334fac79b96c596e1b416456f`；9 項資產均為 uploaded 且正式 URL 使用 `/releases/download/v0.48.0/`。四項二進位 GitHub digest 與本機 SHA 一致；重新下載 SHA／metadata／簽章狀態檔後逐檔 `cmp` 一致；Windows Setup 正式 URL 回覆 302 至 GitHub release-assets。`npm run check`、`npm run docs:check`、`git diff --check` 通過。
+- 獨立審查是否執行：進行中。
+- 獨立審查結論：進行中。
+- 發布授權：
+  - 是否需要：是。
+  - 核准人／角色：需求提出者／產品負責人。
+  - 核准時間：2026-07-30；並引用有效常設授權 `AUTH-2026-07-23-01`。
+  - 核准範圍：需求方明確要求正式推送／發布 0.48.0；常設授權涵蓋 Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證的公開發布，Release notes 持續揭露。
+- 部署／發布結果：`v0.48.0` 已於 2026-07-30T03:58:52Z 公開：https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0；9 項資產與 Latest 狀態已核對。
+- 遺留風險與後續事項：進行中。
+
+---
+
 ## 2026-07-30 — 專案狀態同步與舊版封裝清理
 
 - 狀態：完成
