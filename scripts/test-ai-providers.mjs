@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createProvider, listProviderDefinitions } from '../lib/ai/providers.mjs';
 import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
-import { modelContextLength, parseCapabilityProbe } from '../lib/ai/model-capabilities.mjs';
+import { inspectModelCapabilities, modelContextLength, parseCapabilityProbe } from '../lib/ai/model-capabilities.mjs';
 import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from '../lib/ai/project-tools.mjs';
 
 const originalFetch = globalThis.fetch;
@@ -36,6 +36,22 @@ try {
   assert.equal(azureBody.max_completion_tokens, 16);
   assert.equal(azureBody.max_tokens, undefined);
 
+  await azure.optimize({
+    model: 'subtitle',
+    operation: 'translate',
+    output_language: 'en',
+    subtitle_cue_count: 1,
+    subtitle_cue_ids: [1],
+    messages: [{ role: 'user', content: 'test' }],
+  });
+  const azureOptimizeBody = JSON.parse(requests.at(-1).options.body);
+  assert.equal(azureOptimizeBody.model, undefined);
+  assert.equal(azureOptimizeBody.operation, undefined);
+  assert.equal(azureOptimizeBody.output_language, undefined);
+  assert.equal(azureOptimizeBody.subtitle_cue_count, undefined);
+  assert.equal(azureOptimizeBody.subtitle_cue_ids, undefined);
+  assert.ok(Array.isArray(azureOptimizeBody.messages));
+
   const groq = createProvider({ provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'groq-key', model: 'llama3-8b' });
   assert.equal((await groq.test()).ok, true);
   const groqRequest = requests.at(-1);
@@ -63,6 +79,19 @@ try {
   assert.equal(modelContextLength({ context_length: 32768 }), 32768);
   assert.equal(modelContextLength({ details: { context_length: '8192' } }), 8192);
   assert.equal(modelContextLength({}), null);
+  const capabilityProbeBodies = [];
+  await inspectModelCapabilities(
+    { model: 'test-model' },
+    {
+      listModels: async () => [],
+      optimize: async (body) => {
+        capabilityProbeBodies.push(body);
+        return { choices: [{ message: { content: '{"traditionalChinese":"繁體中文"}' } }] };
+      },
+    },
+  );
+  assert.equal(capabilityProbeBodies[0].max_completion_tokens, 80);
+  assert.equal(capabilityProbeBodies[0].max_tokens, undefined);
   assert.deepEqual(
     parseCapabilityProbe({ choices: [{ message: { content: '```json\n{"traditionalChinese":"繁體中文"}\n```' } }] }),
     { jsonOutput: true, traditionalChinese: true, responseSample: '{"traditionalChinese":"繁體中文"}' },
