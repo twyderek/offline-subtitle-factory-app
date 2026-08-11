@@ -1,13 +1,13 @@
 # 離線字幕工廠
 
-## 0.48.1 發布候選
+## 0.48.1 正式發布
 
 0.48.1 收錄 0.48.0 發布後的 Windows／Ollama／Azure 穩定化、Whisper Tiny／Base／Small 模型選擇、Base／Small 首次使用安全下載、無效時間碼清理與 AI 任務恢復修正。安裝包只內建 Tiny，避免把約 488 MB 的 Small 模型塞入每份下載；需要高階模型時由 App 寫入使用者模型快取並驗證 SHA-256。
 
 - 發布說明：[RELEASE-NOTES-0.48.1.md](RELEASE-NOTES-0.48.1.md)
 - 高階模型說明：[docs/WHISPER-MODEL-DOWNLOAD.md](docs/WHISPER-MODEL-DOWNLOAD.md)
 - 實驗性 Breeze ASR 25（需另裝官方 Python runtime）：[docs/BREEZE-ASR-25.md](docs/BREEZE-ASR-25.md)
-- 目前公開穩定版仍為 [v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)，`v0.48.1` tag／Release 會在候選驗證與授權完成後建立。
+- 公開穩定版：[v0.48.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1)；Release 已包含 macOS Apple Silicon 與 Windows x64 安裝檔、updater metadata、SHA-256 與 Windows 未簽章狀態。
 
 ## 0.48.0 正式發布
 

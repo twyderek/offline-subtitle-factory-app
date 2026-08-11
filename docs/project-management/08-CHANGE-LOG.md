@@ -13,6 +13,36 @@
 
 ---
 
+## 2026-08-11 — 0.48.1 PR 合併、tag 重指向與 GitHub Release（REL-029）
+
+- 狀態：完成
+- 結案判定：PR #8 已合併至 `main`；`v0.48.1` 已依需求方授權重指向合併提交；公開 GitHub Release 已建立並上傳 macOS／Windows 0.48.1 資產與校驗 metadata。
+- 審查／交付屬性：正式 GitHub 來源、tag、Release 與可下載軟體檔案交付；不宣稱未完成的 Windows 10／11 實機、Base／Small 中文品質或真實 provider endpoint 驗收已完成。
+- 執行者：Codex
+- 需求來源：需求方要求建立並合併 0.48.1 PR 到 `main`、建立最新 GitHub Release，必要時重新指向 `v0.48.1` tag；需求方已接受全部已揭露外部驗收風險。
+- 關聯需求／缺陷：`REL-028`、`REL-027`、`REL-025`
+- 變更等級：發布（GitHub PR／main／tag／Release 與二進位資產）
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 基準證據：PR `https://github.com/twyderek/offline-subtitle-factory-app/pull/8`，release branch head `657f7c9`；合併提交 `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`。
+- 目標與成功條件：PR 可合併且 required Windows CI 通過；`main` 含 0.48.1；`v0.48.1` peeled tag 指向合併提交；Release 為公開、非 draft、非 prerelease，並包含兩平台安裝檔、updater metadata、SHA／簽章狀態檔。
+- 不在範圍：不把 GitHub Actions runner 視為所有 Windows 10／11 實機驗收；不把 Base／Small 檔案完整性視為中文口說品質；不把 provider contract smoke 視為真實 endpoint 品質驗收；LM Studio 依需求暫緩。
+- 實際修改：PR #8 以 merge commit `c8c6576` 合併至 `main`；`v0.48.1` annotated tag force-update 後 peeled SHA 為 `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`；建立公開 Release `https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1`，上傳 12 項 macOS／Windows 資產與 metadata。
+- 驗證結果：本機 `npm run check`、`npm run docs:check:final`、`git diff --check` 通過；Windows CI run `31464263984` 於 source regression、封裝 renderer、Setup／Portable 安裝生命週期、archive／SHA 與 artifact upload 全部通過；GitHub API 反向核對 Release `isDraft=false`、`isPrerelease=false`、tag peeled SHA 與 12 項資產。
+- 獨立審查是否執行：是（REL-029 round6）
+- 獨立審查結論：
+  - round6 審查檔案：`docs/project-management/reviews/2026-08-11-rel-029-github-release-round6.md`
+  - round6 判定（逐字引用）：**REL-029 round6 獨立六面向收尾審查結論為有條件通過：PR #8 已合併至 main 的 c8c657682c1f22e28d5eaa50261d0ca8afd197a9、遠端 v0.48.1 peeled tag 與該 SHA 一致，公開非 draft／非 prerelease Release 已提供 12 項 macOS／Windows 安裝檔、blockmap、updater metadata、SHA 清單及 Windows signing status，Windows run 31464263984 亦已成功完成 source regression、unsigned package、Setup／Portable renderer、安裝生命週期、archive／SHA 與 artifact upload；但該 run 的 build head 657f7c9 與 Release tag c8c6576 不同，且 Windows 10／11 實機、Base／Small 中文口說品質、真實 provider／音訊、安裝後長音訊及發布後本機資產反向核對仍未完成，因此本輪確認 GitHub 來源與公開候選資產已交付並如實揭露限制，不構成上述外部品質驗收已完成或簽章／公證正式版保證。**
+  - 條件：CI build head 與 tag 的可重播差異、Windows／Base／Small／真實 provider／安裝後與發布後下載核對仍需外部追蹤；條件是否已被需求方接受：是（2026-08-11，需求方明確表示全部接受並繼續）
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-11
+  - 核准範圍：需求方明確同意並授權打包、提交、推送、合併 PR、重新指向 `v0.48.1` tag、建立並公開 GitHub Release；同意／接受未簽章、未公證、未實機測試、Windows／模型品質／provider／安裝後流程與發布後下載核對等已揭露風險，不將其改寫為已完成驗收。
+- 部署／發布結果：`main=c8c657682c1f22e28d5eaa50261d0ca8afd197a9`；`v0.48.1` peeled tag 同 SHA；Release 已公開。資產包含 macOS arm64 DMG／ZIP、Windows Setup／Portable、兩平台 updater metadata、SHA-256 與 Windows 未簽章狀態。
+- 遺留風險與後續事項：Windows 10／11 乾淨實機、Base／Small 中文口說品質／效能、真實 Azure／Ollama endpoint 與安裝後長音訊流程仍需外部驗證；Windows 未 Authenticode、macOS 未公證，請依 Release notes 核對 SHA-256。
+
+---
+
 ## 2026-08-11 — Windows／外部驗收阻擋修正（REL-028）
 
 - 狀態：完成
