@@ -151,6 +151,7 @@ try {
     expression: `(async () => {
       const deadline = Date.now() + 3000;
       while (Date.now() < deadline) {
+        window.dispatchEvent(new CustomEvent('open-app-settings'));
         const modal = document.getElementById('appSettings');
         if (modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length) return true;
         await new Promise((resolve) => setTimeout(resolve, 100));
