@@ -14,6 +14,8 @@
     "docs:check": "node scripts/check-project-docs.mjs",
     "docs:check:final": "node scripts/check-project-docs.mjs --final",
     "probe:ollama:live": "node scripts/probe-ollama-live.mjs",
+    "acceptance:whisper-models": "node scripts/verify-whisper-model-downloads.mjs",
+    "acceptance:provider": "node scripts/probe-provider-live.mjs",
     "test": "node scripts/test-whisper-fallback-policy.mjs && node scripts/test-whisper-models.mjs && node scripts/test-whisper-model-download.mjs && node scripts/test-whisper-srt.mjs && node scripts/test-breeze-asr.mjs && node scripts/test-project-preflight.mjs && node scripts/test-standing-authorization.mjs && node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-bilingual-subtitles.mjs && node scripts/test-subtitle-quality.mjs && node scripts/test-whisper-quality.mjs && node scripts/test-ai-fetch.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-ollama-batch-stream.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
     "check": "npm run docs:check && node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
     "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",

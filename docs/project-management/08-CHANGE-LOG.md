@@ -13,6 +13,27 @@
 
 ---
 
+## 2026-08-11 — Windows／外部驗收阻擋修正（REL-028）
+
+- 狀態：進行中
+- 審查／交付屬性：Windows CI／外部驗收可重播性修正；不宣稱 Windows 實機、Base／Small 品質或真實端點已通過
+- 執行者：Codex
+- 需求來源：需求方要求處理 Windows／Base／Small／真實端點／安裝後實機風險造成的發布阻擋。
+- 關聯需求／缺陷：`REL-025`、`REL-027`、`FR-023`
+- 變更等級：發布（跨平台驗收流程與 CI 回歸）
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。
+- 目標與成功條件：修正 Windows 強制 taskkill 與 POSIX SIGTERM 測試語意差異；新增 Windows packaged renderer、Setup 安裝後、Portable 啟動與解除安裝 smoke；建立 Base／Small 真實下載與 provider endpoint 外部驗收可重播入口；保留未取得實機／品質證據的阻擋標記。
+- 不在範圍：不把 GitHub Actions Windows runner 視為使用者 Windows 10／11 實機安裝驗收；不把模型下載完整性視為中文口說準確率；不把 provider connection smoke 視為人工翻譯品質；LM Studio 依需求暫緩。
+- 預計影響檔案／模組：`scripts/test-core.mjs`、Windows workflow／驗收腳本、外部驗收文件與本工作紀錄。
+- 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
+- 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider smoke（僅在提供安全 endpoint 時）、獨立複審。
+- 獨立審查是否執行：待執行（完成修正後安排）
+- 獨立審查結論：待執行
+- 發布授權：不適用（本輪只修正驗收流程，不建立新 Release）
+- 部署／發布結果：待修正與驗收。
+- 遺留風險與後續事項：Windows 10／11 乾淨實機、Base／Small 中文口說品質／效能、真實 Azure／Ollama／其他 endpoint 與安裝後使用者流程仍須外部執行並保存證據。
+
 ## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
 
 - 狀態：完成

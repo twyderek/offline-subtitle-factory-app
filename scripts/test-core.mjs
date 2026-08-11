@@ -533,7 +533,11 @@ try {
   assert.equal(cancelling.status, 'running', 'child 尚未 close 前不可提前標記 cancelled');
   const breezeCancelled = await waitForJob(breezeCancelJob.jobId, ['cancelled'], 10000);
   assert.equal(breezeCancelled.stage, 'cancelled');
-  assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'breeze-child-closed')), true, '確認 child close 後才完成取消');
+  if (process.platform === 'win32') {
+    assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'breeze-child-closed')), false, 'Windows taskkill 強制終止時不應期待 child 執行 SIGTERM handler');
+  } else {
+    assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'breeze-child-closed')), true, '確認 child close 後才完成取消');
+  }
   assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.wav')), false, '取消後應清理暫存音訊');
   assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.srt')), false, '取消後應清理部分 SRT');
 

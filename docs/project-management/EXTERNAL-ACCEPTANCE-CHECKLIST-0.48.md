@@ -30,6 +30,14 @@
 
 證據：安裝／解除安裝截圖、測試音訊與字幕、事件檢視器、SHA 結果。未簽 Authenticode 時不得宣稱簽章通過。
 
+CI／候選包自動驗收：GitHub Actions `Windows packaged renderer and install lifecycle` 會對 Setup 執行靜默安裝、已安裝 EXE renderer smoke、靜默解除安裝，再對 Portable 執行 renderer smoke。工作流通過只代表候選包流程通過，仍須在 Windows 10／11 實機完成本節的真實音訊與 SmartScreen 檢查。可在 Windows 本機重播：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-windows-installation.ps1 `
+  -SetupPath .\dist\離線字幕工廠 Setup 0.48.1.exe `
+  -PortablePath .\dist\離線字幕工廠 Portable 0.48.1.exe
+```
+
 ## 2. macOS Apple Silicon
 
 環境：macOS 12+ Apple Silicon（建議 macOS 12 與較新版各一台）、Finder／Terminal、`hdiutil`、`codesign`、`spctl`。
@@ -56,14 +64,31 @@
 
 格式通過不代表品質通過；保存完整 prompt／參數／原始 response。
 
-## 4. Groq／Gemini 真實 smoke
+## 3a. Whisper Base／Small 真實模型下載
 
-環境：可撤銷、低額度 API key、網路與斷網／代理測試環境。
+固定 revision 的模型下載與雜湊可用下列命令重播；命令成功只證明檔案可下載且完整，不代表中文口說辨識品質通過。請把輸出的 JSON 與實際音訊／人工基準一併保存：
 
-- [ ] 連線、模型列表與字幕優化。
-- [ ] 金鑰不進一般設定檔、不出現在日誌。
-- [ ] 錯誤金鑰、逾時、429、網路中斷。
-- [ ] 取消與重試不造成不必要重複請求。
+```bash
+node scripts/verify-whisper-model-downloads.mjs \
+  --models base,small \
+  --output evidence/whisper-model-download-$(date +%Y%m%dT%H%M%S).json \
+  --keep-cache --cache-dir ./evidence/whisper-model-cache
+```
+
+## 4. Groq／Gemini／Azure／OpenAI-compatible 真實端點 smoke
+
+這是明確 opt-in 的單 cue 連線／回應格式檢查；API 金鑰只從環境變數讀取，不會寫入證據。LM Studio 仍依需求暫緩。每個 provider 分別執行並保存 JSON：
+
+```bash
+OSF_ACCEPT_EXTERNAL=1 \
+OSF_PROVIDER=groq \
+OSF_BASE_URL=https://api.groq.com/openai/v1 \
+OSF_MODEL=<低額度測試模型> \
+OSF_API_KEY=<可撤銷金鑰> \
+node scripts/probe-provider-live.mjs --output evidence/provider-groq-$(date +%Y%m%dT%H%M%S).json
+```
+
+Gemini 使用其 API base URL 與模型；Azure 另設定 `OSF_DEPLOYMENT`、可選 `OSF_API_VERSION`，並確認 endpoint 不含金鑰。端點 smoke 通過不代表翻譯品質、費用或長字幕穩定性通過；仍需完成人工校閱、429／逾時／錯誤金鑰與取消測試。
 
 ## 5. 尚未納入本輪
 
