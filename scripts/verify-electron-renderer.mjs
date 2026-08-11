@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 
 const exePath = process.argv[2];
@@ -12,14 +14,35 @@ if (!exePath) {
   throw new Error('Usage: node scripts/verify-electron-renderer.mjs <exe-path> [debug-port]');
 }
 
-const child = spawn(exePath, [`--remote-debugging-port=${port}`], {
-  stdio: 'ignore',
+async function removeSmokeUserDataWithRetries(target) {
+  let lastError;
+  const attempts = process.platform === 'win32' ? 20 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      rmSync(target, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (process.platform !== 'win32' || !['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error?.code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  throw lastError;
+}
+
+const smokeUserDataDir = mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-renderer-smoke-'));
+const child = spawn(exePath, [`--remote-debugging-port=${port}`, `--user-data-dir=${smokeUserDataDir}`], {
+  stdio: ['ignore', 'pipe', 'pipe'],
   detached: false,
 });
+let childLogs = '';
+const captureChildLog = (chunk) => { childLogs = `${childLogs}${chunk.toString('utf8')}`.slice(-8000); };
+child.stdout.on('data', captureChildLog);
+child.stderr.on('data', captureChildLog);
 
 function getJson(url) {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
+    const request = http.get(url, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
@@ -29,7 +52,9 @@ function getJson(url) {
           reject(error);
         }
       });
-    }).on('error', reject);
+    });
+    request.setTimeout(1500, () => request.destroy(new Error('Timed out querying Electron DevTools')));
+    request.on('error', reject);
   });
 }
 
@@ -39,14 +64,14 @@ async function waitForTarget() {
     try {
       const targets = await getJson(`http://127.0.0.1:${port}/json`);
       const pages = targets.filter((target) => target.type === 'page' && target.webSocketDebuggerUrl);
-      const page = pages.find((target) => /^http:\/\/127\.0\.0\.1:\d+\//.test(target.url || ''));
+      const page = pages.find((target) => /^http:\/\/127\.0\.0\.1:\d+\//.test(target.url || '') && /字幕/.test(target.title || ''));
       if (page) return page;
     } catch {
       // App is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('Timed out waiting for Electron renderer target');
+  throw new Error(`Timed out waiting for Electron renderer target${childLogs ? `\n${childLogs}` : ''}`);
 }
 
 async function connectWebSocket(wsUrl) {
@@ -97,6 +122,7 @@ let client;
 try {
   const target = await waitForTarget();
   client = await connectWebSocket(target.webSocketDebuggerUrl);
+  const evaluateValue = (response) => response?.result?.result?.value ?? response?.result?.value;
 
   const inspectExpression = `(() => ({
     href: location.href,
@@ -120,11 +146,17 @@ try {
     expression: `window.dispatchEvent(new CustomEvent('open-app-settings'));`,
     returnByValue: true,
   });
-  await new Promise((resolve) => setTimeout(resolve, 300));
   const after = await client.call('Runtime.evaluate', {
-    expression: `(() => {
-      const modal = document.getElementById('appSettings');
-      return Boolean(modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length);
+    awaitPromise: true,
+    expression: `(async () => {
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {
+        window.dispatchEvent(new CustomEvent('open-app-settings'));
+        const modal = document.getElementById('appSettings');
+        if (modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length) return true;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return false;
     })()`,
     returnByValue: true,
   });
@@ -176,7 +208,8 @@ try {
     })()`,
   });
 
-  const rendererJobId = uploadFlow.result.result.value.jobId;
+  const rendererJobId = evaluateValue(uploadFlow)?.jobId;
+  if (!rendererJobId) throw new Error('Renderer upload flow did not return a job ID');
   const aiReviewAssets = await client.call('Runtime.evaluate', {
     awaitPromise: true,
     returnByValue: true,
@@ -275,13 +308,13 @@ try {
 
   const result = {
     exe: path.resolve(exePath),
-    before: before.result.result.value,
-    modalOpenAfterEvent: after.result.result.value,
-    uploadFlow: uploadFlow.result.result.value,
-    trimAssets: trimAssets.result.result.value,
-    aiReviewAssets: aiReviewAssets.result.result.value,
-    packagedTrimFlow: packagedTrimFlow.result.result.value,
-    folderIconFlow: folderIconFlow.result.result.value,
+    before: evaluateValue(before),
+    modalOpenAfterEvent: evaluateValue(after),
+    uploadFlow: evaluateValue(uploadFlow),
+    trimAssets: evaluateValue(trimAssets),
+    aiReviewAssets: evaluateValue(aiReviewAssets),
+    packagedTrimFlow: evaluateValue(packagedTrimFlow),
+    folderIconFlow: evaluateValue(folderIconFlow),
   };
   console.log(JSON.stringify(result, null, 2));
 
@@ -324,5 +357,11 @@ try {
     spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }).on('error', () => {});
   } else {
     child.kill('SIGTERM');
+    await Promise.race([
+      once(child, 'exit').catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
+    if (child.exitCode == null) child.kill('SIGKILL');
   }
+  await removeSmokeUserDataWithRetries(smokeUserDataDir);
 }

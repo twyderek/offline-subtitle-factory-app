@@ -1,0 +1,114 @@
+{
+  "capturedAt": "2026-07-30T07:17:42.441Z",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "version": {
+    "version": "0.32.5"
+  },
+  "model": "llama3.2:1b",
+  "models": {
+    "object": "list",
+    "data": [
+      {
+        "id": "llama3.2:3b",
+        "object": "model",
+        "created": 1785373967,
+        "owned_by": "library"
+      },
+      {
+        "id": "llama3.2:1b",
+        "object": "model",
+        "created": 1785219617,
+        "owned_by": "library"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "name": "capability",
+      "pathname": "/chat/completions",
+      "body": {
+        "model": "llama3.2:1b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only valid JSON. Do not use Markdown."
+          },
+          {
+            "role": "user",
+            "content": "Return exactly {\"traditionalChinese\":\"繁體中文\"}."
+          }
+        ],
+        "max_tokens": 80
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-858",
+          "object": "chat.completion",
+          "created": 1785395861,
+          "model": "llama3.2:1b",
+          "system_fingerprint": "fp_ollama",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"traditionalChinese\":\"繁體中文\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 46,
+            "completion_tokens": 9,
+            "total_tokens": 55
+          }
+        }
+      }
+    },
+    {
+      "name": "singleCue",
+      "pathname": "/chat/completions",
+      "body": {
+        "model": "llama3.2:1b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only valid JSON with a cues array. Preserve cue id, start, and end exactly."
+          },
+          {
+            "role": "user",
+            "content": "待處理字幕：\n[{\"id\":1,\"start\":\"00:00:00,000\",\"end\":\"00:00:02,000\",\"text\":\"這是一個測試字幕。\"}]"
+          }
+        ],
+        "max_tokens": 240
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-325",
+          "object": "chat.completion",
+          "created": 1785395862,
+          "model": "llama3.2:1b",
+          "system_fingerprint": "fp_ollama",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": " solidity : \n const data : [string];\n data.push(\"這是在整合上成功!\");\n return JSON.stringify(data);"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 86,
+            "completion_tokens": 25,
+            "total_tokens": 111
+          }
+        }
+      }
+    }
+  ]
+}

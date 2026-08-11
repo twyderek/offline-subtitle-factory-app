@@ -1,0 +1,29 @@
+{
+  "schema": "offline-subtitle-factory.whisper-download-acceptance.v1",
+  "startedAt": "2026-08-11T05:15:30.110Z",
+  "completedAt": "2026-08-11T05:17:01.430Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v22.22.3",
+  "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+  "results": [
+    {
+      "model": "base",
+      "status": "pass",
+      "size": 147951465,
+      "expectedSize": 147951465,
+      "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+      "expectedSha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+      "elapsedMs": 49873
+    },
+    {
+      "model": "small",
+      "status": "pass",
+      "size": 487601967,
+      "expectedSize": 487601967,
+      "sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+      "expectedSha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+      "elapsedMs": 41435
+    }
+  ]
+}

@@ -461,6 +461,7 @@ function buildToolsInfo(toolsDir, candidates) {
     ]),
     whisperCpp: path.join(toolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
     whisperModels: path.join(toolsDir, 'whisper-models'),
+    whisperModelCache: path.join(app.getPath('userData'), 'whisper-models'),
     whisperCppModel: path.join(toolsDir, 'whisper-models', 'ggml-tiny.bin'),
     manifest: path.join(toolsDir, 'manifest.json'),
   };
@@ -609,6 +610,7 @@ async function startServer(effectivePort, apiToken) {
       SUBTITLE_AI_KEYS_JSON: JSON.stringify(secureAiKeys),
       XDG_CACHE_HOME: toolInfo.toolsDir,
       WHISPER_CACHE: toolInfo.paths.whisperModels,
+      WHISPER_MODEL_CACHE_DIR: toolInfo.paths.whisperModelCache,
       PYTHONIOENCODING: 'utf-8',
       PYTHONUTF8: '1',
       ELECTRON_RUN_AS_NODE: useElectronAsNode ? '1' : process.env.ELECTRON_RUN_AS_NODE,

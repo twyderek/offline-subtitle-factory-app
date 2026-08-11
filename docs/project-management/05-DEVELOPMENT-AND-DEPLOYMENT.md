@@ -2,7 +2,8 @@
 
 ## 支援環境
 
-- Node.js 20 以上；CI 目前使用 Node.js 22。
+- Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。
+- 0.48.1 鎖定 Electron 43.3.0／electron-builder 26.15.7；依賴更新後必須重跑完整 audit、雙平台封裝與 packaged renderer smoke。
 - Windows 10/11 x64；封裝由 `windows-2022` runner 執行。
 - Apple Silicon macOS 12 以上。
 
@@ -51,6 +52,7 @@ npm run electron:build:mac
 
 - 目前為 ad-hoc 簽章、未公證；不得描述為 Apple Developer ID 正式公證版本。
 - 發布前驗證 `.app`、DMG、ZIP、bundled runtime 與 SHA。
+- Electron 43 是目前維持 macOS 12 最低版本的升級線；後續若升至 Electron 44 以上，須先把最低支援版本重新評估為 macOS 13 以上。
 
 ## GitHub 發布清單
 

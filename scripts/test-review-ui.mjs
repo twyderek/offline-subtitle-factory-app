@@ -66,6 +66,7 @@ assert.match(js, /ai\/key\?provider=/);
 assert.match(js, /keyInput\.dataset\.hasKey = 'false'/);
 assert.match(html, /<script type="module" src="\/review\.js"><\/script>/);
 assert.match(js, /runProviderConnectionTest\(\{/);
+assert.match(js, /回應文字過長，正在要求 Ollama 重新輸出/);
 
 const savedGroq = providerProfileSnapshot({ provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1/', model: 'llama-3.3-70b-versatile' });
 assert.equal(providerProfileMatches(savedGroq, { provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' }), true, '相同 Groq profile 應允許測試');

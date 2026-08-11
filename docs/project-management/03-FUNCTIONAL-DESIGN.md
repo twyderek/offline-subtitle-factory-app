@@ -44,11 +44,31 @@ Electron 主行程
 
 匯入影音 → FFprobe →（選用）修剪 → Whisper.cpp → 規則處理 → 人工校閱 → SRT/VTT／硬字幕／軟字幕。
 
+### Whisper 多模型模式（FR-022）
+
+離線轉錄使用固定白名單模型設定：`tiny`（快速，既有預設）、`base`（平衡）與 `small`（精準）。任務設定保存 `modelName` 的正規化值；空值與舊任務維持 `tiny` 相容。後端只接受白名單值，依目前平台 runtime manifest 解析對應模型檔，不接受使用者提供的任意路徑。模型檔存在性、最小大小與 manifest SHA-256 必須先通過，否則任務以可採取行動的錯誤失敗，不產生假成功字幕。
+
+三個模型共用既有 whisper.cpp CLI、SRT／JSON 輸出、quality metadata 容錯解析、取消與 Metal→CPU fallback。正式安裝包只內建 tiny；Base／Small 缺失時，UI 在首次選擇或提交任務前提供官方固定來源下載確認，也保留手動匯入／下載說明。下載來源使用 pinned revision、固定檔名、預期大小與 SHA-256，寫入 Electron `userData` 下的可寫入模型快取，不覆寫安裝包內建檔案；下載先寫暫存檔，校驗成功後原子置換，取消或失敗清理暫存檔。模型狀態由 server API 回報 `missing`／`downloading`／`cancelled`／`installed`／`failed`；缺失或驗證失敗不得建立或啟動 ASR 任務。測試使用 deterministic mock runner 模擬三模型輸出，並以本機 HTTP fixture 驗證下載成功／取消／失敗／校驗與狀態契約，不把 mock 結果宣稱為實際模型品質或跨平台實機驗收。
+
+### Whisper 高階模型下載資料流（FR-023）
+
+首頁模型管理與任務表單共用 `/api/whisper-models` 狀態；選擇未安裝的 Base／Small 時，前端顯示模型大小、來源與「下載並安裝」確認。POST `/api/whisper-models/:model/download` 只啟動固定白名單下載，GET 同一路徑回傳進度，DELETE 同一路徑以 AbortController 中止背景下載；任務提交前再次查詢狀態，避免健康檢查快取過期造成缺檔任務。伺服器不接受任意 URL，下載 response 需通過 HTTP 成功、大小上限／預期大小與 SHA-256，並以暫存檔完成後 rename；取消、HTTP、超時、內容長度或 hash 錯誤均回報可採取行動訊息並刪除暫存檔。
+
+### Breeze ASR 25 實驗性轉錄（FR-024）
+
+Breeze ASR 25 是獨立的 ASR 引擎選項，不加入 Whisper.cpp `tiny`／`base`／`small` 模型白名單，也不把 Breeze ASR 26 台語模型混入一般繁中流程。首頁選擇 Breeze 後停用 Whisper.cpp 模型欄位，改查詢 `/api/breeze-asr`；未安裝時共用模型下載對話框，但下載端點固定為 `/api/breeze-asr/download`，不接受前端 URL、檔名、大小或 hash。
+
+模型來源固定為 MediaTek Research 官方 Hugging Face revision `cffe7ccb404d025296a00758d0a33468bec3a9d0` 下的 patched Whisper checkpoint，檔名 `breeze-asr-25.pt`、大小 3,087,008,569 bytes、SHA-256 `9c94a3554ff4f0de83494e2ed7ba5826efa74bd87955c034b4d0fd681746b690`。下載沿用暫存檔、串流 hash、大小上限、取消、Windows 原子置換與失敗清理契約，存入 Electron `userData` 模型快取，不寫入 repo 或安裝目錄。
+
+執行路徑使用外部 Python 與 MediaTek 官方 patched Whisper CLI；健康檢查不是只驗證 `import whisper`，而是執行能力探針確認 `whisper.available_models()` 包含 `breeze-asr-25`。模型與 runtime 任一缺失時，任務在音訊推論前進入可採取行動的失敗／等待狀態，不允許 patched CLI 自行從未固定的 `main` 下載。模型有效時以 `python -m whisper <audio> --model breeze-asr-25 --model_dir <cache>` 執行，沿用 16 kHz 音訊、CPU／CUDA、beam preset、取消、SRT 清理與後續規則／人工校閱。由於本輪不封裝 Python、PyTorch 或 patched Whisper，UI 必須明示這是需另裝官方 runtime 的實驗功能；Whisper.cpp 仍為預設與可回復路徑。
+
 ### AI 優化流程
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。
 
 供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑，保留 optimizer 預期的 `choices[].message.content` 回應契約。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
+
+Azure OpenAI 使用 deployment URL、`api-version` query 與 `api-key` header；送出 chat completion 前移除 optimizer 內部的 `operation`、`output_language`、cue count／ID 與 model 欄位，避免將內部控制資料當成 Azure 請求 schema。模型能力探測使用 `max_completion_tokens`，不使用舊的 `max_tokens` 參數。
 
 ### 0.48 本機 LLM 設計
 

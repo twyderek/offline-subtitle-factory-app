@@ -2,6 +2,8 @@ import { isLoopbackAiUrl, providerProfileSnapshot, runProviderConnectionTest } f
 import { normalizeBilingualCues, parseSrtBilingual, renderCueText, serializeSrt, serializeVtt } from './bilingual-subtitles.mjs';
 import { assessSubtitleCue, filterQualityCues } from './subtitle-quality.mjs';
 import { selectAiCues } from './ai-scope.mjs';
+import { invalidAiApiResponseError, isNetworkFetchFailure, normalizeAiFetchError } from './ai-fetch.mjs';
+import { fetchAiStatusWithRetry } from './ai-status-recovery.mjs';
 
 // API base URL — Web/Electron 都使用目前頁面的本機伺服器
 const API_BASE = window.location.origin.startsWith('http')
@@ -542,9 +544,14 @@ function setAiProgress(progress, message) {
   document.getElementById('aiProgress').value = percent;
   document.getElementById('aiProgressPercent').textContent = `${percent}%`;
   const retryMessage = progress?.retryAttempt
-    ? `第 ${progress.activeBatch} 批受限或失敗，第 ${progress.retryAttempt} 次重試，等待 ${Math.ceil((progress.retryWaitMs || 0) / 1000)} 秒`
+    ? `第 ${progress.activeBatch} 批受限或失敗，第 ${progress.retryAttempt} 次重試，等待 ${Math.ceil((progress.retryWaitMs || 0) / 1000)} 秒${progress.retryTimeoutSeconds ? `；本次逾時上限 ${progress.retryTimeoutSeconds} 秒` : ''}`
     : '';
-  document.getElementById('aiProgressText').textContent = message || retryMessage || `第 ${progress?.completedBatches || 0}／${progress?.totalBatches || 0} 批・累計重試 ${progress?.totalRetries || 0} 次`;
+  const repairMessage = progress?.validationRepair
+    ? (progress.validationRepairReason === 'length'
+      ? `第 ${progress.activeBatch || 0} 批回應文字過長，正在要求 Ollama 重新輸出`
+      : `第 ${progress.activeBatch || 0} 批回應格式不符，正在要求 Ollama 重新輸出 JSON`)
+    : '';
+  document.getElementById('aiProgressText').textContent = message || retryMessage || repairMessage || `第 ${progress?.completedBatches || 0}／${progress?.totalBatches || 0} 批・累計重試 ${progress?.totalRetries || 0} 次`;
 }
 
 function setAiRunning(running) {
@@ -552,6 +559,34 @@ function setAiRunning(running) {
   document.getElementById('runAiOptimize').disabled = running;
   document.getElementById('cancelAiOptimize').hidden = !running;
   if (running) document.getElementById('resumeAiOptimize').hidden = true;
+}
+
+async function requestAiApi(pathname, options = {}, operation = 'AI 請求') {
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${pathname}`, options);
+  } catch (error) {
+    throw normalizeAiFetchError(error, { apiBase: API_BASE, operation });
+  }
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw invalidAiApiResponseError({ apiBase: API_BASE, operation });
+  }
+  if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+  return result;
+}
+
+async function requestAiStatusWithRetry() {
+  return fetchAiStatusWithRetry({
+    request: () => requestAiApi(`/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, { cache: 'no-store' }, '讀取 AI 優化狀態'),
+    maxRetries: 2,
+    onRetry: async ({ attempt }) => {
+      setAiProgress(null, `本機字幕服務暫時無法連線，正在重試（${attempt}/2）…`);
+      await new Promise((resolve) => setTimeout(resolve, 700 * attempt));
+    },
+  });
 }
 
 function aiRequestCues() {
@@ -580,7 +615,7 @@ async function runAiOptimize() {
   setAiRunning(true);
   setAiProgress({ processedCues: 0, totalCues: cues.length, completedBatches: 0, totalBatches: 1 }, '正在啟動 AI 優化…');
   try {
-    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, {
+    const result = await requestAiApi(`/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -591,11 +626,16 @@ async function runAiOptimize() {
         search: document.getElementById('aiScope').value === 'search' ? state.search : '',
         instructions: document.getElementById('aiInstructions').value.trim(),
       }),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    }, '啟動 AI 優化');
     await pollAiOptimization();
   } catch (error) {
+    if (isNetworkFetchFailure(error)) {
+      const recovered = await restoreAiOptimizationStatus({ silent: true });
+      if (['running', 'completed', 'cancelled'].includes(recovered?.status)) return;
+      if (recovered?.status === 'failed' || recovered?.status === 'interrupted') {
+        error = new Error(recovered.error || error.message);
+      }
+    }
     setAiRunning(false);
     setAiProgress(null, `AI 優化失敗：${error.message}`);
     statusMessage(`AI 優化失敗：${error.message}`);
@@ -605,9 +645,7 @@ async function runAiOptimize() {
 async function pollAiOptimization() {
   while (state.aiPolling) {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, { cache: 'no-store' });
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const result = await requestAiStatusWithRetry();
     setAiProgress(result.progress, result.status === 'running' ? undefined : `AI 任務：${result.status}`);
     if (result.status === 'running') continue;
     setAiRunning(false);
@@ -630,19 +668,17 @@ async function pollAiOptimization() {
   }
 }
 
-async function restoreAiOptimizationStatus() {
-  if (!jobId) return;
+async function restoreAiOptimizationStatus({ silent = false } = {}) {
+  if (!jobId) return null;
   try {
-    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, { cache: 'no-store' });
-    if (response.status === 404) return;
-    const result = await response.json();
-    if (!response.ok || !result.ok) return;
+    const result = await requestAiStatusWithRetry();
     if (result.status === 'running') {
       setAiRunning(true);
       setAiProgress(result.progress, '正在恢復 AI 任務狀態…');
       pollAiOptimization().catch((error) => statusMessage(`AI 狀態恢復失敗：${error.message}`));
-      return;
+      return result;
     }
+    setAiRunning(false);
     if (result.status === 'completed' && result.result) {
       state.aiSessionId = result.sessionId || '';
       state.aiSuggestions = new Map((result.result.suggestions || []).map((item) => [String(item.id), item]));
@@ -650,13 +686,18 @@ async function restoreAiOptimizationStatus() {
       renderCueList();
       setAiProgress(result.progress, '先前 AI 優化已完成，請確認建議');
       updateAiSessionControls();
-      return;
+      return result;
     }
     if (['failed', 'interrupted', 'cancelled'].includes(result.status)) {
       document.getElementById('resumeAiOptimize').hidden = !result.retryable;
       setAiProgress(result.progress, result.error || 'AI 任務可繼續');
     }
-  } catch {}
+    return result;
+  } catch (error) {
+    if (/^HTTP 404$/.test(String(error?.message || ''))) return null;
+    if (!silent) statusMessage(`AI 狀態恢復失敗：${error.message}`);
+    return null;
+  }
 }
 
 async function resumeAiOptimize() {
@@ -664,9 +705,7 @@ async function resumeAiOptimize() {
   const button = document.getElementById('resumeAiOptimize');
   button.disabled = true;
   try {
-    const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/resume-ai-optimize`, { method: 'POST' });
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const result = await requestAiApi(`/api/jobs/${encodeURIComponent(jobId)}/resume-ai-optimize`, { method: 'POST' }, '恢復 AI 優化');
     setAiRunning(true);
     setAiProgress(result.progress, `從第 ${Number(result.resumedFromBatch || 0) + 1} 批繼續`);
     await pollAiOptimization();

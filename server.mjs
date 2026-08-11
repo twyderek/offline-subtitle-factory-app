@@ -9,6 +9,12 @@ import Busboy from 'busboy';
 import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPath } from './lib/media-edit.mjs';
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { attachWhisperQuality, parseWhisperQualityJson } from './lib/whisper-quality.mjs';
+import { sanitizeWhisperSrt } from './lib/whisper-srt.mjs';
+import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
+import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
+import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
+import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
+import { probeCommand } from './lib/process-probe.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
 import { createProvider, isSupportedProvider, listProviderDefinitions, PROVIDER_CAPABILITIES, PROVIDER_DEFAULT_BASE_URLS } from './lib/ai/providers.mjs';
@@ -39,6 +45,10 @@ const apiToken = process.env.OFFLINE_SUBTITLE_API_TOKEN || '';
 const toolsInfo = resolveToolsInfo();
 const toolsDir = toolsInfo.toolsDir;
 const toolPaths = toolsInfo.paths;
+const breezeTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_BREEZE_RUNNER || '' : '';
+const allowMockBreezeModel = Boolean(breezeTestRunner);
+const usePartialWhisperDownloadFixture = process.env.NODE_ENV === 'test'
+  && process.env.OFFLINE_SUBTITLE_TEST_WHISPER_PARTIAL_DOWNLOAD === '1';
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -62,6 +72,15 @@ const contentTypes = {
 
 fs.mkdirSync(settingsDir, { recursive: true });
 fs.mkdirSync(toolPaths.whisperModels, { recursive: true });
+fs.mkdirSync(toolPaths.whisperModelCache, { recursive: true });
+fs.mkdirSync(toolPaths.breezeModelCache, { recursive: true });
+for (const modelCacheDir of [toolPaths.whisperModelCache, toolPaths.breezeModelCache]) {
+  for (const file of fs.readdirSync(modelCacheDir)) {
+    if (file.endsWith('.download')) {
+      try { fs.unlinkSync(path.join(modelCacheDir, file)); } catch {}
+    }
+  }
+}
 
 const runningJobs = new Map();
 const runningBurns = new Map();
@@ -82,6 +101,11 @@ let gpuCache = null;
 let gpuPromise = null;
 const basicToolsCacheTtlMs = 60000;
 const gpuCacheTtlMs = 5 * 60000;
+const whisperModelInspectionCacheTtlMs = 5000;
+const whisperModelDownloadJobs = new Map();
+let breezeModelDownloadJob = null;
+let whisperModelInspectionCache = null;
+let whisperModelInspectionAt = 0;
 const ASS_PLAY_RES_X = 1920;
 const ASS_PLAY_RES_Y = 1080;
 
@@ -313,7 +337,7 @@ function buildToolsInfo(selectedToolsDir, candidates) {
     path.join(selectedToolsDir, 'python', 'python.exe'),
     path.join(selectedToolsDir, 'python-embed', 'python.exe'),
     path.join(selectedToolsDir, 'python-venv', 'Scripts', 'python.exe'),
-  ];
+  ].filter(Boolean);
   const whisperCppCandidates = [
     path.join(selectedToolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
   ];
@@ -331,9 +355,12 @@ function buildToolsInfo(selectedToolsDir, candidates) {
       'ffprobe',
     ]),
     python: firstExisting(pythonCandidates),
+    breezePython: process.env.BREEZE_ASR_PYTHON || firstExisting(pythonCandidates, process.platform === 'win32' ? 'python' : 'python3'),
     whisper: 'python -m whisper',
     whisperCpp: firstExisting(whisperCppCandidates),
     whisperModels: process.env.WHISPER_CACHE || path.join(selectedToolsDir, 'whisper-models'),
+    whisperModelCache: process.env.WHISPER_MODEL_CACHE_DIR || path.join(settingsDir, 'whisper-models'),
+    breezeModelCache: process.env.BREEZE_ASR_MODEL_DIR || path.join(settingsDir, 'breeze-asr'),
     whisperCppModel: path.join(selectedToolsDir, 'whisper-models', 'ggml-tiny.bin'),
     manifest: path.join(selectedToolsDir, 'manifest.json'),
   };
@@ -648,7 +675,7 @@ function startAiOptimizationJob(job, payload, previous = null) {
   aiOptimizationJobs.set(jobId, record);
   persistAiRecord(job, record);
   const provider = createProvider(config);
-  const complete = (body, signal) => provider.optimize(body, signal);
+  const complete = (body, signal, requestOptions) => provider.optimize(body, signal, requestOptions);
   complete.progress = (progress) => {
     record.progress = progress;
     persistAiRecord(job, record);
@@ -680,8 +707,12 @@ function startAiOptimizationJob(job, payload, previous = null) {
     persistAiRecord(job, record);
   }).catch((error) => {
     record.status = controller.signal.aborted ? 'cancelled' : 'failed';
-    record.error = error.message;
     record.retryable = record.checkpoint.nextBatchIndex > 0 || (!controller.signal.aborted && Boolean(error.retryable));
+    const completed = Number(record.checkpoint.nextBatchIndex || 0);
+    const total = Number(record.progress.totalBatches || 0);
+    record.error = completed > 0 && error?.code === 'timeout'
+      ? `${error.message}；已保留 ${completed}/${total} 批，可按「恢復 AI 優化」繼續`
+      : error.message;
     delete record.controller;
     persistAiRecord(job, record);
   });
@@ -828,8 +859,8 @@ function createJob({ fields, files }) {
     jobId,
     createdAt: new Date().toISOString(),
     language: fields.language || 'zh-TW',
-    asrEngine: fields.asrEngine || 'whisper-cpp',
-    modelName: fields.modelName || '',
+    asrEngine: [BREEZE_ASR_ENGINE, 'manual'].includes(fields.asrEngine) ? fields.asrEngine : 'whisper-cpp',
+    modelName: normalizeWhisperModelName(fields.modelName),
     performancePreset: ['fast', 'balanced', 'accurate'].includes(fields.performancePreset)
       ? fields.performancePreset
       : 'balanced',
@@ -874,21 +905,8 @@ function stageUploadedFile(file, destination) {
   if (file.buffer) fs.writeFileSync(destination, file.buffer);
 }
 
-function commandExists(command, args = ['--version']) {
-  return new Promise((resolve) => {
-    if (!command) {
-      resolve(false);
-      return;
-    }
-    const needsFileCheck = path.isAbsolute(command) || command.includes('\\') || command.includes('/');
-    if (needsFileCheck && !fs.existsSync(command)) {
-      resolve(false);
-      return;
-    }
-    const child = spawn(command, args, { shell: false, stdio: 'ignore', windowsHide: true });
-    child.on('exit', (code) => resolve(code === 0));
-    child.on('error', () => resolve(false));
-  });
+function commandExists(command, args = ['--version'], timeoutMs = 10000) {
+  return probeCommand(command, args, timeoutMs);
 }
 
 async function getBasicToolsStatus(force = false) {
@@ -902,15 +920,252 @@ async function getBasicToolsStatus(force = false) {
     commandExists(toolPaths.ffmpeg, ['-version']),
     commandExists(toolPaths.python),
     commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
+    breezeTestRunner ? Promise.resolve(true) : commandExists(toolPaths.breezePython, buildBreezeRuntimeProbeArgs(), 15000),
     commandExists(toolPaths.whisperCpp, ['--help']),
-  ]).then(([node, ffmpeg, python, pythonWhisper, whisperCpp]) => {
-    const whisperCppModel = fs.existsSync(toolPaths.whisperCppModel);
+  ]).then(async ([node, ffmpeg, python, pythonWhisper, breezeRuntime, whisperCpp]) => {
+    const whisperModels = inspectWhisperModelsWithCache();
+    const breezeModel = await inspectBreezeAsrModel(toolPaths.breezeModelCache, { allowMock: allowMockBreezeModel });
+    const whisperCppModel = whisperModels.tiny.valid;
     const whisper = pythonWhisper || (whisperCpp && whisperCppModel);
     const asrEngine = pythonWhisper ? 'openai-whisper' : whisperCpp && whisperCppModel ? 'whisper.cpp' : '';
-    basicToolsCache = { node, ffmpeg, python, pythonWhisper, whisperCpp, whisperCppModel, whisper, asrEngine, checkedAt: Date.now() };
+    basicToolsCache = { node, ffmpeg, python, pythonWhisper, breezeRuntime, breezeModel, whisperCpp, whisperCppModel, whisperModels, whisper, asrEngine, checkedAt: Date.now() };
     return basicToolsCache;
   }).finally(() => { basicToolsPromise = null; });
   return basicToolsPromise;
+}
+
+function whisperModelsManifest() {
+  return mergeWhisperModelManifest(toolsInfo.manifest || {});
+}
+
+function inspectWhisperModelWithCache(modelName) {
+  return inspectWhisperModelsWithCache()[normalizeWhisperModelName(modelName)];
+}
+
+function inspectWhisperModelsWithCache() {
+  const now = Date.now();
+  if (whisperModelInspectionCache && now - whisperModelInspectionAt < whisperModelInspectionCacheTtlMs) {
+    return whisperModelInspectionCache;
+  }
+  whisperModelInspectionCache = inspectWhisperModels({
+    modelsDir: toolPaths.whisperModelCache,
+    fallbackModelsDirs: [toolPaths.whisperModels],
+    manifest: whisperModelsManifest(),
+  });
+  whisperModelInspectionAt = now;
+  return whisperModelInspectionCache;
+}
+
+function invalidateWhisperModelInspectionCache() {
+  whisperModelInspectionCache = null;
+  whisperModelInspectionAt = 0;
+}
+
+function getWhisperModelStatusPayload() {
+  const inspected = inspectWhisperModelsWithCache();
+  const downloads = Object.fromEntries(listWhisperModelDownloads().map((definition) => {
+    const active = whisperModelDownloadJobs.get(definition.name);
+    const model = inspected[definition.name];
+    const status = active?.status || (model.valid ? 'installed' : 'missing');
+    return [definition.name, {
+      ...model,
+      status,
+      download: {
+        available: true,
+        url: definition.url,
+        size: definition.size,
+        sha256: definition.sha256,
+        revision: definition.url.match(/resolve\/([^/]+)/)?.[1] || '',
+      },
+      progress: active?.progress ?? (model.valid ? 100 : 0),
+      bytesDownloaded: active?.bytesDownloaded ?? (model.valid ? definition.size : 0),
+      totalBytes: definition.size,
+      message: active?.message || (model.valid ? '模型已安裝' : '尚未安裝，可下載或手動匯入'),
+      error: active?.error || null,
+    }];
+  }));
+  return downloads;
+}
+
+function startWhisperModelDownload(modelName) {
+  const definition = getWhisperModelDownloadDefinition(modelName);
+  if (!definition) throw new Error(`不支援的 Whisper 模型：${modelName || ''}`);
+  const current = whisperModelDownloadJobs.get(definition.name);
+  if (current?.status === 'downloading') return current;
+  const inspected = inspectWhisperModelWithCache(definition.name);
+  if (inspected.valid) {
+    const completed = { status: 'completed', modelName: definition.name, progress: 100, bytesDownloaded: definition.size, totalBytes: definition.size, message: '模型已安裝', error: null, updatedAt: new Date().toISOString() };
+    whisperModelDownloadJobs.set(definition.name, completed);
+    return completed;
+  }
+  const state = {
+    status: 'downloading',
+    modelName: definition.name,
+    progress: 0,
+    bytesDownloaded: 0,
+    totalBytes: definition.size,
+    message: `正在下載 Whisper ${definition.name.toUpperCase()} 模型`,
+    error: null,
+    updatedAt: new Date().toISOString(),
+    controller: new AbortController(),
+  };
+  whisperModelDownloadJobs.set(definition.name, state);
+  downloadWhisperModelFile({
+    definition,
+    modelsDir: toolPaths.whisperModelCache,
+    signal: state.controller.signal,
+    fetchImpl: usePartialWhisperDownloadFixture
+      ? async (_url, { signal } = {}) => {
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.from('partial Whisper model fixture'));
+            const abort = () => controller.error(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+            if (signal?.aborted) abort();
+            else signal?.addEventListener('abort', abort, { once: true });
+          },
+        });
+        return new Response(body, { status: 200, headers: { 'content-type': 'application/octet-stream' } });
+      }
+      : globalThis.fetch,
+    onProgress: ({ bytesDownloaded, totalBytes, progress }) => {
+      state.bytesDownloaded = bytesDownloaded;
+      state.totalBytes = totalBytes;
+      state.progress = progress;
+      state.updatedAt = new Date().toISOString();
+    },
+  }).then(() => {
+    state.status = 'completed';
+    state.progress = 100;
+    state.bytesDownloaded = definition.size;
+    state.message = `Whisper ${definition.name.toUpperCase()} 模型已完成驗證並安裝`;
+    state.updatedAt = new Date().toISOString();
+    invalidateWhisperModelInspectionCache();
+    basicToolsCache = null;
+  }).catch((error) => {
+    if (error?.code === 'MODEL_DOWNLOAD_CANCELLED') {
+      state.status = 'cancelled';
+      state.progress = 0;
+      state.bytesDownloaded = 0;
+      state.error = null;
+      state.message = '模型下載已取消；可稍後重新下載';
+      state.updatedAt = new Date().toISOString();
+      return;
+    }
+    const wrapped = formatModelDownloadError(error, definition);
+    state.status = 'failed';
+    state.error = wrapped.message;
+    state.message = wrapped.message;
+    state.updatedAt = new Date().toISOString();
+  });
+  return state;
+}
+
+function cancelWhisperModelDownload(modelName) {
+  const definition = getWhisperModelDownloadDefinition(modelName);
+  if (!definition) throw new Error(`不支援的 Whisper 模型：${modelName || ''}`);
+  const current = whisperModelDownloadJobs.get(definition.name);
+  if (current?.status === 'downloading') {
+    current.status = 'cancelled';
+    current.progress = 0;
+    current.bytesDownloaded = 0;
+    current.error = null;
+    current.message = '模型下載已取消；可稍後重新下載';
+    current.updatedAt = new Date().toISOString();
+    current.controller?.abort(new Error('使用者取消模型下載'));
+  }
+  return current || null;
+}
+
+async function getBreezeModelStatusPayload(runtimeReady = false) {
+  const inspected = await inspectBreezeAsrModel(toolPaths.breezeModelCache, { allowMock: allowMockBreezeModel });
+  const status = inspected.valid ? 'installed' : (breezeModelDownloadJob?.status || 'missing');
+  return {
+    ...inspected,
+    status,
+    runtimeReady,
+    ready: inspected.valid && runtimeReady,
+    download: {
+      available: true,
+      url: BREEZE_ASR_MODEL.url,
+      size: BREEZE_ASR_MODEL.size,
+      sha256: BREEZE_ASR_MODEL.sha256,
+      revision: BREEZE_ASR_REVISION,
+    },
+    progress: breezeModelDownloadJob?.progress ?? (inspected.valid ? 100 : 0),
+    bytesDownloaded: breezeModelDownloadJob?.bytesDownloaded ?? (inspected.valid ? BREEZE_ASR_MODEL.size : 0),
+    totalBytes: BREEZE_ASR_MODEL.size,
+    message: breezeModelDownloadJob?.message || (inspected.valid
+      ? (runtimeReady ? 'Breeze ASR 25 模型與 runtime 已就緒' : '模型已安裝，但缺少 MediaTek patched Whisper runtime')
+      : '尚未安裝 Breeze ASR 25 模型'),
+    error: breezeModelDownloadJob?.error || null,
+    runtimeInstallGuide: breezeRuntimeInstallGuide(),
+  };
+}
+
+async function startBreezeModelDownload() {
+  if (breezeModelDownloadJob?.status === 'downloading') return breezeModelDownloadJob;
+  const inspected = await inspectBreezeAsrModel(toolPaths.breezeModelCache, { allowMock: allowMockBreezeModel });
+  if (inspected.valid) {
+    breezeModelDownloadJob = { status: 'completed', progress: 100, bytesDownloaded: BREEZE_ASR_MODEL.size, totalBytes: BREEZE_ASR_MODEL.size, message: 'Breeze ASR 25 模型已安裝', error: null, updatedAt: new Date().toISOString() };
+    return breezeModelDownloadJob;
+  }
+  const state = {
+    status: 'downloading',
+    progress: 0,
+    bytesDownloaded: 0,
+    totalBytes: BREEZE_ASR_MODEL.size,
+    message: '正在下載 Breeze ASR 25 模型',
+    error: null,
+    updatedAt: new Date().toISOString(),
+    controller: new AbortController(),
+  };
+  breezeModelDownloadJob = state;
+  downloadWhisperModelFile({
+    definition: BREEZE_ASR_MODEL,
+    modelsDir: toolPaths.breezeModelCache,
+    signal: state.controller.signal,
+    timeoutMs: 4 * 60 * 60 * 1000,
+    onProgress: ({ bytesDownloaded, totalBytes, progress }) => {
+      state.bytesDownloaded = bytesDownloaded;
+      state.totalBytes = totalBytes;
+      state.progress = progress;
+      state.updatedAt = new Date().toISOString();
+    },
+  }).then(() => {
+    state.status = 'completed';
+    state.progress = 100;
+    state.bytesDownloaded = BREEZE_ASR_MODEL.size;
+    state.message = 'Breeze ASR 25 模型已完成大小與 SHA-256 驗證';
+    state.updatedAt = new Date().toISOString();
+  }).catch((error) => {
+    if (error?.code === 'MODEL_DOWNLOAD_CANCELLED') {
+      state.status = 'cancelled';
+      state.progress = 0;
+      state.bytesDownloaded = 0;
+      state.message = 'Breeze ASR 25 模型下載已取消';
+      state.error = null;
+      state.updatedAt = new Date().toISOString();
+      return;
+    }
+    state.status = 'failed';
+    state.error = `Breeze ASR 25 模型下載失敗：${error.message}`;
+    state.message = state.error;
+    state.updatedAt = new Date().toISOString();
+  });
+  return state;
+}
+
+function cancelBreezeModelDownload() {
+  if (breezeModelDownloadJob?.status === 'downloading') {
+    breezeModelDownloadJob.status = 'cancelled';
+    breezeModelDownloadJob.progress = 0;
+    breezeModelDownloadJob.bytesDownloaded = 0;
+    breezeModelDownloadJob.message = 'Breeze ASR 25 模型下載已取消';
+    breezeModelDownloadJob.error = null;
+    breezeModelDownloadJob.updatedAt = new Date().toISOString();
+    breezeModelDownloadJob.controller?.abort(new Error('使用者取消 Breeze ASR 25 模型下載'));
+  }
+  return breezeModelDownloadJob;
 }
 
 async function getGpuStatus(force = false) {
@@ -1030,6 +1285,9 @@ async function healthCheck(force = false) {
     whisper: hasWhisper,
     whisperCpp: hasWhisperCpp,
     whisperCppModel: hasWhisperCppModel,
+    whisperModels,
+    breezeRuntime,
+    breezeModel,
     asrEngine,
   } = tools;
   const gpuInfo = await getGpuStatus(force);
@@ -1081,6 +1339,9 @@ async function healthCheck(force = false) {
       whisper: hasWhisper,
       whisperCpp: hasWhisperCpp,
       whisperCppModel: hasWhisperCppModel,
+      whisperModels,
+      breezeRuntime,
+      breezeModel,
       asrEngine,
       gpu: gpuInfo,
     },
@@ -1187,7 +1448,7 @@ function cancelJob(jobId) {
   }
   if (job) {
     updateJob(job, {
-      status: 'cancelled',
+      status: 'running',
       stage: 'cancelling',
       message: '正在停止目前任務...',
     }, '使用者要求取消任務');
@@ -1228,12 +1489,12 @@ async function runJob(job, signal) {
   throwIfJobCancelled(signal);
   updateJob(job, { status: 'running', stage: 'preflight', progress: 8, message: '檢查本機環境與工具' }, '開始環境檢查');
   const tools = await getBasicToolsStatus();
-  const { ffmpeg: hasFfmpeg, python: hasPython, whisper: hasWhisper, asrEngine } = tools;
+  const { ffmpeg: hasFfmpeg, python: hasPython, whisper: hasWhisper, breezeRuntime, asrEngine } = tools;
   throwIfJobCancelled(signal);
   updateJob(job, {
     progress: 22,
     message: '環境檢查完成',
-    metrics: { hasFfmpeg, hasPython, hasWhisper, asrEngine },
+    metrics: { hasFfmpeg, hasPython, hasWhisper, breezeRuntime, asrEngine: job.config.asrEngine === BREEZE_ASR_ENGINE ? BREEZE_ASR_ENGINE : asrEngine },
   }, `FFmpeg=${hasFfmpeg ? 'OK' : '缺少'} ASR=${asrEngine || '缺少'}`);
 
   const inputDir = path.join(job.jobRoot, 'input');
@@ -1257,6 +1518,24 @@ async function runJob(job, signal) {
   if (existingSrtCues.length > 0) {
     updateJob(job, { stage: 'import-srt', progress: 42, message: '偵測到既有 SRT，略過 ASR 轉錄' }, '匯入使用者提供的 SRT');
     fs.copyFileSync(existingSrtPath, path.join(workingDir, 'draft.srt'));
+  } else if (job.config.asrEngine === BREEZE_ASR_ENGINE && job.config.files.video) {
+    const breezeModel = await inspectBreezeAsrModel(toolPaths.breezeModelCache, { allowMock: allowMockBreezeModel });
+    if (!hasFfmpeg || !breezeRuntime || !breezeModel.valid) {
+      const missing = [
+        !hasFfmpeg ? 'FFmpeg' : '',
+        !breezeRuntime ? 'MediaTek patched Whisper runtime' : '',
+        !breezeModel.valid ? `Breeze ASR 25 模型（${breezeModel.reason}）` : '',
+      ].filter(Boolean);
+      updateJob(job, {
+        status: 'needs-action',
+        stage: 'missing-asr',
+        progress: 35,
+        message: `Breeze ASR 25 尚未就緒：${missing.join('、')}。${breezeRuntimeInstallGuide()}`,
+      }, 'Breeze runtime／模型前置檢查未通過，未啟動推論');
+      return;
+    }
+    updateJob(job, { stage: 'transcribing', progress: 35, message: '使用 Breeze ASR 25 進行本機轉錄' }, '啟動 Breeze ASR 25 轉錄');
+    await runBreezeAsr(job, inputDir, workingDir, signal);
   } else if (hasWhisper && job.config.files.video) {
     if (existingSrtName) {
       updateJob(job, { progress: 25, message: '既有 SRT 無有效字幕，改用內建 ASR 轉錄' }, '忽略空白或無效的 SRT');
@@ -1325,6 +1604,152 @@ async function runJob(job, signal) {
   }, '任務完成，等待人工校閱');
 }
 
+async function runBreezeAsr(job, inputDir, workingDir, signal) {
+  try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
+  const videoFile = getEffectiveVideoPath(job);
+  if (!videoFile) throw new Error('找不到可供 Breeze ASR 25 轉錄的有效影片');
+  const model = await inspectBreezeAsrModel(toolPaths.breezeModelCache, { allowMock: allowMockBreezeModel });
+  if (!model.valid) throw new Error(`Breeze ASR 25 模型驗證失敗（${model.reason}），未啟動推論`);
+  const tools = await getBasicToolsStatus();
+  if (!tools.breezeRuntime) throw new Error(`缺少 MediaTek patched Whisper runtime。${breezeRuntimeInstallGuide()}`);
+  const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
+  throwIfJobCancelled(signal);
+  const gpu = await getGpuStatus();
+  const useCuda = gpu.available && gpu.status === 'cuda';
+  const configuredThreads = Number(job.config.cpuThreads || 0);
+  const cpuThreads = configuredThreads > 0
+    ? configuredThreads
+    : Math.max(1, Math.min(16, os.availableParallelism?.() || os.cpus().length || 1));
+  const args = buildBreezeAsrArgs({
+    audioFile,
+    outputDir: workingDir,
+    modelDir: toolPaths.breezeModelCache,
+    language: job.config.language,
+    device: useCuda ? 'cuda' : 'cpu',
+    cpuThreads,
+    performancePreset: job.config.performancePreset,
+  });
+  updateJob(job, {
+    stage: 'transcribing',
+    progress: 35,
+    message: `使用 Breeze ASR 25 轉錄（${useCuda ? 'CUDA' : `CPU ${cpuThreads} threads`}）`,
+    metrics: {
+      ...(job.status.metrics || {}),
+      asrEngine: BREEZE_ASR_ENGINE,
+      modelName: BREEZE_ASR_ENGINE,
+      modelFile: BREEZE_ASR_MODEL.filename,
+      whisperDevice: useCuda ? 'cuda' : 'cpu',
+      cpuThreads: useCuda ? null : cpuThreads,
+    },
+  }, `Breeze ASR 25 裝置=${useCuda ? 'CUDA' : 'CPU'}，使用已驗證的固定 checkpoint`);
+
+  const runtimeCommand = breezeTestRunner ? process.execPath : toolPaths.breezePython;
+  const runtimeArgs = breezeTestRunner ? [breezeTestRunner, ...args] : args;
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
+      reject(createJobCancelledError());
+      return;
+    }
+    const child = spawn(runtimeCommand, runtimeArgs, {
+      shell: false,
+      env: {
+        ...process.env,
+        PATH: [path.dirname(toolPaths.ffmpeg), path.dirname(toolPaths.python), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
+        XDG_CACHE_HOME: toolsDir,
+        WHISPER_CACHE: toolPaths.breezeModelCache,
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+      },
+      windowsHide: true,
+    });
+    let settled = false;
+    let stderr = '';
+    let lastProgressLogAt = 0;
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
+    const removePartialOutputs = () => {
+      for (const file of fs.readdirSync(workingDir)) {
+        if (file !== 'draft.srt' && file.toLowerCase().endsWith('.srt')) {
+          try { fs.unlinkSync(path.join(workingDir, file)); } catch {}
+        }
+      }
+    };
+    const finish = (callback) => {
+      if (settled) return;
+      settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
+      signal?.removeEventListener('abort', abortHandler);
+      try { fs.unlinkSync(audioFile); } catch {}
+      callback();
+    };
+    const abortHandler = () => {
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) {
+            removePartialOutputs();
+            finish(() => reject(createJobCancelledError()));
+          }
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
+    };
+    signal?.addEventListener('abort', abortHandler, { once: true });
+    child.stdout.on('data', (data) => {
+      const log = normalizeWhisperLog(data);
+      if (log) updateJob(job, { progress: 48, message: 'Breeze ASR 25 本機轉錄中' }, log);
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data.toString('utf8');
+      const log = normalizeWhisperLog(data);
+      const now = Date.now();
+      if (log && now - lastProgressLogAt > 1200) {
+        lastProgressLogAt = now;
+        updateJob(job, { progress: 52, message: 'Breeze ASR 25 本機轉錄中' }, log);
+      }
+    });
+    child.on('error', (error) => finish(() => reject(signal?.aborted ? createJobCancelledError() : error)));
+    child.on('close', (code) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removePartialOutputs();
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      if (code !== 0) {
+        finish(() => reject(new Error(`Breeze ASR 25 exit code ${code}: ${sanitizeLog(stderr).slice(-500)}`)));
+        return;
+      }
+      const srtFile = fs.readdirSync(workingDir).find((file) => file.toLowerCase().endsWith('.srt') && file !== 'draft.srt');
+      if (!srtFile) {
+        finish(() => reject(new Error('Breeze ASR 25 未產生 SRT 字幕檔')));
+        return;
+      }
+      const sanitized = sanitizeWhisperSrt(fs.readFileSync(path.join(workingDir, srtFile), 'utf8'));
+      if (!sanitized.cues.length) {
+        finish(() => reject(new Error('Breeze ASR 25 只產生無效字幕時間碼；請確認音訊內容後重試')));
+        return;
+      }
+      fs.writeFileSync(path.join(workingDir, 'draft.srt'), sanitized.subtitle, 'utf8');
+      if (sanitized.droppedCount > 0) {
+        updateJob(job, { progress: 58, message: `Breeze ASR 25 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
+      }
+      finish(resolve);
+    });
+  });
+}
+
 async function runWhisper(job, inputDir, workingDir, signal) {
   try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
   const videoFile = getEffectiveVideoPath(job);
@@ -1332,6 +1757,14 @@ async function runWhisper(job, inputDir, workingDir, signal) {
   const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
   throwIfJobCancelled(signal);
   const tools = await getBasicToolsStatus();
+  const selectedModel = inspectWhisperModelWithCache(job.config.modelName);
+  if (!selectedModel.valid) {
+    try { fs.unlinkSync(audioFile); } catch {}
+    const reason = selectedModel.reason === 'missing'
+      ? `尚未安裝 Whisper ${selectedModel.name.toUpperCase()} 模型（需要 ${selectedModel.filename}）`
+      : `Whisper ${selectedModel.name.toUpperCase()} 模型檔案驗證失敗（${selectedModel.reason}）`;
+    throw new Error(`${reason}；請在模型管理下載或手動放入模型快取後再試`);
+  }
   if (tools.asrEngine === 'whisper.cpp') {
     return runWhisperCpp(job, audioFile, workingDir, signal);
   }
@@ -1365,7 +1798,7 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       '--language', job.config.language.startsWith('zh') ? 'Chinese' : job.config.language,
       '--output_format', 'srt',
       '--output_dir', workingDir,
-      '--model_dir', toolPaths.whisperModels,
+      '--model_dir', path.dirname(selectedModel.path),
       '--device', useCuda ? 'cuda' : 'cpu',
       '--fp16', useCuda ? 'True' : 'False',
     ];
@@ -1380,7 +1813,7 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         ...process.env,
         PATH: [path.dirname(toolPaths.ffmpeg), path.dirname(toolPaths.python), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
         XDG_CACHE_HOME: toolsDir,
-        WHISPER_CACHE: toolPaths.whisperModels,
+        WHISPER_CACHE: path.dirname(selectedModel.path),
         PYTHONIOENCODING: 'utf-8',
         PYTHONUTF8: '1',
       },
@@ -1426,13 +1859,30 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         finish(() => reject(new Error('Whisper did not produce an SRT file')));
         return;
       }
-      fs.copyFileSync(path.join(workingDir, srtFile), path.join(workingDir, 'draft.srt'));
+      const sanitized = sanitizeWhisperSrt(fs.readFileSync(path.join(workingDir, srtFile), 'utf8'));
+      if (!sanitized.cues.length) {
+        finish(() => reject(new Error('Whisper 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
+        return;
+      }
+      fs.writeFileSync(path.join(workingDir, 'draft.srt'), sanitized.subtitle, 'utf8');
+      if (sanitized.droppedCount > 0) {
+        updateJob(job, { progress: 58, message: `Whisper 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
+      }
       finish(resolve);
     });
   });
 }
 
-function runWhisperCpp(job, audioFile, workingDir, signal) {
+function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
+  const modelName = normalizeWhisperModelName(job.config.modelName);
+  const model = inspectWhisperModelWithCache(modelName);
+  if (!model.valid) {
+    try { fs.unlinkSync(audioFile); } catch {}
+    const reason = model.reason === 'missing'
+      ? `尚未安裝 Whisper ${modelName} 模型（需要 ${model.filename}）`
+      : `Whisper ${modelName} 模型檔案驗證失敗（${model.reason}）`;
+    return Promise.reject(new Error(`${reason}；請安裝或匯入正確模型後再試`));
+  }
   const configuredThreads = Number(job.config.cpuThreads || 0);
   const cpuThreads = configuredThreads > 0
     ? configuredThreads
@@ -1440,22 +1890,21 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
   const outputBase = path.join(workingDir, 'whisper-cpp-output');
   const outputSrt = `${outputBase}.srt`;
   const language = job.config.language.startsWith('zh') ? 'zh' : job.config.language;
-  const useMetal = process.platform === 'darwin' && process.arch === 'arm64';
+  const useMetal = process.platform === 'darwin' && process.arch === 'arm64' && !forceCpu;
 
   updateJob(job, {
     stage: 'transcribing',
     progress: 35,
-    message: `使用內建 Whisper.cpp 轉錄（${useMetal ? 'Apple Metal' : `CPU ${cpuThreads} threads`}）`,
+    message: `使用 Whisper.cpp ${model.label} 轉錄（${useMetal ? 'Apple Metal' : `CPU ${cpuThreads} threads`}）`,
     metrics: {
       ...(job.status.metrics || {}),
       whisperDevice: useMetal ? 'metal' : 'cpu',
       asrEngine: 'whisper.cpp',
-      modelName: 'tiny-multilingual',
+      modelName,
+      modelFile: model.filename,
       cpuThreads,
     },
-  }, job.config.modelName && !/tiny/i.test(job.config.modelName)
-    ? `安裝包目前內建 tiny 多語模型，已取代要求的 ${job.config.modelName}`
-    : '啟動安裝包內建的 Whisper.cpp 與 tiny 多語模型');
+  }, `啟動 Whisper.cpp ${model.label}（${model.filename}）`);
 
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -1464,16 +1913,14 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
       return;
     }
 
-    const args = [
-      '-m', toolPaths.whisperCppModel,
-      '-f', audioFile,
-      '-l', language,
-      '-osrt',
-      '-oj',
-      '-ojf',
-      '-of', outputBase,
-      '-t', String(cpuThreads),
-    ];
+    const args = buildWhisperCppArgs({
+      modelPath: model.path,
+      audioFile,
+      outputBase,
+      language,
+      cpuThreads,
+      forceCpu,
+    });
     const child = spawn(toolPaths.whisperCpp, args, {
       shell: false,
       cwd: path.dirname(toolPaths.whisperCpp),
@@ -1486,11 +1933,11 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
     let settled = false;
     let stderr = '';
     let lastProgressLogAt = 0;
-    const finish = (callback) => {
+    const finish = (callback, cleanupAudio = true) => {
       if (settled) return;
       settled = true;
       signal?.removeEventListener('abort', abortHandler);
-      try { fs.unlinkSync(audioFile); } catch {}
+      if (cleanupAudio) try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
@@ -1520,6 +1967,14 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
         return;
       }
       if (code !== 0) {
+        if (shouldRetryWhisperOnCpu({ platform: process.platform, arch: process.arch, forceCpu, exitCode: code })) {
+          for (const suffix of ['.srt', '.json']) {
+            try { fs.unlinkSync(`${outputBase}${suffix}`); } catch {}
+          }
+          updateJob(job, { progress: 52, message: 'Apple Metal 失敗，改用 CPU 重試 Whisper.cpp' }, `Metal exit ${code}，開始 CPU fallback：${sanitizeLog(stderr).slice(-500)}`);
+          finish(() => runWhisperCpp(job, audioFile, workingDir, signal, true).then(resolve, reject), false);
+          return;
+        }
         finish(() => reject(new Error(`Whisper.cpp exit code ${code}: ${sanitizeLog(stderr).slice(-500)}`)));
         return;
       }
@@ -1527,11 +1982,25 @@ function runWhisperCpp(job, audioFile, workingDir, signal) {
         finish(() => reject(new Error('Whisper.cpp 未產生 SRT 字幕檔')));
         return;
       }
-      fs.copyFileSync(outputSrt, path.join(workingDir, 'draft.srt'));
+      const sanitized = sanitizeWhisperSrt(fs.readFileSync(outputSrt, 'utf8'));
+      if (!sanitized.cues.length) {
+        finish(() => reject(new Error('Whisper.cpp 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
+        return;
+      }
+      fs.writeFileSync(path.join(workingDir, 'draft.srt'), sanitized.subtitle, 'utf8');
+      if (sanitized.droppedCount > 0) {
+        updateJob(job, { progress: 58, message: `Whisper.cpp 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
+      }
       try {
         const jsonPath = `${outputBase}.json`;
         const quality = parseWhisperQualityJson(JSON.parse(fs.readFileSync(jsonPath, 'utf8')));
-        const matched = attachWhisperQuality(parseSrtCues(fs.readFileSync(outputSrt, 'utf8')), quality);
+        const qualityForCues = sanitized.cues.map((cue) => {
+          const segment = quality[cue.sourceIndex];
+          return segment ? { ...segment, id: cue.id } : null;
+        });
+        const matched = qualityForCues.every(Boolean)
+          ? attachWhisperQuality(sanitized.cues, qualityForCues)
+          : { matched: false, reason: 'source-metadata-mismatch' };
         if (matched.matched && matched.reason === 'engine-metrics') writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map(({ id, start, end, confidence, noSpeechProbability }) => ({ id, start, end, confidence, noSpeechProbability })));
       } catch { /* malformed or incompatible metadata must not block SRT completion */ }
       finish(resolve);
@@ -3182,7 +3651,7 @@ async function handleApi(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/bootstrap') {
     // Lightweight bootstrap check — no GPU detection (avoids torch import cost)
     const tools = await getBasicToolsStatus(url.searchParams.get('refresh') === '1');
-    const { node: hasNode, ffmpeg: hasFfmpeg, whisper: hasWhisper, asrEngine } = tools;
+    const { node: hasNode, ffmpeg: hasFfmpeg, whisper: hasWhisper, whisperModels, breezeRuntime, breezeModel, asrEngine } = tools;
 
     const missing = [];
     if (!hasNode) missing.push('Node.js');
@@ -3205,6 +3674,9 @@ async function handleApi(req, res) {
       ready,
       canProcessJobs: canProcess,
       asrEngine,
+      whisperModels,
+      breezeRuntime,
+      breezeModel,
       missingTools: missing,
       installGuide,
       localToolsDir: toolsDir,
@@ -3216,6 +3688,63 @@ async function handleApi(req, res) {
       },
       paths: toolPaths,
     });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/whisper-models') {
+    sendJson(res, 200, {
+      ok: true,
+      models: getWhisperModelStatusPayload(),
+      cacheDirectory: toolPaths.whisperModelCache,
+      instructions: '選擇 Base／Small 後可由 App 自動下載；若下載受限，請從模型的官方 URL 下載同名檔案後放入上述快取資料夾，再重新檢查。',
+    });
+    return;
+  }
+  if (req.method === 'GET' && url.pathname === '/api/breeze-asr') {
+    const tools = await getBasicToolsStatus(url.searchParams.get('refresh') === '1');
+    sendJson(res, 200, {
+      ok: true,
+      model: await getBreezeModelStatusPayload(tools.breezeRuntime),
+      cacheDirectory: toolPaths.breezeModelCache,
+      instructions: breezeRuntimeInstallGuide(),
+    });
+    return;
+  }
+  if (url.pathname === '/api/breeze-asr/download' && ['GET', 'POST', 'DELETE'].includes(req.method)) {
+    try {
+      if (req.method === 'POST') await startBreezeModelDownload();
+      if (req.method === 'DELETE') cancelBreezeModelDownload();
+      const tools = await getBasicToolsStatus();
+      const model = await getBreezeModelStatusPayload(tools.breezeRuntime);
+      sendJson(res, model.status === 'failed' ? 422 : model.status === 'downloading' ? 202 : 200, {
+        ok: model.status !== 'failed',
+        model,
+        cacheDirectory: toolPaths.breezeModelCache,
+      });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
+    return;
+  }
+  const whisperDownloadMatch = url.pathname.match(/^\/api\/whisper-models\/([^/]+)\/download$/);
+  if (whisperDownloadMatch && ['GET', 'POST', 'DELETE'].includes(req.method)) {
+    const modelName = decodeURIComponent(whisperDownloadMatch[1]).toLowerCase();
+    const definition = getWhisperModelDownloadDefinition(modelName);
+    if (!definition) {
+      sendJson(res, 400, { ok: false, error: `不支援的 Whisper 模型：${modelName}` });
+      return;
+    }
+    try {
+      if (req.method === 'POST') startWhisperModelDownload(modelName);
+      if (req.method === 'DELETE') cancelWhisperModelDownload(modelName);
+      const model = getWhisperModelStatusPayload()[definition.name];
+      sendJson(res, model.status === 'failed' ? 422 : model.status === 'downloading' ? 202 : 200, {
+        ok: model.status !== 'failed',
+        model,
+        cacheDirectory: toolPaths.whisperModelCache,
+      });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message });
+    }
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/settings') {
@@ -3607,7 +4136,21 @@ async function handleApi(req, res) {
       return;
     }
     const bilingualPath = path.join(job.jobRoot, 'review-output', 'bilingual-cues.json');
-    let bilingualCues = fs.existsSync(bilingualPath) ? JSON.parse(fs.readFileSync(bilingualPath, 'utf8')) : parseSrtBilingual(fs.readFileSync(subtitlePath, 'utf8'));
+    let subtitle = fs.readFileSync(subtitlePath, 'utf8');
+    let bilingualCues;
+    if (fs.existsSync(bilingualPath)) {
+      bilingualCues = JSON.parse(fs.readFileSync(bilingualPath, 'utf8'));
+    } else {
+      try {
+        bilingualCues = parseSrtBilingual(subtitle);
+      } catch (error) {
+        const repaired = sanitizeWhisperSrt(subtitle);
+        if (!repaired.cues.length) throw error;
+        subtitle = repaired.subtitle;
+        bilingualCues = parseSrtBilingual(subtitle);
+        console.warn(`[review] 已略過 ${repaired.droppedCount} 段無效 Whisper SRT cue：${job.config.jobId}`);
+      }
+    }
     const qualityPath = path.join(job.jobRoot, 'working', 'quality-metadata.json');
     if (fs.existsSync(qualityPath)) {
       const qualityCues = JSON.parse(fs.readFileSync(qualityPath, 'utf8'));
@@ -3619,7 +4162,7 @@ async function handleApi(req, res) {
       videoFileName: displayFileName(path.basename(videoPath)),
       subtitleFileName: displayFileName(path.basename(subtitlePath)),
       videoUrl: jobMediaUrl(job, videoPath),
-      subtitle: fs.readFileSync(subtitlePath, 'utf8'),
+      subtitle,
       bilingualCues,
       bilingualLayout: fs.existsSync(path.join(job.jobRoot, 'review-output', 'bilingual-layout.txt')) ? fs.readFileSync(path.join(job.jobRoot, 'review-output', 'bilingual-layout.txt'), 'utf8').trim() : 'source-top',
     });

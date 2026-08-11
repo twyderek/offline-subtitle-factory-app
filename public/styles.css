@@ -508,6 +508,31 @@ select:focus {
   font-size: 13px;
 }
 
+.setting-grid label.is-disabled {
+  opacity: 0.68;
+}
+
+.setting-grid .field-hint {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.whisper-model-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.whisper-model-actions span {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
 .settings-modal {
   position: fixed;
   inset: 0;
@@ -640,6 +665,31 @@ select:focus {
   border-radius: 16px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.model-download-modal {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.model-download-progress-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0 8px;
+}
+
+.model-download-progress-wrap progress {
+  width: 100%;
+  height: 12px;
+  accent-color: var(--blue);
+}
+
+#modelDownloadStatus {
+  min-height: 1.5em;
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .task-manager[role="button"] {

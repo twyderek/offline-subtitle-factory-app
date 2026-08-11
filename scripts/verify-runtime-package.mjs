@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WHISPER_MODEL_DEFINITIONS } from '../lib/whisper-models.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, '..');
@@ -101,6 +102,15 @@ if (!paths) {
       const expected = manifest.files?.[key]?.sha256;
       if (!expected) fail(`Runtime manifest has no SHA-256 for ${key}`);
       else if (sha256(filePath) !== expected) fail(`Runtime hash mismatch for ${key}: ${filePath}`);
+    }
+
+    for (const [name, definition] of Object.entries(WHISPER_MODEL_DEFINITIONS)) {
+      if (name === 'tiny') continue;
+      const entry = manifest.files?.models?.[name];
+      if (!entry) continue;
+      const modelPath = path.join(toolsDir, 'whisper-models', definition.filename);
+      if (!verifyFile(`Optional Whisper ${name} model`, modelPath, definition.minimumBytes)) continue;
+      if (entry.sha256 && sha256(modelPath) !== entry.sha256) fail(`Runtime hash mismatch for optional model ${name}: ${modelPath}`);
     }
 
     if (`${process.platform}-${process.arch}` === target) {

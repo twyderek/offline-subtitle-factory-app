@@ -13,6 +13,8 @@ const appDir = process.env.OFFLINE_SUBTITLE_TEST_APP_DIR
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-test-'));
 fs.mkdirSync(path.join(dataDir, 'config'), { recursive: true });
 fs.writeFileSync(path.join(dataDir, 'config', 'settings.json'), JSON.stringify({ appLanguage: 'zh-CN', ai: { language: 'invalid legacy value' } }));
+fs.mkdirSync(path.join(dataDir, 'config', 'breeze-asr'), { recursive: true });
+fs.writeFileSync(path.join(dataDir, 'config', 'breeze-asr', 'breeze-asr-25.pt'), 'deterministic Breeze mock checkpoint');
 const port = 19000 + Math.floor(Math.random() * 1000);
 const token = `test-${Date.now()}-${Math.random()}`;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -110,6 +112,9 @@ const server = spawn(serverCommand, [path.join(appDir, 'server.mjs')], {
     OFFLINE_SUBTITLE_SETTINGS_DIR: path.join(dataDir, 'config'),
     OFFLINE_SUBTITLE_TOOLS_DIR: process.env.OFFLINE_SUBTITLE_TEST_TOOLS_DIR || path.join(appDir, 'tools'),
     OFFLINE_SUBTITLE_API_TOKEN: token,
+    NODE_ENV: 'test',
+    OFFLINE_SUBTITLE_TEST_BREEZE_RUNNER: path.join(sourceAppDir, 'scripts', 'fixtures', 'mock-breeze-runtime.mjs'),
+    OFFLINE_SUBTITLE_TEST_WHISPER_PARTIAL_DOWNLOAD: '1',
     ELECTRON_RUN_AS_NODE: process.env.OFFLINE_SUBTITLE_TEST_NODE ? '1' : process.env.ELECTRON_RUN_AS_NODE,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -144,6 +149,26 @@ async function waitForJob(jobId, expectedStatuses, timeoutMs = 10000) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}`);
+}
+
+async function waitForJobStage(jobId, expectedStage, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const response = await api(`/api/jobs/${encodeURIComponent(jobId)}/status`);
+    const status = await response.json();
+    if (status.stage === expectedStage) return status;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`任務 ${jobId} 未進入預期階段：${expectedStage}`);
+}
+
+async function waitForFile(filePath, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(filePath)) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`等待測試檔案逾時：${filePath}`);
 }
 
 async function waitForTrim(jobId, expectedStatuses, timeoutMs = 30000) {
@@ -205,6 +230,42 @@ try {
 
   const unauthorized = await fetch(`${baseUrl}/api/jobs`);
   assert.equal(unauthorized.status, 401, '缺少 API token 應被拒絕');
+
+  const whisperCatalogResponse = await api('/api/whisper-models');
+  assert.equal(whisperCatalogResponse.status, 200, 'Whisper 模型狀態 API 應可讀取');
+  const whisperCatalog = await whisperCatalogResponse.json();
+  assert.equal(whisperCatalog.ok, true);
+  assert.equal(whisperCatalog.models.base.download.size, 147951465, 'Base 下載大小應固定');
+  assert.match(whisperCatalog.models.small.download.url, /resolve\/5359861c739e955e79d9a303bcbc70fb988958b1/);
+  assert.match(whisperCatalog.cacheDirectory, /whisper-models/);
+  const whisperCancelResponse = await api('/api/whisper-models/base/download', { method: 'DELETE' });
+  assert.equal(whisperCancelResponse.status, 200, '沒有進行中下載時，取消 API 應安全且具冪等性');
+  const whisperCancel = await whisperCancelResponse.json();
+  assert.equal(whisperCancel.ok, true);
+  assert.equal(whisperCancel.model.status, 'missing');
+
+  const whisperStartResponse = await api('/api/whisper-models/base/download', { method: 'POST' });
+  assert.equal(whisperStartResponse.status, 202, '缺少 Base 時，下載 API 應進入 downloading');
+  let activeWhisperDownload;
+  const activeDownloadDeadline = Date.now() + 5000;
+  while (Date.now() < activeDownloadDeadline) {
+    const response = await api('/api/whisper-models/base/download');
+    activeWhisperDownload = (await response.json()).model;
+    if (activeWhisperDownload.status === 'downloading' && activeWhisperDownload.bytesDownloaded > 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.equal(activeWhisperDownload?.status, 'downloading', '取消前模型應仍在下載');
+  assert.ok(activeWhisperDownload.bytesDownloaded > 0, '取消前應已寫入部分 response body');
+  const whisperCacheDir = path.join(dataDir, 'config', 'whisper-models');
+  assert.equal(fs.readdirSync(whisperCacheDir).filter((file) => file.endsWith('.download')).length, 1, '進行中 API 下載應有一個暫存檔');
+  const activeWhisperCancelResponse = await api('/api/whisper-models/base/download', { method: 'DELETE' });
+  assert.equal(activeWhisperCancelResponse.status, 200, '進行中下載應可由 DELETE 取消');
+  const activeWhisperCancel = await activeWhisperCancelResponse.json();
+  assert.equal(activeWhisperCancel.model.status, 'cancelled');
+  await waitFor(
+    () => fs.readdirSync(whisperCacheDir).every((file) => !file.endsWith('.download') && !file.endsWith('.previous')),
+    '進行中下載取消後仍殘留暫存或替換備份檔',
+  );
 
   const badOrigin = await api('/api/settings', {
     method: 'POST',
@@ -302,6 +363,10 @@ try {
     body: JSON.stringify(loadedAiSettings.settings),
   });
   assert.equal(restoreAfterLocalResponse.status, 200, '本機 provider 測試後應可恢復原設定');
+  const existingAiSecrets = JSON.parse(fs.readFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), 'utf8'));
+  fs.writeFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), JSON.stringify({
+    providers: { ...(existingAiSecrets.providers || {}), gemini: 'gemini-test-secret' },
+  }));
 
   const migratedLegacyGeminiResponse = await api('/api/ai/settings', {
     method: 'POST',
@@ -311,6 +376,10 @@ try {
       provider: 'openai-compatible',
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta/interactions',
       model: 'gemini-3.5-flash',
+      profiles: {
+        ...(loadedAiSettings.settings.profiles || {}),
+        gemini: { baseUrl: 'https://generativelanguage.googleapis.com', model: 'gemini-2.5-flash' },
+      },
     }),
   });
   assert.equal(migratedLegacyGeminiResponse.status, 200, '舊 Gemini／OpenAI-compatible 混用設定應可安全遷移');
@@ -318,6 +387,14 @@ try {
   assert.equal(migratedLegacyGemini.settings.provider, 'openai-compatible', '遷移後供應商應維持 OpenAI-compatible');
   assert.equal(migratedLegacyGemini.settings.baseUrl, '', 'OpenAI-compatible 不可沿用 Gemini Base URL');
   assert.equal(migratedLegacyGemini.settings.model, '', 'OpenAI-compatible 不可沿用 Gemini 模型');
+  const persistedMigratedSettings = JSON.parse(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8'));
+  assert.equal(persistedMigratedSettings.ai.provider, 'openai-compatible', '遷移後設定檔應保存正確供應商');
+  assert.equal(persistedMigratedSettings.ai.baseUrl, '', '遷移後設定檔不可保留 Gemini Base URL');
+  assert.equal(persistedMigratedSettings.ai.model, '', '遷移後設定檔不可保留 Gemini 模型');
+  assert.equal(persistedMigratedSettings.ai.profiles.gemini.model, 'gemini-2.5-flash', '遷移不可刪除 Gemini profile');
+  const persistedAiSecrets = JSON.parse(fs.readFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), 'utf8'));
+  assert.equal(persistedAiSecrets.providers['openai-compatible'], 'test-secret-must-not-leak', '既有 provider secret 應維持隔離保存');
+  assert.equal(persistedAiSecrets.providers.gemini, 'gemini-test-secret', '遷移不可刪除 Gemini provider secret');
 
   const invalidProviderResponse = await api('/api/ai/settings', {
     method: 'POST',
@@ -397,6 +474,93 @@ try {
   const createdResponse = await api('/api/jobs', { method: 'POST', body: form });
   if (createdResponse.status !== 201) throw new Error(await createdResponse.text());
   const created = await createdResponse.json();
+  for (const modelName of ['tiny', 'base', 'small']) {
+    const modelForm = new FormData();
+    modelForm.set('video', new Blob(['model-selection-video']), `${modelName}.mp4`);
+    modelForm.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\n模型選擇測試\n']), `${modelName}.srt`);
+    modelForm.set('asrEngine', 'whisper-cpp');
+    modelForm.set('modelName', modelName);
+    const modelResponse = await api('/api/jobs', { method: 'POST', body: modelForm });
+    assert.equal(modelResponse.status, 201, `${modelName} 模型選擇任務應可建立`);
+    const modelJob = await modelResponse.json();
+    const modelConfig = JSON.parse(fs.readFileSync(path.join(dataDir, modelJob.jobId, 'job-config.json'), 'utf8'));
+    assert.equal(modelConfig.modelName, modelName, `${modelName} 應保存正規化模型名稱`);
+  }
+  const breezeStatusResponse = await api('/api/breeze-asr');
+  assert.equal(breezeStatusResponse.status, 200, 'Breeze ASR 狀態 API 應可讀取');
+  const breezeStatus = await breezeStatusResponse.json();
+  assert.equal(breezeStatus.model.name, 'breeze-asr-25');
+  assert.equal(breezeStatus.model.download.revision, 'cffe7ccb404d025296a00758d0a33468bec3a9d0');
+  assert.equal(breezeStatus.model.download.size, 3087008569);
+  const breezeForm = new FormData();
+  breezeForm.set('video', new Blob(['breeze-selection-video']), 'breeze.mp4');
+  breezeForm.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\nBreeze 模型選擇測試\n']), 'breeze.srt');
+  breezeForm.set('asrEngine', 'breeze-asr-25');
+  const breezeResponse = await api('/api/jobs', { method: 'POST', body: breezeForm });
+  assert.equal(breezeResponse.status, 201, 'Breeze ASR 25 任務設定應可建立');
+  const breezeJob = await breezeResponse.json();
+  const breezeConfig = JSON.parse(fs.readFileSync(path.join(dataDir, breezeJob.jobId, 'job-config.json'), 'utf8'));
+  assert.equal(breezeConfig.asrEngine, 'breeze-asr-25', 'Breeze ASR 25 引擎選擇應保存');
+
+  const breezeRunForm = new FormData();
+  breezeRunForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'breeze-run.wav');
+  breezeRunForm.set('asrEngine', 'breeze-asr-25');
+  breezeRunForm.set('language', 'zh-TW');
+  const breezeRunResponse = await api('/api/jobs', { method: 'POST', body: breezeRunForm });
+  assert.equal(breezeRunResponse.status, 201, 'Breeze mock 轉錄任務應可建立');
+  const breezeRunJob = await breezeRunResponse.json();
+  assert.equal((await api(`/api/jobs/${breezeRunJob.jobId}/start`, { method: 'POST' })).status, 202, 'Breeze mock 轉錄任務應可啟動');
+  const breezeCompleted = await waitForJob(breezeRunJob.jobId, ['completed', 'failed', 'needs-action'], 15000);
+  assert.equal(breezeCompleted.status, 'completed', `Breeze mock 轉錄失敗：${breezeCompleted.message}`);
+  assert.equal(breezeCompleted.metrics?.asrEngine, 'breeze-asr-25');
+  assert.match(fs.readFileSync(path.join(dataDir, breezeRunJob.jobId, 'working', 'draft.srt'), 'utf8'), /Breeze mock 字幕/);
+
+  const breezeCancelForm = new FormData();
+  breezeCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'breeze-cancel.wav');
+  breezeCancelForm.set('asrEngine', 'breeze-asr-25');
+  const breezeCancelResponse = await api('/api/jobs', { method: 'POST', body: breezeCancelForm });
+  assert.equal(breezeCancelResponse.status, 201, 'Breeze mock 取消任務應可建立');
+  const breezeCancelJob = await breezeCancelResponse.json();
+  const breezeCancelWorking = path.join(dataDir, breezeCancelJob.jobId, 'working');
+  fs.writeFileSync(path.join(breezeCancelWorking, 'breeze-mock-delay'), 'yes');
+  assert.equal((await api(`/api/jobs/${breezeCancelJob.jobId}/start`, { method: 'POST' })).status, 202);
+  await waitForJobStage(breezeCancelJob.jobId, 'transcribing', 15000);
+  await waitForFile(path.join(breezeCancelWorking, 'breeze-child-started'), 15000);
+  assert.equal((await api(`/api/jobs/${breezeCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202);
+  const cancellingResponse = await api(`/api/jobs/${breezeCancelJob.jobId}/status`);
+  const cancelling = await cancellingResponse.json();
+  assert.equal(cancelling.stage, 'cancelling', 'child 尚未 close 前應維持 cancelling');
+  assert.equal(cancelling.status, 'running', 'child 尚未 close 前不可提前標記 cancelled');
+  const breezeCancelled = await waitForJob(breezeCancelJob.jobId, ['cancelled'], 10000);
+  assert.equal(breezeCancelled.stage, 'cancelled');
+  if (process.platform === 'win32') {
+    assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'breeze-child-closed')), false, 'Windows taskkill 強制終止時不應期待 child 執行 SIGTERM handler');
+  } else {
+    assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'breeze-child-closed')), true, '確認 child close 後才完成取消');
+  }
+  assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.wav')), false, '取消後應清理暫存音訊');
+  assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.srt')), false, '取消後應清理部分 SRT');
+
+  if (process.platform !== 'win32') {
+    const breezeForceForm = new FormData();
+    breezeForceForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'breeze-force-cancel.wav');
+    breezeForceForm.set('asrEngine', 'breeze-asr-25');
+    const breezeForceResponse = await api('/api/jobs', { method: 'POST', body: breezeForceForm });
+    assert.equal(breezeForceResponse.status, 201);
+    const breezeForceJob = await breezeForceResponse.json();
+    const breezeForceWorking = path.join(dataDir, breezeForceJob.jobId, 'working');
+    fs.writeFileSync(path.join(breezeForceWorking, 'breeze-mock-delay'), 'yes');
+    fs.writeFileSync(path.join(breezeForceWorking, 'breeze-mock-stubborn'), 'yes');
+    await api(`/api/jobs/${breezeForceJob.jobId}/start`, { method: 'POST' });
+    await waitForFile(path.join(breezeForceWorking, 'breeze-child-started'), 15000);
+    const forceStartedAt = Date.now();
+    await api(`/api/jobs/${breezeForceJob.jobId}/cancel`, { method: 'POST' });
+    const breezeForceCancelled = await waitForJob(breezeForceJob.jobId, ['cancelled'], 10000);
+    assert.equal(breezeForceCancelled.stage, 'cancelled');
+    assert.ok(Date.now() - forceStartedAt >= 2800, '忽略 SIGTERM 的 child 應等待 grace period 後才由 SIGKILL 結束');
+    assert.equal(fs.existsSync(path.join(breezeForceWorking, 'whisper-input.wav')), false);
+    assert.equal(fs.existsSync(path.join(breezeForceWorking, 'whisper-input.srt')), false);
+  }
   fs.mkdirSync(path.join(dataDir, created.jobId, 'working'), { recursive: true });
   fs.writeFileSync(path.join(dataDir, created.jobId, 'working', 'quality-metadata.json'), JSON.stringify([{ id: 1, start: 0, end: 1, confidence: 0.1 }]));
 
@@ -673,7 +837,7 @@ try {
     console.log('內建 ASR 實際轉錄測試通過：FFmpeg 音訊前處理、Whisper.cpp、Metal／CPU 與 SRT 輸出');
   }
 
-  console.log('核心回歸測試通過：API token、Origin、串流上傳、任務執行、真實聲波、精準修剪、字幕重算、還原、分頁與取消狀態');
+  console.log('核心回歸測試通過：API token、Origin、Whisper 部分下載取消清理、串流上傳、任務執行、真實聲波、精準修剪、字幕重算、還原、分頁與取消狀態');
 } finally {
   server.kill('SIGTERM');
   await new Promise((resolve) => fakeAiServer.close(resolve));
