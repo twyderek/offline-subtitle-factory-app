@@ -22,11 +22,11 @@
 - 關聯需求／缺陷：`REL-025`、`REL-027`、`FR-023`
 - 變更等級：發布（跨平台驗收流程與 CI 回歸）
 - 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
-- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。本輪本地修正 commit：`cf95ebe95ddb7e043bcf6d715e858cf32b747afa`；推送後 run `31458089089` 已通過 source regression／build，但在新增 Windows smoke 腳本的 PowerShell 編碼解析階段失敗；run `31458728556` 已通過 Setup 安裝與 renderer 全流程，但 Windows Chromium cache 清理遇到短暫 `EBUSY`。
+- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。本輪本地修正 commit：`cf95ebe95ddb7e043bcf6d715e858cf32b747afa`；推送後 run `31458089089` 已通過 source regression／build，但在新增 Windows smoke 腳本的 PowerShell 編碼解析階段失敗；run `31458728556` 已通過 Setup 安裝與 renderer 全流程，但 Windows Chromium cache 清理遇到短暫 `EBUSY`；run `31459031617` 的 Setup renderer upload flow 通過，但 `open-app-settings` 固定 300ms 等待發生時序 race。
 - 目標與成功條件：修正 Windows 強制 taskkill 與 POSIX SIGTERM 測試語意差異；新增 Windows packaged renderer、Setup 安裝後、Portable 啟動與解除安裝 smoke；建立 Base／Small 真實下載與 provider endpoint 外部驗收可重播入口；保留未取得實機／品質證據的阻擋標記。
 - 不在範圍：不把 GitHub Actions Windows runner 視為使用者 Windows 10／11 實機安裝驗收；不把模型下載完整性視為中文口說準確率；不把 provider connection smoke 視為人工翻譯品質；LM Studio 依需求暫緩。
 - 預計影響檔案／模組：`scripts/test-core.mjs`、Windows workflow／驗收腳本、外部驗收文件與本工作紀錄。
-- 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；Windows PowerShell smoke 使用 ASCII-only script literals 避免 runner 編碼差異，renderer smoke 對 Windows cache lock 使用有限次數 retry/backoff；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
+- 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；Windows PowerShell smoke 使用 ASCII-only script literals 避免 runner 編碼差異，renderer smoke 對 Windows cache lock 使用有限次數 retry/backoff，modal event 使用 3 秒輪詢避免啟動 race；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
 - 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider strict cue contract smoke（僅在提供安全 endpoint 時）、獨立複審。
 - 獨立審查是否執行：是（REL-028 round3）
 - 獨立審查結論：

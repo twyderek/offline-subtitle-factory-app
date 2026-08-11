@@ -145,11 +145,16 @@ try {
     expression: `window.dispatchEvent(new CustomEvent('open-app-settings'));`,
     returnByValue: true,
   });
-  await new Promise((resolve) => setTimeout(resolve, 300));
   const after = await client.call('Runtime.evaluate', {
-    expression: `(() => {
-      const modal = document.getElementById('appSettings');
-      return Boolean(modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length);
+    awaitPromise: true,
+    expression: `(async () => {
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {
+        const modal = document.getElementById('appSettings');
+        if (modal?.classList.contains('is-open') && getComputedStyle(modal).display !== 'none' && modal.getClientRects().length) return true;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return false;
     })()`,
     returnByValue: true,
   });
