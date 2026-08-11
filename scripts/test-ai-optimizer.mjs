@@ -33,6 +33,13 @@ assert.equal(progress.at(-1).processedCues, 2);
 assert.equal(requestBodies[0].temperature, undefined, '請求不可固定 temperature，以相容 GPT-5');
 assert.match(requestBodies[0].messages[0].content, /繁體中文（BCP 47：zh-TW）/);
 
+const wrappedJson = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => ({ choices: [{ message: { content: `以下是 JSON：\n${JSON.stringify({ cues: [{ id: 1, text: '介紹 AI API。', reason: 'wrapper' }] })}\n以上。` } }] }),
+});
+assert.equal(wrappedJson.suggestions[0].text, '介紹 AI API。', 'JSON 外層說明文字應可安全剝離後再做 strict validation');
+
 const multilingualBodies = [];
 const multilingualComplete = async (body) => {
   multilingualBodies.push(body);
@@ -73,6 +80,148 @@ assert.match(translateBodies[0].messages[1].content, /首先感謝大家參加�
 assert.doesNotMatch(translateBodies[0].messages[1].content, /E3|平台名稱/, '不相關術語不得送入該批翻譯');
 assert.equal(translateResult.suggestions[0].original, '首先感謝大家參加今天的工作坊。');
 assert.equal(translateResult.suggestions[0].mode, 'translate');
+const repairBodies = [];
+let repairCalls = 0;
+const repairedTranslation = await optimizeSubtitleCues({
+  cues: [{ id: 'T_REPAIR', sourceText: '這是一段需要完整翻譯的字幕內容。' }],
+  config: { provider: 'ollama', model: 'llama3.2:1b', batchSize: 1 },
+  mode: 'translate',
+  language: 'en',
+  complete: async (body) => {
+    repairBodies.push(body);
+    repairCalls += 1;
+    const text = repairCalls === 1 ? 'E3' : 'This is a complete translated subtitle sentence.';
+    return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T_REPAIR', text, reason: 'translation' }] }) } }] };
+  },
+});
+assert.equal(repairCalls, 2, 'Ollama 翻譯驗證失敗後應只進行一次 repair');
+assert.equal(repairBodies.length, 2);
+assert.match(repairBodies[1].messages[0].content, /上一個回應不符合要求/);
+assert.match(repairBodies[1].messages[1].content, /T_REPAIR/);
+assert.equal(repairedTranslation.suggestions[0].text, 'This is a complete translated subtitle sentence.');
+let failedRepairCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: [{ id: 'T_REPAIR_SHORT', sourceText: '這是一段需要完整翻譯的字幕內容。' }],
+    config: { provider: 'ollama', model: 'llama3.2:1b', batchSize: 1 },
+    mode: 'translate',
+    language: 'en',
+    complete: async () => {
+      failedRepairCalls += 1;
+      return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 'T_REPAIR_SHORT', text: 'E3', reason: '' }] }) } }] };
+    },
+  }),
+  /翻譯內容過短/,
+  'Ollama repair 第二次仍過短時應拒絕，不應靜默接受或回退原文',
+);
+assert.equal(failedRepairCalls, 2, 'repair 失敗時應只嘗試一次 repair');
+let malformedRepairCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: [{ id: 'T_REPAIR_JSON', sourceText: '這是一段需要完整翻譯的字幕內容。' }],
+    config: { provider: 'ollama', model: 'llama3.2:1b', batchSize: 1 },
+    mode: 'translate',
+    language: 'en',
+    complete: async () => {
+      malformedRepairCalls += 1;
+      const content = malformedRepairCalls === 1
+        ? JSON.stringify({ cues: [{ id: 'T_REPAIR_JSON', text: 'E3', reason: '' }] })
+        : 'not-json';
+      return { choices: [{ message: { content } }] };
+    },
+  }),
+  /不是有效 JSON/,
+  'Ollama repair 回傳 malformed JSON 時應拒絕',
+);
+assert.equal(malformedRepairCalls, 2, 'malformed repair 應只嘗試一次 repair');
+const malformedProofreadBodies = [];
+let malformedProofreadCalls = 0;
+const proofreadProgress = [];
+const malformedProofreadComplete = async (body) => {
+  malformedProofreadBodies.push(body);
+  malformedProofreadCalls += 1;
+  const content = malformedProofreadCalls === 1
+    ? '{"cues":[{"id":1,"text":"介紹 AI API。"'
+    : JSON.stringify({ cues: [{ id: 1, text: '介紹 AI API。', reason: 'JSON repair' }] });
+  return { choices: [{ message: { content } }] };
+};
+malformedProofreadComplete.progress = (value) => proofreadProgress.push(value);
+const repairedProofread = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'llama3.2:3b', batchSize: 1 },
+  mode: 'proofread',
+  language: 'zh-TW',
+  complete: malformedProofreadComplete,
+});
+assert.equal(malformedProofreadCalls, 2, 'Ollama proofread malformed JSON 應只觸發一次 repair');
+assert.match(malformedProofreadBodies[1].messages[0].content, /只能輸出一個 JSON object/);
+assert.equal(proofreadProgress.some((item) => item.validationRepair === true), true, 'malformed JSON 應顯示 repair telemetry');
+assert.equal(repairedProofread.suggestions[0].text, '介紹 AI API。');
+let failedProofreadRepairCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'ollama', model: 'llama3.2:3b', batchSize: 1 },
+    complete: async () => {
+      failedProofreadRepairCalls += 1;
+      return { choices: [{ message: { content: 'not-json' } }] };
+    },
+  }),
+  /不是有效 JSON/,
+  'Ollama proofread repair 第二次仍 malformed 時應拒絕',
+);
+assert.equal(failedProofreadRepairCalls, 2, 'Ollama proofread malformed repair 應最多兩次請求');
+const lengthRepairBodies = [];
+const lengthRepairProgress = [];
+let lengthRepairCalls = 0;
+const tooLongText = '模型解說內容'.repeat(100);
+const lengthRepairComplete = async (body) => {
+  lengthRepairBodies.push(body);
+  lengthRepairCalls += 1;
+  const text = lengthRepairCalls === 1 ? tooLongText : '如果老師選擇 Excel 的話';
+  return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 344, text, reason: 'length repair' }] }) } }] };
+};
+lengthRepairComplete.progress = (value) => lengthRepairProgress.push(value);
+const repairedLength = await optimizeSubtitleCues({
+  cues: [{ id: 344, text: '如果老師選擇Excel的話' }],
+  config: { provider: 'ollama', model: 'llama3.2:3b', batchSize: 1 },
+  mode: 'proofread',
+  complete: lengthRepairComplete,
+});
+assert.equal(lengthRepairCalls, 2, 'Ollama cue 文字過長時應只觸發一次 length repair');
+assert.match(lengthRepairBodies[0].messages[0].content, /344=500/);
+assert.match(lengthRepairBodies[1].messages[0].content, /字幕文字過長/);
+assert.match(lengthRepairBodies[1].messages[1].content, /maxTextLength.*500/);
+assert.equal(lengthRepairProgress.some((item) => item.validationRepairReason === 'length'), true, '文字過長應顯示 length repair telemetry');
+assert.equal(repairedLength.suggestions[0].text, '如果老師選擇 Excel 的話');
+let failedLengthRepairCalls = 0;
+let failedLengthCheckpoint = null;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: [{ id: 344, text: '如果老師選擇Excel的話' }],
+    config: { provider: 'ollama', model: 'llama3.2:3b', batchSize: 1 },
+    complete: async () => {
+      failedLengthRepairCalls += 1;
+      const content = JSON.stringify({ cues: [{ id: 344, text: tooLongText, reason: '' }] });
+      return { choices: [{ message: { content } }] };
+    },
+    onCheckpoint: async (checkpoint) => { failedLengthCheckpoint = checkpoint; },
+  }),
+  /cue 344 的 AI 文字長度異常/,
+  'Ollama length repair 第二次仍過長時應拒絕，不應截斷或靜默接受',
+);
+assert.equal(failedLengthRepairCalls, 2, 'Ollama length repair 失敗時應最多兩次請求');
+assert.equal(failedLengthCheckpoint, null, '失敗的 length repair 不得寫入完成 checkpoint');
+const nonOllamaLongText = '過長模型內容'.repeat(100);
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: [{ id: 345, text: '短字幕' }],
+    config: { provider: 'openai-compatible', model: 'test', batchSize: 1 },
+    complete: async () => ({ choices: [{ message: { content: JSON.stringify({ cues: [{ id: 345, text: nonOllamaLongText, reason: '' }] }) } }] }),
+  }),
+  /cue 345 的 AI 文字長度異常/,
+  '非 Ollama provider 的嚴格長度驗證不得放寬',
+);
 await assert.rejects(
   () => optimizeSubtitleCues({
     cues: [{ id: 'T2', sourceText: '老師跟助教們，大家早安。那今天……', translatedText: 'Existing translation.' }],
@@ -131,8 +280,9 @@ const reordered = async () => ({ choices: [{ message: { content: JSON.stringify(
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, complete: reordered }), /cue 順序不符/);
 
 let retryCalls = 0;
+let rateRetryOptions;
 const retryProgress = [];
-const retryComplete = async (body) => {
+const retryComplete = async (body, _signal, requestOptions) => {
   retryCalls += 1;
   if (retryCalls === 1) {
     const error = new Error('rate limited');
@@ -141,6 +291,7 @@ const retryComplete = async (body) => {
     error.retryAfterMs = 1;
     throw error;
   }
+  rateRetryOptions = requestOptions;
   const batch = JSON.parse(body.messages[1].content.split('待處理字幕：\n')[1]);
   return { choices: [{ message: { content: JSON.stringify({ cues: batch.map((cue) => ({ id: cue.id, text: `${cue.text}。`, reason: '重試成功' })) }) } }] };
 };
@@ -152,6 +303,7 @@ const retried = await optimizeSubtitleCues({
 });
 assert.equal(retried.totalRetries, 1, '429 應自動重試一次');
 assert.equal(retryProgress.some((item) => item.retryStatus === 429), true, '進度應包含限流重試狀態');
+assert.equal(rateRetryOptions, undefined, '非 timeout 重試不得誤套用 Ollama 延長 timeout');
 
 let resumedCalls = 0;
 const resumeComplete = async (body) => {
@@ -173,6 +325,61 @@ assert.equal(resumedCalls, 1, '續傳不可重送已完成批次');
 assert.equal(resumed.resumedFromBatch, 1);
 assert.equal(resumed.suggestions.length, 2);
 assert.equal(resumed.totalRetries, 2);
+
+let timeoutCalls = 0;
+let timeoutCheckpoint = null;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: [...source, { id: 3, start: '00:00:02,000', end: '00:00:03,000', text: '第三句字幕' }],
+    config: { model: 'test', batchSize: 1, maxRetries: 0 },
+    complete: async (body) => {
+      timeoutCalls += 1;
+      if (timeoutCalls === 3) {
+        const error = new Error('AI 請求逾時');
+        error.code = 'timeout';
+        error.retryable = true;
+        throw error;
+      }
+      const batch = JSON.parse(body.messages[1].content.split('待處理字幕：\n')[1]);
+      return { choices: [{ message: { content: JSON.stringify({ cues: batch.map((cue) => ({ id: cue.id, text: cue.text, reason: '' })) }) } }] };
+    },
+    onCheckpoint: async (checkpoint) => { timeoutCheckpoint = checkpoint; },
+  }),
+  /AI 請求逾時/,
+);
+assert.equal(timeoutCheckpoint.nextBatchIndex, 2, 'timeout 後 checkpoint 應保留已完成批次');
+const resumedAfterTimeout = await optimizeSubtitleCues({
+  cues: [...source, { id: 3, start: '00:00:02,000', end: '00:00:03,000', text: '第三句字幕' }],
+  config: { model: 'test', batchSize: 1 },
+  checkpoint: timeoutCheckpoint,
+  complete: async (body) => {
+    const batch = JSON.parse(body.messages[1].content.split('待處理字幕：\n')[1]);
+    return { choices: [{ message: { content: JSON.stringify({ cues: batch.map((cue) => ({ id: cue.id, text: `${cue.text}完成`, reason: '續跑' })) }) } }] };
+  },
+});
+assert.equal(resumedAfterTimeout.resumedFromBatch, 2, 'timeout 後續跑不得重送已完成批次');
+
+let ollamaTimeoutCalls = 0;
+const ollamaRetryProgress = [];
+const ollamaRetryComplete = async (_body, _signal, requestOptions) => {
+  ollamaTimeoutCalls += 1;
+  if (ollamaTimeoutCalls === 1) {
+    const error = new Error('AI 請求逾時');
+    error.code = 'timeout';
+    error.retryable = true;
+    throw error;
+  }
+  assert.equal(requestOptions.timeoutSeconds, 240, 'Ollama timeout 重試應自動延長至 2 倍');
+  return { choices: [{ message: { content: JSON.stringify({ cues: [{ id: 1, text: '介紹 AI API。', reason: '延長 timeout 後成功' }] }) } }] };
+};
+ollamaRetryComplete.progress = (value) => ollamaRetryProgress.push(value);
+const ollamaRetried = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'llama3.2:3b', batchSize: 1, timeoutSeconds: 120, maxRetries: 1, retryBaseMs: 1, disableRetryJitter: true },
+  complete: ollamaRetryComplete,
+});
+assert.equal(ollamaRetried.totalRetries, 1);
+assert.equal(ollamaRetryProgress.some((item) => item.retryTimeoutSeconds === 240), true, '重試進度應顯示延長後的 timeout');
 
 const glossaryBodies = [];
 const glossaryComplete = async (body) => {

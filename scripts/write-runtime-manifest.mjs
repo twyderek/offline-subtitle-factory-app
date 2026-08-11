@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WHISPER_MODEL_DEFINITIONS } from '../lib/whisper-models.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, '..');
@@ -20,6 +21,7 @@ const targetDefinitions = {
     },
     ffmpeg: { version: '8.1.2 essentials', source: 'https://www.gyan.dev/ffmpeg/builds/' },
     acceleration: 'CPU',
+    bundledModels: ['tiny'],
   },
   'darwin-arm64': {
     files: {
@@ -30,6 +32,7 @@ const targetDefinitions = {
     },
     ffmpeg: { version: '8.1.2', source: 'https://ffmpeg.martin-riedl.de/' },
     acceleration: 'Apple Metal + Accelerate',
+    bundledModels: ['tiny'],
   },
 };
 
@@ -47,6 +50,20 @@ for (const [key, relativePath] of Object.entries(definition.files)) {
   };
 }
 
+const modelEntries = {};
+for (const name of definition.bundledModels) {
+  const modelDefinition = WHISPER_MODEL_DEFINITIONS[name];
+  if (!modelDefinition) throw new Error(`Unknown bundled Whisper model: ${name}`);
+  const filePath = path.join(toolsDir, 'whisper-models', modelDefinition.filename);
+  if (!fs.existsSync(filePath)) throw new Error(`Bundled Whisper model is missing: ${filePath}`);
+  modelEntries[name] = {
+    path: path.relative(toolsDir, filePath),
+    size: fs.statSync(filePath).size,
+    sha256: crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'),
+    label: modelDefinition.label,
+  };
+}
+
 const manifest = {
   schema: 2,
   app: 'offline-subtitle-factory',
@@ -61,9 +78,14 @@ const manifest = {
       acceleration: definition.acceleration,
     },
     model: { name: 'ggml-tiny multilingual', source: 'https://huggingface.co/ggerganov/whisper.cpp' },
+    whisperModels: Object.fromEntries(Object.entries(WHISPER_MODEL_DEFINITIONS).map(([name, definition]) => [name, {
+      filename: definition.filename,
+      label: definition.label,
+      description: definition.description,
+    }])),
     node: { strategy: 'Electron executable with ELECTRON_RUN_AS_NODE=1' },
   },
-  files: entries,
+  files: { ...entries, models: modelEntries },
 };
 
 const manifestsDir = path.join(toolsDir, 'manifests');

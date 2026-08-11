@@ -80,6 +80,8 @@ let pollTimer = null;
 let currentSettings = null;
 let currentProjectPath = null;
 let allTasks = [];
+let whisperModelCatalog = null;
+let breezeAsrCatalog = null;
 
 // ── First-launch bootstrap check ────────────────────────────────────────────
 (async function runBootstrapCheck() {
@@ -215,6 +217,8 @@ async function updateVideoInfoFromProbe(file) {
 
 localStorage.removeItem('offlineSubtitleFactory.currentJobId');
 loadAppSettings();
+refreshWhisperModelStatuses();
+updateAsrEngineUi();
 bindFileLabel('videoFile', 'videoName', (file) => {
   const elName = document.getElementById('infoFileName');
   const elFileSize = document.getElementById('infoFileSize');
@@ -385,13 +389,317 @@ async function refreshHomeHealth() {
     const model = document.getElementById('homeModelStatus');
     const device = document.getElementById('homeDeviceStatus');
     if (runtime) runtime.textContent = data.ready ? '離線元件正常' : '離線元件需要檢查';
-    if (model) model.textContent = form.elements.modelName?.value || 'tiny multilingual';
+    const selectedEngine = form.elements.asrEngine?.value || 'whisper-cpp';
+    const selectedModel = form.elements.modelName?.value || 'tiny';
+    const selectedModelStatus = tools.whisperModels?.[selectedModel];
+    const modelLabel = ({ tiny: 'Tiny', base: 'Base', small: 'Small' })[selectedModel] || selectedModel;
+    if (model) model.textContent = selectedEngine === 'breeze-asr-25'
+      ? (tools.breezeModel?.valid ? (tools.breezeRuntime ? 'Breeze ASR 25' : 'Breeze（缺 runtime）') : 'Breeze（未安裝）')
+      : selectedModelStatus?.valid === false ? `${modelLabel}（未安裝）` : `Whisper ${modelLabel}`;
     if (device) device.textContent = tools.gpu?.available ? (tools.gpu.deviceName || 'Apple Metal') : 'CPU';
   } catch {
     const runtime = document.getElementById('homeRuntimeStatus');
     if (runtime) runtime.textContent = '離線服務尚未連線';
   }
 }
+
+function formatModelDownloadSize(bytes) {
+  const value = Number(bytes || 0);
+  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (value >= 1024 * 1024) return `${Math.round(value / (1024 * 1024))} MB`;
+  return `${Math.round(value / 1024)} KB`;
+}
+
+function whisperModelLabel(modelName) {
+  return ({ tiny: 'Tiny', base: 'Base', small: 'Small' })[modelName] || modelName;
+}
+
+async function refreshWhisperModelStatuses() {
+  try {
+    const response = await fetch(`${API_BASE}/api/whisper-models`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    whisperModelCatalog = data;
+    updateWhisperModelUi();
+    return data;
+  } catch (error) {
+    const status = document.getElementById('whisperModelStatus');
+    if (status) status.textContent = `模型狀態無法取得：${error.message}`;
+    return null;
+  }
+}
+
+async function refreshBreezeAsrStatus(force = false) {
+  try {
+    const response = await fetch(`${API_BASE}/api/breeze-asr${force ? '?refresh=1' : ''}`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    breezeAsrCatalog = data;
+    return data;
+  } catch (error) {
+    setStatus({ progress: 0, stage: 'waiting', message: `Breeze ASR 25 狀態無法取得：${error.message}`, logs: ['GET /api/breeze-asr 失敗'] });
+    return null;
+  }
+}
+
+function updateWhisperModelUi() {
+  const select = form.elements.modelName;
+  const hint = document.getElementById('whisperModelHint');
+  const statusEl = document.getElementById('whisperModelStatus');
+  const downloadButton = document.getElementById('downloadWhisperModel');
+  if ((form.elements.asrEngine?.value || 'whisper-cpp') !== 'whisper-cpp') {
+    if (downloadButton) downloadButton.hidden = true;
+    return;
+  }
+  const modelName = select?.value || 'tiny';
+  const model = whisperModelCatalog?.models?.[modelName];
+  if (!model) {
+    if (statusEl) statusEl.textContent = '模型狀態檢查中…';
+    if (downloadButton) downloadButton.hidden = true;
+    return;
+  }
+  const label = whisperModelLabel(modelName);
+  const installed = model.valid && ['installed', 'completed'].includes(model.status);
+  if (statusEl) statusEl.textContent = model.status === 'downloading'
+    ? `${label} 下載中 ${model.progress || 0}%`
+    : installed ? `${label} 已安裝` : `${label} 尚未安裝`;
+  if (hint) hint.textContent = modelName === 'tiny'
+    ? 'Tiny 已隨安裝包提供；Base／Small 可在首次使用時從官方固定版本下載。'
+    : `${label} 約 ${formatModelDownloadSize(model.download?.size)}；首次使用會先確認下載，完成後才建立任務。`;
+  if (downloadButton) {
+    downloadButton.hidden = modelName === 'tiny' || installed;
+    downloadButton.textContent = `下載 ${label}（${formatModelDownloadSize(model.download?.size)}）`;
+  }
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function pollWhisperModelDownload(modelName, update, endpoint = `${API_BASE}/api/whisper-models/${encodeURIComponent(modelName)}/download`) {
+  while (true) {
+    const response = await fetch(endpoint, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok && data.model?.status !== 'failed') throw new Error(data.error || `HTTP ${response.status}`);
+    const model = data.model;
+    update(model);
+    if (model.status === 'completed' || model.status === 'installed') return model;
+    if (model.status === 'cancelled') throw new Error(model.message || '模型下載已取消');
+    if (model.status === 'failed') throw new Error(model.error || model.message || '模型下載失敗');
+    await delay(500);
+  }
+}
+
+async function downloadWhisperModel(modelName, update, endpoint = `${API_BASE}/api/whisper-models/${encodeURIComponent(modelName)}/download`) {
+  const response = await fetch(endpoint, { method: 'POST' });
+  const data = await response.json();
+  if (!response.ok && data.model?.status !== 'downloading') throw new Error(data.error || data.model?.error || `HTTP ${response.status}`);
+  update(data.model);
+  return pollWhisperModelDownload(modelName, update, endpoint);
+}
+
+function openWhisperModelDownloadDialog(modelName, status, options = {}) {
+  const modal = document.getElementById('modelDownloadModal');
+  const title = document.getElementById('modelDownloadTitle');
+  const description = document.getElementById('modelDownloadDescription');
+  const progress = document.getElementById('modelDownloadProgress');
+  const percent = document.getElementById('modelDownloadPercent');
+  const statusEl = document.getElementById('modelDownloadStatus');
+  const cacheDirectory = document.getElementById('modelDownloadCacheDirectory');
+  const link = document.getElementById('modelDownloadManualLink');
+  const start = document.getElementById('startModelDownload');
+  const cancel = document.getElementById('cancelModelDownload');
+  const close = document.getElementById('closeModelDownload');
+  if (!modal || !start || !cancel) return Promise.resolve(false);
+  const label = options.label || whisperModelLabel(modelName);
+  const endpoint = options.endpoint || `${API_BASE}/api/whisper-models/${encodeURIComponent(modelName)}/download`;
+  title.textContent = options.title || `下載 Whisper ${label} 模型`;
+  description.textContent = options.description || `${label} 約 ${formatModelDownloadSize(status?.download?.size)}，下載後會自動驗證 SHA-256。下載期間請保持網路連線。`;
+  if (cacheDirectory) cacheDirectory.textContent = options.cacheDirectory || whisperModelCatalog?.cacheDirectory || '請先重新檢查模型狀態';
+  link.href = status?.download?.url || '#';
+  progress.value = Number(status?.progress || 0);
+  percent.textContent = `${progress.value}%`;
+  statusEl.textContent = status?.status === 'downloading' ? '下載已在進行中…' : '尚未開始下載';
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  let settled = false;
+  let downloading = false;
+  let resolveDialog;
+  const promise = new Promise((resolve) => { resolveDialog = resolve; });
+  const cleanup = () => {
+    start.onclick = null;
+    cancel.onclick = null;
+    close.onclick = null;
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+  const finish = (result) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    resolveDialog(result);
+  };
+  const update = (model) => {
+    if (!model) return;
+    progress.value = Number(model.progress || 0);
+    percent.textContent = `${progress.value}%`;
+    statusEl.textContent = model.status === 'completed' || model.status === 'installed'
+      ? '下載完成，已通過完整性驗證。'
+      : model.status === 'failed' ? (model.error || model.message || '模型下載失敗') : `${model.message || '下載中…'}（${formatModelDownloadSize(model.bytesDownloaded)}／${formatModelDownloadSize(model.totalBytes)}）`;
+    start.disabled = downloading;
+    cancel.disabled = false;
+    close.disabled = false;
+  };
+  const begin = async () => {
+    if (downloading) return;
+    downloading = true;
+    start.textContent = '下載中…';
+    update({ status: 'downloading', progress: progress.value, message: '正在連線到官方模型來源', bytesDownloaded: 0, totalBytes: status?.download?.size });
+    try {
+      const completed = await downloadWhisperModel(modelName, update, endpoint);
+      if (options.onCompleted) await options.onCompleted(completed);
+      else {
+        whisperModelCatalog = whisperModelCatalog || { models: {} };
+        whisperModelCatalog.models[modelName] = { ...whisperModelCatalog.models?.[modelName], ...completed, valid: true, status: 'installed' };
+        updateWhisperModelUi();
+      }
+      finish(true);
+    } catch (error) {
+      if (settled) return;
+      statusEl.textContent = error.message;
+      start.disabled = false;
+      cancel.disabled = false;
+      close.disabled = false;
+      start.textContent = '重新下載';
+      downloading = false;
+    }
+  };
+  const dismiss = async () => {
+    if (!downloading) {
+      finish(false);
+      return;
+    }
+    start.disabled = true;
+    cancel.disabled = true;
+    close.disabled = true;
+    statusEl.textContent = '正在取消模型下載…';
+    try {
+      const response = await fetch(endpoint, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      downloading = false;
+      finish(false);
+    } catch (error) {
+      statusEl.textContent = `取消失敗：${error.message}`;
+      cancel.disabled = false;
+      close.disabled = false;
+    }
+  };
+  start.onclick = begin;
+  cancel.onclick = dismiss;
+  close.onclick = dismiss;
+  return promise;
+}
+
+async function ensureSelectedWhisperModel() {
+  const modelName = form.elements.modelName?.value || 'tiny';
+  const asrEngine = form.elements.asrEngine?.value || 'whisper-cpp';
+  if (asrEngine === 'breeze-asr-25') return ensureBreezeAsrReady();
+  if (asrEngine !== 'whisper-cpp' || modelName === 'tiny') return true;
+  const catalog = await refreshWhisperModelStatuses();
+  const model = catalog?.models?.[modelName];
+  if (!model) {
+    setStatus({ progress: 0, stage: 'failed', message: `無法取得 Whisper ${whisperModelLabel(modelName)} 模型狀態，請先檢查內建元件。`, logs: ['GET /api/whisper-models 失敗'] });
+    return false;
+  }
+  if (model.valid && ['installed', 'completed'].includes(model.status)) return true;
+  const downloaded = await openWhisperModelDownloadDialog(modelName, model);
+  if (!downloaded) {
+    setStatus({ progress: 0, stage: 'waiting', message: `尚未安裝 Whisper ${whisperModelLabel(modelName)}，已取消字幕生成。`, logs: ['請從模型管理下載，或依官方 URL 手動放入模型快取。'] });
+    return false;
+  }
+  const refreshed = await refreshWhisperModelStatuses();
+  return Boolean(refreshed?.models?.[modelName]?.valid);
+}
+
+async function ensureBreezeAsrReady() {
+  let catalog = await refreshBreezeAsrStatus(true);
+  let model = catalog?.model;
+  if (!model) return false;
+  if (!model.valid) {
+    const downloaded = await openWhisperModelDownloadDialog('breeze-asr-25', model, {
+      label: 'Breeze ASR 25',
+      title: '下載 Breeze ASR 25 模型',
+      description: `模型約 ${formatModelDownloadSize(model.download?.size)}，將從 MediaTek Research 固定官方版本下載並驗證 SHA-256。此模型需要另行安裝官方 patched Whisper runtime。`,
+      endpoint: `${API_BASE}/api/breeze-asr/download`,
+      cacheDirectory: catalog.cacheDirectory,
+      onCompleted: async () => { breezeAsrCatalog = await refreshBreezeAsrStatus(true); },
+    });
+    if (!downloaded) {
+      setStatus({ progress: 0, stage: 'waiting', message: '尚未安裝 Breeze ASR 25，已取消字幕生成。', logs: ['模型未下載，不會建立或啟動推論。'] });
+      return false;
+    }
+    catalog = await refreshBreezeAsrStatus(true);
+    model = catalog?.model;
+  }
+  if (!model?.runtimeReady) {
+    setStatus({
+      progress: 0,
+      stage: 'needs-action',
+      message: 'Breeze ASR 25 模型已就緒，但缺少 MediaTek patched Whisper runtime。',
+      logs: [model?.runtimeInstallGuide || catalog?.instructions || '請依官方 Breeze-ASR-25 說明安裝 runtime 後重新啟動 App。'],
+    });
+    return false;
+  }
+  return Boolean(model.valid && model.runtimeReady);
+}
+
+function updateAsrEngineUi() {
+  const engine = form.elements.asrEngine?.value || 'whisper-cpp';
+  const whisperField = document.getElementById('whisperModelField');
+  const whisperSelect = form.elements.modelName;
+  if (whisperField) whisperField.classList.toggle('is-disabled', engine !== 'whisper-cpp');
+  if (whisperSelect) whisperSelect.disabled = engine !== 'whisper-cpp';
+  const statusEl = document.getElementById('whisperModelStatus');
+  const downloadButton = document.getElementById('downloadWhisperModel');
+  if (engine === 'breeze-asr-25') {
+    if (statusEl) statusEl.textContent = 'Breeze ASR 25 會在提交前檢查模型與 patched runtime。';
+    if (downloadButton) downloadButton.hidden = true;
+  } else if (engine === 'manual') {
+    if (statusEl) statusEl.textContent = '手動模式只使用已上傳的 SRT。';
+    if (downloadButton) downloadButton.hidden = true;
+  } else {
+    updateWhisperModelUi();
+  }
+}
+
+form.elements.asrEngine?.addEventListener('change', async () => {
+  updateAsrEngineUi();
+  if (form.elements.asrEngine.value === 'breeze-asr-25') {
+    const catalog = await refreshBreezeAsrStatus();
+    const model = catalog?.model;
+    if (model && !model.valid) {
+      document.getElementById('whisperModelStatus').textContent = `Breeze ASR 25 尚未安裝（約 ${formatModelDownloadSize(model.download?.size)}）；提交任務時會先確認下載。`;
+    } else if (model) {
+      document.getElementById('whisperModelStatus').textContent = model.runtimeReady ? 'Breeze ASR 25 已就緒。' : 'Breeze 模型已安裝，但缺少 patched Whisper runtime。';
+    }
+  }
+});
+
+document.querySelector('select[name="modelName"]')?.addEventListener('change', async () => {
+  updateAsrEngineUi();
+  const modelName = form.elements.modelName?.value || 'tiny';
+  if (modelName === 'tiny' || form.elements.asrEngine?.value !== 'whisper-cpp') return;
+  const catalog = await refreshWhisperModelStatuses();
+  const model = catalog?.models?.[modelName];
+  if (model && !model.valid) await openWhisperModelDownloadDialog(modelName, model);
+});
+
+document.getElementById('downloadWhisperModel')?.addEventListener('click', async () => {
+  const modelName = form.elements.modelName?.value || 'tiny';
+  const model = whisperModelCatalog?.models?.[modelName] || (await refreshWhisperModelStatuses())?.models?.[modelName];
+  if (model) await openWhisperModelDownloadDialog(modelName, model);
+});
 
 async function handleHomeProjectClick(event) {
   const card = event.target.closest('[data-home-job-id]');
@@ -672,6 +980,7 @@ createAndTrim?.addEventListener('click', async () => {
 });
 
 async function createProjectJob({ startAfterCreate }) {
+  if (!(await ensureSelectedWhisperModel())) return;
   // Reset video info (will be taken over by job status after submission)
   const elDuration = document.getElementById('infoDuration');
   const elResolution = document.getElementById('infoResolution');
@@ -1230,7 +1539,11 @@ async function applyProjectData(project, filePath) {
 function applyFormValues(values) {
   if (form.elements.language && values.language) form.elements.language.value = values.language;
   if (form.elements.asrEngine && values.asrEngine) form.elements.asrEngine.value = values.asrEngine;
-  if (form.elements.modelName) form.elements.modelName.value = values.modelName || '';
+  if (form.elements.modelName) {
+    const modelName = ['tiny', 'base', 'small'].includes(values.modelName) ? values.modelName : 'tiny';
+    form.elements.modelName.value = modelName;
+  }
+  updateAsrEngineUi();
   if (form.elements.performancePreset) form.elements.performancePreset.value = values.performancePreset || 'balanced';
   if (form.elements.cpuThreads) form.elements.cpuThreads.value = values.cpuThreads || '0';
   if (form.elements.outputFormats) form.elements.outputFormats.value = values.outputFormats || 'srt,vtt';
@@ -1285,6 +1598,8 @@ function newBlankProject({ confirmFirst = false } = {}) {
   currentProjectPath = null;
   localStorage.removeItem('offlineSubtitleFactory.currentJobId');
   form.reset();
+  if (form.elements.modelName) form.elements.modelName.value = 'tiny';
+  updateAsrEngineUi();
   if (form.elements.outputFormats) form.elements.outputFormats.value = 'srt,vtt';
   if (form.elements.performancePreset) form.elements.performancePreset.value = 'balanced';
   if (form.elements.cpuThreads) form.elements.cpuThreads.value = '0';

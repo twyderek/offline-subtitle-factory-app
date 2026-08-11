@@ -35,6 +35,9 @@
 | FR-019 | 雙語相容與時間碼保護 | 單語舊專案、既有校閱包與 AI session 可載入；任何 cue 數量或時間碼不一致不得寫入，原始字幕須保留 |
 | FR-020 | 低可信片段工作流 | 保存可取得的 confidence／no-speech 指標；缺失時使用可重現規則風險分數並標示來源；可依低可信、過長、速度過快、重複文字與疑似專有名詞篩選及批次選取 |
 | FR-021 | 本機 LLM 基礎支援 | 支援 Ollama 與 LM Studio 的 loopback OpenAI-compatible 端點；可探測常見本機端點並列出模型；本機服務不強制 API Key 或雲端資料傳送同意，非 loopback 仍維持金鑰與同意門檻；清楚標示本機／雲端隱私差異；本機採較小批次與嚴格 cue 契約；不自動下載模型；Ollama／LM Studio 各至少一個模型完成端到端驗證，且斷網可完成本機字幕優化 |
+| FR-022 | Whisper 多模型模式 | 離線轉錄可選 `tiny`（快速）、`base`（平衡）與 `small`（精準）三個多語 Whisper.cpp 模型；選擇保存於任務設定；模型缺失、大小或 SHA-256 不符時不得假成功；三模式共用 SRT、JSON 品質 metadata、取消與平台 fallback 契約；高階模型可由 FR-023 的官方固定來源下載或手動匯入 |
+| FR-023 | Whisper 高階模型取得 | Base／Small 缺失時，首次選擇或提交任務前提供明確下載確認；只允許官方 pinned revision、固定檔名、預期大小與 SHA-256；下載至可寫入的使用者模型快取，顯示進度並以暫存檔／原子置換保護；取消須中止背景請求並清除未完成檔案；失敗不得建立或啟動缺模型任務，並保留手動下載 URL 與說明 |
+| FR-024 | Breeze ASR 25 實驗性本機轉錄 | 可選用 MediaTek Research Breeze ASR 25 處理台灣華語與中英混用字幕；只從固定官方 revision 下載 3,087,008,569 bytes checkpoint 並驗證 SHA-256；執行前必須確認外部 Python runtime 的 `whisper.available_models()` 真正包含 `breeze-asr-25`，缺少 runtime 或有效模型時不得啟動或假成功；沿用既有音訊前處理、SRT 時間碼清理、取消與人工校閱流程；Whisper.cpp 維持預設且本輪不宣稱已隨安裝包提供 Breeze runtime |
 
 ## 非功能需求
 

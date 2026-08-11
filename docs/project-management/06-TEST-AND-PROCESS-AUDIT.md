@@ -109,6 +109,39 @@
 - 限制：Windows 未 Authenticode、macOS 未 Developer ID／公證；Metal exit 139、Electron、跨平台安裝後與長音訊實機仍未覆蓋，Release notes 已揭露。
 - 独立审查：`docs/project-management/reviews/2026-07-28-0-47-1-release-round2.md`；结论为有条件通过，条件与剩余风险详见该报告及工作纪录。
 
+## FR-022 Whisper 三模型模式驗證（2026-08-04）
+
+- `scripts/test-whisper-models.mjs` 以 deterministic mock runner 覆蓋 `tiny`／`base`／`small` 三個模型：模型白名單與 alias 正規化、模型路徑、whisper.cpp CLI 參數（含 `--no-gpu`）、SRT／JSON 輸出、quality metadata 解析，以及缺檔、too-small、SHA mismatch、manifest-size mismatch 與 UI option presence 拒絕／存在性。
+- `npm run runtime:manifest`、`npm run runtime:verify`、`npm run runtime:manifest:mac`、`npm run runtime:verify:mac` 均通過；目前現有 runtime 只包含 tiny，manifest 已支援 optional `files.models` 對 base／small 做 hash 驗證。
+- `npm test` 通過，包含核心 API／任務回歸；本輪沒有下載或執行實際 base／small 權重，因此未宣稱三模型實際中文準確率、速度、記憶體或 Windows／macOS 安裝後驗收。
+- 未覆蓋：實際 base／small 模型檔、模型匯入 UI、Windows／macOS 乾淨安裝與長音訊實機；這些應於加入相應模型資產前另行驗收。
+
+## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
+
+- `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。
+- `scripts/test-whisper-models.mjs`：驗證首頁三模型選項、下載按鈕、首次使用說明與下載 modal 存在；`lib/whisper-models.mjs` 驗證 user cache 優先、封裝模型 fallback 與既有 strict size／SHA 檢查。
+- `scripts/test-core.mjs`：驗證 `/api/whisper-models` 回報 Base 固定大小、Small pinned revision URL 與可寫入 whisper-models cache；完整回歸需在受控權限下執行以允許 local fixture listener。
+- 下載設計：Electron 將模型快取設於 `userData/whisper-models`，server 以暫存檔下載並原子置換（Windows 既有檔先移至備份並可回復），具 15 分鐘 AbortController 逾時；UI 在首次選擇／提交前確認，並顯示 userData cache 路徑與官方 URL／手動放置說明。
+- 未覆蓋：本機尚未實際下載 148 MB Base／488 MB Small；Windows 實機權限、休眠／中斷續傳、乾淨安裝與中文口說品質仍待外部驗收，不得將 deterministic fixture 或檔案 hash 視為模型品質通過。
+
+## FR-024 Breeze ASR 25 實驗性整合驗證（2026-08-10）
+
+- `scripts/test-breeze-asr.mjs`：驗證官方 revision、checkpoint 檔名、3,087,008,569 bytes、SHA-256 與固定 URL；涵蓋缺檔、錯誤大小、mock 正例、runtime `available_models` 探針、CLI 參數、模型檢查不得使用同步檔案 I/O，以及永久等待的 probe 必須在 timeout 後失敗。
+- `scripts/test-whisper-models.mjs`／`scripts/test-core.mjs`：驗證首頁 Breeze 選項、下載端點與提交前檢查存在，並由核心 API 驗證固定 metadata、模型狀態與 job 的 `breeze-asr-25` 引擎保存。round1 後新增測試專用 mock runtime，真正經 server job／FFmpeg 音訊前處理產生並清理 SRT；取消案例等 child 收到 SIGTERM、延遲 close 後才從 `running/cancelling` 轉為 `cancelled`，並確認暫存音訊與部分 SRT 不殘留。
+- round1／round2 修正：3 GB checkpoint 改以非同步 stream 驗證 SHA，避免單次同步完整讀檔阻塞 event loop；Breeze capability probe 設 15 秒 timeout；轉錄取消等待 child `close`，POSIX 在 3 秒 grace 後升級 SIGKILL，Windows 立即執行並等待 `taskkill /T /F` 完成 process-tree 終止，確認 child 與 Windows tree-kill 都結束後才釋放 job slot。另以忽略 SIGTERM 的 mock child 驗證 grace timeout、SIGKILL、取消狀態與暫存清理。
+- 本機瀏覽器驗證：新增專案可選 Breeze ASR 25；選取後 Whisper 專用模型欄位停用，未安裝狀態顯示約 2.88 GB 與提交時確認下載提示。切換不會改變 Whisper.cpp 預設值。
+- 完整回歸：`npm run check` 在允許本機 fixture listener 的受控環境通過；`node scripts/test-review-ui.mjs` 與 `git diff --check` 通過。首次沙箱內執行僅因 `listen EPERM` 中止，沙箱外同一指令已完整成功。
+- 未覆蓋：本輪未下載真實 checkpoint，也未安裝或執行官方 Python／PyTorch／patched Whisper runtime；未驗證真實繁體中文／中英混用音訊、字幕對齊品質、GPU／CPU 效能、長音訊、取消清理、Windows／macOS 安裝後流程，故不得宣稱 Breeze ASR 已可隨安裝包直接使用或達到正式品質門檻。
+
+## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）
+
+- 遠端核對：`git fetch --prune origin` 後 `origin/main=baed6d7`；Windows Ollama 修正 `4d0bee6` 與本地 HEAD `170e08e` 的指定檔案 diff 為空，故未重複套用。
+- 選擇性整合：同步 Azure OpenAI 的 `max_completion_tokens` capability probe、Azure deployment body 清理與 OpenAI-compatible internal chat fields 清理；保留本地 Ollama streaming／timeout／repair 變更。
+- focused：`node --check`（model capabilities／OpenAI-compatible／providers）、`node scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ollama-batch-stream.mjs` 通過。
+- 審查後補強：`scripts/test-ai-providers.mjs` 新增 OpenAI-compatible sanitized body 專項斷言，確認保留 `model` 並移除 operation／language／cue metadata；focused provider test 與完整回歸重跑通過。
+- 完整：受控 `npm run check` 通過；兩平台測試包關鍵 AI runtime marker 與工作樹一致，macOS／Windows ZIP `unzip -t` 均通過。
+- 未覆蓋：Windows 實機 Ollama／Azure endpoint、真實模型回應、安裝後啟動與跨版本行為；GitHub commit 核對與 contract mock 不取代實機驗收。
+
 ## 0.48 本機 LLM 驗證計畫
 
 - `test-ai-providers.mjs`：驗證 Ollama／LM Studio registry、loopback IPv4／IPv6、localhost 子網域拒絕、無 Key 不送 Authorization、遠端本機-provider 名稱仍不得繞過 Key，以及模型能力回應解析。
@@ -123,6 +156,54 @@
 - 可重放證據：`npm run probe:ollama:live`（底層為 `scripts/probe-ollama-live.mjs`）會保存版本、模型清單、完整 capability／single-cue 請求與原始回應；本輪 artifact 為 `docs/project-management/evidence/2026-07-28-ollama-llama3.2-1b-live.json`。該次 capability 回應使用 `Traditional Chinese` 鍵而非產品要求的 `traditionalChinese`，single-cue 回應使用 `cue`、改動時間碼並附 Markdown／自然語言，正好證明 strict contract 與人工審核仍必要。Probe 另以 `isLoopbackAiUrl`、`aiEndpointPrivacy` 與所有 fetch `redirect: manual` 保護資料邊界；本機 probe exit 0，遠端 `OLLAMA_BASE_URL` 負例在 fetch 前 exit 1。
 - Probe 安全矩陣：`http://localhost:11434/v1` 實際 probe 成功；`localhost.example.com` 在 fetch 前拒絕；`[::1]` 通過 loopback 分類但因 Ollama 僅監聽 IPv4 而連線失敗，未被誤判為遠端或送出資料。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
+
+## 0.48.x 穩定化驗證（2026-07-30）
+
+- BUG-012／FR-014：`test-core.mjs` 驗證舊 Gemini URL／模型混入 `openai-compatible` 時，API 回應與持久化 `config/settings.json` 均清空不相容的 Base URL／model，同時保留正確 provider；API Key 不進一般設定檔。
+- 本輪新增的持久化斷言只證明同一 server 寫入後的設定檔內容；既有使用者設定檔跨平台啟動／重啟仍待實機驗收，不能以此取代 Windows／macOS 測試。
+- `FR-021` 的真實 LM Studio artifact、模型人工接受、取消／checkpoint 續跑與真正斷網閉環仍屬未完成驗收；本輪未使用真實外部供應商金鑰。
+
+## 0.48.x macOS 封裝與本機 LLM 驗證（2026-07-30）
+
+- `npm run runtime:verify:mac` 通過；`verify-electron-renderer.mjs` 對 macOS arm64 目錄版 executable 結束成功。DMG／ZIP SHA-256 與既有清單一致：DMG `334e50b59a70c97314629faad88de1dd22f6680018265c54da5f1703becfbeee`、ZIP `53ca4e3886155e221048d36f103b0933a8d49647f5e509098fcac29f2c652f80`。
+- 受控本機連線下 `npm run probe:ollama:live -- docs/project-management/evidence/2026-07-30-ollama-llama3.2-1b-live.json` 通過，完整 raw request／response 保存於版本化 evidence；取得 Ollama 0.32.5、2 個模型與 `llama3.2:1b` capability／single-cue 回應。capability 回應符合 strict JSON；single-cue 回應未滿足 strict JSON／cue contract（含 Markdown／自然語言或時間格式改寫），因此只證明 loopback 可連線，不是模型品質或 FR-021 完整驗收。probe 現在拒絕覆寫已存在的 evidence。
+- LM Studio `http://127.0.0.1:1234/v1/models` 於本輪 connection refused；依需求方決定暫緩，不宣稱 LM Studio 真實流程、人工接受、取消／續跑或斷網完成。Windows renderer／安裝驗收亦未在本輪執行。
+- 受 sandbox 本機 socket bind 限制曾有一次 `listen EPERM`；以受控權限重跑的 `npm run check` 通過。
+
+## 0.48.x 供應鏈與 CI 風險盤點（2026-07-30）
+
+- `npm audit --json`：總計 14 項（13 high、1 critical），依賴總數 418；lockfile 實際版本為 `electron@33.4.11`、`electron-builder@25.1.8`，延伸出 `app-builder-lib`／`builder-util`／`node-gyp`／`tar`／`cacache`。runtime production dependency 僅 `busboy`，本次未見其 advisory。
+- build-only 風險：`tar`、`node-gyp`、`cacache`、`app-builder-lib` 等主要由建置／重建流程引入；可用修正集中到 `electron-builder@26.15.3`，為 major 升級，需另開相容性工作並重跑兩平台封裝。
+- runtime 風險：lockfile 的 `electron@33.4.11` 命中多項 advisory，audit 建議至少升至 43.2.0；這會改變 Electron runtime，不能僅以 build-only 風險接受，須另做 renderer／IPC／打包／實機回歸。
+- CI：目前 `.github/workflows/windows-preview.yml` 使用 `actions/setup-node@v4`、`node-version: 22`；本輪未發現仍使用 Node 20 的現行 workflow 設定，`00-CURRENT-STATUS.md` 的 Node 20 deprecation 描述應視為待歷史來源核對，不作為目前 workflow 已證實問題。
+- 結論：本輪不修改 lockfile、Electron 或 electron-builder；將 major 升級與安全修正列為後續受控變更。`npm audit` 數字不能直接等同已發布應用的 runtime 可利用性，但 Electron advisory 仍是未解決的 runtime 風險。
+- Whisper fallback 補充：`lib/whisper-fallback-policy.mjs` 已以 deterministic 矩陣測試覆蓋 macOS arm64、forceCpu、退出碼與邊界值，並由 `server.mjs` 使用；此證據只涵蓋 fallback 觸發條件，不取代實際 child-process、取消／清理與跨平台實機驗收。
+
+## 0.48.1 Electron／builder 升級與發布候選回歸（2026-08-10）
+
+- 升級前完整 audit 為 16 項（15 high、1 critical）；`electron@33.4.11` 與 `electron-builder@25.1.8` 分別升至 `electron@43.3.0`、`electron-builder@26.15.7`，升級後 `npm audit --json` 為 0 項，依賴總數 286。
+- Electron 43 的 npm 安裝套件要求 Node.js 22.12.0 以上；專案 `engines.node` 與部署文件已同步提升，Windows workflow 使用 Node 22 的最新可用版本。
+- `npm run check` 完整通過，包含 Whisper 三模型／下載取消與暫存清理、SRT sanitizer、Breeze 契約、AI fetch／optimizer／providers、Ollama streaming、review UI 與核心 API。
+- round1 後補強下載取消邊界：單元 fixture 先寫入大於 0 bytes 的 `.download` 再 abort；核心 API 以 POST 啟動、GET 確認部分 bytes、DELETE 取消並等待 `.download`／`.previous` 全部清除。測試 hook 只在 `NODE_ENV=test` 與顯式旗標同時成立時啟用；Windows 真實檔案 handle 行為仍須實機驗收。
+- 因上述 server 測試 hook 變更，四項候選再次重建；最終 build 已通過 SHA 清單、ZIP／NSIS archive、updater SHA-512、codesign 與兩平台封裝來源 diff。最後一次 DMG `hdiutil verify`／packaged renderer 重跑受系統權限用量上限阻擋；round1 前一 build 的兩項通過證據不能替代最終資產重驗，列為本機候選剩餘條件。
+- 2026-08-11 權限恢復後補驗同一最終 build：`hdiutil verify` 回報 DMG checksum `VALID`；隔離 userData 的 packaged renderer smoke 通過 bridge、設定、上傳／完成、review AI 資產、術語 round-trip、七個 provider 與資料夾事件。round2 的本機重驗條件已解除；Windows／Base／Small／真實端點與安裝後實機仍未覆蓋。
+- macOS arm64 目錄版在 Electron 43.3.0 下完成打包；隔離 userData 的 packaged renderer smoke 通過 Electron bridge、設定 modal、上傳／轉錄完成、review AI 資產、術語 round-trip、七個 provider 與資料夾開啟事件。
+- Windows x64 目錄版、NSIS Setup 與 Portable 已由 macOS cross-build 產出；封裝內 App 版本為 0.48.1、PE 為 x86-64、只內建 Tiny 且包含本版 Release notes。此證據不等同 Windows 10／11 實機啟動、安裝或解除安裝。
+- 兩平台 builder 仍警告 `asar:false`；本版維持既有非 ASAR 結構以避免未經回歸的 server／runtime 路徑變更，列為後續封裝強化，不把它描述為已解決。
+- 簽章狀態不變：Windows 未 Authenticode，macOS 為 ad-hoc／未公證；引用 `AUTH-2026-07-23-01` 時仍須揭露，且該授權不涵蓋缺少實機驗收、metadata／checksum 不一致或機密洩漏。
+
+## 0.48.x Whisper Metal crash 診斷（2026-07-30）
+
+- bundled `whisper-cli`／tiny model／1 秒 16 kHz silence WAV 的預設 GPU 路徑 exit `139`；stderr 明確顯示 `ggml_metal_buffer_init: error: failed to allocate buffer`，未產生 JSON。
+- 同一輸入加 `--no-gpu` exit `0` 並產生 JSON；此為已驗證 workaround，不等同產品已自動 fallback。
+- 本輪未修改 runtime；Metal crash 與「成功轉錄但 quality metadata 缺失」維持不同處置，rule-score 不可用於無 cue 的 crash。
+- 0.48.x 修正已在 `server.mjs` 將 Metal 非零退出導向 CPU retry；retry 前清理舊 SRT／JSON，CPU 失敗仍回報 failed。`npm run check` 通過；尚未完成長音訊／乾淨安裝實機驗收。
+
+## 0.48.x Ollama single-cue contract 修正（2026-07-30）
+
+- `scripts/probe-ollama-live.mjs` 現在以 native smoke 重放 Ollama adapter 使用的 `/api/chat`，帶入 `stream:false`、temperature 0、production cue schema（cue ID enum）並在 probe 內驗證 `cues`／ID／數量／文字／reason；不再以 `/v1/chat/completions` 代表 native path。
+- 受控 probe（持久輸出 `docs/project-management/evidence/2026-07-30-ollama-native-contract-rerun.json`）確認 `llama3.2:1b` 的 native single-cue 回應為合法 `cues` JSON，cue ID／數量保留；模型仍將全形句號改為半形句號，屬品質／人工審核風險，不是 contract 放寬理由。
+- capability probe 仍為相容端點的能力觀察；LM Studio、真正斷網與跨平台實機仍未驗收。
 
 ## 0.48.0 正式候選與本機封裝清理稽核（2026-07-30）
 

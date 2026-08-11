@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 
 const exePath = process.argv[2];
@@ -12,14 +14,19 @@ if (!exePath) {
   throw new Error('Usage: node scripts/verify-electron-renderer.mjs <exe-path> [debug-port]');
 }
 
-const child = spawn(exePath, [`--remote-debugging-port=${port}`], {
-  stdio: 'ignore',
+const smokeUserDataDir = mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-renderer-smoke-'));
+const child = spawn(exePath, [`--remote-debugging-port=${port}`, `--user-data-dir=${smokeUserDataDir}`], {
+  stdio: ['ignore', 'pipe', 'pipe'],
   detached: false,
 });
+let childLogs = '';
+const captureChildLog = (chunk) => { childLogs = `${childLogs}${chunk.toString('utf8')}`.slice(-8000); };
+child.stdout.on('data', captureChildLog);
+child.stderr.on('data', captureChildLog);
 
 function getJson(url) {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
+    const request = http.get(url, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
@@ -29,7 +36,9 @@ function getJson(url) {
           reject(error);
         }
       });
-    }).on('error', reject);
+    });
+    request.setTimeout(1500, () => request.destroy(new Error('Timed out querying Electron DevTools')));
+    request.on('error', reject);
   });
 }
 
@@ -46,7 +55,7 @@ async function waitForTarget() {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('Timed out waiting for Electron renderer target');
+  throw new Error(`Timed out waiting for Electron renderer target${childLogs ? `\n${childLogs}` : ''}`);
 }
 
 async function connectWebSocket(wsUrl) {
@@ -324,5 +333,11 @@ try {
     spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }).on('error', () => {});
   } else {
     child.kill('SIGTERM');
+    await Promise.race([
+      once(child, 'exit').catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
+    if (child.exitCode == null) child.kill('SIGKILL');
   }
+  rmSync(smokeUserDataDir, { recursive: true, force: true });
 }

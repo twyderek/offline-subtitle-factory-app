@@ -1,0 +1,155 @@
+{
+  "capturedAt": "2026-07-30T07:54:05.689Z",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "version": {
+    "version": "0.32.5"
+  },
+  "model": "llama3.2:1b",
+  "models": {
+    "object": "list",
+    "data": [
+      {
+        "id": "llama3.2:3b",
+        "object": "model",
+        "created": 1785373967,
+        "owned_by": "library"
+      },
+      {
+        "id": "llama3.2:1b",
+        "object": "model",
+        "created": 1785219617,
+        "owned_by": "library"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "name": "capability",
+      "pathname": "/chat/completions",
+      "body": {
+        "model": "llama3.2:1b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only valid JSON. Do not use Markdown."
+          },
+          {
+            "role": "user",
+            "content": "Return exactly {\"traditionalChinese\":\"繁體中文\"}."
+          }
+        ],
+        "max_tokens": 80
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-179",
+          "object": "chat.completion",
+          "created": 1785398044,
+          "model": "llama3.2:1b",
+          "system_fingerprint": "fp_ollama",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"traditionalChinese\":\"繁體中文\"}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 46,
+            "completion_tokens": 9,
+            "total_tokens": 55
+          }
+        }
+      }
+    },
+    {
+      "name": "singleCue",
+      "pathname": "/api/chat",
+      "baseUrl": "http://127.0.0.1:11434",
+      "body": {
+        "model": "llama3.2:1b",
+        "stream": false,
+        "messages": [
+          {
+            "role": "system",
+            "content": "只輸出符合 schema 的 JSON。不可輸出 Markdown、解說或時間碼。"
+          },
+          {
+            "role": "user",
+            "content": "請保留 cue id、start、end，僅改善 text：[{\"id\":1,\"start\":\"00:00:00,000\",\"end\":\"00:00:02,000\",\"text\":\"這是一個測試字幕。\"}]"
+          }
+        ],
+        "format": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cues"
+          ],
+          "properties": {
+            "cues": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text",
+                  "reason"
+                ],
+                "properties": {
+                  "id": {
+                    "enum": [
+                      1
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "model": "llama3.2:1b",
+          "created_at": "2026-07-30T07:54:05.682694Z",
+          "message": {
+            "role": "assistant",
+            "content": "{\n  \"cues\": [\n    {\n      \"id\": 1,\n      \"text\": \"這是一個測試字幕.\",\n      \"reason\": \"test\"\n    }\n  ]\n}"
+          },
+          "done": true,
+          "done_reason": "stop",
+          "total_duration": 1471908750,
+          "load_duration": 145963792,
+          "prompt_eval_count": 96,
+          "prompt_eval_duration": 202132000,
+          "eval_count": 42,
+          "eval_duration": 1109566000
+        }
+      }
+    }
+  ],
+  "validation": {
+    "nativeSingleCue": {
+      "valid": true,
+      "cueCount": 1,
+      "reason": ""
+    }
+  }
+}

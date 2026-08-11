@@ -86,6 +86,18 @@
 ## 新缺陷處理
 
 發現新問題先在 `08-CHANGE-LOG.md` 記錄，再於本文件新增 `BUG-ID`。修正不得只寫「已解決」，必須包含可重現證據、根因與防回歸測試；若只能 workaround，須說明移除條件。
+
+### BUG-WHISPER-METAL-139 — macOS Metal buffer allocation crash
+
+- 日期／版本：2026-07-30／0.48.0
+- 現象：macOS arm64 以 bundled `whisper-cli`、tiny model、1 秒 16 kHz silence WAV 執行 `-oj -ojf`，process exit 139，未產生 JSON。
+- 重現：`tools/whisper-cpp/whisper-cli -m tools/whisper-models/ggml-tiny.bin -f /tmp/whisper-metal-smoke.wav -oj -ojf -of /tmp/whisper-metal-smoke`。
+- 實際結果：exit `139`；stderr 在 `use gpu = 1` 後出現 `ggml_metal_buffer_init: error: failed to allocate buffer, size = 2.20 MiB`；stdout 為空，JSON 不存在。
+- 對照結果：同一 WAV／model 加 `--no-gpu` 執行 exit `0`，產生 `/tmp/whisper-cpu-smoke.json`；CPU stderr 顯示完整 processing／output_json／timings。
+- 根因判定：已確認為目前主機 bundled Whisper.cpp Metal buffer allocation 路徑的可重現 runtime failure；尚不能推論所有 macOS／模型／媒體均受影響。
+- 修正狀態：0.48.x 穩定化已在 `runWhisperCpp` 加入 Metal 非零退出後的 `--no-gpu` CPU retry；CPU 仍失敗時維持 failed，不把 crash 當成功。
+- 防回歸／後續：完整回歸與 CPU 對照證據通過；需在 macOS 實機長音訊與乾淨安裝環境持續驗證 retry 耗時、取消與 quality metadata 清理。
+- 剩餘風險：未在乾淨 macOS 使用者環境、Windows 或長音訊驗證；目前產品路徑仍可能在 Metal crash 時失敗。
 # BUG-012 — OpenAI-compatible 顯示 Gemini 舊設定
 
 - 發現版本：0.45.2（2026-07-22）
@@ -114,3 +126,100 @@
 - 驗證：`npm run check` 通過；真實 Ollama 英文兩 cue 測試與封裝 App 內模組同案例通過，建議均為 `mode: translate` 且未含 `E3／平台名稱`。
 - 防回歸：`test-ai-optimizer.mjs` 覆蓋既有譯文、無關術語、過短輸出與日文語系不符；`test-review-ui.mjs` 覆蓋舊建議清除與受控模式標示。
 - 剩餘風險：`llama3.2:1b` 可完成英文翻譯但語意品質有限；日文實測未遵循目標語言時會安全拒絕，建議使用較大模型並逐段人工確認。
+
+# BUG-015 — Whisper SRT 零長度時間碼造成校閱載入失敗
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：載入校閱時回報「字幕第 703 段時間碼無效」。
+- 影響：Whisper.cpp Small 已完成轉錄但無法進入字幕校閱；同一輸出另有第 704、707 段零長度時間碼。
+- 重現：讀取本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt`，第 703 段為 `00:23:53,560 --> 00:23:53,560`，第 704 段相同，第 707 段為 `00:23:54,160 --> 00:23:54,160`；`public/bilingual-subtitles.mjs` 的 `normalizeBilingualCue` 對 `end <= start` 拋出載入錯誤。
+- 根因：Whisper.cpp 原始 SRT 可產生開始與結束相同的零長度 cue；`runWhisperCpp` 直接把原始檔複製成 `draft.srt`，未在寫入前套用與校閱解析器一致的嚴格時間碼驗證。
+- 修正：新增純函式 SRT 清理器，嚴格解析時間碼、捨棄格式錯誤或 `end <= start` 的 cue、保留有效 cue 並重新編號；Whisper／Whisper.cpp 寫入 `draft.srt` 前套用，既有任務進入校閱資料 API 時也以同一清理器相容載入，全部無效時以可採取行動的錯誤結束；保留原始 Whisper 輸出供診斷。
+- 驗證：focused 清理器與實際 job 703／704／707 回歸、`parseSrtBilingual` 載入、完整 `npm run check`、兩平台封裝與 ZIP 完整性、獨立審查及文件結案檢查。
+- 防回歸：`scripts/test-whisper-srt.mjs` 覆蓋零長度、逆序、格式錯誤、多行文字、重新編號及全部無效邊界；後續 Whisper 輸出均經同一清理器。
+- 剩餘風險：被捨棄 cue 的原文不會進入校閱，可能造成少量內容遺失；需由外部驗收確認長音訊、Windows 實機及清理後中文內容品質，模型本身的幻覺／辨識率不在本缺陷修正範圍。
+
+# BUG-016 — Ollama 多批次 AI 優化逾時
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：使用 Ollama 進行多筆 AI 優化時回報「AI 優化失敗：AI 請求逾時」。
+- 影響：已完成的批次仍保存於 checkpoint，但整個 AI 任務在單一批次逾時後變成 failed；使用者需要手動恢復，且容易誤以為所有批次遺失。
+- 重現：本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；provider=`ollama`、model=`llama3.2:3b`、55 cues、55 batches、`timeoutSeconds=120`、`maxRetries=1`；第 1／2 批完成後第 3 批逾時，記錄 `progress.completedBatches=2`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`、`retryable=true`。
+- 根因初判：Ollama 原生 `/api/chat` 請求使用 `stream:false` 並套用單次絕對 fetch timeout；本機低資源模型對特定 cue 可能超過 timeout，既有批次雖有 checkpoint，但 timeout 錯誤沒有提供更細緻的本機長生成處理與恢復提示。
+- 修正：Ollama 原生 `/api/chat` 改用 `stream:true`；新增 NDJSON fragment 組裝，並將 timeout 重設為每片段的 idle timeout；保留 strict JSON／cue 驗證與 checkpoint，timeout 且已有完成批次時明確提示可恢復，不以無限延長 timeout 或靜默接受部分結果取代修正。
+- 驗證：`test-ai-providers.mjs`、`test-ai-optimizer.mjs`、`test-ollama-batch-stream.mjs` 與完整 `npm run check` 通過；deterministic 三批次 streaming 在 100ms idle timeout 下完成，timeout checkpoint 續跑只送未完成批次；本機 Ollama `127.0.0.1:11434` 未啟動，真實模型 smoke 待外部驗收。
+- 防回歸：provider contract 驗證 `stream:true`／NDJSON；delayed chunk 驗證 idle timer 每片段重設；optimizer 驗證第 3 批 timeout 後 `nextBatchIndex=2` 且續跑不重送前兩批；server 錯誤訊息保留已完成批次數量與恢復指引。
+- 剩餘風險：模型本身可能在複雜字幕上生成極慢或卡住；若超過安全上限仍須讓任務可恢復失敗，不能保證所有低資源模型／字幕永不逾時。
+
+# BUG-017 — Ollama 第 3 批重試後仍逾時
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：BUG-016 的 streaming 修正封裝於第 3 批仍顯示「受限或失敗，第 1 次重試，等待 2 秒」，重試後再次回報「AI 優化失敗：AI 請求逾時」。
+- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 更新至 2026-08-05 11:27；`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`activeBatch=3`、`retryAttempt=1`、`retryable=true`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`。本機 Ollama `127.0.0.1:11434` 目前連線拒絕，無法取得同一 cue 的真模型 response。
+- 症狀與根因區分：症狀是串流重試仍逾時；已確認原 transport 在 `fetch` 收到 response headers 後沒有重新開始 body idle timeout，若 Ollama 在 headers 後才產生第一個 NDJSON chunk，仍會沿用 request 起始計時器；此外 timeout 重試沿用相同 120 秒上限，沒有為低資源模型增加可控的第二次等待窗口。
+- 修正：`requestAiJson` 在 `fetch` 完成後重新 arm timeout；Ollama native request 增加 `num_predict=512`、`keep_alive=10m`，避免無界生成與每批重新載入；optimizer 對 Ollama timeout 的下一次 retry 自動將 timeout 加倍（120→240 秒，最高 600 秒），並把延長值寫入 retry progress；UI 重試訊息顯示本次 timeout 上限；checkpoint／strict cue validation 保持不變。
+- 驗證：`test-ai-providers.mjs` 覆蓋 Ollama streaming、chunk idle reset、headers 後延遲第一 chunk、`num_predict`／`keep_alive` contract；`test-ai-optimizer.mjs` 覆蓋 Ollama timeout retry 延長至 240 秒與進度 telemetry、既有 checkpoint resume；`test-ollama-batch-stream.mjs` 三批次 streaming 通過。完整回歸、兩平台封裝與真實 Ollama smoke 待本輪結案補記。
+- 防回歸：timeout 重試不得重送已完成批次；若延長窗口仍無任何 response，仍以 retryable failed 保存 checkpoint，不靜默產生 AI 建議。
+- 剩餘風險：真實 `llama3.2:3b` 仍未於本環境啟動驗證；若模型在 240／600 秒內完全沒有輸出，任務仍會安全失敗並需恢復；Windows 實機與不同 Ollama 版本的 `keep_alive`／`num_predict` 行為仍待外部驗收。
+
+# BUG-018 — Ollama 回傳內容非有效 JSON
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：Ollama 第 3 批不再 timeout，但回報「AI 優化失敗：AI 回傳內容不是有效 JSON」。
+- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`nextBatchIndex=2`、`suggestions=2`、`mode=proofread`、`language=ja`；本機 Ollama `127.0.0.1:11434` 連線拒絕，未保存 raw model response。
+- 根因判定：`parseCompletionContent` 原先只接受完整 JSON 或單純 code fence，沒有安全處理模型在 JSON 前後附加說明；對真正 malformed／截斷 JSON 也沒有 Ollama 專用一次性 repair，因此 strict parser 直接讓批次失敗。無 raw response 時不能把本次錯誤進一步歸因為 wrapper、截斷或模型 schema 失守其中一項。
+- 修正：解析前保留 strict JSON 契約，但可從前後包裝文字中擷取完整 `{...}`／`[...]` JSON 再驗證；Ollama malformed JSON 只觸發一次簡化 repair prompt，第二次仍無效則拒絕，不接受原文或不完整 cue；UI 顯示「正在要求 Ollama 重新輸出 JSON」；既有 checkpoint／cue ID／數量／順序驗證不變。
+- 驗證：`test-ai-optimizer.mjs` 覆蓋 wrapper extraction、Ollama proofread malformed→repair、repair 第二次仍 malformed 的拒絕與最多兩次請求；既有 provider／timeout／stream tests 與完整受控權限 `npm run check` 通過；兩平台 ZIP `unzip -t`、source markers／Small manifest 核對通過；真實 Ollama raw response／同一 job 修正後重跑與 Windows 實機仍待外部驗收。
+- 防回歸：只對 `provider=ollama` 且 `code=invalid_json` 進行一次 repair；translation 仍使用既有專用 repair；非 Ollama provider 不改變原有 JSON path；修復後仍必須通過 cue strict validation。
+- 剩餘風險：本機未啟動真實 Ollama，尚未取得原始 malformed response；若模型回傳內層未跳脫引號、截斷或 valid JSON 但 cue contract 錯誤，repair 仍可能安全失敗；Windows 實機與不同 Ollama 版本仍待外部驗收。
+
+# BUG-019 — Ollama cue 文字長度異常
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：Ollama AI 優化在 cue 344 回報「AI 文字長度異常」；該批未完成，既有 checkpoint 仍可續跑。
+- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue 344 原文為「如果老師選擇Excel的話」，本機未保存 raw model response，Ollama 目前連線拒絕。
+- 根因判定：strict validator 對 cue 文字使用 `Math.max(500, original.length * 6)` 上限；本次模型回應已超過安全上限，可能含解說、重複內容或無界生成。因沒有 raw response，不能把具體內容形式宣稱為已證實的單一原因；放寬上限或截斷都會讓錯誤內容進入字幕。
+- 修正：抽出一致的 cue 長度上限計算；原始 prompt 明確列出每個 cue 的字元上限並禁止解說／重複／Markdown；Ollama 遇到 length validation failure 只執行一次專用 JSON repair，repair 仍超長即拒絕；UI 顯示「回應文字過長，正在要求 Ollama 重新輸出」；ID／數量／順序／strict validation／checkpoint 保持不變。
+- 驗證：`test-ai-optimizer.mjs` 覆蓋 cue 344 過長→一次 repair 成功、第二次仍過長拒絕、`validationRepairReason=length` telemetry，以及非 Ollama provider 仍嚴格拒絕；provider／stream 回歸與完整 `npm run check`、兩平台測試包與 ZIP 完整性待本輪結案補記。
+- 防回歸：length repair 不截斷、不套用原文 fallback、不寫入未完成批次；若模型再次超長，保留上一個成功 checkpoint，使用者可從 `nextBatchIndex` 恢復。
+- 剩餘風險：真實 Ollama raw response／同一 job 修正後 55 批重跑、Windows 實機與不同 Ollama 版本仍待外部驗收；若模型持續產生超長輸出，仍會安全失敗而非保證成功。
+
+# BUG-020 — AI 優化前端 `Failed to fetch`
+
+- 日期／版本：2026-08-05／0.48.0 測試版
+- 現象：校閱頁在 AI 優化流程顯示「AI 優化失敗：Failed to fetch」。
+- 重現／基準：需求方未提供本次 job ID、renderer console 或 server log；目前可讀取的最近 job `20260805024615-2af944` 已是 `status=completed`、55/55，沒有可將本次錯誤歸因到 Ollama response 的 failed checkpoint。`public/review.js` 原先在啟動／輪詢 `/api/jobs/:id/ai-optimize` 的瀏覽器 fetch 例外直接顯示原生 `Failed to fetch`。
+- 根因判定：已確認可見錯誤是 renderer→本機字幕工廠 HTTP API 層的未正規化 fetch 例外；尚不能由目前證據判斷是 App server 暫停／port 變更、Windows 啟動生命週期、網路堆疊或請求回應中斷。Ollama provider 內部錯誤另由 `requestAiJson` 正規化，不與本錯誤混同。
+- 修正：新增 `public/ai-fetch.mjs`，將 `Failed to fetch`／`NetworkError`／`Load failed`／`fetch failed` 等本機 API 不可達錯誤轉成包含 API 位址、重啟／重新載入與 checkpoint 恢復指引的可診斷訊息；AI 狀態 GET 失聯時最多重試兩次；啟動 POST 回應遺失時先查詢既有任務狀態，若已在 server 執行則接回輪詢；API 回應非 JSON 時明確標示格式錯誤。未自動重送啟動 POST，避免建立重複 AI 任務。
+- 防回歸：`scripts/test-ai-fetch.mjs` 覆蓋 network error 正規化、非 network provider error 不誤判、invalid API response 與 retryable marker；`npm test` 接入測試。保留既有 strict cue validation、Ollama repair／timeout 與 checkpoint。
+- 驗證：`node --check public/review.js`、`node --check public/ai-fetch.mjs`、`node --check public/ai-status-recovery.mjs`、`node scripts/test-ai-fetch.mjs`、`node scripts/test-review-ui.mjs`、`node scripts/test-ai-optimizer.mjs`、受控完整 `npm run check`、`git diff --check` 已通過；最新 macOS arm64／Windows x64 ZIP `unzip -t` 通過，SHA-256 分別為 `ebac55d1fc7d40de54e7c113d7da4eec531c4099c52ed0be727f2d4c57da9bb0`／`2ec03b3de2a541e4d3272a4563cdca9d2f00f25b7fa6738954e5db0ee7c9c998`；兩平台 source markers 與 Small manifest 核對一致；round2 獨立複審已完成，真實 renderer／Windows 實機／Ollama smoke 仍為外部驗收條件。
+- 剩餘風險：沒有本次實際 renderer console／server log，無法證明單一外部觸發原因；若 server process 已完全停止，前端只能提供重啟與恢復指引；若 POST 已送達但 GET 也不可達，仍需重新載入 App 後以 checkpoint 恢復。Windows 實機與真實 Ollama multi-batch smoke 仍待外部驗收。
+
+# FR-023 — Windows Whisper 高階模型需手動下載
+
+- 日期／版本：2026-08-06／0.48.0 測試版
+- 現象：Windows 安裝包選擇 Base／Small 時，若模型檔不存在，只顯示「請安裝或匯入正確模型後再試」，使用者必須自行尋找下載來源與可寫入路徑。
+- 根因：三模型選擇已存在，但模型資產不一定隨平台包附帶；Electron server 使用安裝資源目錄作為工具來源，Windows 安裝目錄可能不可寫入，且既有 UI 沒有下載狀態／手動 URL／首次使用前檢查。
+- 修正：新增固定 revision 的官方 Whisper.cpp multilingual Base／Small／Tiny download definitions；`server.mjs` 提供模型狀態與下載 API，下載到 `userData/whisper-models`、限制白名單、回報進度、驗證預期大小／SHA-256、失敗清理暫存檔並原子置換；`public/app.js` 在模型選擇與任務提交前顯示確認、進度與官方手動下載說明；`lib/whisper-models.mjs` 支援 user cache 優先、封裝模型 fallback。
+- 驗證：`test-whisper-model-download.mjs` 覆蓋成功／HTTP 失敗／大小／SHA／AbortController 逾時／Windows 既有檔替換／暫存清理，並在 `.download` 已寫入部分內容後取消；`test-whisper-models.mjs` 覆蓋模型管理 UI；`test-core.mjs` 覆蓋 `/api/whisper-models` pinned metadata，以及 POST→部分 bytes→DELETE→無 `.download`／`.previous` 的 active API 路徑；完整 `npm run check`、兩平台封裝／source marker 與 docs check 已通過；Windows 實機下載／userData 權限／中文口說品質仍待外部驗收。
+- 防回歸：不接受任意 URL／任意檔名；缺模型不可建立或啟動 ASR；下載 response 不符 size／SHA 不寫入正式檔；保留手動下載 URL 與 userData cache 路徑。
+- 剩餘風險：尚未在 Windows 實機執行實際 148 MB／488 MB 下載、安裝權限、網路中斷／續跑與中文口說品質驗收；若下載失敗，使用者仍須依官方 URL 手動下載後重新檢查。
+
+# SYNC-024 — GitHub Windows 測試修正同步
+
+- 日期／版本：2026-08-06／0.48.0 測試版
+- 現象：需求方表示 Windows 測試問題與修正已更新 GitHub，要求同步至目前專案。
+- 核對：`git fetch --prune origin` 後，GitHub Windows Ollama 修正 `4d0bee6` 與本地 HEAD `170e08e` 的指定 runtime diff 為空，沒有重複套用；最新 `origin/main=baed6d7` 另包含 Azure OpenAI request parameter 修正。
+- 修正：選擇性整合 Azure capability probe 的 `max_completion_tokens`；Azure deployment 請求移除 optimizer 內部欄位與 model；OpenAI-compatible chat completion 移除內部 operation／language／cue metadata；保留本地 Ollama streaming／timeout／repair 與 Windows 翻譯修正。
+- 驗證：provider／optimizer／Ollama streaming focused tests 與完整 `npm run check` 通過；macOS／Windows 測試包三個 AI runtime source marker 與工作樹一致，ZIP 更新後需由外部 Windows 實機確認啟動與真實端點行為。
+- 剩餘風險：沒有 Windows 實機或真實 Azure／Ollama endpoint 證據，不能把 GitHub commit 核對、contract mock 或本機 ZIP 同步宣稱為跨平台實機驗收。
+
+# REL-025 — Electron／builder 供應鏈弱點阻擋發布
+
+- 日期／版本：2026-08-10／0.48.1 發布候選
+- 現象：發布前完整 `npm audit` 在 Electron 33／electron-builder 25 鎖檔回報 16 項弱點（15 high、1 critical），其中同時包含 runtime 與建置鏈風險，不能只以 production-only audit 為 0 宣稱可發布。
+- 根因：專案仍鎖定 `electron@33.4.11`、`electron-builder@25.1.8`；先前供應鏈盤點已辨識需要 major 升級，但當時因相容性與跨平台封裝證據不足而延後。
+- 修正：升級至 `electron@43.3.0` 與 `electron-builder@26.15.7`，保留 macOS 12 最低支援線；不升至要求 macOS 13 的 Electron 44。同步把開發／CI Node 引擎下限提高為 22.12.0，避免以不受 Electron 43 工具鏈支援的 Node 20 安裝。下載、renderer verifier 與雙平台打包沿用受控固定流程。
+- 驗證：升級後完整 `npm audit --json` 為 0；`npm run check`、macOS arm64 runtime／目錄版、隔離 userData packaged renderer smoke、Windows x64 runtime／目錄版／Setup／Portable 建置均通過。封裝內版本、PE 架構、Tiny-only 模型政策與本版 Release notes 已核對。
+- 防回歸：發布驗證保留 dependency tree／audit、兩平台 build、封裝 source marker、updater metadata 與 SHA 核對；未來 Electron major 升級必須重新確認最低 OS 與 packaged renderer。
+- 剩餘風險：Windows 10／11 實機啟動／安裝／解除安裝與本版 macOS DMG／ZIP 乾淨安裝仍未完成；`asar:false` 為既有封裝強化債務；Windows 未 Authenticode、macOS 未 Developer ID／公證。

@@ -215,12 +215,22 @@
               <span>🤖 ASR 模型選擇</span>
               <select name="asrEngine">
                 <option value="whisper-cpp" selected>內建 Whisper.cpp（建議）</option>
+                <option value="breeze-asr-25">Breeze ASR 25（實驗性・需另裝 runtime）</option>
                 <option value="manual">僅使用既有 SRT（需上傳字幕）</option>
               </select>
             </label>
-            <label>
-              <span>🧩 模型名稱</span>
-              <input name="modelName" type="text" placeholder="small / medium / large-v3">
+            <label id="whisperModelField">
+              <span>🧩 Whisper 模型</span>
+              <select name="modelName">
+                <option value="tiny" selected>快速（Tiny）— 低資源</option>
+                <option value="base">平衡（Base）— 一般電腦</option>
+                <option value="small">精準（Small）— 中文口說</option>
+              </select>
+              <small id="whisperModelHint" class="field-hint">目前安裝包預設內建 Tiny；首次選擇 Base／Small 時可由 App 從官方固定版本下載。</small>
+              <div class="whisper-model-actions">
+                <button type="button" id="downloadWhisperModel" class="small-button" hidden>下載目前模型</button>
+                <span id="whisperModelStatus" role="status">模型狀態檢查中…</span>
+              </div>
             </label>
             <label>
               <span>⚡ 轉錄效能模式</span>
@@ -438,6 +448,29 @@
         <button type="button" id="cancelExport" class="secondary">取消輸出</button>
         <button type="button" id="openOutputFolder" class="secondary">開啟 output</button>
         <span id="exportStatus" role="status">等待輸出設定</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="modelDownloadModal" class="app-modal" aria-hidden="true">
+    <div class="app-modal-dialog model-download-modal" role="dialog" aria-modal="true" aria-labelledby="modelDownloadTitle">
+      <button type="button" id="closeModelDownload" class="settings-close" aria-label="關閉模型下載">×</button>
+      <div class="section-head">
+        <span class="step-dot">⬇</span>
+        <h2 id="modelDownloadTitle">下載 Whisper 模型</h2>
+      </div>
+      <p id="modelDownloadDescription" class="modal-note">首次使用高階模型時，App 會從官方 Whisper.cpp 固定版本下載並驗證模型。</p>
+      <div class="model-download-progress-wrap">
+        <progress id="modelDownloadProgress" max="100" value="0"></progress>
+        <strong id="modelDownloadPercent">0%</strong>
+      </div>
+      <p id="modelDownloadStatus" role="status">等待確認</p>
+      <p class="modal-note">若自動下載受限，可開啟下方官方 URL 手動下載同名檔案，放入顯示的模型快取資料夾後重新檢查。</p>
+      <p class="modal-note">模型快取：<code id="modelDownloadCacheDirectory">尚未取得</code></p>
+      <p><a id="modelDownloadManualLink" href="#" target="_blank" rel="noreferrer">開啟官方模型下載頁</a></p>
+      <div class="settings-actions">
+        <button type="button" id="startModelDownload" class="primary">下載並安裝</button>
+        <button type="button" id="cancelModelDownload" class="secondary">稍後再說</button>
       </div>
     </div>
   </section>

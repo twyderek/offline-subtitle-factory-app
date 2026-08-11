@@ -1,6 +1,6 @@
 {
   "name": "offline-subtitle-factory",
-  "version": "0.48.0",
+  "version": "0.48.1",
   "private": true,
   "type": "module",
   "description": "Local-first offline subtitle generation frontend MVP.",
@@ -14,7 +14,7 @@
     "docs:check": "node scripts/check-project-docs.mjs",
     "docs:check:final": "node scripts/check-project-docs.mjs --final",
     "probe:ollama:live": "node scripts/probe-ollama-live.mjs",
-  "test": "node scripts/test-project-preflight.mjs && node scripts/test-standing-authorization.mjs && node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-bilingual-subtitles.mjs && node scripts/test-subtitle-quality.mjs && node scripts/test-whisper-quality.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
+    "test": "node scripts/test-whisper-fallback-policy.mjs && node scripts/test-whisper-models.mjs && node scripts/test-whisper-model-download.mjs && node scripts/test-whisper-srt.mjs && node scripts/test-breeze-asr.mjs && node scripts/test-project-preflight.mjs && node scripts/test-standing-authorization.mjs && node scripts/test-project-docs-validator.mjs && node scripts/test-media-edit.mjs && node scripts/test-bilingual-subtitles.mjs && node scripts/test-subtitle-quality.mjs && node scripts/test-whisper-quality.mjs && node scripts/test-ai-fetch.mjs && node scripts/test-ai-optimizer.mjs && node scripts/test-ai-providers.mjs && node scripts/test-ollama-batch-stream.mjs && node scripts/test-review-ui.mjs && node scripts/test-core.mjs",
     "check": "npm run docs:check && node --check server.mjs && node --check public/app.js && node --check public/review.js && node --check public/trim.js && node --check electron/main.mjs && npm test",
     "runtime:manifest": "node scripts/write-runtime-manifest.mjs --target=win32-x64",
     "runtime:manifest:mac": "node scripts/write-runtime-manifest.mjs --target=darwin-arm64",
@@ -29,11 +29,11 @@
     "electron:build:mac": "npm run runtime:manifest:mac && npm run runtime:verify:mac && electron-builder --mac --arm64"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.7"
   },
   "build": {
     "appId": "com.offline-subtitle-factory.app",
@@ -51,6 +51,7 @@
       "electron/**/*",
       "public/**/*",
       "README.md",
+      "docs/WHISPER-MODEL-DOWNLOAD.md",
       "THIRD-PARTY-NOTICES.md",
       "NEXT-VERSION-FIX-LOG.md",
       "FINAL-VERSION-LOG.md",
@@ -58,25 +59,34 @@
       "RELEASE-NOTES-0.41.0.md",
       "RELEASE-NOTES-0.45.0.md",
       "RELEASE-NOTES-0.45.1.md",
-    "RELEASE-NOTES-0.45.2.md",
+      "RELEASE-NOTES-0.45.2.md",
       "RELEASE-NOTES-0.46.0.md",
       "RELEASE-NOTES-0.47.1.md",
+      "RELEASE-NOTES-0.48.0.md",
+      "RELEASE-NOTES-0.48.1.md",
       "package.json",
-    ".gitignore",
-    "!**/.env",
-    "!**/.env.*",
-    "!**/*.pem",
-    "!**/*.key",
-    "!**/*.p12",
-    "!**/*.pfx",
-    "!**/*.cer",
-    "!**/*.crt",
-    "!**/*.mobileprovision",
-    "!**/secrets/**",
-    "!**/credentials/**"
+      ".gitignore",
+      "!**/.env",
+      "!**/.env.*",
+      "!**/*.pem",
+      "!**/*.key",
+      "!**/*.p12",
+      "!**/*.pfx",
+      "!**/*.cer",
+      "!**/*.crt",
+      "!**/*.mobileprovision",
+      "!**/secrets/**",
+      "!**/credentials/**"
     ],
     "nsis": {
-      "artifactName": "offline-subtitle-factory-setup-${version}.${ext}"
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "離線字幕工廠",
+      "installerIcon": "electron/icons/icon.ico",
+      "uninstallerIcon": "electron/icons/icon.ico",
+      "installerHeaderIcon": "electron/icons/icon.ico"
     },
     "portable": {
       "artifactName": "offline-subtitle-factory-portable-${version}.${ext}"
@@ -192,16 +202,6 @@
           "to": "tools/manifest.json"
         }
       ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "離線字幕工廠",
-      "installerIcon": "electron/icons/icon.ico",
-      "uninstallerIcon": "electron/icons/icon.ico",
-      "installerHeaderIcon": "electron/icons/icon.ico"
     }
   },
   "dependencies": {

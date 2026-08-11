@@ -1,5 +1,14 @@
 # 離線字幕工廠
 
+## 0.48.1 發布候選
+
+0.48.1 收錄 0.48.0 發布後的 Windows／Ollama／Azure 穩定化、Whisper Tiny／Base／Small 模型選擇、Base／Small 首次使用安全下載、無效時間碼清理與 AI 任務恢復修正。安裝包只內建 Tiny，避免把約 488 MB 的 Small 模型塞入每份下載；需要高階模型時由 App 寫入使用者模型快取並驗證 SHA-256。
+
+- 發布說明：[RELEASE-NOTES-0.48.1.md](RELEASE-NOTES-0.48.1.md)
+- 高階模型說明：[docs/WHISPER-MODEL-DOWNLOAD.md](docs/WHISPER-MODEL-DOWNLOAD.md)
+- 實驗性 Breeze ASR 25（需另裝官方 Python runtime）：[docs/BREEZE-ASR-25.md](docs/BREEZE-ASR-25.md)
+- 目前公開穩定版仍為 [v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)，`v0.48.1` tag／Release 會在候選驗證與授權完成後建立。
+
 ## 0.48.0 正式發布
 
 0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開並標示為 Latest，macOS／Windows 資產與 SHA-256 digest 已核對。
@@ -9,7 +18,7 @@
 - Windows x64：NSIS Setup 與 Portable，另附 `latest.yml`、SHA-256 與未簽章狀態。
 - Windows 與 macOS 均未簽章／未公證；下載後請先核對 SHA-256。
 
-## 0.48.0 本機語言模型設定
+## 0.48.x 本機語言模型設定
 
 0.48 支援 Ollama 與 LM Studio 本機端點。安裝、模型建議與設定方式請參考：[本機語言模型設定手冊](docs/LOCAL-LLM-SETUP.md)。
 
@@ -91,20 +100,20 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-offline-subtitle-factory-0.48.0-macos-arm64.dmg
+offline-subtitle-factory-0.48.1-macos-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.48.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.48.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0) 下載 `offline-subtitle-factory-setup-0.48.0.exe` 與 `offline-subtitle-factory-portable-0.48.0.exe`。
+Windows 0.48.1 x64 版提供 NSIS Setup 與 Portable。發布後可從 GitHub [`v0.48.1` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1) 下載 `offline-subtitle-factory-setup-0.48.1.exe` 與 `offline-subtitle-factory-portable-0.48.1.exe`。
 
 目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
 ## 不需要自行安裝其他軟體
 
-0.48.0 安裝包已內建：
+0.48.1 安裝包已內建：
 
 - 完整離線操作手冊（目前內建手冊版本）：`resources/docs/0.45.2/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
@@ -175,6 +184,8 @@ npm run electron:build
 ```
 
 Windows runtime 準備腳本會下載固定版本的 FFmpeg 8.1.2、Whisper.cpp 1.9.1 與 ggml-tiny 多語模型並比對 SHA-256，不會安裝 Python，也不會修改系統 PATH。完整驗收項目請參閱 `WINDOWS-11-TEST-CHECKLIST.md`。
+
+Windows 使用 Base／Small 高階 Whisper 模型時，首次提交任務會提供官方固定版本下載與 SHA-256 驗證；若網路或權限受限，請依 [Whisper 高階模型下載說明](docs/WHISPER-MODEL-DOWNLOAD.md) 手動放入 App 顯示的 userData 模型快取。
 
 ### macOS Apple Silicon
 
