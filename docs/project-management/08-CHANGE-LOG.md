@@ -32,14 +32,14 @@
 - 獨立審查是否執行：是（REL-028 round5）
 - 獨立審查結論：
   - round5 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round5.md`
-  - round5 判定（逐字引用）：**REL-028 round5 獨立六面向複審結論為有條件通過：cb904a1 已統一 CDP upload jobId 取值並保存 Base／Small 固定 revision size／SHA evidence，且 Windows run 31461704805 已成功完成 source regression、Setup／Portable packaged renderer、靜默安裝／解除安裝、archive／SHA 與 artifact upload；但 `v0.48.1` tag／公開 Release 尚未指向 cb904a1，CI artifact／SHA 尚未由本輪反向下載核驗，Windows 10／11 實機、Base／Small 中文品質、真實 provider／音訊及需求方風險接受仍未完成，因此本輪只能證明候選包 CI 與模型檔案完整性補證，不構成跨平台外部驗收完成或 0.48.1 公開發布授權。**
+  - round5 判定（逐字引用）：**REL-028 round5 獨立六面向複審結論為有條件通過：cb904a1 已以 evaluateValue helper 修正 packaged renderer 的單層／雙層 CDP upload job ID 取值，Base／Small 固定 revision size／SHA evidence 亦通過，本輪採用的 Windows run 31461704805（head cb904a1）記錄 source regression、Setup／Portable packaged renderer、靜默安裝／解除安裝、archive／SHA 與 artifact upload 成功且 round4 引用已保留；但本輪未直接下載 CI artifact／重播 Windows runner，Windows 10／11 實機、Base／Small 中文品質、真實 provider／音訊、tag／公開 Release 與需求方外部風險接受仍未完成，因此本輪只證明 Windows CI 候選包流程與模型檔案完整性補證，不構成跨平台外部驗收完成或 0.48.1 公開發布授權。**
   - 條件：需完成 Windows 10／11 實機、Base／Small 中文品質、真實 provider／音訊、artifact 反向核對、tag／Release 決策及需求方風險接受；條件是否已被需求方接受：否
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人
-  - 核准時間：待需求方明確確認本輪新 commit 推送範圍
-  - 核准範圍：待需求方明確確認是否同意將本輪新 commit 推送至 `origin/codex/release-v0.48.1`；不自動移動既有 tag 或建立公開 Release。
-- 部署／發布結果：`e689109` 已推送至 `origin/codex/release-v0.48.1`；Windows run `31462400261` 全部成功；模型完整性 evidence 已保存；未移動既有 `v0.48.1` tag，未建立公開 Release。
+  - 核准時間：2026-08-11（需求方明確授權所有項目推送）
+  - 核准範圍：同意將本輪完成的來源、測試、驗收工具與治理紀錄推送至 `origin/codex/release-v0.48.1`；不自動移動既有 tag、建立公開 Release，亦不視為接受未實機／品質／真實端點風險。
+- 部署／發布結果：`486b91d` 已推送至 `origin/codex/release-v0.48.1`；Windows run `31462652462` 全部成功；模型完整性 evidence 已保存；未移動既有 `v0.48.1` tag，未建立公開 Release。
 - 遺留風險與後續事項：Windows 10／11 乾淨實機、Base／Small 中文口說品質／效能、真實 Azure／Ollama／其他 endpoint 與安裝後使用者流程仍須外部執行並保存證據。
 
 ## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
