@@ -208,7 +208,8 @@ try {
     })()`,
   });
 
-  const rendererJobId = uploadFlow.result.result.value.jobId;
+  const rendererJobId = evaluateValue(uploadFlow)?.jobId;
+  if (!rendererJobId) throw new Error('Renderer upload flow did not return a job ID');
   const aiReviewAssets = await client.call('Runtime.evaluate', {
     awaitPromise: true,
     returnByValue: true,

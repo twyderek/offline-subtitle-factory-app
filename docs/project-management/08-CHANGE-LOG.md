@@ -22,23 +22,24 @@
 - 關聯需求／缺陷：`REL-025`、`REL-027`、`FR-023`
 - 變更等級：發布（跨平台驗收流程與 CI 回歸）
 - 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
-- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。本輪本地修正 commit：`cf95ebe95ddb7e043bcf6d715e858cf32b747afa`；推送後 run `31458089089` 已通過 source regression／build，但在新增 Windows smoke 腳本的 PowerShell 編碼解析階段失敗；run `31458728556` 已通過 Setup 安裝與 renderer 全流程，但 Windows Chromium cache 清理遇到短暫 `EBUSY`；run `31459031617` 的 Setup renderer upload flow 通過，但 `open-app-settings` 固定 300ms 等待發生時序 race；run `31459440875` 顯示 `awaitPromise` CDP response shape 在 smoke verifier 解包時出現單層／雙層差異；run `31460217020` 顯示啟動競態可能誤選 `about:blank` target；本輪改為重送設定事件並輪詢 modal。
+- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。本輪本地修正 commit：`cf95ebe95ddb7e043bcf6d715e858cf32b747afa`；推送後 run `31458089089` 已通過 source regression／build，但在新增 Windows smoke 腳本的 PowerShell 編碼解析階段失敗；run `31458728556` 已通過 Setup 安裝與 renderer 全流程，但 Windows Chromium cache 清理遇到短暫 `EBUSY`；run `31459031617` 的 Setup renderer upload flow 通過，但 `open-app-settings` 固定 300ms 等待發生時序 race；run `31459440875` 顯示 `awaitPromise` CDP response shape 在 smoke verifier 解包時出現單層／雙層差異；run `31460217020` 顯示啟動競態可能誤選 `about:blank` target；本輪改為重送設定事件並輪詢 modal；run `31460797622` 已完整通過 source regression、Setup／Portable packaged renderer、靜默安裝／解除安裝、archive／SHA 與 artifact upload。
 - 目標與成功條件：修正 Windows 強制 taskkill 與 POSIX SIGTERM 測試語意差異；新增 Windows packaged renderer、Setup 安裝後、Portable 啟動與解除安裝 smoke；建立 Base／Small 真實下載與 provider endpoint 外部驗收可重播入口；保留未取得實機／品質證據的阻擋標記。
 - 不在範圍：不把 GitHub Actions Windows runner 視為使用者 Windows 10／11 實機安裝驗收；不把模型下載完整性視為中文口說準確率；不把 provider connection smoke 視為人工翻譯品質；LM Studio 依需求暫緩。
 - 預計影響檔案／模組：`scripts/test-core.mjs`、Windows workflow／驗收腳本、外部驗收文件與本工作紀錄。
 - 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；Windows PowerShell smoke 使用 ASCII-only script literals 避免 runner 編碼差異，renderer smoke 對 Windows cache lock 使用有限次數 retry/backoff、modal event 使用 3 秒輪詢並重送事件避免啟動 race、CDP evaluate response 支援單層／雙層 value，target 選擇要求應用標題避免 about:blank；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
 - 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider strict cue contract smoke（僅在提供安全 endpoint 時）、獨立複審。
-- 獨立審查是否執行：是（REL-028 round3）
+- 實際驗證：Windows Actions run `31460797622`（head `e621b21`）完整通過 source regression、Setup／Portable packaged renderer、靜默安裝／解除安裝、archive／SHA 與 artifact upload；Base／Small 固定 revision 下載 evidence 已保存於 `docs/project-management/evidence/2026-08-11-whisper-base-small-download-acceptance.json`，兩模型 size／SHA 均核對通過（macOS arm64；不代表中文口說品質）。
+- 獨立審查是否執行：是（REL-028 round4）
 - 獨立審查結論：
-  - round3 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round3.md`
-  - round3 判定（逐字引用）：**REL-028 round3 獨立複審結論為有條件通過：1eb17c2 的 ASCII-only PowerShell 修正與 run 31458089089 編碼失敗根因一致，且本機完整 `npm run check` 與 ASCII 字元檢查通過；但尚無 1eb17c2 修正後 Windows runner／Setup／Portable／renderer 成功證據，Base／Small、真實 provider、Windows 實機仍未驗收，1eb17c2 尚未進入遠端 branch／`v0.48.1` tag，因此本輪只證明編碼修正，不能解除外部驗收或公開發布阻擋。**
-  - 條件：需取得 Windows runner／實機、Base／Small、真實 provider 端點及安裝後證據，並將後續 renderer cleanup retry 修正推送後重新核對遠端 branch／tag；條件是否已被需求方接受：否
+  - round4 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round4.md`
+  - round4 判定（逐字引用）：**REL-028 round4 獨立六面向複審結論為有條件通過：目前工作紀錄顯示 run 31460797622 已成功通過 Windows source regression、Setup／Portable packaged renderer、靜默安裝／解除安裝、archive／SHA 與 artifact upload，且 e621b21 已與遠端 branch 同步，因而 round3 的修正後 Windows CI smoke 缺口在候選包流程範圍內獲得補證；主要代理另提供 Base／Small 固定 revision 的 size／SHA pass JSON，但 `v0.48.1` tag／公開 Release 尚未指向 e621、CI artifact／SHA 未由本輪反向下載核驗，Windows 10／11 實機、Base／Small 中文品質、真實 provider／音訊及需求方風險接受仍未完成，changelog／final gate 也尚未結案，因此本輪只證明 Windows CI 候選包流程與模型檔案完整性證據補齊，不構成跨平台外部驗收完成或 0.48.1 公開發布授權。**
+  - 條件：需完成 Windows 10／11 實機、Base／Small 中文品質、真實 provider／音訊、artifact 反向核對及需求方風險接受；條件是否已被需求方接受：否
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：待需求方明確確認本輪新 commit 推送範圍
   - 核准範圍：待需求方明確確認是否同意將本輪新 commit 推送至 `origin/codex/release-v0.48.1`；不自動移動既有 tag 或建立公開 Release。
-- 部署／發布結果：本地修正與審查完成；尚未推送新 commit，未建立新 Release。
+- 部署／發布結果：`e621b21` 已推送至 `origin/codex/release-v0.48.1` 並通過 Windows run `31460797622`；模型完整性 evidence 已保存；未移動既有 `v0.48.1` tag，未建立公開 Release。
 - 遺留風險與後續事項：Windows 10／11 乾淨實機、Base／Small 中文口說品質／效能、真實 Azure／Ollama／其他 endpoint 與安裝後使用者流程仍須外部執行並保存證據。
 
 ## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
