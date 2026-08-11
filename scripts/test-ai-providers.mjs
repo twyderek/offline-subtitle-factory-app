@@ -68,22 +68,6 @@ try {
   assert.equal(azureOptimizeBody.subtitle_cue_ids, undefined);
   assert.ok(Array.isArray(azureOptimizeBody.messages));
 
-  await azure.optimize({
-    model: 'subtitle',
-    operation: 'translate',
-    output_language: 'en',
-    subtitle_cue_count: 1,
-    subtitle_cue_ids: [1],
-    messages: [{ role: 'user', content: 'test' }],
-  });
-  const azureOptimizeBody = JSON.parse(requests.at(-1).options.body);
-  assert.equal(azureOptimizeBody.model, undefined);
-  assert.equal(azureOptimizeBody.operation, undefined);
-  assert.equal(azureOptimizeBody.output_language, undefined);
-  assert.equal(azureOptimizeBody.subtitle_cue_count, undefined);
-  assert.equal(azureOptimizeBody.subtitle_cue_ids, undefined);
-  assert.ok(Array.isArray(azureOptimizeBody.messages));
-
   const groq = createProvider({ provider: 'groq', baseUrl: 'https://api.groq.com/openai/v1', apiKey: 'groq-key', model: 'llama3-8b' });
   assert.equal((await groq.test()).ok, true);
   const groqRequest = requests.at(-1);
