@@ -22,16 +22,23 @@
 - 關聯需求／缺陷：`REL-025`、`REL-027`、`FR-023`
 - 變更等級：發布（跨平台驗收流程與 CI 回歸）
 - 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
-- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。
+- 基準證據：`v0.48.1` tag／來源 commit 已推送；Windows workflow runs `31456061945`、`31456099247`、`31456211215` 均在 Windows runner 的 `npm run check` 於 `scripts/test-core.mjs:536` 失敗，錯誤為「確認 child close 後才完成取消」。本輪本地修正 commit：`cf95ebe95ddb7e043bcf6d715e858cf32b747afa`。
 - 目標與成功條件：修正 Windows 強制 taskkill 與 POSIX SIGTERM 測試語意差異；新增 Windows packaged renderer、Setup 安裝後、Portable 啟動與解除安裝 smoke；建立 Base／Small 真實下載與 provider endpoint 外部驗收可重播入口；保留未取得實機／品質證據的阻擋標記。
 - 不在範圍：不把 GitHub Actions Windows runner 視為使用者 Windows 10／11 實機安裝驗收；不把模型下載完整性視為中文口說準確率；不把 provider connection smoke 視為人工翻譯品質；LM Studio 依需求暫緩。
 - 預計影響檔案／模組：`scripts/test-core.mjs`、Windows workflow／驗收腳本、外部驗收文件與本工作紀錄。
 - 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
-- 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider smoke（僅在提供安全 endpoint 時）、獨立複審。
-- 獨立審查是否執行：待執行（完成修正後安排）
-- 獨立審查結論：待執行
-- 發布授權：不適用（本輪只修正驗收流程，不建立新 Release）
-- 部署／發布結果：待修正與驗收。
+- 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider strict cue contract smoke（僅在提供安全 endpoint 時）、獨立複審。
+- 獨立審查是否執行：是（REL-028 round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round1.md`
+  - round1 判定（逐字引用）：**REL-028 round1 獨立六面向審查結論為有條件通過：cf95ebe 已正確加入 Windows taskkill／POSIX 測試分支、Setup／Portable 安裝後 smoke、Base／Small 固定 revision 下載入口與 opt-in provider probe，且本機 macOS `npm run check` 全部通過，但本輪沒有 cf95ebe 的 Windows runner 成功 log、Setup／Portable 實際安裝後證據、Base／Small 真實模型與中文品質證據或真實 provider evidence，新增 provider probe 也只檢查可解析 JSON 而未驗證 cue contract，並且 cf95ebe 尚未進入遠端 branch／`v0.48.1` tag，因此只能視為本機驗收流程修正有條件通過，不得宣稱 Windows／模型／真實端點外部驗收完成或解除公開發布阻擋。**
+  - 條件：需取得 Windows runner／實機、Base／Small、真實 provider 端點及安裝後證據，並將 cf95ebe 與後續 strict cue contract 修正推送後重新核對；條件是否已被需求方接受：否
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：待需求方明確確認本輪新 commit 推送範圍
+  - 核准範圍：待需求方明確確認是否同意將本輪新 commit 推送至 `origin/codex/release-v0.48.1`；不自動移動既有 tag 或建立公開 Release。
+- 部署／發布結果：本地修正與審查完成；尚未推送新 commit，未建立新 Release。
 - 遺留風險與後續事項：Windows 10／11 乾淨實機、Base／Small 中文口說品質／效能、真實 Azure／Ollama／其他 endpoint 與安裝後使用者流程仍須外部執行並保存證據。
 
 ## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
