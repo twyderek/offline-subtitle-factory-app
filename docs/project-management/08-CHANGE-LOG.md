@@ -13,6 +13,35 @@
 
 ---
 
+## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
+
+- 狀態：進行中
+- 審查／交付屬性：GitHub 遠端交付；本輪先推送來源分支並建立 `v0.48.1` tag，公開 Release 仍依外部驗收條件判定
+- 執行者：Codex
+- 需求來源：需求方明確授權將 `eed6ad8` 推送至 `origin/codex/release-v0.48.1`，並建立 tag 或 Release。
+- 關聯需求／缺陷：`REL-025`、`REL-025-R2`、`REL-026`
+- 變更等級：發布（GitHub 分支、tag 與 Release 交付）
+- 執行前已讀：`project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 基準證據：本地分支 `codex/release-v0.48.1`、clean working tree、commit `eed6ad826ccd1f312cd72d2faef9f74be354cd7e`；GitHub CLI 已以 `twyderek` 登入。
+- 目標與成功條件：將已驗證 commit 推送至指定遠端分支；建立指向同一 commit 的 `v0.48.1` tag；核對遠端 ref；不把 cross-build 或 mock 證據誤述為 Windows／Base／Small／真實端點／安裝後實機驗收。
+- 不在範圍：不覆寫既有 `v0.48.0`；不修改四項候選資產；若未實機風險仍未獲明確接受，不建立公開 GitHub Release 或不宣稱無條件正式版。
+- 預計影響檔案／模組：僅本工作紀錄；遠端新增 branch／tag，不改動產品來源。
+- 風險與回復方式：推送與 tag 是可追溯但具外部影響的 GitHub 寫入；若遠端 ref／commit 不一致立即停止，不替換既有版本 tag。
+- 驗證計畫：`gh auth status`、`git status --short`、`git push --set-upstream`、`git tag`、`git ls-remote`，必要時以 GitHub Release metadata 核對；完成後執行文件檢查。
+- 獨立審查是否執行：是（沿用 REL-025-R2 round3 的產品／資產獨立複審；本輪只做遠端交付）
+- 獨立審查結論：
+  - round3 審查檔案：`docs/project-management/reviews/2026-08-11-0-48-1-final-evidence-round3.md`
+  - round3 判定（逐字引用）：**REL-025-R2 round3 獨立複審結論為有條件通過：0.48.1 最終本機候選已由本輪獨立重驗通過 DMG hdiutil checksum、隔離 userData packaged renderer、完整 npm run check、四項資產 SHA-256、ZIP／NSIS、updater SHA-512、codesign、Tiny-only 及兩平台封裝 source diff，因此 round2 的本機證據缺口已解除；但目前工作樹尚未形成不可變 release commit、遠端 branch／v0.48.1 tag／GitHub Release 均不存在，Windows／Base／Small／真實端點／安裝後實機也未驗收且未獲需求方風險接受，所以本輪只證明本機候選證據補齊，不構成可公開 Release 的授權或 GitHub 發布完成。**
+  - 條件：Windows／Base／Small／真實端點／安裝後實機尚未驗收且未獲需求方風險接受；公開 Release 是否建立須在本輪核對後決定。
+  - 條件是否已被需求方接受：否
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-11（本輪明確授权）
+  - 核准範圍：需求方核准將 `eed6ad8` 推送至 `origin/codex/release-v0.48.1`，並建立 `v0.48.1` tag 或 GitHub Release；未實機風險接受仍未明確記錄。
+- 部署／發布結果：待推送、tag 與遠端核對。
+- 遺留風險與後續事項：Windows／Base／Small／真實端點／安裝後實機驗收與公開 Release 風險接受仍待補齊；若只建立 tag，該 tag 不代表無條件正式版。
+
 ## 2026-08-11 — 0.48.1 GitHub 提交與登入（REL-026）
 
 - 狀態：完成
