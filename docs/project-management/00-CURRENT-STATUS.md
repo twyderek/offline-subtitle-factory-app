@@ -1,26 +1,26 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-08-10
-> 現行版本：0.48.1（發布候選，尚未建立 tag／Release）
-> 現行公開版本：0.48.0（GitHub Latest）
-> 發布 tag／commit：`v0.48.0` → `4cdb0177d84693a334fac79b96c596e1b416456f`
+> 最後查證日期：2026-08-11
+> 現行版本：0.48.1（GitHub Release 已公開）
+> 現行公開版本：0.48.1（GitHub Latest）
+> 發布 tag／commit：`v0.48.1` → `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`
 > 主分支：`main`
 
-## 0.48.1 發布候選（未發布）
+## 0.48.1 正式發布狀態
 
 - FR-022 已在目前工作樹加入 Whisper `tiny`／`base`／`small` 三模式選擇、模型檔案／manifest SHA 驗證與缺檔錯誤處理。
 - FR-023 已加入 Base／Small 首次使用下載確認、固定官方 revision、userData 模型快取、進度與大小／SHA-256 驗證；下載失敗可依官方 URL 手動匯入。
 - SYNC-024 已從 GitHub 核對 Windows Ollama 修正（遠端 `4d0bee6` 與本地 HEAD `170e08e` 完全一致），並同步最新 Azure OpenAI request parameter 修正 `baed6d7` 至目前工作樹與本機測試包。
-- REL-025 已把上述工作樹收斂成 `v0.48.1` 本機發布候選：版本與 Release notes 已建立，公開封裝只內建 Tiny，Base／Small 使用首次下載；下載取消會停止背景請求並清除暫存檔。Electron 已升級至 43.3.0、electron-builder 升級至 26.15.7，完整 `npm audit` 為 0；兩平台封裝、四項資產 SHA-256、updater SHA-512、partial-body 取消與 active DELETE API 已通過核對。2026-08-11 已補驗最後 build 的 DMG `hdiutil verify` 與 packaged renderer smoke；不可變 release commit／GitHub 閉環及未實機風險接受仍是公開發布停止條件。
+- REL-025／REL-028 已收斂成 `v0.48.1` 正式交付：PR #8 已合併至 `main`，Release notes 已建立，公開封裝只內建 Tiny，Base／Small 使用首次下載；下載取消會停止背景請求並清除暫存檔。Electron 已升級至 43.3.0、electron-builder 升級至 26.15.7，完整 `npm audit` 為 0；兩平台封裝、四項資產 SHA-256、updater SHA-512、partial-body 取消與 active DELETE API 已通過核對。
 - FR-024 已在專用分支加入 Breeze ASR 25 實驗性流程：固定官方 revision／大小／SHA-256、約 2.88 GiB 模型下載確認、外部 patched Whisper runtime 能力探針、任務執行與可採取行動的缺件提示；Whisper.cpp 仍為預設，Breeze runtime 與模型不納入安裝包。
-- 三模式 deterministic mock runner、模型下載 fixture 與核心 API 回歸已通過；目前公開安裝包仍是 0.48.0，Base／Small 中文準確率、速度、記憶體及 Windows 實機安裝後驗收尚未完成。
-- 本項功能尚未建立新 Release、未修改既有 v0.48.0 公開資產。
+- 三模式 deterministic mock runner、模型下載 fixture 與核心 API 回歸已通過；Base／Small 中文準確率、速度、記憶體、Windows 10／11 實機安裝後驗收與真實 provider endpoint 仍是公開揭露的外部風險。
+- `v0.48.1` Release 已公開，包含 macOS arm64 DMG／ZIP、Windows Setup／Portable、兩平台 updater metadata、SHA-256 與 Windows 未簽章狀態。
 
 ## 已完成成果
 
 - Windows 10／11 x64：NSIS Setup 與 Portable 已建置並發布。
 - Apple Silicon macOS 12+：DMG 與 ZIP 已發布。
-- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0>
+- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1>
 - 線上完整操作說明：<https://offline-subtitle-factory-0451-guide.derek62101.chatgpt.site>
 - Windows 安裝包內含 `resources/docs/0.45.2/USER-GUIDE.html`、圖文資產與三段操作動畫。
 - 0.45.1 已修正 Azure OpenAI GPT-5 的 `max_completion_tokens` 與 `temperature` 相容性，並加入可收合 AI 優化面板。
