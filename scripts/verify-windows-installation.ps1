@@ -13,16 +13,16 @@ Set-StrictMode -Version Latest
 function Resolve-RequiredFile([string]$Path, [string]$Label) {
   $resolved = Resolve-Path -LiteralPath $Path -ErrorAction Stop
   if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
-    throw "$Label 不存在：$Path"
+    throw "$Label missing: $Path"
   }
   return $resolved.Path
 }
 
 function Invoke-RendererSmoke([string]$Executable, [int]$Port, [string]$Label) {
-  Write-Host "==> 執行 $Label packaged renderer smoke：$Executable" -ForegroundColor Cyan
+  Write-Host "==> Running $Label packaged renderer smoke: $Executable" -ForegroundColor Cyan
   & node scripts/verify-electron-renderer.mjs $Executable $Port 30000
   if ($LASTEXITCODE -ne 0) {
-    throw "$Label packaged renderer smoke 失敗（exit $LASTEXITCODE）"
+    throw "$Label packaged renderer smoke failed (exit $LASTEXITCODE)"
   }
 }
 
@@ -35,21 +35,23 @@ if (Test-Path -LiteralPath $smokeRoot) {
 }
 New-Item -ItemType Directory -Force -Path $smokeRoot | Out-Null
 
-Write-Host '==> 靜默安裝 Setup 到隔離暫存目錄' -ForegroundColor Cyan
+Write-Host '==> Installing Setup silently into isolated temp directory' -ForegroundColor Cyan
 $installer = Start-Process -FilePath $setup -ArgumentList @('/S', "/D=$smokeRoot") -Wait -PassThru
 if ($installer.ExitCode -ne 0) { throw "Setup installer exit code $($installer.ExitCode)" }
-$installedExe = Join-Path $smokeRoot '離線字幕工廠.exe'
+$installedExe = Get-ChildItem -LiteralPath $smokeRoot -Filter '*.exe' -File |
+  Where-Object { $_.Name -notlike 'Uninstall*.exe' } |
+  Select-Object -First 1 -ExpandProperty FullName
 if (-not (Test-Path -LiteralPath $installedExe -PathType Leaf)) {
-  throw "安裝後 executable 不存在：$installedExe"
+  throw "Installed executable missing: $smokeRoot"
 }
-Invoke-RendererSmoke $installedExe $DebugPort 'Setup 安裝後'
+Invoke-RendererSmoke $installedExe $DebugPort 'Setup installed'
 
 $uninstaller = Get-ChildItem -LiteralPath $smokeRoot -Filter 'Uninstall*.exe' -File | Select-Object -First 1
-if (-not $uninstaller) { throw '安裝目錄找不到 Uninstall*.exe' }
-Write-Host '==> 靜默解除安裝並確認程式檔移除' -ForegroundColor Cyan
+if (-not $uninstaller) { throw 'Uninstaller not found' }
+Write-Host '==> Uninstalling silently and checking executable removal' -ForegroundColor Cyan
 $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
 if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exit code $($uninstall.ExitCode)" }
-if (Test-Path -LiteralPath $installedExe) { throw '解除安裝後 executable 仍存在' }
+if (Test-Path -LiteralPath $installedExe) { throw 'Executable still exists after uninstall' }
 
 Invoke-RendererSmoke $portable ($DebugPort + 1) 'Portable'
-Write-Host 'Windows Setup／Portable／解除安裝 smoke 通過。' -ForegroundColor Green
+Write-Host 'Windows Setup, Portable, and uninstall smoke passed.' -ForegroundColor Green
