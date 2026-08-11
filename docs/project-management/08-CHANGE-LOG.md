@@ -28,11 +28,11 @@
 - 預計影響檔案／模組：`scripts/test-core.mjs`、Windows workflow／驗收腳本、外部驗收文件與本工作紀錄。
 - 風險與回復方式：所有外部驗收入口採固定來源、環境變數傳入金鑰、證據輸出遮罩；Windows PowerShell smoke 使用 ASCII-only script literals 避免 runner 編碼差異，renderer smoke 對 Windows cache lock 使用有限次數 retry/backoff；若 Windows CI 或真實 endpoint 失敗，保留原始 log／JSON 並停止 Release 宣稱。
 - 驗證計畫：focused core／文件／腳本測試、完整 `npm run check`、Windows Actions re-run、模型 SHA／大小核對、provider strict cue contract smoke（僅在提供安全 endpoint 時）、獨立複審。
-- 獨立審查是否執行：是（REL-028 round2）
+- 獨立審查是否執行：是（REL-028 round3）
 - 獨立審查結論：
-  - round2 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round2.md`
-  - round2 判定（逐字引用）：**REL-028 round2 獨立六面向複審結論為有條件通過：48a34ac 已修正 round1 指出的 provider probe 假陽性，現在要求 Azure deployment、provider test ok／模型可用，以及單一 `LIVE-1` cue 的 JSON、非空 text／reason contract，且本機完整 `npm run check` 與前置失敗路徑通過；但 Windows CI／Setup／Portable 安裝後、Base／Small 真實模型與中文品質、Groq／Gemini／Azure／OpenAI-compatible 真實 endpoint、Windows／實機與推送／tag 證據仍不存在，48a34ac 也尚未進入遠端 branch／`v0.48.1` tag，因此本輪只證明驗收工具邏輯修正，不構成 REL-028 外部驗收完成或解除 0.48.1 公開發布阻擋。**
-  - 條件：需取得 Windows runner／實機、Base／Small、真實 provider 端點及安裝後證據，並將 48a34ac 推送後重新核對遠端 branch／tag；條件是否已被需求方接受：否
+  - round3 審查檔案：`docs/project-management/reviews/2026-08-11-rel-028-windows-external-acceptance-round3.md`
+  - round3 判定（逐字引用）：**REL-028 round3 獨立複審結論為有條件通過：1eb17c2 的 ASCII-only PowerShell 修正與 run 31458089089 編碼失敗根因一致，且本機完整 `npm run check` 與 ASCII 字元檢查通過；但尚無 1eb17c2 修正後 Windows runner／Setup／Portable／renderer 成功證據，Base／Small、真實 provider、Windows 實機仍未驗收，1eb17c2 尚未進入遠端 branch／`v0.48.1` tag，因此本輪只證明編碼修正，不能解除外部驗收或公開發布阻擋。**
+  - 條件：需取得 Windows runner／實機、Base／Small、真實 provider 端點及安裝後證據，並將後續 renderer cleanup retry 修正推送後重新核對遠端 branch／tag；條件是否已被需求方接受：否
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人
