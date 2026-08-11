@@ -64,7 +64,7 @@ async function waitForTarget() {
     try {
       const targets = await getJson(`http://127.0.0.1:${port}/json`);
       const pages = targets.filter((target) => target.type === 'page' && target.webSocketDebuggerUrl);
-      const page = pages.find((target) => /^http:\/\/127\.0\.0\.1:\d+\//.test(target.url || ''));
+      const page = pages.find((target) => /^http:\/\/127\.0\.0\.1:\d+\//.test(target.url || '') && /字幕/.test(target.title || ''));
       if (page) return page;
     } catch {
       // App is still starting.
