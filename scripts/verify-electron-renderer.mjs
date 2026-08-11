@@ -14,6 +14,22 @@ if (!exePath) {
   throw new Error('Usage: node scripts/verify-electron-renderer.mjs <exe-path> [debug-port]');
 }
 
+async function removeSmokeUserDataWithRetries(target) {
+  let lastError;
+  const attempts = process.platform === 'win32' ? 20 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      rmSync(target, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (process.platform !== 'win32' || !['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error?.code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+  throw lastError;
+}
+
 const smokeUserDataDir = mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-renderer-smoke-'));
 const child = spawn(exePath, [`--remote-debugging-port=${port}`, `--user-data-dir=${smokeUserDataDir}`], {
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -339,5 +355,5 @@ try {
     ]);
     if (child.exitCode == null) child.kill('SIGKILL');
   }
-  rmSync(smokeUserDataDir, { recursive: true, force: true });
+  await removeSmokeUserDataWithRetries(smokeUserDataDir);
 }
