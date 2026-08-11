@@ -15,8 +15,8 @@
 
 ## 2026-08-11 — 0.48.1 GitHub 分支推送與 tag（REL-027）
 
-- 狀態：進行中
-- 審查／交付屬性：GitHub 遠端交付；本輪先推送來源分支並建立 `v0.48.1` tag，公開 Release 仍依外部驗收條件判定
+- 狀態：完成
+- 結案判定：`codex/release-v0.48.1` 分支與 `v0.48.1` tag 已推送並指向候選 commit；公开 GitHub Release 仍因未验收外部风险暂缓
 - 執行者：Codex
 - 需求來源：需求方明確授權將 `eed6ad8` 推送至 `origin/codex/release-v0.48.1`，並建立 tag 或 Release。
 - 關聯需求／缺陷：`REL-025`、`REL-025-R2`、`REL-026`
@@ -39,7 +39,9 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-11（本輪明確授权）
   - 核准範圍：需求方核准將 `eed6ad8` 推送至 `origin/codex/release-v0.48.1`，並建立 `v0.48.1` tag 或 GitHub Release；未實機風險接受仍未明確記錄。
-- 部署／發布結果：待推送、tag 與遠端核對。
+- 實際修改：`origin/codex/release-v0.48.1` 已成功建立並包含來源 commit `5566243fbd2306c4d9033e4bc9d75fb5e30fa723`；annotated `v0.48.1` 已成功推送，`refs/tags/v0.48.1^{}` 指向該來源 commit；未覆寫既有 tag。
+- 開發驗證結果：本地 `git status --short` clean；遠端 branch／peeled tag SHA 已反向核對一致；`npm run docs:check` 與 `git diff --check` 通過。`docs:check:final` 預期僅保留 round3 條件未獲需求方接受。
+- 部署／發布結果：GitHub branch 與 `v0.48.1` tag 已完成；未建立公開 GitHub Release。
 - 遺留風險與後續事項：Windows／Base／Small／真實端點／安裝後實機驗收與公開 Release 風險接受仍待補齊；若只建立 tag，該 tag 不代表無條件正式版。
 
 ## 2026-08-11 — 0.48.1 GitHub 提交與登入（REL-026）
