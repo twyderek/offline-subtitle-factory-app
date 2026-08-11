@@ -122,6 +122,7 @@ let client;
 try {
   const target = await waitForTarget();
   client = await connectWebSocket(target.webSocketDebuggerUrl);
+  const evaluateValue = (response) => response?.result?.result?.value ?? response?.result?.value;
 
   const inspectExpression = `(() => ({
     href: location.href,
@@ -305,13 +306,13 @@ try {
 
   const result = {
     exe: path.resolve(exePath),
-    before: before.result.result.value,
-    modalOpenAfterEvent: after.result.result.value,
-    uploadFlow: uploadFlow.result.result.value,
-    trimAssets: trimAssets.result.result.value,
-    aiReviewAssets: aiReviewAssets.result.result.value,
-    packagedTrimFlow: packagedTrimFlow.result.result.value,
-    folderIconFlow: folderIconFlow.result.result.value,
+    before: evaluateValue(before),
+    modalOpenAfterEvent: evaluateValue(after),
+    uploadFlow: evaluateValue(uploadFlow),
+    trimAssets: evaluateValue(trimAssets),
+    aiReviewAssets: evaluateValue(aiReviewAssets),
+    packagedTrimFlow: evaluateValue(packagedTrimFlow),
+    folderIconFlow: evaluateValue(folderIconFlow),
   };
   console.log(JSON.stringify(result, null, 2));
 
