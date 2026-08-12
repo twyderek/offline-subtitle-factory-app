@@ -43,6 +43,34 @@
 
 ---
 
+## 2026-08-13 — Breeze runtime probe 診斷訊息品質修正（FR-024）
+
+- 狀態：完成
+- 審查／交付屬性：實驗性 runtime probe 品質修正；不下載模型、不安裝第三方 runtime、不發布
+- 執行者：Codex
+- 需求來源：需求方要求繼續 Breeze 專用分支開發；前輪獨立複審指出 ImportError 敏感鍵值遮罩可能留下字面 `$1=<redacted>`。
+- 關聯需求／缺陷：`FR-024`、`NFR-002`
+- 變更等級：低（僅修正 probe 診斷摘要格式並補 deterministic 回歸，不改變轉錄路徑）
+- 執行前已讀：`npm run project:preflight -- --type=development` 列出的固定核心與任務路由（是）
+- 目標與成功條件：敏感鍵值以可讀且不洩漏值的固定遮罩輸出；ImportError／token／password 情境有自動測試；完整回歸、文件檢查與獨立審查完成。
+- 不在範圍：不執行真實 3 GB checkpoint、官方 Python／PyTorch／patched Whisper runtime、真實音訊品質、Windows／macOS 安裝後驗收或公開發布。
+- 預計影響檔案／模組：`lib/breeze-runtime-probe.mjs`、`scripts/test-breeze-asr.mjs`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄。
+- 風險與回復方式：只變更診斷摘要與 deterministic 測試；若遮罩或完整回歸失敗，回復本輪變更並保留前輪可用 probe 契約。
+- 驗證計畫：focused Breeze 測試、`node --check`、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向複審。
+- 實際修改：修正 `redactProbeText` 對單／雙引號、空白與 escaped 字元敏感值的整段遮罩；補上 quoted whitespace token／password 負向回歸，避免 ImportError 摘要洩漏值尾段。
+- 開發驗證結果：`node --check lib/breeze-runtime-probe.mjs`、`node --check scripts/test-breeze-asr.mjs`、`node scripts/test-breeze-asr.mjs` 通過；修正後完整 `npm run check` exit 0；`npm run probe:breeze -- --json` 以預期 exit 1 回報模型與 runtime 缺件；`git diff --check` 通過；`npm run docs:check:final` 於結案前執行通過。
+- 獨立審查是否執行：是
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-probe-quality-round1.md`
+  - round1 判定（逐字引用）：**FR-024 Breeze runtime probe 診斷訊息品質修正 round1 獨立審查判定為不通過：雖然無空白值的 `token`／`password`／`api-key` 已改為保留實際鍵名與分隔符的 `<redacted>`，但 2026-08-13 07:25:24 CST 的獨立實測證實，引號內含空白的 token 值仍將其尾段 `LEAK_MARKER` 寫入 probe `stderr` 回應，違反 NFR-002「API Key 與簽章憑證不得進一般設定、回應、repo 或日誌」；在修正此洩漏、補齊負向回歸並完成複審前，不得結案或宣稱本輪敏感鍵值遮罩已完成。**
+  - round2 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-probe-quality-round2.md`
+  - round2 判定（逐字引用）：**FR-024 Breeze runtime probe 診斷訊息品質修正 round2 獨立複審判定為通過（僅限本輪 quoted／escaped credential redaction、NFR-002 敏感值不洩漏，以及缺件 probe 的 deterministic／本機驗證範圍）：regex 已完整遮罩含空白的單／雙引號值，負向回歸與獨立 edge 實測均未發現 `LEAK_MARKER` 或其他原始 credential；語法檢查、focused Breeze 測試、預期 exit1 的 `probe:breeze -- --json` 與 `git diff --check` 均通過。**
+- 發布授權：不適用（本輪不打包、不推送、不發布）
+- 部署／發布結果：無
+- 遺留風險與後續事項：真實 runtime／checkpoint／音訊品質、效能、跨平台 process tree 與安裝後流程仍沿用前輪明列的未驗證範圍。
+
+---
+
 ## 2026-08-12 — Breeze runtime／模型外部驗收探針（FR-024）
 
 - 狀態：完成

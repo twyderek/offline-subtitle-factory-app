@@ -75,6 +75,20 @@ try {
   assert.doesNotMatch(redactionProbe.stderr, /SECRET_MARKER/);
   assert.doesNotMatch(redactionProbe.stderr, /\/Users\/example/);
   assert.match(redactionProbe.stderr, /omitted for privacy/);
+  const importRedactionProbe = await runBreezeRuntimeProbe({
+    command: process.execPath,
+    probeArgs: ['-e', "console.error('ImportError: token=abc password:xyz api-key=secret-value')"],
+    timeoutMs: 1000,
+  });
+  assert.equal(importRedactionProbe.stderr, 'ImportError: token=<redacted> password:<redacted> api-key=<redacted>');
+  assert.doesNotMatch(importRedactionProbe.stderr, /abc|xyz|secret-value/);
+  const quotedImportRedactionProbe = await runBreezeRuntimeProbe({
+    command: process.execPath,
+    probeArgs: ['-e', "console.error('ImportError: token=\\\"secret LEAK_MARKER\\\" password=\\\'multi word password\\\'')"],
+    timeoutMs: 1000,
+  });
+  assert.equal(quotedImportRedactionProbe.stderr, 'ImportError: token=<redacted> password=<redacted>');
+  assert.doesNotMatch(quotedImportRedactionProbe.stderr, /secret|LEAK_MARKER|multi word password/);
   const moduleSource = fs.readFileSync(new URL('../lib/breeze-asr.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /(?:open|read|stat)Sync\(/, 'Breeze 模型檢查不可用同步檔案 I/O 阻塞 event loop');
   console.log('Breeze ASR 25 模型契約、runtime 探針與 CLI 參數測試通過');
