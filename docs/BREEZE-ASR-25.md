@@ -43,6 +43,18 @@ npm start
 
 未設定環境變數時，App 會依序嘗試現有 bundled Python 與系統 `python3`／`python`，但仍必須通過模型能力探針。
 
+## 外部驗收前檢查
+
+安裝 runtime 或下載模型前，可先用只讀探針確認目前環境：
+
+```bash
+BREEZE_ASR_MODEL_DIR=/absolute/path/to/breeze-asr \\
+BREEZE_ASR_PYTHON=/absolute/path/Breeze-ASR-25/.venv/bin/python \\
+npm run probe:breeze -- --json
+```
+
+探針會輸出固定 revision／檔名／大小／SHA、模型快取狀態、`whisper.available_models()` 結果、runtime stderr 與耗時；runtime 缺失、模型缺失、SHA 不符或 probe timeout 時以非零狀態結束。它不會執行 `pip`、下載檔案或啟動字幕任務。
+
 ## 安全與回復
 
 - App 不接受任意模型 URL、檔名、大小或 SHA。

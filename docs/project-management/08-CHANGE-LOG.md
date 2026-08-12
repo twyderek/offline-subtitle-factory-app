@@ -43,6 +43,36 @@
 
 ---
 
+## 2026-08-12 — Breeze runtime／模型外部驗收探針（FR-024）
+
+- 狀態：完成
+- 審查／交付屬性：實驗性開發與外部驗收工具；不下載模型、不安裝第三方 runtime、不發布
+- 執行者：Codex
+- 需求來源：需求方要求繼續 Breeze 專用分支開發；目前本機尚無官方 Python／patched Whisper runtime 或 Breeze checkpoint。
+- 關聯需求／缺陷：`FR-024`、`NFR-005`、`NFR-006`
+- 變更等級：中（新增只讀 runtime／模型驗收探針與可重播報告，不改變正式轉錄預設路徑）
+- 執行前已讀：`npm run project:preflight -- --type=development` 列出的固定核心與任務路由（是）
+- 目標與成功條件：提供可重播的 `probe:breeze` 指令，使用固定模型契約與外部 Python runtime 探針；探針有 timeout、輸出模型／runtime／版本狀態，缺件時以非零狀態結束且不下載、不安裝、不啟動轉錄。
+- 不在範圍：不自動執行 `pip install`、不 clone 官方 repo、不下載約 3 GB checkpoint、不宣稱模型品質／效能或跨平台實機通過。
+- 預計影響檔案／模組：`lib/breeze-runtime-probe.mjs`、`scripts/probe-breeze-asr.mjs`、`scripts/test-breeze-asr.mjs`、`package.json`、`docs/BREEZE-ASR-25.md`、本工作紀錄。
+- 風險與回復方式：探針只讀取檔案 metadata／SHA 並啟動受 timeout 控制的外部命令；若實際 runtime 行為與官方版本不相容，維持現有 server 缺件阻擋，不把探針結果寫入使用者設定。
+- 驗證計畫：探針 library 正常／timeout／缺檔測試、`node --check`、`npm run check`、`git diff --check`、`npm run docs:check:final` 與必要獨立審查。
+- 實際修改：新增 `lib/breeze-runtime-probe.mjs`，提供 Python 路徑解析、15 秒可配置 timeout、POSIX process group／Windows taskkill process-tree 清理、等待 child close、隱私正規化的 stdout／stderr／exit code／耗時及模型狀態聚合；新增 `scripts/probe-breeze-asr.mjs` 與 `npm run probe:breeze`，支援 `--json`、`--model-dir`、`--python`、`--timeout-ms`；補充 `scripts/test-breeze-asr.mjs` 的通過／timeout／缺件／敏感輸出遮罩案例與 `docs/BREEZE-ASR-25.md` 的只讀驗收說明。
+- 開發驗證結果：`node --check` 通過；`node scripts/test-breeze-asr.mjs` 通過，涵蓋固定契約、模型缺件、runtime 正常／timeout、等待 close、專用與共用 process group cleanup、路徑解析、敏感輸出遮罩與 report 聚合；本機 `npm run probe:breeze -- --json` 正確回報 Python 3.9.6、`whisper` 缺失、模型缺失與非零結果，輸出只保留安全摘要，未下載或安裝任何外部元件；`npm run check`、`git diff --check` 通過。
+- 獨立審查是否執行：是
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-08-12-breeze-runtime-probe-round1.md`
+  - 判定（逐字引用）：**round1 審查發現 timeout child／descendant 清理與 raw diagnostic 隱私問題，主要代理已修正並要求複審。**
+  - round2 審查檔案：`docs/project-management/reviews/2026-08-12-breeze-runtime-probe-round2.md`
+  - 判定（逐字引用）：**round2 獨立複審確認專用 `runBreezeRuntimeProbe` 的 process-group cleanup、`close` 等待與敏感資訊摘要已解除 round1 缺口；但正式 server 仍使用未修正的 `lib/process-probe.mjs`，實測 timeout 後 descendant 仍存活，因此需共用 cleanup 契約並進行下一輪複審。**
+  - round3 審查檔案：`docs/project-management/reviews/2026-08-12-breeze-runtime-probe-round3.md`
+  - 判定（逐字引用）：**FR-024 Breeze runtime／模型外部驗收探針 round3 獨立複審判定為通過，且僅限本輪 experimental/deterministic runtime-probe 整合範圍：專用 probe 與正式 server 共用的 probeCommand 均已採 process-group／Windows tree-kill、child close 等待與缺件非零契約，2026-08-12 descendant 實測確認 timeout 後 child 與子孫程序均已終止，focused／完整回歸亦通過；但真實 Windows process tree、checkpoint、官方 runtime、音訊品質、效能與安裝後流程仍未驗證，Breeze 不得因此被描述為正式品質或跨平台外部驗收已完成。**
+- 發布授權：不適用（本輪不打包、不推送、不發布）
+- 部署／發布結果：無；本輪不進行外部發布。
+- 遺留風險與後續事項：真實 checkpoint、官方 runtime、真實音訊品質、長音訊、效能與跨平台安裝後流程仍需另行驗收。
+
+---
+
 ## 2026-08-11 — 0.48.1 PR 合併、tag 重指向與 GitHub Release（REL-029）
 
 - 狀態：完成
