@@ -13,6 +13,36 @@
 
 ---
 
+## 2026-08-13 — Breeze ASR 25 第一版發布推進（REL-030）
+
+- 狀態：進行中
+- 結案判定：待執行
+- 審查／交付屬性：0.49.0 第一版 Breeze 實驗性功能候選、雙平台封裝、GitHub PR／Release；不得把 optional 外部 runtime 描述為內建或已完成真實品質驗收
+- 執行者：Codex
+- 需求來源：需求方要求「幫我推進到發布第一版軟體」。
+- 關聯需求／缺陷：`FR-024`、`NFR-002`、`NFR-005`、`NFR-006`、`REL-030`
+- 變更等級：發布（版本、Release notes、雙平台封裝、來源推送、PR、tag 與公開 Release）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 基準證據：`origin/main=05b275f`，現行公開 tag `v0.48.1`；原 `codex/breeze-model-planning` 比 `origin/main` 落後 25 個提交且領先 4 個提交，因此另由最新 `origin/main` 建立 `codex/breeze-first-release`，避免倒退已發布修正。
+- 目標與成功條件：只移植 Breeze runtime 驗收探針與診斷遮罩修正；版本升至 `0.49.0`；建立完整 Release notes；完整回歸、audit、macOS arm64 與 Windows x64 封裝、資產／metadata／checksum、獨立發布審查通過；推送分支並建立 PR，符合授權與停止條件後才建立 `v0.49.0` 公開 Release。
+- 不在範圍：不把約 3 GB checkpoint、Python／PyTorch／patched Whisper runtime 納入安裝包；不自動安裝第三方 runtime；不把 deterministic mock、cross-build 或缺件 probe 宣稱為真實台灣華語／中英混用品質、長音訊、效能、Windows process tree 或兩平台乾淨安裝實機驗收。
+- 預計影響檔案／模組：Breeze probe library／CLI／測試、`package.json`／lockfile、Release notes、README、目前狀態、開發歷史、部署／測試文件、本工作紀錄、雙平台 `dist/` 發布資產與獨立審查報告。
+- 風險與回復方式：保留原 `codex/breeze-model-planning`；新分支由 `origin/main` 建立。若移植衝突、核心回歸、audit、封裝、checksum、metadata 或獨立審查失敗，停止 tag／Release，不覆寫 `v0.48.1`。
+- 驗證計畫：版本／來源差異、focused Breeze tests、`npm run check`、`npm audit --json`、runtime manifest／verify、macOS arm64 DMG／ZIP、Windows x64 Setup／Portable、unpacked renderer、archive／updater metadata／SHA-256、`docs:check:final`、`git diff --check` 與發布等級六面向獨立審查。
+- 實際修改：待執行
+- 開發驗證結果：待執行
+- 獨立審查是否執行：待執行
+- 獨立審查結論：待執行
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-13
+  - 核准範圍：需求方本輪明確要求推進 Breeze 第一版軟體發布，授權準備版本、打包、提交、推送與建立 PR；Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證引用有效常設授權 `AUTH-2026-07-23-01`。真實 checkpoint／runtime、音訊品質、效能、Windows process tree 與兩平台乾淨安裝實機缺口是否接受為公開發布條件，待獨立審查與發布前再次依實際證據確認，不預先視為已接受。
+- 部署／發布結果：待執行；目前 GitHub CLI 的 `twyderek` token 無效，須重新登入後才能推送、建立 PR／tag／Release。
+- 遺留風險與後續事項：待確認公開發布時是否接受真實 checkpoint／runtime、音訊品質、效能、Windows process tree 與兩平台乾淨安裝實機缺口；影響是未接受前只能交付 0.49.0 本機候選／PR，不能公開 Release；追蹤方式為完成本輪資產與獨立審查後，由需求方依報告明確決定。GitHub token 亦須重新登入後重驗。
+
+---
+
 ## 2026-08-11 — 0.48.1 PR 合併、tag 重指向與 GitHub Release（REL-029）
 
 - 狀態：完成
