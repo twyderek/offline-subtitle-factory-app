@@ -279,6 +279,25 @@ const reordered = async () => ({ choices: [{ message: { content: JSON.stringify(
 ] }) } }] });
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, complete: reordered }), /cue 順序不符/);
 
+let localJsonRepairCalls = 0;
+const localJsonRepair = async (body) => {
+  localJsonRepairCalls += 1;
+  if (localJsonRepairCalls === 1) {
+    return { choices: [{ message: { content: JSON.stringify({ answer: '模型回傳了合法 JSON，但沒有 cues 欄位。' }) } }] };
+  }
+  const repairInput = JSON.parse(body.messages[1].content.split('\n').at(-1));
+  return {
+    choices: [{ message: { content: `以下是修正結果：\n\`\`\`json\n${JSON.stringify({ cues: repairInput.map((cue) => ({ id: cue.id, text: cue.text, reason: '修正回應格式' })) })}\n\`\`\`` } }],
+  };
+};
+const repairedLocalJson = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'test', batchSize: 1 },
+  complete: localJsonRepair,
+});
+assert.equal(localJsonRepairCalls, 2, '本機模型缺少 cues 時應自動要求一次格式修正');
+assert.equal(repairedLocalJson.totalCues, 1);
+
 let retryCalls = 0;
 let rateRetryOptions;
 const retryProgress = [];
