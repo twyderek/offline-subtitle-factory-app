@@ -159,9 +159,10 @@
 - 來源基線：由 `origin/main=05b275f` 建立 `codex/breeze-first-release`，只移植 Breeze runtime probe／process cleanup／diagnostic redaction 變更並升版至 0.49.0，避免直接發布落後主線 25 個提交的舊開發分支。
 - 來源驗證：focused Breeze 語法與測試通過；`npm run check` 完整通過；`npm audit --json` 為 0 項已知弱點、總依賴 286；缺件 `npm run probe:breeze -- --json` 預期以 exit 1 回報 checkpoint missing、`ModuleNotFoundError` 與 `ready:false`，未下載或安裝外部元件。
 - macOS arm64：runtime manifest／SHA 驗證、目錄版封裝與 packaged renderer smoke 通過；smoke 覆蓋 Electron bridge、設定、manual SRT 任務完成、trim／review AI 資產、七 provider 與 folder event。首次 smoke 因 sandbox 無法讀取 escalated loopback DevTools 而逾時；相同 build 在同一受控權限範圍重跑通過，確認不是 renderer 缺失。
-- macOS 最終候選：DMG `hdiutil verify` checksum VALID、ZIP `unzip -t` 無錯、ad-hoc code structure 驗證通過；App bundle 版本 0.49.0、最低 macOS 12，包含 Breeze guide／0.49.0 Release notes／probe library，且沒有大於 1 GiB 檔案或 Breeze checkpoint。
+- macOS 最終候選：從乾淨 commit `0205548` 重建；DMG `hdiutil verify` checksum VALID、ZIP `unzip -t` 無錯、ad-hoc code structure 驗證通過；App bundle 版本 0.49.0、最低 macOS 12，包含 Breeze guide／0.49.0 Release notes／probe library，且沒有大於 1 GiB 檔案或 Breeze checkpoint。最終 renderer smoke 前兩次因 macOS Network Service 重啟造成 target 延後出現而逾時；精確程序診斷確認 server／renderer 隨後正常啟動，關閉診斷程序後以 240 秒期限重跑相同封裝完整通過，未隱藏失敗證據。
 - Windows x64：macOS cross-build 已產出 x86-64 unpacked App、NSIS Setup／Portable 與 `latest.yml`；Setup archive 可列出 Breeze guide／probe library／0.49.0 Release notes，未包含 checkpoint；Setup／Portable 皆未 Authenticode。Windows CI workflow 已切換至本分支／`v0.49.0` 與 0.49.0 資產名稱，並新增 Breeze guide／checkpoint 排除關卡。
-- 尚待：不可變候選 commit 後重建／SHA-256 清單、Windows Actions packaged renderer／安裝生命週期、完整獨立發布審查、GitHub PR／tag／Release 與發布後下載反向核對。
+- 資產完整性：DMG `18fba33da3740ee28fdbb5aba575fe7305c069eb417702fc67db3ee8f54dda30`（242,706,559 bytes）、ZIP `9a4337c352e8c97ebba3de0ad02c86e192474061a2abd71faedca7dd789ce188`（249,942,036 bytes）、Setup `1a63e80bcda6fd433cb0ebba84cff7cb49d37604183ab32dd1341712fda8d8ed`（244,655,017 bytes）、Portable `9353ad38521cd6383e725063f1adbfe05373f2c21f3c95837c71c6553eb97a15`（243,947,755 bytes）。`SHA256SUMS-macos-arm64.txt` 與 `SHA256SUMS-windows-x64.txt` 重放全數 `OK`；`latest.yml`／`latest-mac.yml` 的 size 與 SHA-512 亦和實際檔案一致。
+- 尚待：Windows Actions packaged renderer／安裝生命週期、完整獨立發布審查、GitHub PR／tag／Release 與發布後下載反向核對。
 - 未覆蓋：真實 Breeze checkpoint／官方 runtime／音訊品質、CPU／CUDA 效能、長音訊、Windows process tree、兩平台乾淨安裝後 Breeze 流程與 checkpoint 下載中斷／磁碟不足；不得以候選封裝或 mock 證據取代。
 
 ## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）
