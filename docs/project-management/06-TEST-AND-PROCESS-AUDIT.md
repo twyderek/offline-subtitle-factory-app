@@ -154,6 +154,16 @@
 - focused `node --check ...` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check`、`docs:check:final` 與 round2 獨立複審結果待本輪結案後補記。
 - 未覆蓋：真實 Windows process tree、官方 runtime／checkpoint、音訊品質、效能與跨平台安裝後流程仍沿用前輪外部驗收缺口。
 
+## REL-030 Breeze 0.49.0 第一版發布候選（2026-08-13）
+
+- 來源基線：由 `origin/main=05b275f` 建立 `codex/breeze-first-release`，只移植 Breeze runtime probe／process cleanup／diagnostic redaction 變更並升版至 0.49.0，避免直接發布落後主線 25 個提交的舊開發分支。
+- 來源驗證：focused Breeze 語法與測試通過；`npm run check` 完整通過；`npm audit --json` 為 0 項已知弱點、總依賴 286；缺件 `npm run probe:breeze -- --json` 預期以 exit 1 回報 checkpoint missing、`ModuleNotFoundError` 與 `ready:false`，未下載或安裝外部元件。
+- macOS arm64：runtime manifest／SHA 驗證、目錄版封裝與 packaged renderer smoke 通過；smoke 覆蓋 Electron bridge、設定、manual SRT 任務完成、trim／review AI 資產、七 provider 與 folder event。首次 smoke 因 sandbox 無法讀取 escalated loopback DevTools 而逾時；相同 build 在同一受控權限範圍重跑通過，確認不是 renderer 缺失。
+- macOS 最終候選：DMG `hdiutil verify` checksum VALID、ZIP `unzip -t` 無錯、ad-hoc code structure 驗證通過；App bundle 版本 0.49.0、最低 macOS 12，包含 Breeze guide／0.49.0 Release notes／probe library，且沒有大於 1 GiB 檔案或 Breeze checkpoint。
+- Windows x64：macOS cross-build 已產出 x86-64 unpacked App、NSIS Setup／Portable 與 `latest.yml`；Setup archive 可列出 Breeze guide／probe library／0.49.0 Release notes，未包含 checkpoint；Setup／Portable 皆未 Authenticode。Windows CI workflow 已切換至本分支／`v0.49.0` 與 0.49.0 資產名稱，並新增 Breeze guide／checkpoint 排除關卡。
+- 尚待：不可變候選 commit 後重建／SHA-256 清單、Windows Actions packaged renderer／安裝生命週期、完整獨立發布審查、GitHub PR／tag／Release 與發布後下載反向核對。
+- 未覆蓋：真實 Breeze checkpoint／官方 runtime／音訊品質、CPU／CUDA 效能、長音訊、Windows process tree、兩平台乾淨安裝後 Breeze 流程與 checkpoint 下載中斷／磁碟不足；不得以候選封裝或 mock 證據取代。
+
 ## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）
 
 - 遠端核對：`git fetch --prune origin` 後 `origin/main=baed6d7`；Windows Ollama 修正 `4d0bee6` 與本地 HEAD `170e08e` 的指定檔案 diff 為空，故未重複套用。

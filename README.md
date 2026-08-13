@@ -1,5 +1,14 @@
 # 離線字幕工廠
 
+## 0.49.0 Breeze 第一版發布候選
+
+0.49.0 將 Breeze ASR 25 以實驗性、選用的本機轉錄引擎正式納入第一版發布候選，並保留內建 Whisper.cpp Tiny／Base／Small 為預設路徑。Breeze checkpoint 只允許固定官方 revision、檔案大小與 SHA-256；外部 Python runtime 必須通過 `whisper.available_models()` 能力檢查，缺件時不會啟動推論或產生假成功字幕。
+
+- 發布說明：[RELEASE-NOTES-0.49.0.md](RELEASE-NOTES-0.49.0.md)
+- Breeze 安裝與驗收：[docs/BREEZE-ASR-25.md](docs/BREEZE-ASR-25.md)
+- 預設 Whisper.cpp 不需要另裝 Python；只有主動選用 Breeze 才需要安裝 MediaTek 官方 patched Whisper runtime，約 2.88 GiB checkpoint 不隨安裝包提供。
+- 目前為發布候選；`v0.49.0` GitHub Release、兩平台資產與下載校驗完成前，不視為已公開發布。
+
 ## 0.48.1 正式發布
 
 0.48.1 收錄 0.48.0 發布後的 Windows／Ollama／Azure 穩定化、Whisper Tiny／Base／Small 模型選擇、Base／Small 首次使用安全下載、無效時間碼清理與 AI 任務恢復修正。安裝包只內建 Tiny，避免把約 488 MB 的 Small 模型塞入每份下載；需要高階模型時由 App 寫入使用者模型快取並驗證 SHA-256。
@@ -100,20 +109,20 @@
 開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
 
 ```text
-offline-subtitle-factory-0.48.1-macos-arm64.dmg
+offline-subtitle-factory-0.49.0-macos-arm64.dmg
 ```
 
 另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.48.1 x64 版提供 NSIS Setup 與 Portable。發布後可從 GitHub [`v0.48.1` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1) 下載 `offline-subtitle-factory-setup-0.48.1.exe` 與 `offline-subtitle-factory-portable-0.48.1.exe`。
+Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。正式發布後可從 GitHub `v0.49.0` Release 下載 `offline-subtitle-factory-setup-0.49.0.exe` 與 `offline-subtitle-factory-portable-0.49.0.exe`；Release 尚未建立前請勿使用臆測下載連結。
 
 目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
-## 不需要自行安裝其他軟體
+## 預設模式不需要自行安裝其他軟體
 
-0.48.1 安裝包已內建：
+0.49.0 安裝包已內建：
 
 - 完整離線操作手冊（目前內建手冊版本）：`resources/docs/0.45.2/USER-GUIDE.html`
 - 圖文畫面與三段常見問題操作動畫
@@ -124,6 +133,8 @@ Windows 0.48.1 x64 版提供 NSIS Setup 與 Portable。發布後可從 GitHub [`
 - Whisper tiny 多語預設模型。
 
 使用者不需要另外安裝 Node.js、Python、Whisper、FFmpeg，不需要執行批次檔，也不會修改系統 PATH。
+
+上述說明適用預設 Whisper.cpp 流程。選用 Breeze ASR 25 時，需另行安裝 MediaTek 官方 Python／PyTorch／patched Whisper runtime，並下載經固定大小與 SHA-256 驗證的 checkpoint；App 不會自動執行 `pip` 或修改系統 Python。
 
 ## 主要功能
 

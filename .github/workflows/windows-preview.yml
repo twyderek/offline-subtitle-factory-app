@@ -1,12 +1,12 @@
-name: Build Windows 0.48.1
+name: Build Windows 0.49.0
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - codex/release-v0.48.1
+      - codex/breeze-first-release
     tags:
-      - v0.48.1
+      - v0.49.0
 
 permissions:
   contents: read
@@ -54,8 +54,8 @@ jobs:
       - name: Verify Windows packaged renderer and install lifecycle
         shell: pwsh
         run: |
-          $setup = (Get-ChildItem ../dist -Filter '*setup-0.48.1.exe' -File | Select-Object -First 1).FullName
-          $portable = (Get-ChildItem ../dist -Filter '*portable-0.48.1.exe' -File | Select-Object -First 1).FullName
+          $setup = (Get-ChildItem ../dist -Filter '*setup-0.49.0.exe' -File | Select-Object -First 1).FullName
+          $portable = (Get-ChildItem ../dist -Filter '*portable-0.49.0.exe' -File | Select-Object -First 1).FullName
           if (-not $setup -or -not $portable) { throw 'Setup 或 Portable artifact 不存在。' }
           powershell -ExecutionPolicy Bypass -File scripts/verify-windows-installation.ps1 `
             -SetupPath $setup `
@@ -84,14 +84,24 @@ jobs:
             }
           }
 
-          $releaseNotes = '../dist/win-unpacked/resources/app/RELEASE-NOTES-0.48.1.md'
+          $releaseNotes = '../dist/win-unpacked/resources/app/RELEASE-NOTES-0.49.0.md'
           if (-not (Test-Path -LiteralPath $releaseNotes -PathType Leaf)) {
-            throw 'Packaged 0.48.1 release notes are missing.'
+            throw 'Packaged 0.49.0 release notes are missing.'
+          }
+
+          $breezeGuide = '../dist/win-unpacked/resources/app/docs/BREEZE-ASR-25.md'
+          if (-not (Test-Path -LiteralPath $breezeGuide -PathType Leaf)) {
+            throw 'Packaged Breeze ASR 25 guide is missing.'
           }
 
           $unexpectedBundledModel = '../dist/win-unpacked/resources/tools/whisper-models/ggml-small.bin'
           if (Test-Path -LiteralPath $unexpectedBundledModel) {
             throw 'Small model must use first-use download and must not inflate the release package.'
+          }
+
+          $unexpectedBreezeModel = '../dist/win-unpacked/resources/tools/breeze-asr/breeze-asr-25.pt'
+          if (Test-Path -LiteralPath $unexpectedBreezeModel) {
+            throw 'Breeze checkpoint must remain an optional external download and must not enter the release package.'
           }
 
           $artifacts | Get-FileHash -Algorithm SHA256 |
@@ -117,7 +127,7 @@ jobs:
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: offline-subtitle-factory-0.48.1-windows-x64
+          name: offline-subtitle-factory-0.49.0-windows-x64
           path: |
             .artifacts/windows-x64/*
           if-no-files-found: error

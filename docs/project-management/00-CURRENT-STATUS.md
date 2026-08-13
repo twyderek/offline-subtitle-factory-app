@@ -1,10 +1,18 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-08-11
-> 現行版本：0.48.1（GitHub Release 已公開）
+> 最後查證日期：2026-08-13
+> 現行版本：0.49.0（Breeze 第一版發布候選，尚未建立 tag／Release）
 > 現行公開版本：0.48.1（GitHub Latest）
 > 發布 tag／commit：`v0.48.1` → `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`
 > 主分支：`main`
+
+## 0.49.0 Breeze 第一版發布候選
+
+- `codex/breeze-first-release` 由最新 `origin/main=05b275f` 建立，保留 0.48.1 已合併的 Windows CI、模型完整性、外部驗收與發布收尾修正；沒有直接發布落後 25 個提交的舊 Breeze 開發分支。
+- FR-024 的 Breeze runtime／模型只讀探針與診斷遮罩已移植；`npm run probe:breeze -- --json` 會檢查固定 checkpoint 契約與 `whisper.available_models()` 能力，缺件時非零結束且不下載、不安裝或啟動任務。
+- Breeze ASR 25 仍為實驗性選用功能；Whisper.cpp Tiny／Base／Small 維持預設。約 2.88 GiB checkpoint、Python、PyTorch 與 patched Whisper runtime 不納入安裝包。
+- 0.49.0 版本、Release notes 與封裝 include 已建立；完整回歸、audit、雙平台最終資產、獨立發布審查、GitHub PR／tag／Release 與發布後下載核對仍在進行中，未完成前不得描述為已公開發布。
+- GitHub CLI 的 `twyderek` token 於 2026-08-13 檢查為無效；重新登入前無法推送、建立 PR 或 Release。
 
 ## 0.48.1 正式發布狀態
 
@@ -12,7 +20,7 @@
 - FR-023 已加入 Base／Small 首次使用下載確認、固定官方 revision、userData 模型快取、進度與大小／SHA-256 驗證；下載失敗可依官方 URL 手動匯入。
 - SYNC-024 已從 GitHub 核對 Windows Ollama 修正（遠端 `4d0bee6` 與本地 HEAD `170e08e` 完全一致），並同步最新 Azure OpenAI request parameter 修正 `baed6d7` 至目前工作樹與本機測試包。
 - REL-025／REL-028 已收斂成 `v0.48.1` 正式交付：PR #8 已合併至 `main`，Release notes 已建立，公開封裝只內建 Tiny，Base／Small 使用首次下載；下載取消會停止背景請求並清除暫存檔。Electron 已升級至 43.3.0、electron-builder 升級至 26.15.7，完整 `npm audit` 為 0；兩平台封裝、四項資產 SHA-256、updater SHA-512、partial-body 取消與 active DELETE API 已通過核對。
-- FR-024 已在專用分支加入 Breeze ASR 25 實驗性流程：固定官方 revision／大小／SHA-256、約 2.88 GiB 模型下載確認、外部 patched Whisper runtime 能力探針、任務執行與可採取行動的缺件提示；Whisper.cpp 仍為預設，Breeze runtime 與模型不納入安裝包。
+- FR-024 的 Breeze ASR 25 實驗性流程已進入後續 0.49.0 發布候選；0.48.1 的公開資產與 tag 不因候選建立而改動。
 - 三模式 deterministic mock runner、模型下載 fixture 與核心 API 回歸已通過；Base／Small 中文準確率、速度、記憶體、Windows 10／11 實機安裝後驗收與真實 provider endpoint 仍是公開揭露的外部風險。
 - `v0.48.1` Release 已公開，包含 macOS arm64 DMG／ZIP、Windows Setup／Portable、兩平台 updater metadata、SHA-256 與 Windows 未簽章狀態。
 

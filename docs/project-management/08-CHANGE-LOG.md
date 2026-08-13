@@ -29,8 +29,8 @@
 - 預計影響檔案／模組：Breeze probe library／CLI／測試、`package.json`／lockfile、Release notes、README、目前狀態、開發歷史、部署／測試文件、本工作紀錄、雙平台 `dist/` 發布資產與獨立審查報告。
 - 風險與回復方式：保留原 `codex/breeze-model-planning`；新分支由 `origin/main` 建立。若移植衝突、核心回歸、audit、封裝、checksum、metadata 或獨立審查失敗，停止 tag／Release，不覆寫 `v0.48.1`。
 - 驗證計畫：版本／來源差異、focused Breeze tests、`npm run check`、`npm audit --json`、runtime manifest／verify、macOS arm64 DMG／ZIP、Windows x64 Setup／Portable、unpacked renderer、archive／updater metadata／SHA-256、`docs:check:final`、`git diff --check` 與發布等級六面向獨立審查。
-- 實際修改：待執行
-- 開發驗證結果：待執行
+- 實際修改：由最新 `origin/main` 建立 `codex/breeze-first-release`，移植 Breeze runtime probe／共用 process cleanup／診斷遮罩與既有獨立審查證據；版本升至 0.49.0，新增 Release notes、README 候選說明、Breeze guide 封裝 include、目前狀態／發展歷程／部署與測試稽核；Windows workflow 切換 0.49.0 branch／tag／資產名稱並新增 Breeze guide 存在與 checkpoint 排除關卡。
+- 開發驗證結果：focused Breeze test、完整 `npm run check` 通過；`npm audit --json` 為 0；macOS runtime verify、目錄版、packaged renderer、DMG checksum、ZIP archive、版本／最低系統與封裝內容通過；Windows runtime verify 與 macOS cross-build 的 x64 unpacked／Setup／Portable 通過，Setup archive 可列出 Breeze guide／probe／Release notes 且無 checkpoint，兩個 EXE 皆確認未 Authenticode。不可變 commit 後最終重建、SHA、Windows Actions、獨立審查與 GitHub 閉環仍待執行。
 - 獨立審查是否執行：待執行
 - 獨立審查結論：待執行
 - 發布授權：
