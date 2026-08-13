@@ -2,6 +2,36 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-13 — Breeze runtime 引導修正版隔離測試軟體（REL-033）
+
+- 狀態：完成
+- 結案判定：REL-033 round1 獨立審查通過；可交付隔離測試候選，不授權公開 Release
+- 審查／交付屬性：由 `codex/021-breeze-runtime-guide` 建立隔離測試候選；不覆寫 v0.49.0 正式資產、不建立 tag／公開 Release；Breeze 仍為 experimental 外部 runtime。
+- 執行者：Codex
+- 需求來源：需求方要求「請提供測試軟體」。
+- 關聯需求／缺陷：`BUG-021`、`FR-024`、`REL-033`
+- 變更等級：發布（產生 macOS／Windows 可安裝測試候選，但不公開發布）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／build／review／closeout 路由（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，commit `d31873f`，產品版本 `0.49.0`；工作樹建立前為 clean。
+- 目標與成功條件：使用隔離輸出產生 macOS arm64 DMG／ZIP 與 Windows x64 Setup／Portable；核對來源、版本、封裝 UI／guide、Breeze checkpoint 排除、runtime manifest、archive、SHA／metadata、packaged renderer；由獨立上下文審查後交付測試候選。
+- 不在範圍：不下載或內建 Breeze checkpoint／Python／PyTorch／patched runtime；不建立 tag／Release、不覆寫既有 v0.49.0 資產；不把 CI／mock／packaged renderer 證據宣稱為真實 Breeze 品質、長音訊、效能、Windows process tree 或雙平台乾淨實機驗收。
+- 預計影響檔案／模組：本工作紀錄、獨立測試包審查報告；封裝輸出僅置於 repo 外 `../dist/test-build-d31873f/` 與 GitHub Actions artifact。
+- 風險與回復方式：隔離輸出避免覆寫既有 dist；若 checksum、archive、renderer、CI 或審查失敗，停止交付候選，不修改公開 Release；測試包可由本機隔離目錄或 CI artifact 重新產生。
+- 驗證計畫：`npm run check`、runtime manifest／verify、macOS dir／DMG／ZIP、packaged renderer／guide markers、`hdiutil verify`、`unzip -t`、SHA／updater metadata；Windows workflow run／artifact／archive／Setup／Portable／來源核對；`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：以來源 `d31873f62171c26f71175fc77e253866a3eb805d` 產生 repo 外 macOS arm64 DMG／ZIP，建立 SHA／簽章／provenance／候選說明；以 GitHub Actions run `31675687917` 產生 Windows x64 Setup／Portable artifact；未修改產品程式、workflow、版本或公開 Release。
+- 開發驗證結果：來源 `npm run check` 通過；macOS runtime manifest／verify、DMG `hdiutil verify`、ZIP `unzip -t`、ad-hoc codesign、SHA-256、updater metadata、版本／Breeze guide／UI marker／checkpoint 排除與一般 packaged renderer smoke 通過；Windows run `31675687917` success，source／FFmpeg regression、unsigned Setup／Portable、renderer／安裝／解除安裝生命週期、archive、SHA／checkpoint 排除與 artifact upload 通過。Windows artifact metadata：ID `9171511697`、size `490420415`、digest `sha256:25217ae11e83dc9f6f108983c496ee9ed8d273bc209d054051447a5e6dfdbf38`。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-rel-033-test-build-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**「REL-033 round1 獨立審查通過：來源 `codex/021-breeze-runtime-guide@d31873f` 的 macOS arm64 DMG／ZIP與 GitHub Actions run `31675687917` 產生的 Windows x64 Setup／Portable，已完成來源、版本、封裝內容、Breeze guide／UI marker、checkpoint／runtime 排除、簽章狀態、SHA／updater metadata、archive 與一般 packaged-renderer／安裝生命週期核對，可作為隔離測試候選交付；本結論不授權建立、上傳或替換公開 Release，亦不代表真實 Breeze runtime、模型品質、效能、Windows process tree或 macOS／Windows 乾淨使用者實機已驗收。」**
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-13（Asia/Taipei）
+  - 核准範圍：需求方同意並核准打包、提交、推送及共享本輪 macOS／Windows 隔離測試候選；同意／接受 macOS ad-hoc／未公證、Windows 未 Authenticode／未簽章，以及真實 Breeze runtime／模型品質／跨平台乾淨實機尚未驗收的風險；不授權建立或替換公開 Release、tag 或正式資產，也不授權把未完成驗收宣稱為完成。
+- 部署／發布結果：完成隔離測試候選產生；macOS 資產位於 repo 外 `../dist/test-build-d31873f/`，Windows artifact 位於 GitHub Actions run `31675687917`（保留期限至 2026-08-27T03:24:42Z）；未建立 tag／公開 Release，未替換既有 v0.49.0 正式資產。
+- 遺留風險與後續事項：真實 Breeze runtime／3 GB checkpoint／音訊品質／效能／長音訊／取消／process tree、macOS／Windows 乾淨安裝、未簽章／未公證、下載失敗與 GitHub artifact 保留期限仍需明確揭露。
+
 ## 2026-08-13 — Breeze runtime 缺件提供可操作安裝指引（BUG-021）
 
 - 狀態：完成
