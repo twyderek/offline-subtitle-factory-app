@@ -16,7 +16,7 @@
 ## 2026-08-13 — Breeze ASR 25 第一版發布推進（REL-030）
 
 - 狀態：進行中
-- 結案判定：待執行
+- 結案判定：round1 有條件通過（僅限本機候選與建立 PR）；公開 Release 不通過，待解除阻擋後複審
 - 審查／交付屬性：0.49.0 第一版 Breeze 實驗性功能候選、雙平台封裝、GitHub PR／Release；不得把 optional 外部 runtime 描述為內建或已完成真實品質驗收
 - 執行者：Codex
 - 需求來源：需求方要求「幫我推進到發布第一版軟體」。
@@ -31,15 +31,18 @@
 - 驗證計畫：版本／來源差異、focused Breeze tests、`npm run check`、`npm audit --json`、runtime manifest／verify、macOS arm64 DMG／ZIP、Windows x64 Setup／Portable、unpacked renderer、archive／updater metadata／SHA-256、`docs:check:final`、`git diff --check` 與發布等級六面向獨立審查。
 - 實際修改：由最新 `origin/main` 建立 `codex/breeze-first-release`，移植 Breeze runtime probe／共用 process cleanup／診斷遮罩與既有獨立審查證據；版本升至 0.49.0，新增 Release notes、README 候選說明、Breeze guide 封裝 include、目前狀態／發展歷程／部署與測試稽核；Windows workflow 切換 0.49.0 branch／tag／資產名稱並新增 Breeze guide 存在與 checkpoint 排除關卡。
 - 開發驗證結果：focused Breeze test、完整 `npm run check` 通過；`npm audit --json` 為 0；缺件 `probe:breeze -- --json` 以預期 exit 1 回報 `ready:false` 且未安裝或下載。候選 commit `0205548` 的乾淨工作樹已重建 macOS arm64 DMG／ZIP 與 Windows x64 Setup／Portable；最終 packaged renderer smoke 通過 Electron bridge、設定、manual SRT 任務、trim／review、七 provider 與 folder event。DMG checksum、ZIP archive、ad-hoc code structure、版本 0.49.0／最低 macOS 12、Windows PE 架構、Setup archive 內容與兩平台 updater SHA-512 均核對通過；封裝含 Breeze guide／probe／Release notes，無大於 1 GiB 檔案或 Breeze checkpoint。SHA-256：DMG `18fba33d...dda30`、ZIP `9a4337c3...ce188`、Setup `1a63e80b...d8ed`、Portable `9353ad38...7a15`；對應兩份 checksum 清單重放皆為 `OK`。macOS 為 ad-hoc、Windows 兩個 EXE 未 Authenticode；Windows Actions、獨立審查與 GitHub 閉環仍待執行。
-- 獨立審查是否執行：待執行
-- 獨立審查結論：待執行
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-0-49-0-release-round1.md`
+  - round1 判定（逐字引用）：**REL-030 Breeze 0.49.0 round1 獨立審查結論為有條件通過（僅限本機候選與建立 PR）：四項本機資產、SHA-256、macOS DMG／ZIP、updater metadata、版本與風險揭露已重驗一致，但因 GitHub 分支／PR／tag／Release 尚不存在、0.49.0 Windows Actions 與 CI artifact 交叉驗證未執行、真實 Breeze checkpoint／官方 runtime／音訊品質與效能／長音訊／Windows process tree／兩平台乾淨安裝均未驗收且未獲涵蓋授權，所以公開 v0.49.0 Release 判定為不通過，解除上述阻擋並完成發布後資產核對前不得公開發布。**
+  - round1 條件是否已被需求方接受：候選分支／PR 可繼續；公開 Release 的外部驗收缺口尚未獲逐項接受，因此不得建立公開 Release，解除 GitHub／Windows CI 阻擋後仍須複審。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-13
   - 核准範圍：需求方本輪明確要求推進 Breeze 第一版軟體發布，授權準備版本、打包、提交、推送與建立 PR；Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證引用有效常設授權 `AUTH-2026-07-23-01`。真實 checkpoint／runtime、音訊品質、效能、Windows process tree 與兩平台乾淨安裝實機缺口是否接受為公開發布條件，待獨立審查與發布前再次依實際證據確認，不預先視為已接受。
 - 部署／發布結果：已在本機 `dist/` 建立由 commit `0205548` 重建的四個 0.49.0 主要資產、兩平台 updater metadata、兩份 SHA-256 清單與 Windows 簽章狀態說明；尚未推送、建立 PR／tag 或公開 Release。目前 GitHub CLI 的 `twyderek` token 無效，須重新登入後才能完成外部發布。
-- 遺留風險與後續事項：待確認公開發布時是否接受真實 checkpoint／runtime、音訊品質、效能、Windows process tree 與兩平台乾淨安裝實機缺口；影響是未接受前只能交付 0.49.0 本機候選／PR，不能公開 Release；追蹤方式為完成本輪資產與獨立審查後，由需求方依報告明確決定。GitHub token 亦須重新登入後重驗。
+- 遺留風險與後續事項：round1 明確阻擋公開 Release。待確認公開發布時是否逐項接受真實 checkpoint／runtime、音訊品質、效能、長音訊、Windows process tree、兩平台乾淨安裝與下載失敗缺口；未接受前只能交付 0.49.0 本機候選／PR。GitHub token 須重新登入，且公開 repo 推送須取得明確資料外傳確認；分支推送後需完成 Windows Actions、下載 CI artifact 交叉驗證，再建立 round2 複審。
 
 ---
 

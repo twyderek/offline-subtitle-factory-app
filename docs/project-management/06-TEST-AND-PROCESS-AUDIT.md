@@ -163,6 +163,7 @@
 - Windows x64：macOS cross-build 已產出 x86-64 unpacked App、NSIS Setup／Portable 與 `latest.yml`；Setup archive 可列出 Breeze guide／probe library／0.49.0 Release notes，未包含 checkpoint；Setup／Portable 皆未 Authenticode。Windows CI workflow 已切換至本分支／`v0.49.0` 與 0.49.0 資產名稱，並新增 Breeze guide／checkpoint 排除關卡。
 - 資產完整性：DMG `18fba33da3740ee28fdbb5aba575fe7305c069eb417702fc67db3ee8f54dda30`（242,706,559 bytes）、ZIP `9a4337c352e8c97ebba3de0ad02c86e192474061a2abd71faedca7dd789ce188`（249,942,036 bytes）、Setup `1a63e80bcda6fd433cb0ebba84cff7cb49d37604183ab32dd1341712fda8d8ed`（244,655,017 bytes）、Portable `9353ad38521cd6383e725063f1adbfe05373f2c21f3c95837c71c6553eb97a15`（243,947,755 bytes）。`SHA256SUMS-macos-arm64.txt` 與 `SHA256SUMS-windows-x64.txt` 重放全數 `OK`；`latest.yml`／`latest-mac.yml` 的 size 與 SHA-512 亦和實際檔案一致。
 - 尚待：Windows Actions packaged renderer／安裝生命週期、完整獨立發布審查、GitHub PR／tag／Release 與發布後下載反向核對。
+- 獨立發布審查：round1 對四資產 SHA、DMG／ZIP、metadata、版本、封裝內容與風險揭露做快速獨立重驗後，判定「有條件通過（僅限本機候選與建立 PR）；公開 Release 不通過」。Windows Actions／CI artifact、GitHub 閉環與未獲涵蓋授權的真實 Breeze／跨平台實機缺口是公開發布阻擋項，解除後須 round2 複審。
 - 未覆蓋：真實 Breeze checkpoint／官方 runtime／音訊品質、CPU／CUDA 效能、長音訊、Windows process tree、兩平台乾淨安裝後 Breeze 流程與 checkpoint 下載中斷／磁碟不足；不得以候選封裝或 mock 證據取代。
 
 ## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）

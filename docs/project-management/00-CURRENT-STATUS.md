@@ -11,7 +11,7 @@
 - `codex/breeze-first-release` 由最新 `origin/main=05b275f` 建立，保留 0.48.1 已合併的 Windows CI、模型完整性、外部驗收與發布收尾修正；沒有直接發布落後 25 個提交的舊 Breeze 開發分支。
 - FR-024 的 Breeze runtime／模型只讀探針與診斷遮罩已移植；`npm run probe:breeze -- --json` 會檢查固定 checkpoint 契約與 `whisper.available_models()` 能力，缺件時非零結束且不下載、不安裝或啟動任務。
 - Breeze ASR 25 仍為實驗性選用功能；Whisper.cpp Tiny／Base／Small 維持預設。約 2.88 GiB checkpoint、Python、PyTorch 與 patched Whisper runtime 不納入安裝包。
-- 0.49.0 版本、Release notes 與封裝 include 已建立；完整回歸、0 項 npm audit、由乾淨 commit 重建的 macOS arm64 與 Windows x64 最終資產、updater metadata 及 SHA-256 已在本機通過。Windows Actions、獨立發布審查、GitHub PR／tag／Release 與發布後下載核對仍在進行中，未完成前不得描述為已公開發布。
+- 0.49.0 版本、Release notes 與封裝 include 已建立；完整回歸、0 項 npm audit、由乾淨 commit 重建的 macOS arm64 與 Windows x64 最終資產、updater metadata 及 SHA-256 已在本機通過。round1 獨立審查只允許繼續建立 PR，公開 Release 判定不通過；Windows Actions／CI artifact、GitHub 閉環與尚未獲涵蓋授權的真實 Breeze／跨平台實機缺口解除並複審前，不得建立或描述為已公開發布。
 - GitHub CLI 的 `twyderek` token 於 2026-08-13 檢查為無效；重新登入前無法推送、建立 PR 或 Release。
 
 ## 0.48.1 正式發布狀態
