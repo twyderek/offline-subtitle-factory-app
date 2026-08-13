@@ -2,6 +2,34 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-13 — Breeze macOS runtime 狀態與首頁健康卡修正（BUG-022）
+
+- 狀態：完成
+- 結案判定：BUG-022 round2 獨立複審通過；可交付本輪來源修正，不含公開發布
+- 審查／交付屬性：修正 macOS／Windows Breeze runtime 自動探測與首頁內建工具狀態更新；不下載或執行第三方安裝指令，不改變 Breeze experimental 邊界。
+- 執行者：Codex
+- 需求來源：需求方提供 macOS 畫面，顯示 Breeze 模型已就緒但缺少 MediaTek patched Whisper runtime，且系統工具卡停留「待檢查」。
+- 關聯需求／缺陷：`BUG-022`、`BUG-021`、`FR-024`
+- 變更等級：中（runtime 探測、跨平台工具路徑與首頁狀態呈現）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug／test／review／closeout 路由（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，commit `3e365b5`，產品版本 `0.49.0`；工作樹建立前為 clean。
+- 目標與成功條件：標準 `$HOME/Breeze-ASR-25/.venv` runtime 可在未設定環境變數時被探測；首頁 `/api/health` 成功後同步更新 FFmpeg／ASR／Whisper／GPU 卡片；Breeze 缺件訊息仍清楚阻止任務啟動並提供引導。
+- 不在範圍：不自動安裝 Python／PyTorch／patched Whisper、不下載 checkpoint、不宣稱真實 Breeze 品質／效能／跨平台實機已驗收。
+- 預計影響檔案／模組：`lib/breeze-runtime-probe.mjs`、`server.mjs`、`electron/main.mjs`、`public/app.js`、`scripts/test-breeze-asr.mjs`、`docs/project-management/03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：只增加標準路徑探測與 UI 狀態同步；若探測、健康卡或回歸失敗，停止交付並回復本輪變更。
+- 驗證計畫：focused Breeze／UI source tests、Node syntax、完整 `npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向 debug 審查。
+- 實際修改：`resolveBreezePython` 依平台解析標準使用者家目錄，Windows 優先 `USERPROFILE`、macOS／Linux 優先 `HOME`；標準 Breeze `.venv` 排在 generic bundled／PATH Python 前；`server.mjs`／`electron/main.mjs` 補齊 Unix `bin/python` 工具路徑；`refreshHomeHealth` 在健康 API 成功後呼叫 `updateMetrics(tools)`；同步 `03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md` 與回歸測試。
+- 開發驗證結果：`node --check`（probe／server／electron／app／test）、`node scripts/test-breeze-asr.mjs`、`git diff --check` 與完整 `npm run check` 均通過；新增標準 venv、`HOME`／`USERPROFILE` 衝突、external／bundled 優先序與首頁健康卡同步 assertion。
+- 獨立審查是否執行：是（round1／round2）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-home-health-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**「BUG-022 round1 獨立審查不通過：首頁 `refreshHomeHealth()` 已同步更新系統工具卡，`BREEZE_ASR_PYTHON` 明確覆寫與模型／runtime 缺件安全阻擋亦維持有效，但目前 win32 resolver 可能由 `HOME` 遮蔽 `USERPROFILE` 的標準 Breeze venv，且 generic bundled Python 會先於標準 patched Breeze runtime 被選中；修正平台 home 與候選優先序、補兩個衝突負向測試並同步功能設計／測試稽核／debug 紀錄後須進行 round2 複審，本結論不代表真實 Breeze runtime、checkpoint、模型品質、效能或跨平台實機已驗收。」**
+  - round2 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-home-health-round2.md`
+  - round2 判定（逐字引用「可逐字引用完整結論句」）：**「BUG-022 round2 獨立複審通過：Windows `USERPROFILE`／Unix `HOME` 平台優先序、標準 external Breeze venv 優先 generic bundled Python、`BREEZE_ASR_PYTHON` 明確覆寫、首頁 `refreshHomeHealth()` 系統工具卡同步，以及模型／runtime 缺件的任務阻擋與引導均已完成核對，round1 的兩項 resolver 阻擋與 fixture 缺口已解除，可交付本輪來源修正；本結論不代表真實 MediaTek patched runtime、約 3 GB checkpoint、模型品質、效能、Windows process tree 或 macOS／Windows 乾淨實機已驗收，亦不授權建立或替換公開 Release。」**
+- 發布授權：不適用（非發布等級；不建立 tag／Release、不共享安裝資產）
+- 部署／發布結果：完成；只提交來源修正與治理證據，不建立 tag／公開 Release，不替換既有 v0.49.0 資產。
+- 遺留風險與後續事項：若 runtime 安裝在自訂路徑，仍需使用 `BREEZE_ASR_PYTHON`；真實 patched runtime／checkpoint／品質／效能／長音訊／process tree／乾淨安裝仍未驗收。
+
 ## 2026-08-13 — Windows x64 測試版重新打包（REL-034）
 
 - 狀態：完成

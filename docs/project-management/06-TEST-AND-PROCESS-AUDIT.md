@@ -211,6 +211,13 @@
 - UI smoke 只驗證隔離本機 server 的 Breeze 缺件狀態、選單與 modal 資產存在；未安裝真實 patched runtime／3 GB checkpoint，不把 mock 或 source marker 當作真實轉錄品質／跨平台驗收。
 - 安裝指引命令不由 App 自動執行；供應鏈、git／pip／Python 版本、Windows PowerShell、macOS shell、安裝位置與實機啟動仍需外部驗收。
 
+## BUG-022 Breeze runtime 路徑與首頁健康卡回歸驗證
+
+- `scripts/test-breeze-asr.mjs` 新增 macOS／Linux 標準 `$HOME/Breeze-ASR-25/.venv/bin/python`、Windows `%USERPROFILE%\\Breeze-ASR-25\\.venv\\Scripts\\python.exe` 偵測 fixture；同時驗證 Windows `USERPROFILE` 優先於 `HOME`，以及外部 patched venv 優先一般 bundled Python，避免假缺件。
+- `scripts/test-breeze-asr.mjs` 以 source assertion 確認首頁 `refreshHomeHealth` 在 `/api/health` 成功後呼叫 `updateMetrics(tools)`，讓 FFmpeg／ASR／Whisper／GPU 卡片更新。
+- focused：`node --check lib/breeze-runtime-probe.mjs`、`server.mjs`、`electron/main.mjs`、`public/app.js` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check` 通過（含 docs validator、核心 API 與所有 deterministic 回歸）。
+- 未覆蓋即不得宣稱：測試 fixture 不代表本機已安裝 MediaTek patched Whisper；真實 Python／PyTorch／submodule／3 GB checkpoint、Breeze 音訊品質／效能、Windows process tree、雙平台乾淨安裝與自訂路徑仍待外部驗收。
+
 ## 0.48.x 穩定化驗證（2026-07-30）
 
 - BUG-012／FR-014：`test-core.mjs` 驗證舊 Gemini URL／模型混入 `openai-compatible` 時，API 回應與持久化 `config/settings.json` 均清空不相容的 Base URL／model，同時保留正確 provider；API Key 不進一般設定檔。

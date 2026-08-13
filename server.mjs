@@ -14,6 +14,7 @@ import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
 import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
 import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
 import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
+import { resolveBreezePython } from './lib/breeze-runtime-probe.mjs';
 import { probeCommand } from './lib/process-probe.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
@@ -318,8 +319,11 @@ function resolveToolsInfo() {
 function hasAnyTool(candidate) {
   return [
     path.join(candidate, 'python', 'python.exe'),
+    path.join(candidate, 'python', 'python'),
     path.join(candidate, 'python-embed', 'python.exe'),
+    path.join(candidate, 'python-embed', 'python'),
     path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
+    path.join(candidate, 'python-venv', 'bin', 'python'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg'),
     path.join(candidate, 'whisper-cpp', 'whisper-cli.exe'),
@@ -333,10 +337,11 @@ function firstExisting(paths, fallback = paths[0]) {
 }
 
 function buildToolsInfo(selectedToolsDir, candidates) {
+  const pythonBinary = process.platform === 'win32' ? 'python.exe' : 'python';
   const pythonCandidates = [
-    path.join(selectedToolsDir, 'python', 'python.exe'),
-    path.join(selectedToolsDir, 'python-embed', 'python.exe'),
-    path.join(selectedToolsDir, 'python-venv', 'Scripts', 'python.exe'),
+    path.join(selectedToolsDir, 'python', pythonBinary),
+    path.join(selectedToolsDir, 'python-embed', pythonBinary),
+    path.join(selectedToolsDir, 'python-venv', process.platform === 'win32' ? 'Scripts' : 'bin', pythonBinary),
   ].filter(Boolean);
   const whisperCppCandidates = [
     path.join(selectedToolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
@@ -354,8 +359,8 @@ function buildToolsInfo(selectedToolsDir, candidates) {
       path.join(selectedToolsDir, 'ffmpeg', 'bin', process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe'),
       'ffprobe',
     ]),
-    python: firstExisting(pythonCandidates),
-    breezePython: process.env.BREEZE_ASR_PYTHON || firstExisting(pythonCandidates, process.platform === 'win32' ? 'python' : 'python3'),
+    python: firstExisting(pythonCandidates, process.platform === 'win32' ? 'python' : 'python3'),
+    breezePython: resolveBreezePython({ env: process.env, toolsDir: selectedToolsDir, platform: process.platform }),
     whisper: 'python -m whisper',
     whisperCpp: firstExisting(whisperCppCandidates),
     whisperModels: process.env.WHISPER_CACHE || path.join(selectedToolsDir, 'whisper-models'),

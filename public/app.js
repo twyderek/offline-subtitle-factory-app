@@ -419,6 +419,7 @@ async function refreshHomeHealth() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
     const tools = data.tools || {};
+    updateMetrics(tools);
     const runtime = document.getElementById('homeRuntimeStatus');
     const model = document.getElementById('homeModelStatus');
     const device = document.getElementById('homeDeviceStatus');
