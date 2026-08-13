@@ -169,6 +169,17 @@
 - 發布後核對：GitHub v0.49.0 為 `isDraft=false`／`isPrerelease=false`／Latest，9 項 asset URL 均為 `/releases/download/v0.49.0/`。四個主資產與兩平台 checksum／updater metadata／unsigned 說明已從正式 URL 全量重新下載；兩份 SHA 清單全數 OK、DMG checksum VALID、macOS ZIP 無錯、Windows Setup archive 可讀，Setup／macOS ZIP／DMG 的 updater SHA-512 與 size 均一致。
 - 未覆蓋：真實 Breeze checkpoint／官方 runtime／音訊品質、CPU／CUDA 效能、長音訊、Windows process tree、兩平台乾淨安裝後 Breeze 流程與 checkpoint 下載中斷／磁碟不足；不得以候選封裝或 mock 證據取代。
 
+## REL-032 v0.49.0 雙平台測試軟體重建（2026-08-13）
+
+- 來源：`main`／`origin/main` commit `c41d6ad60441687da19ce67bd847256b843b5e69`；產品版本仍為 0.49.0。此來源只比公開 tag target 多 DOC-031 發布後文件同步，測試候選置於 repo 外 `../dist/test-build-c41d6ad/`，未建立 tag／Release 或覆寫既有正式資產。
+- 開發與供應鏈：Apple Silicon macOS 26、Node 22.22.3、npm 10.9.8；`npm run check` 完整通過，`npm audit --json` 為 0 項已知弱點／286 dependencies；macOS runtime manifest／verify 通過。
+- macOS arm64：隔離重建 DMG／ZIP、App 0.49.0／最低 macOS 12；`hdiutil verify` checksum VALID、`unzip -t` 無錯、deep strict codesign 通過且明列 `Signature=adhoc`／無 Team ID。packaged renderer 前兩次分別因 sandbox DevTools 可見性與 target 延後出現逾時；診斷啟動確認 server／bootstrap 正常後，以 `ELECTRON_ENABLE_LOGGING=1`、60 秒期限重跑同一 App 完整通過 bridge、設定、manual SRT job、trim／review、術語 round-trip、七 provider 與 folder event。DMG SHA-256 `7ddb472d361734d020d176a2d3ad51cbc0adb61d856ee1da60bcb74acc20002d`（242,706,304 bytes）、ZIP `4d45ae1f48a44332276e37174e40188ea33d27ff4358a30cf43f7c8d90c1ae0c`（249,941,976 bytes）；`latest-mac.yml` 兩檔 size／SHA-512 與實檔一致。
+- 封裝內容：macOS App 含 `docs/BREEZE-ASR-25.md`、`RELEASE-NOTES-0.49.0.md` 與 Tiny；Small 與 Breeze checkpoint 不存在，且 App 無大於 1 GiB 檔案。這只證明 checkpoint 排除與預設 Tiny 可封裝，不證明外部 Breeze runtime／模型可用。
+- Windows x64：GitHub Actions workflow_dispatch run `31663681837` 由 `main@c41d6ad` 在 `windows-2022` 完成固定 runtime、完整 source／真實 FFmpeg 回歸、unsigned Setup／Portable、Setup 安裝後 renderer、silent uninstall、Portable renderer、兩個 NSIS archive／Breeze guide／checkpoint 排除、SHA 與 artifact upload；signed step 因無憑證按設計 skipped。Actions v4 顯示內部 Node 20 相容層被 runner 強制使用 Node 24 的 deprecation annotation，但 job conclusion 為 success。
+- Windows artifact：artifact ID `9167179425`、大小 490,411,789 bytes、GitHub SHA-256 `c8d1064a52ade1fd7147fbfad665f342ec9b1aded2323480692113b84c7c8182`；八段精確 range 重組後 digest 相同，ZIP `unzip -t` 無錯。Portable SHA-256 `07a3b07bbbc1ab514f8b17f876baae84a923ae43384e9e8ee9e518d31daa3bd9`（244,674,586 bytes）、Setup `8461defe905aefddd45aa7ebac56c67d76e13c5226a29f621d3fca74aca78edf`（245,381,834 bytes）；`latest.yml` Setup size／SHA-512 一致，簽章狀態為 `UNSIGNED INTERNAL PREVIEW`。
+- checksum 邊界：CI 原始 `SHA256SUMS-windows-x64.txt` 為 CRLF，Windows runner 已成功使用且去除 CR 的 macOS 串流重放亦全數 `OK`；本機 extracted 交付另附等值 LF 版 `SHA256SUMS-windows-x64-LF.txt`，原始 CI 清單保留不改寫。
+- 未覆蓋：macOS DMG 拖曳安裝後／乾淨帳號 Gatekeeper、Windows 10／11 使用者實機 SmartScreen 與互動安裝、正式簽章／公證、真實 Breeze checkpoint／官方 runtime／品質／效能／長音訊／取消與 process tree；測試包不得宣稱為新的正式版本或替換已發布 v0.49.0。
+
 ## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）
 
 - 遠端核對：`git fetch --prune origin` 後 `origin/main=baed6d7`；Windows Ollama 修正 `4d0bee6` 與本地 HEAD `170e08e` 的指定檔案 diff 為空，故未重複套用。

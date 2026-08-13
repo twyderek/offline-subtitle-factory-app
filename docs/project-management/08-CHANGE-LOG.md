@@ -13,6 +13,38 @@
 
 ---
 
+## 2026-08-13 — v0.49.0 雙平台測試軟體重建（REL-032）
+
+- 狀態：完成
+- 結案判定：雙平台隔離測試候選已產生並通過 round1 獨立審查；不構成新公開版本或真實 Breeze／乾淨實機驗收
+- 審查／交付屬性：由目前 `main` 重建隔離測試候選；不建立 tag／Release、不覆寫或替換既有 v0.49.0 公開資產
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續到產生測試軟體」。
+- 關聯需求／缺陷：`FR-024`、`NFR-005`、`NFR-006`、`REL-032`
+- 變更等級：發布（產生可安裝測試包，但本輪不對外發布）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 來源基準：`main`／`origin/main` commit `c41d6ad60441687da19ce67bd847256b843b5e69`；產品版本 `0.49.0`。此 commit 比公開 tag target `1f50b85c0599ef85c73f05085d70925d4d6b670a` 多發布後文件同步，不宣稱為新的正式版。
+- 目標與成功條件：完整回歸與平台 runtime 驗證通過；在隔離輸出目錄產生 macOS Apple Silicon DMG／ZIP 與 Windows x64 Setup／Portable 測試候選；核對來源、版本、封裝內容、Breeze checkpoint 排除、簽章狀態、SHA-256、updater metadata 與可解包性；由獨立上下文完成六面向審查。
+- 不在範圍：不下載或內建 Breeze checkpoint／Python／PyTorch／patched Whisper runtime；不建立或移動 tag、不修改 GitHub Release、不上傳測試候選為公開資產；不把建置／mock 證據宣稱為真實 Breeze 品質或跨平台乾淨實機驗收。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本輪獨立審查報告；封裝輸出置於 repo 外 `../dist/test-build-c41d6ad/` 或 CI artifact，不納入 Git。
+- 風險與回復方式：既有 `../dist` 含同版本正式資產，直接建置會同名覆寫；本輪強制使用隔離 output。若回歸、runtime、封裝、checksum、metadata 或審查失敗即停止交付該平台測試包，不更動既有公開 Release。
+- 驗證計畫：`npm run check`、runtime manifest／verify、macOS dir／DMG／ZIP、packaged renderer、`hdiutil verify`、`unzip -t`、codesign／封裝清單／SHA-256／metadata；Windows 使用既有 GitHub Actions 原生 runner 產生 Setup／Portable並核對 workflow source、artifact、archive、SHA／metadata；最後執行 `npm run docs:check:final` 與 `git diff --check`。
+- 實際修改：由 `main@c41d6ad` 建立 `codex/049-test-build` 只維護本輪治理證據；在 repo 外隔離目錄 `../dist/test-build-c41d6ad/` 重建 macOS arm64 DMG／ZIP、SHA 與 provenance；以 workflow_dispatch run `31663681837` 在 Windows Server 2022 重建 unsigned Setup／Portable，下載 artifact `9167179425` 後保存完整原始 ZIP與 extracted 檔，另附 LF-normalized checksum 與 provenance。未修改產品程式、版本、workflow、tag、Release 或既有正式資產；驗證重組成功後已移除 8 個 range 暫存分段與中止的單串流 partial，完整 artifact 可由 GitHub 或保留 ZIP 重取。
+- 開發驗證結果：`npm run check` 通過；`npm audit --json` 0 弱點／286 dependencies；macOS runtime verify、DMG checksum、ZIP、ad-hoc deep strict codesign、版本／最低系統、Breeze guide／Release notes／Tiny、Small／checkpoint 排除、SHA-256 與 `latest-mac.yml` size／SHA-512 均通過。macOS packaged renderer 前兩次逾時已保留，診斷確認 server／bootstrap 正常後以 60 秒期限對同一 App 重跑完整通過。Windows run `31663681837` 由 `c41d6ad` 完成 source／FFmpeg 回歸、Setup／Portable renderer、安裝／解除安裝、archive、內容與 upload；artifact 490,411,789 bytes 的重組 SHA-256 `c8d1064a...c8182` 與 GitHub一致，ZIP、兩 EXE SHA、Setup metadata 皆通過。原 CI checksum 為 CRLF，去 CR 重放與另附 LF 版均通過。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-0-49-0-test-build-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**「REL-032 round1 獨立審查通過：來源 `main@c41d6ad` 的 macOS arm64 DMG／ZIP 與 Windows x64 Setup／Portable 已完成來源、版本、封裝內容、簽章狀態、SHA-256、updater metadata、archive 與 packaged-renderer 核對，可作為隔離測試候選交付；本結論不授權建立或替換公開 Release，亦不代表 macOS／Windows 乾淨使用者實機或真實 Breeze runtime、模型品質與效能已驗收。」**
+- 發布授權：
+  - 是否需要：是（產生並交付可安裝測試候選；不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-13（本輪明確要求「請繼續到產生測試軟體」）
+  - 核准範圍：需求方同意並核准由目前專案來源進行 macOS／Windows 打包、使用本機與 CI 產生測試軟體並在本機工作區交付；未簽章／未公證風險引用有效常設授權 `AUTH-2026-07-23-01`，需求方已接受測試候選為 macOS ad-hoc／未 Developer ID 公證、Windows 未 Authenticode。此核准不包含建立新公開 Release、替換既有 v0.49.0 資產、對外共享下載連結，或把未完成的乾淨實機／真實 Breeze 驗收宣稱為完成。
+- 部署／發布結果：測試候選已產生於 repo 外 `../dist/test-build-c41d6ad/`，Windows CI artifact 保留 14 天；未建立新 tag／Release、未上傳到公開 Release、未覆寫正式 v0.49.0 資產。round1 獨立審查已確認可作隔離測試候選交付。
+- 遺留風險與後續事項：macOS 未 Developer ID 簽章／未公證、Windows 未 Authenticode；尚未執行 macOS DMG 拖曳安裝後乾淨帳號 Gatekeeper 或 Windows 10／11 使用者實機 SmartScreen／互動安裝。真實 Breeze runtime／checkpoint／音訊品質、效能、長音訊、取消與 process tree 仍未驗收。CI 原始 checksum 為 CRLF，跨平台驗證應使用本輪另附 LF 版；Actions v4 另有內部 Node 20 相容層 deprecation annotation，後續應評估升級 action major，但本輪 job 成功。
+
+---
+
 ## 2026-08-13 — 0.49.0 發布後使用者入口同步（DOC-031）
 
 - 狀態：完成
