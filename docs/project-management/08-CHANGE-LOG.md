@@ -15,8 +15,8 @@
 
 ## 2026-08-13 — Breeze ASR 25 第一版發布推進（REL-030）
 
-- 狀態：進行中
-- 結案判定：round1 有條件通過（僅限本機候選與建立 PR）；公開 Release 不通過，待解除阻擋後複審
+- 狀態：完成
+- 結案判定：v0.49.0 已公開為 GitHub Latest，round3 獨立發布後審查通過
 - 審查／交付屬性：0.49.0 第一版 Breeze 實驗性功能候選、雙平台封裝、GitHub PR／Release；不得把 optional 外部 runtime 描述為內建或已完成真實品質驗收
 - 執行者：Codex
 - 需求來源：需求方要求「幫我推進到發布第一版軟體」。
@@ -39,12 +39,15 @@
   - round2 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-0-49-0-release-round2.md`
   - round2 判定（逐字引用）：**REL-030 Breeze 0.49.0 round2 獨立複審結論為有條件通過：GitHub 公開分支與 draft PR #11、Windows run `31659328605` 的來源回歸、Setup／Portable 真實 renderer 與安裝解除、artifact `9165654131` 的完整下載 digest、EXE SHA-256 及 updater SHA-512／size 均已獨立核對一致，且需求方已明確接受仍未完成的真實 Breeze／效能／長音訊／Windows process tree／雙平台乾淨安裝與下載失敗風險，因此可將 PR 轉 ready 並合併；在把 Windows checksum 清單正規化為可跨平台重放的 LF 版本、把 `UNSIGNED INTERNAL PREVIEW` 改為準確的公開未簽章說明、明列 macOS `0205548`／Windows `aa1ec41`／最終 tag target 三者 provenance 後，可建立 `v0.49.0` tag 與公開 Release，但發布後必須立即核對 GitHub 實際 asset digest／URL／下載內容並以 round3 結案，任何不一致都不得宣稱發布完成。**
   - round2 條件處理：已由 CI 兩個實檔 SHA 產生 LF 版公開 checksum 並重放成功；公開簽章說明改為 `UNSIGNED RELEASE`，列明 Windows `aa1ec41`／run／artifact 與 macOS `0205548` provenance，tag target 待 PR 合併後填入最終 main merge commit。PR 可轉 ready 並合併；發布後 round3 為強制門檻。
+  - round3 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-0-49-0-release-round3.md`
+  - round3 判定（逐字引用）：**REL-030 Breeze 0.49.0 round3 獨立發布後審查結論為通過：PR #11 已合併，annotated tag `v0.49.0` 與最終 Windows tag run 均解析至 commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`，公開 Latest Release 的 9 項資產名稱、大小、GitHub SHA-256 digest 與正式 URL 均和全量重新下載實檔一致，兩平台 checksum、DMG、macOS ZIP、Windows Setup／Portable archive、updater SHA-512／size、`UNSIGNED RELEASE` 與來源 provenance 亦全部通過；真實 Breeze checkpoint／官方 runtime、音訊品質與效能、長音訊、Windows process tree、雙平台乾淨安裝及下載失敗仍只是需求方已接受且 Release 持續揭露的 experimental 剩餘風險，不得宣稱已驗收。**
+  - round3 阻擋問題：無。
 - 發布授權：
   - 是否需要：是
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-13
-  - 核准範圍：需求方明確同意將 `codex/breeze-first-release` 的完整原始碼與文件推送至公開 repo `twyderek/offline-subtitle-factory-app`，並接受 Breeze 維持 experimental，以及尚未完成真實 checkpoint／官方 runtime、模型品質與效能、長音訊、Windows process tree、兩平台乾淨安裝／下載失敗等跨平台實機驗收的公開發布風險；Windows 未 Authenticode、macOS 未 Developer ID 簽章／公證另引用有效常設授權 `AUTH-2026-07-23-01`。授權涵蓋推送、PR、合併、tag 與公開 0.49.0 Release，但不允許把上述缺口描述為已驗收。
-- 部署／發布結果：`codex/breeze-first-release` 已推送，draft PR #11 已建立；Windows Actions run `31659328605` 在來源 `aa1ec41` 完整通過，包含來源／FFmpeg 回歸、unsigned 建置、Setup 安裝／renderer／解除安裝、Portable renderer、archive／Breeze guide／checkpoint 排除與 artifact 上傳。artifact `9165654131`（490,411,929 bytes）分段下載重組後 SHA-256 為 GitHub 公布的 `0dccf99939edd1e3dec024f16327e6bcfd3b0674885c1007ff24d5d1f0b15027`；ZIP 完整性、CI 內附 SHA、`latest.yml` SHA-512／size 與 unsigned 聲明均通過。尚未合併 PR、建立 tag 或公開 Release，待 round2 複審。
+  - 核准範圍：需求方明確同意將 `codex/breeze-first-release` 的完整原始碼與文件推送至公開 repo `twyderek/offline-subtitle-factory-app`，並接受 Breeze 維持 experimental，以及尚未完成真實 checkpoint／官方 runtime、模型品質與效能、長音訊、Windows process tree、兩平台乾淨安裝／下載失敗等跨平台實機驗收的公開發布風險；Windows 未 Authenticode／未簽章、macOS 未 Developer ID 簽章／公證另引用有效常設授權 `AUTH-2026-07-23-01`。授權涵蓋推送、PR、合併、tag 與公開 0.49.0 Release，但不允許把上述缺口描述為已驗收。
+- 部署／發布結果：PR #11 已合併至 `main`，merge commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`；annotated tag `v0.49.0` 解析至同一 commit。tag run `31661442776` 完整通過，最終 Windows artifact `9166375562` digest `5a45c9d04917bbdd3c7d05867e68c42e1d7f5597fe2dc369364b5039e5371418` 已完整下載核對。GitHub v0.49.0 Release 已於 2026-08-13 02:48:41 UTC 公開並標示 Latest，含 9 項正式資產；四個主資產與 metadata 已由正式 URL 全量重下載，SHA／archive／updater metadata 均通過，round3 獨立發布後審查通過。
 - 遺留風險與後續事項：Breeze 真實 checkpoint／官方 runtime、音訊品質與效能、長音訊、Windows process tree、兩平台乾淨安裝與下載失敗仍未驗收；需求方已明確接受以 experimental 狀態發布，但 Release 必須持續揭露且 Whisper.cpp 保持預設。Windows CI 資產因 runner 封裝時間戳與 macOS cross-build SHA 不同，正式 Windows Release 應使用 CI artifact 內通過實機 workflow 的 Setup／Portable；round2 後仍須合併、固定 tag target、上傳資產並做 GitHub digest／URL／下載反向核對。
 
 ---
