@@ -1,13 +1,13 @@
 # 離線字幕工廠
 
-## 0.49.0 Breeze 第一版發布候選
+## 0.49.0 Breeze 第一版正式發布
 
-0.49.0 將 Breeze ASR 25 以實驗性、選用的本機轉錄引擎正式納入第一版發布候選，並保留內建 Whisper.cpp Tiny／Base／Small 為預設路徑。Breeze checkpoint 只允許固定官方 revision、檔案大小與 SHA-256；外部 Python runtime 必須通過 `whisper.available_models()` 能力檢查，缺件時不會啟動推論或產生假成功字幕。
+0.49.0 將 Breeze ASR 25 以實驗性、選用的本機轉錄引擎納入正式版本，並保留內建 Whisper.cpp Tiny／Base／Small 為預設路徑。Breeze checkpoint 只允許固定官方 revision、檔案大小與 SHA-256；外部 Python runtime 必須通過 `whisper.available_models()` 能力檢查，缺件時不會啟動推論或產生假成功字幕。
 
 - 發布說明：[RELEASE-NOTES-0.49.0.md](RELEASE-NOTES-0.49.0.md)
 - Breeze 安裝與驗收：[docs/BREEZE-ASR-25.md](docs/BREEZE-ASR-25.md)
 - 預設 Whisper.cpp 不需要另裝 Python；只有主動選用 Breeze 才需要安裝 MediaTek 官方 patched Whisper runtime，約 2.88 GiB checkpoint 不隨安裝包提供。
-- 目前為發布候選；`v0.49.0` GitHub Release、兩平台資產與下載校驗完成前，不視為已公開發布。
+- 正式 Release：[v0.49.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0)；包含 macOS Apple Silicon 與 Windows x64 安裝檔、updater metadata、SHA-256 與 Windows 未簽章狀態。
 
 ## 0.48.1 正式發布
 
@@ -16,11 +16,11 @@
 - 發布說明：[RELEASE-NOTES-0.48.1.md](RELEASE-NOTES-0.48.1.md)
 - 高階模型說明：[docs/WHISPER-MODEL-DOWNLOAD.md](docs/WHISPER-MODEL-DOWNLOAD.md)
 - 實驗性 Breeze ASR 25（需另裝官方 Python runtime）：[docs/BREEZE-ASR-25.md](docs/BREEZE-ASR-25.md)
-- 公開穩定版：[v0.48.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1)；Release 已包含 macOS Apple Silicon 與 Windows x64 安裝檔、updater metadata、SHA-256 與 Windows 未簽章狀態。
+- 歷史 Release：[v0.48.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1)；Release 包含 macOS Apple Silicon 與 Windows x64 安裝檔、updater metadata、SHA-256 與 Windows 未簽章狀態。
 
 ## 0.48.0 正式發布
 
-0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開並標示為 Latest，macOS／Windows 資產與 SHA-256 digest 已核對。
+0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開，macOS／Windows 資產與 SHA-256 digest 已核對；目前 Latest 為 v0.49.0。
 
 - 正式 Release：[v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)
 - macOS Apple Silicon：DMG 與 ZIP。
@@ -116,7 +116,7 @@ offline-subtitle-factory-0.49.0-macos-arm64.dmg
 
 ### Windows x64
 
-Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。正式發布後可從 GitHub `v0.49.0` Release 下載 `offline-subtitle-factory-setup-0.49.0.exe` 與 `offline-subtitle-factory-portable-0.49.0.exe`；Release 尚未建立前請勿使用臆測下載連結。
+Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 下載 `offline-subtitle-factory-setup-0.49.0.exe` 與 `offline-subtitle-factory-portable-0.49.0.exe`。
 
 目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 

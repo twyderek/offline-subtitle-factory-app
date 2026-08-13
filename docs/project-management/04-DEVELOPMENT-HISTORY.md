@@ -22,7 +22,7 @@
 | 0.47.0–0.47.1／2026-07-28 | 品質風險、低可信片段與可追溯修正版 | `v0.47.1` 已公開並核對 7 項 macOS／Windows 資產；保留未簽章、未公證、Metal 與實機缺口 |
 | 0.48.0／2026-07-30 | Ollama／LM Studio、本機 AI 翻譯與雙語顯示修正 | GitHub `v0.48.0` 已正式公開並標示 Latest；tag `4cdb017`，9 項 macOS／Windows 資產、大小、digest 與下載 URL 已核對 |
 | 0.48.1／2026-08-11 | Whisper Tiny／Base／Small、安全模型下載、Windows／Ollama／Azure 穩定化 | GitHub `v0.48.1` 已公開；PR、tag、12 項雙平台資產、Windows CI 與 metadata 已核對 |
-| 0.49.0 候選／2026-08-13 | Breeze ASR 25 第一版實驗性發布候選 | 由最新 `main` 移植 runtime／模型 probe 與診斷遮罩；真實 checkpoint／runtime／音訊品質與雙平台最終資產仍在發布驗證中 |
+| 0.49.0／2026-08-13 | Breeze ASR 25 第一版實驗性正式發布 | 由最新 `main` 移植 runtime／模型 probe 與診斷遮罩；PR #11、最終 tag Windows workflow、9 項正式資產與發布後全量下載核對通過；真實 checkpoint／runtime／音訊品質與效能仍是已揭露的 experimental 風險 |
 
 ## 0.45.1 發布補充
 
