@@ -204,6 +204,13 @@
 - Probe 安全矩陣：`http://localhost:11434/v1` 實際 probe 成功；`localhost.example.com` 在 fetch 前拒絕；`[::1]` 通過 loopback 分類但因 Ollama 僅監聽 IPv4 而連線失敗，未被誤判為遠端或送出資料。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
 
+## BUG-021 Breeze runtime 安裝指引驗證
+
+- `scripts/test-breeze-asr.mjs` 驗證 guide 具備官方 repo／模型連結、兩平台 `--recurse-submodules`、submodule 安裝路徑、開發版與已安裝 App 啟動命令，以及不在 Breeze repo 內執行 `npm start` 的負向條件。
+- `scripts/test-core.mjs` 驗證 `/api/breeze-asr` 與 `model` 內的固定 guide details 一致；`node --check public/app.js` 與 UI source marker 驗證 runtime modal、模型下載 modal 入口及 persistent ASR 欄位入口。
+- UI smoke 只驗證隔離本機 server 的 Breeze 缺件狀態、選單與 modal 資產存在；未安裝真實 patched runtime／3 GB checkpoint，不把 mock 或 source marker 當作真實轉錄品質／跨平台驗收。
+- 安裝指引命令不由 App 自動執行；供應鏈、git／pip／Python 版本、Windows PowerShell、macOS shell、安裝位置與實機啟動仍需外部驗收。
+
 ## 0.48.x 穩定化驗證（2026-07-30）
 
 - BUG-012／FR-014：`test-core.mjs` 驗證舊 Gemini URL／模型混入 `openai-compatible` 時，API 回應與持久化 `config/settings.json` 均清空不相容的 Base URL／model，同時保留正確 provider；API Key 不進一般設定檔。

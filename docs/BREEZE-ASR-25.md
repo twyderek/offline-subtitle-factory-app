@@ -16,30 +16,57 @@
 建議使用獨立 Python 3.8–3.11 virtual environment：
 
 ```bash
-git clone https://github.com/mtkresearch/Breeze-ASR-25.git
-cd Breeze-ASR-25
-git submodule update --init --recursive
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install third_party/whisper-patch-breeze
-python -c "import whisper; assert 'breeze-asr-25' in whisper.available_models()"
-```
-
-Windows PowerShell 請以 `.venv\Scripts\python.exe` 取代 `.venv/bin/python`。PyTorch 是否能使用 CUDA 取決於安裝方式與電腦驅動；沒有 CUDA 時會使用 CPU，2B 參數模型可能非常慢且需要大量記憶體。
-
-啟動 App 前將 Python 路徑設為 `BREEZE_ASR_PYTHON`。例如 macOS／Linux：
-
-```bash
-BREEZE_ASR_PYTHON=/absolute/path/Breeze-ASR-25/.venv/bin/python npm start
+BREEZE_REPO="$HOME/Breeze-ASR-25"
+git clone --recurse-submodules https://github.com/mtkresearch/Breeze-ASR-25.git "$BREEZE_REPO"
+PYTHON_BIN="$(command -v python3.11 || true)"
+test -n "$PYTHON_BIN" || { echo "需要 Python 3.11（Python 3.8–3.11 皆可，請調整 PYTHON_BIN）" >&2; exit 1; }
+"$PYTHON_BIN" -m venv "$BREEZE_REPO/.venv"
+"$BREEZE_REPO/.venv/bin/python" -m pip install --upgrade pip
+"$BREEZE_REPO/.venv/bin/python" -m pip install "$BREEZE_REPO/third_party/whisper-patch-breeze"
+"$BREEZE_REPO/.venv/bin/python" -c "import whisper; assert 'breeze-asr-25' in whisper.available_models()"
 ```
 
 Windows PowerShell：
 
 ```powershell
-$env:BREEZE_ASR_PYTHON='C:\absolute\path\Breeze-ASR-25\.venv\Scripts\python.exe'
+$BreezeRepo = Join-Path $HOME 'Breeze-ASR-25'
+git clone --recurse-submodules https://github.com/mtkresearch/Breeze-ASR-25.git $BreezeRepo
+py -3.11 -m venv (Join-Path $BreezeRepo '.venv')
+$BreezePython = Join-Path $BreezeRepo '.venv\Scripts\python.exe'
+& $BreezePython -m pip install --upgrade pip
+& $BreezePython -m pip install (Join-Path $BreezeRepo 'third_party\whisper-patch-breeze')
+& $BreezePython -c "import whisper; assert 'breeze-asr-25' in whisper.available_models()"
+```
+
+上面的 `--recurse-submodules` 不可省略，因官方 `third_party/whisper-patch-breeze` 是 git submodule。PyTorch 是否能使用 CUDA 取決於安裝方式與電腦驅動；沒有 CUDA 時會使用 CPU，2B 參數模型可能非常慢且需要大量記憶體。
+
+啟動 App 前將 Python 路徑設為 `BREEZE_ASR_PYTHON`。開發版必須在本專案 `offline-subtitle-factory-app` 目錄執行：
+
+```bash
+BREEZE_ASR_PYTHON="$HOME/Breeze-ASR-25/.venv/bin/python" npm start
+```
+
+macOS 已安裝 App（預設 `/Applications` 路徑）：
+
+```bash
+BREEZE_ASR_PYTHON="$HOME/Breeze-ASR-25/.venv/bin/python" "/Applications/離線字幕工廠.app/Contents/MacOS/離線字幕工廠"
+```
+
+Windows 開發版必須在本專案 `offline-subtitle-factory-app` 目錄執行：
+
+```powershell
+$env:BREEZE_ASR_PYTHON = (Join-Path $HOME 'Breeze-ASR-25\.venv\Scripts\python.exe')
 npm start
 ```
+
+Windows 已安裝 App（NSIS 預設路徑）：
+
+```powershell
+$env:BREEZE_ASR_PYTHON = (Join-Path $HOME 'Breeze-ASR-25\.venv\Scripts\python.exe')
+& (Join-Path $env:LOCALAPPDATA 'Programs\離線字幕工廠\離線字幕工廠.exe')
+```
+
+若安裝位置自訂，只替換最後一行的 App executable 路徑；不要在 Breeze 官方 repo 內執行 `npm start`。完成啟動後回到 App 按「重新檢查 runtime」。
 
 未設定環境變數時，App 會依序嘗試現有 bundled Python 與系統 `python3`／`python`，但仍必須通過模型能力探針。
 

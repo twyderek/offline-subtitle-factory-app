@@ -13,7 +13,7 @@ import { sanitizeWhisperSrt } from './lib/whisper-srt.mjs';
 import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
 import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
 import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
-import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
+import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
 import { probeCommand } from './lib/process-probe.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
 import { normalizeBilingualCues, parseSrtBilingual, serializeSrt, serializeVtt, renderCueText } from './public/bilingual-subtitles.mjs';
@@ -1099,6 +1099,7 @@ async function getBreezeModelStatusPayload(runtimeReady = false) {
       : '尚未安裝 Breeze ASR 25 模型'),
     error: breezeModelDownloadJob?.error || null,
     runtimeInstallGuide: breezeRuntimeInstallGuide(),
+    runtimeInstallGuideDetails: breezeRuntimeInstallGuideDetails(),
   };
 }
 
@@ -3706,6 +3707,7 @@ async function handleApi(req, res) {
       model: await getBreezeModelStatusPayload(tools.breezeRuntime),
       cacheDirectory: toolPaths.breezeModelCache,
       instructions: breezeRuntimeInstallGuide(),
+      runtimeInstallGuideDetails: breezeRuntimeInstallGuideDetails(),
     });
     return;
   }

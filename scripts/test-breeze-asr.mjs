@@ -6,6 +6,7 @@ import {
   BREEZE_ASR_ENGINE,
   BREEZE_ASR_MODEL,
   BREEZE_ASR_REVISION,
+  breezeRuntimeInstallGuideDetails,
   buildBreezeAsrArgs,
   buildBreezeRuntimeProbeArgs,
   inspectBreezeAsrModel,
@@ -21,6 +22,30 @@ try {
   assert.equal(BREEZE_ASR_MODEL.sha256, '9c94a3554ff4f0de83494e2ed7ba5826efa74bd87955c034b4d0fd681746b690');
   assert.match(BREEZE_ASR_MODEL.url, new RegExp(BREEZE_ASR_REVISION));
   assert.doesNotMatch(BREEZE_ASR_MODEL.url, /resolve\/main/);
+
+  const runtimeGuide = breezeRuntimeInstallGuideDetails();
+  assert.equal(runtimeGuide.officialRepository, 'https://github.com/mtkresearch/Breeze-ASR-25');
+  assert.match(runtimeGuide.officialDocumentation, /Breeze-ASR-25#readme$/);
+  assert.match(runtimeGuide.modelPage, /huggingface\.co\/MediaTek-Research\/Breeze-ASR-25$/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /third_party\/whisper-patch-breeze/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /third_party[\\\\/]whisper-patch-breeze/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /--recurse-submodules/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /--recurse-submodules/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /BREEZE_REPO=/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /\$BreezeRepo/);
+  assert.match(runtimeGuide.platforms.unix.launchCommand, /BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.windows.launchCommand, /BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.unix.packagedLaunchCommand, /Contents\/MacOS\/離線字幕工廠/);
+  assert.match(runtimeGuide.platforms.windows.packagedLaunchCommand, /LOCALAPPDATA/);
+  assert.match(runtimeGuide.platforms.unix.launchCommand, /^BREEZE_ASR_PYTHON=/);
+  assert.match(runtimeGuide.platforms.windows.launchCommand, /^\$env:BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.unix.packagedLaunchCommand, /^BREEZE_ASR_PYTHON=/);
+  assert.match(runtimeGuide.platforms.windows.packagedLaunchCommand, /^\$env:BREEZE_ASR_PYTHON/);
+  assert.doesNotMatch(runtimeGuide.platforms.unix.launchCommand, /[\u4e00-\u9fff]/, '開發版 shell 指令不可含未註解中文說明');
+  assert.doesNotMatch(runtimeGuide.platforms.windows.launchCommand, /[\u4e00-\u9fff]/, 'Windows 指令不可含未註解中文說明');
+  assert.doesNotMatch(runtimeGuide.platforms.unix.launchCommand, /cd Breeze-ASR-25/);
+  assert.doesNotMatch(runtimeGuide.platforms.windows.launchCommand, /Set-Location Breeze-ASR-25/);
+  assert.doesNotMatch(JSON.stringify(runtimeGuide), /(?:api[_-]?key|token|password|secret)/i, 'runtime guide 不可包含秘密欄位');
 
   const missing = await inspectBreezeAsrModel(tempDir);
   assert.equal(missing.valid, false);
@@ -91,6 +116,17 @@ try {
   assert.doesNotMatch(quotedImportRedactionProbe.stderr, /secret|LEAK_MARKER|multi word password/);
   const moduleSource = fs.readFileSync(new URL('../lib/breeze-asr.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /(?:open|read|stat)Sync\(/, 'Breeze 模型檢查不可用同步檔案 I/O 阻塞 event loop');
+  const appSource = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const indexSource = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(appSource, /openBreezeRuntimeInstallDialog/);
+  assert.match(appSource, /recheckBreezeRuntime/);
+  assert.match(indexSource, /id="breezeRuntimeModal"/);
+  assert.match(indexSource, /id="copyBreezeRuntimeSetup"/);
+  assert.match(indexSource, /id="openBreezeRuntimeFromModel"/);
+  assert.match(indexSource, /id="openBreezeRuntimeGuideButton"/);
+  assert.match(indexSource, /id="copyBreezeRuntimePackagedLaunch"/);
+  assert.match(indexSource, /id="breezeRuntimePackagedLaunchCommand"/);
+  assert.match(indexSource, /id="useWhisperCppInstead"/);
   console.log('Breeze ASR 25 模型契約、runtime 探針與 CLI 參數測試通過');
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });

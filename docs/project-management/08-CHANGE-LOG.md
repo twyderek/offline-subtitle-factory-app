@@ -2,6 +2,35 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-13 — Breeze runtime 缺件提供可操作安裝指引（BUG-021）
+
+- 狀態：完成
+- 結案判定：BUG-021 runtime 缺件的可操作引導已完成；round3 獨立審查通過，可交付來源修正，不含公開發布
+- 審查／交付屬性：修正 Breeze 選擇後的使用者引導；不自動安裝第三方 runtime，不改變 Breeze experimental 的驗收範圍
+- 執行者：Codex
+- 需求來源：需求方回報「點選 Breeze 後出現需安裝 runtime，但無任何相關方法處理」。
+- 關聯需求／缺陷：`FR-024`、`NFR-002`、`BUG-021`
+- 變更等級：中（前端互動、runtime guide API 與測試）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由（是）
+- 目標與成功條件：選取 Breeze 且 runtime 缺件時立即顯示可操作安裝指引；提供官方文件／模型連結、macOS／Linux 與 Windows PowerShell 指令、複製指令、重新檢查 runtime、改用內建 Whisper.cpp；API 與 focused regression 能驗證固定 guide 資產。
+- 不在範圍：不由 App 自動下載或執行 `pip install`；不納入 Python／PyTorch／patched Whisper runtime 或約 3 GB checkpoint；不宣稱真實 runtime、模型品質、效能、長音訊、Windows process tree 或乾淨安裝已驗收。
+- 預計影響檔案／模組：`lib/breeze-asr.mjs`、`server.mjs`、`public/index.html`、`public/app.js`、`public/styles.css`、`scripts/test-breeze-asr.mjs`、`scripts/test-core.mjs`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：guide 指令是固定文字且不會自動執行；若 UI／API 回歸或文件檢查失敗，停止交付並回復本輪分支變更，不修改既有公開 v0.49.0 Release。
+- 驗證計畫：focused Breeze／core tests、`npm run check`、`npm run docs:check:final`、`git diff --check`，並由獨立上下文依六面向審查。
+- 實際修改：新增 `breezeRuntimeInstallGuideDetails()` 與 `/api/breeze-asr` guide payload；Breeze 選取、模型下載與 ASR 欄位均可開啟 runtime modal；modal 提供官方連結、recursive submodule 安裝、macOS／Linux／Windows setup、開發版／安裝版啟動指令的獨立 code block／clipboard、重新檢查與切回 Whisper.cpp；同步 `docs/BREEZE-ASR-25.md`、功能設計、測試稽核與 debug history。
+- 開發驗證結果：`node --check`（lib/server/app）、`node scripts/test-breeze-asr.mjs`、`node scripts/test-core.mjs`、UI 缺件 smoke、完整 `npm run check`、`git diff --check` 均通過；`npm run check` 包含 docs、Breeze、UI source marker、核心 API 與全專案 deterministic 回歸。
+- 獨立審查是否執行：是（round1／round2／round3）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-guide-round1.md`
+  - round1 判定（逐字引用）：**「BUG-021 round1 獨立審查不通過：缺件 modal、固定 guide API、複製／重查與切回 Whisper.cpp 的程式邊界基本成立，但目前安裝指令未初始化 MediaTek 官方 patched Whisper submodule，且啟動指令在沒有 `package.json` 的 Breeze repo 執行 `npm start`，無法形成可操作的 runtime 安裝與 App 啟動流程；修正命令鏈、補強測試與治理文件後必須進行 round2 複審，本結論亦不代表真實 Breeze runtime、模型品質、效能或跨平台實機已驗收。」**
+  - round2 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-guide-round2.md`
+  - round2 判定（逐字引用）：**「BUG-021 round2 獨立複審不通過：round1 的 recursive submodule 安裝與錯誤 Breeze repo 啟動兩項阻擋已解除，API、persistent 入口、雙平台命令及治理文件亦已補齊；但目前畫面顯示開發版與安裝版兩組啟動命令時，複製按鈕只複製開發版字串，且該字串以不可直接執行的未註解中文說明開頭，尚未符合可操作的複製指令驗收條件，修正 clipboard payload 並補測後須進行 round3 複審，本結論亦不代表真實 Breeze runtime、模型品質、效能或跨平台實機已驗收。」**
+  - round3 審查檔案：`docs/project-management/reviews/2026-08-13-breeze-runtime-guide-round3.md`
+  - round3 判定（逐字引用）：**「BUG-021 round3 獨立審查通過：recursive submodule 安裝、家目錄 runtime、開發版與 macOS／Windows 安裝版啟動命令、兩組獨立 code block／clipboard payload、persistent 入口、API 與治理文件已完成核對，round1／round2 阻擋均解除，可交付本輪 Breeze runtime 缺件引導來源修正；本結論不代表真實 patched runtime、3 GB checkpoint、模型品質、效能或跨平台安裝實機已驗收，亦不授權建立或替換公開 Release。」**
+- 發布授權：不適用（本輪尚未建立 tag／Release 或公開測試資產）
+- 部署／發布結果：未建立 tag／Release、未修改公開 v0.49.0；修正留在 `codex/021-breeze-runtime-guide`，交付來源與驗證結果。
+- 遺留風險與後續事項：真實 Breeze runtime／checkpoint、音訊品質／效能、長音訊、取消、Windows process tree、雙平台乾淨安裝與下載失敗仍需另行實機驗證；安裝版透過環境變數指定 runtime 的啟動方式需依使用者平台調整。
+
 ## 範本修訂說明（2026-07-20 補強）
 
 自本次補強起，範本新增／變更以下規則，適用於本次之後建立的所有條目；既有歷史條目不回溯修改，只能附加稽核註記並保留原始內容：
