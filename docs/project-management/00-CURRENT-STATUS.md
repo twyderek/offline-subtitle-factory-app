@@ -1,18 +1,19 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-08-13
-> 現行版本：0.49.0（Breeze 第一版發布候選，尚未建立 tag／Release）
-> 現行公開版本：0.48.1（GitHub Latest）
-> 發布 tag／commit：`v0.48.1` → `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`
+> 現行版本：0.49.0（Breeze 第一版已公開發布）
+> 現行公開版本：0.49.0（GitHub Latest）
+> 發布 tag／commit：`v0.49.0` → `1f50b85c0599ef85c73f05085d70925d4d6b670a`
 > 主分支：`main`
 
-## 0.49.0 Breeze 第一版發布候選
+## 0.49.0 Breeze 第一版正式發布
 
 - `codex/breeze-first-release` 由最新 `origin/main=05b275f` 建立，保留 0.48.1 已合併的 Windows CI、模型完整性、外部驗收與發布收尾修正；沒有直接發布落後 25 個提交的舊 Breeze 開發分支。
 - FR-024 的 Breeze runtime／模型只讀探針與診斷遮罩已移植；`npm run probe:breeze -- --json` 會檢查固定 checkpoint 契約與 `whisper.available_models()` 能力，缺件時非零結束且不下載、不安裝或啟動任務。
 - Breeze ASR 25 仍為實驗性選用功能；Whisper.cpp Tiny／Base／Small 維持預設。約 2.88 GiB checkpoint、Python、PyTorch 與 patched Whisper runtime 不納入安裝包。
-- 0.49.0 版本、Release notes 與封裝 include 已建立；完整回歸、0 項 npm audit、macOS arm64 最終資產及 Windows CI Setup／Portable、updater metadata 與 SHA 已通過。draft PR #11 與 Windows run `31659328605` 已完成，CI artifact digest／archive／checksum／metadata 已下載反向核對；需求方也已明確接受 experimental 與尚未完成真實 Breeze／跨平台實機驗收的公開發布風險。目前待 round2 獨立複審、PR 合併、tag／Release 與發布後下載核對，完成前不得描述為已公開發布。
-- GitHub CLI 已於 2026-08-13 重新登入 `twyderek`；公開 repo 推送與 draft PR #11 已完成。
+- 0.49.0 已由 PR #11 合併至 `main`，annotated tag `v0.49.0` 解析至 merge commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`；GitHub Release 已正式公開並標示 Latest，共 9 項資產。
+- tag workflow run `31661442776` 完整通過，Windows artifact `9166375562` 來源為最終 tag commit；Setup／Portable、renderer、安裝解除、archive、checkpoint 排除與 updater metadata 已通過。公開 Release 的四個主資產、checksum、metadata 與簽章說明已從正式 URL 重新下載並反向核對；round3 獨立發布後審查已通過。
+- GitHub CLI 已於 2026-08-13 重新登入 `twyderek`；公開 repo、PR #11、tag 與 Release 已完成。
 
 ## 0.48.1 正式發布狀態
 
