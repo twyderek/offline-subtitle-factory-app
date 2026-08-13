@@ -10,6 +10,7 @@ import {
   buildBreezeRuntimeProbeArgs,
   inspectBreezeAsrModel,
 } from '../lib/breeze-asr.mjs';
+import { collectBreezeRuntimeProbe, resolveBreezePython, runBreezeRuntimeProbe } from '../lib/breeze-runtime-probe.mjs';
 import { probeCommand } from '../lib/process-probe.mjs';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'breeze-asr-test-'));
@@ -57,6 +58,37 @@ try {
   const probeStartedAt = Date.now();
   assert.equal(await probeCommand(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], 250), false, '卡住的 runtime probe 應逾時失敗');
   assert.ok(Date.now() - probeStartedAt < 2000, 'runtime probe 不可無限等待');
+  const sharedProbeStartedAt = Date.now();
+  assert.equal(await probeCommand(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], 250), false, '共用 runtime probe 應逾時失敗');
+  assert.ok(Date.now() - sharedProbeStartedAt >= 200, '共用 probe 應等待 child close 後才回報');
+  assert.equal(resolveBreezePython({ env: { BREEZE_ASR_PYTHON: '/custom/python' }, platform: 'darwin' }), '/custom/python');
+  const passingProbe = await runBreezeRuntimeProbe({ command: process.execPath, probeArgs: ['-e', 'process.exit(0)'], timeoutMs: 1000 });
+  assert.equal(passingProbe.ok, true);
+  const timingProbe = await runBreezeRuntimeProbe({ command: process.execPath, probeArgs: ['-e', 'setInterval(() => {}, 1000)'], timeoutMs: 250 });
+  assert.equal(timingProbe.timedOut, true);
+  assert.ok(timingProbe.elapsedMs >= 200, 'timeout probe 應等待 child close 後才回報');
+  const collected = await collectBreezeRuntimeProbe({ command: process.execPath, modelDir: tempDir, timeoutMs: 1000, inspectModel: false });
+  assert.equal(collected.engine, 'breeze-asr-25');
+  assert.equal(collected.ready, false);
+  assert.equal(collected.modelDirectory, path.basename(tempDir));
+  const redactionProbe = await runBreezeRuntimeProbe({ command: process.execPath, probeArgs: ['-e', "console.error('SECRET_MARKER /Users/example/private')"], timeoutMs: 1000 });
+  assert.doesNotMatch(redactionProbe.stderr, /SECRET_MARKER/);
+  assert.doesNotMatch(redactionProbe.stderr, /\/Users\/example/);
+  assert.match(redactionProbe.stderr, /omitted for privacy/);
+  const importRedactionProbe = await runBreezeRuntimeProbe({
+    command: process.execPath,
+    probeArgs: ['-e', "console.error('ImportError: token=abc password:xyz api-key=secret-value')"],
+    timeoutMs: 1000,
+  });
+  assert.equal(importRedactionProbe.stderr, 'ImportError: token=<redacted> password:<redacted> api-key=<redacted>');
+  assert.doesNotMatch(importRedactionProbe.stderr, /abc|xyz|secret-value/);
+  const quotedImportRedactionProbe = await runBreezeRuntimeProbe({
+    command: process.execPath,
+    probeArgs: ['-e', "console.error('ImportError: token=\\\"secret LEAK_MARKER\\\" password=\\\'multi word password\\\'')"],
+    timeoutMs: 1000,
+  });
+  assert.equal(quotedImportRedactionProbe.stderr, 'ImportError: token=<redacted> password=<redacted>');
+  assert.doesNotMatch(quotedImportRedactionProbe.stderr, /secret|LEAK_MARKER|multi word password/);
   const moduleSource = fs.readFileSync(new URL('../lib/breeze-asr.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /(?:open|read|stat)Sync\(/, 'Breeze 模型檢查不可用同步檔案 I/O 阻塞 event loop');
   console.log('Breeze ASR 25 模型契約、runtime 探針與 CLI 參數測試通過');
