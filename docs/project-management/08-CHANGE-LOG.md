@@ -15,8 +15,8 @@
 
 ## 2026-08-13 — 0.49.0 發布後使用者入口同步（DOC-031）
 
-- 狀態：進行中
-- 結案判定：待執行
+- 狀態：完成
+- 結案判定：三個使用者入口已同步 v0.49.0 正式 Latest 狀態，round1 獨立審查通過，並由純文件 PR #13 交付
 - 審查／交付屬性：純文件發布後同步；不修改 v0.49.0 程式、tag、Release 或既有資產
 - 執行者：Codex
 - 需求來源：需求方於 v0.49.0 正式發布完成後要求「請繼續」。
@@ -31,9 +31,11 @@
 - 實際修改：將 README 的 0.49.0 標題與摘要由發布候選更新為正式發布，加入 v0.49.0 Release 連結與 Windows 正式下載入口，並將 v0.48.1 定位為歷史 Release；同步目前狀態的 Latest 連結、歷史公開版本敘述，以及開發歷程的 0.49.0 正式發布／PR／tag／9 項資產與剩餘 experimental 風險。
 - 開發驗證結果：三個使用者入口的精確過期字串搜尋無命中；GitHub API 實際確認 v0.49.0 為非 draft、非 prerelease 的 Latest，發布時間 `2026-08-13T02:48:41Z` 且有 9 項資產；`npm run docs:check` 與 `git diff --check` 通過。
 - 獨立審查是否執行：是（round1）
-- 獨立審查結論：`docs/project-management/reviews/2026-08-13-0-49-0-user-entry-sync-round1.md`；**DOC-031「0.49.0 發布後使用者入口同步」round1 獨立審查結論為通過：GitHub 已實際確認 v0.49.0 為公開、非 draft、非 prerelease 的 Latest Release，annotated tag 解析至 `1f50b85c0599ef85c73f05085d70925d4d6b670a`，9 項資產與 README 的 Release／Windows 下載名稱一致；README、目前狀態與發展歷程已一致改為正式發布並持續揭露 Breeze experimental 未驗收風險，精確過期字串搜尋、`npm run docs:check`、`git diff --check` 與歷史證據差異檢查均通過，且既有工作紀錄與獨立審查原文未被改寫。**
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-0-49-0-user-entry-sync-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**DOC-031「0.49.0 發布後使用者入口同步」round1 獨立審查結論為通過：GitHub 已實際確認 v0.49.0 為公開、非 draft、非 prerelease 的 Latest Release，annotated tag 解析至 `1f50b85c0599ef85c73f05085d70925d4d6b670a`，9 項資產與 README 的 Release／Windows 下載名稱一致；README、目前狀態與發展歷程已一致改為正式發布並持續揭露 Breeze experimental 未驗收風險，精確過期字串搜尋、`npm run docs:check`、`git diff --check` 與歷史證據差異檢查均通過，且既有工作紀錄與獨立審查原文未被改寫。**
 - 發布授權：不適用（本輪不建立或修改 tag／Release，不上傳資產）
-- 部署／發布結果：不適用；待以純文件 PR 同步至 `main`。
+- 部署／發布結果：不適用於產品部署；純文件分支 `codex/049-user-entry-sync` 已推送，GitHub PR #13 已建立供同步至 `main`，未修改 v0.49.0 tag、Release 或 9 項既有資產。
 - 遺留風險與後續事項：未發現三個目前使用者入口仍有非歷史語境的過期候選文字；歷史工作紀錄與獨立報告保持原文。未來 Latest 變更時仍須再次同步入口文件；Breeze 真實 checkpoint／官方 runtime、模型品質與效能、長音訊、Windows process tree、雙平台乾淨安裝與下載失敗仍是 v0.49.0 已揭露、未完成實機驗收的產品風險。
 
 ---
