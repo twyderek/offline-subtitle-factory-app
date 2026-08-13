@@ -2,6 +2,36 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-13 — Windows x64 測試版重新打包（REL-034）
+
+- 狀態：完成
+- 結案判定：REL-034 round1 獨立審查通過；可交付 Windows x64 隔離測試候選，不授權公開 Release
+- 審查／交付屬性：從 `codex/021-breeze-runtime-guide` 最新來源重新產生 Windows x64 Setup／Portable 隔離測試候選；不建立 tag／公開 Release，不覆寫既有正式資產。
+- 執行者：Codex
+- 需求來源：需求方要求「幫我打包 Windows 測試版檔」。
+- 關聯需求／缺陷：`REL-034`、`BUG-021`、`FR-024`
+- 變更等級：發布（產生可安裝測試候選，但不公開發布）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／build／review／closeout 路由（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，commit `2b44d10`，產品版本 `0.49.0`；工作樹建立前為 clean。
+- 目標與成功條件：Windows x64 unsigned Setup／Portable、source／FFmpeg regression、packaged renderer、安裝／解除安裝、NSIS archive、Breeze guide／checkpoint 排除、SHA-256 與 artifact provenance 全部可追溯；獨立審查後提供測試檔案。
+- 不在範圍：不下載或內建 Breeze checkpoint／Python／PyTorch／patched runtime；不建立 tag／公開 Release、不替換既有 v0.49.0 資產；不把 CI／mock 證據宣稱為 Windows 10／11 乾淨實機、真實 Breeze 品質或效能驗收。
+- 預計影響檔案／模組：本工作紀錄、獨立測試包審查報告；Windows 封裝輸出僅置於 repo 外 `../dist/test-build-2b44d10/` 與 GitHub Actions artifact。
+- 風險與回復方式：隔離輸出避免覆寫既有 dist；若 workflow、archive、renderer、checksum 或審查失敗，停止交付候選，不修改公開 Release；artifact 可由同一 commit 重新產生。
+- 驗證計畫：GitHub Windows workflow、`npm run check`、runtime manifest／verify、Setup／Portable renderer／安裝解除安裝、NSIS archive、Breeze guide／checkpoint 排除、SHA／artifact digest、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：以來源 `2b44d1072cf137251c3acb0be9824eeb4587f8e2` 啟動 GitHub Actions Windows x64 unsigned build；下載並解壓 Setup／Portable、blockmap、`latest.yml`、SHA／簽章狀態至 repo 外 `../dist/test-build-2b44d10/windows-x64/`；未修改產品程式、workflow、版本或公開 Release。
+- 開發驗證結果：run `31679412779` success；source／FFmpeg regression、runtime manifest／verify、unsigned Setup／Portable、Setup installed／Portable renderer、silent uninstall、NSIS archive、Breeze guide／release notes／checkpoint 排除與 artifact upload 全部通過。artifact `9172938395` 為 490,420,392 bytes，SHA-256 `ea42572d49ef6d46141621bb1ed1291c31b2617dd2b539a642d32b6d92b714fb`；本機外層 ZIP、LF checksum、Setup／Portable EXE SHA-256、Setup updater SHA-512／size 與 PE／NSIS 格式均核對通過。Setup SHA-256：`11db95764d5d1c8487ad226a033ae23c4ea9ddb4f62b12b7a1101fee5a36b71c`；Portable SHA-256：`98b47c1b8bbab83d78805b300365987b5b22836453b30dad081453d816d18059`。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-rel-034-windows-test-build-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**「REL-034 round1 獨立審查通過：來源 `codex/021-breeze-runtime-guide@2b44d1072cf137251c3acb0be9824eeb4587f8e2` 的 GitHub Actions run `31679412779` 已完成 source／npm check／Breeze 契約、Windows x64 unsigned Setup／Portable 建置、renderer／安裝／解除安裝 smoke、NSIS archive、SHA 與 Breeze checkpoint 排除，artifact `9172938395` 的 490,420,392 bytes 與 digest `sha256:ea42572d49ef6d46141621bb1ed1291c31b2617dd2b539a642d32b6d92b714fb` 亦完成核對，可作為 Windows x64 隔離測試候選交付；本結論不授權建立、上傳或替換公開 Release，亦不代表 Windows 10／11 乾淨實機、SmartScreen、Authenticode、真實 Breeze runtime、模型品質、效能或 process-tree 已驗收。」**
+- 發布授權：
+  - 是否需要：是
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-13（Asia/Taipei）
+  - 核准範圍：需求方同意並核准打包、提交及共享本輪 Windows x64 隔離測試候選；同意／接受 Windows 未 Authenticode／未簽章與真實 Breeze／乾淨實機尚未驗收風險；不授權建立公開 Release、tag 或替換正式資產。
+- 部署／發布結果：完成；Windows x64 Setup／Portable 與核對檔案位於 repo 外 `../dist/test-build-2b44d10/windows-x64/`；GitHub Actions artifact 下載頁為 `https://github.com/twyderek/offline-subtitle-factory-app/actions/runs/31679412779/artifacts/9172938395`（保留期限至 2026-08-27T07:53:18Z）；未建立 tag／公開 Release，未替換既有 v0.49.0 正式資產。
+- 遺留風險與後續事項：Windows 未 Authenticode／SmartScreen、Windows 10／11 乾淨實機、Breeze runtime／checkpoint／品質／效能／長音訊／process tree 仍需明確揭露。
+
 ## 2026-08-13 — Breeze runtime 引導修正版隔離測試軟體（REL-033）
 
 - 狀態：完成
