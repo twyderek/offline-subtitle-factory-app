@@ -13,6 +13,33 @@
 
 ---
 
+## 2026-08-13 — 0.49.0 發布後使用者入口同步（DOC-031）
+
+- 狀態：完成
+- 結案判定：三個使用者入口已同步 v0.49.0 正式 Latest 狀態，round1 獨立審查通過，並由純文件 PR #13 交付
+- 審查／交付屬性：純文件發布後同步；不修改 v0.49.0 程式、tag、Release 或既有資產
+- 執行者：Codex
+- 需求來源：需求方於 v0.49.0 正式發布完成後要求「請繼續」。
+- 關聯需求／缺陷：`NFR-006`、`NFR-008`、`DOC-031`
+- 變更等級：低（只修正目前使用者入口與歷程的過期候選／Latest 敘述）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與任務路由（是）
+- 目標與成功條件：README、目前狀態與開發歷程一致顯示 v0.49.0 已正式公開且為 Latest；使用者下載連結指向 v0.49.0；歷史版本段落不再誤稱舊版本是目前公開版本。
+- 不在範圍：不修改產品程式、package 版本、workflow、tag、GitHub Release、asset 或歷史審查原文。
+- 預計影響檔案／模組：`README.md`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/04-DEVELOPMENT-HISTORY.md`、本工作紀錄與本輪獨立審查報告。
+- 風險與回復方式：文件可能誤述遠端實況；以已核對的 v0.49.0 Latest Release、tag commit、9 項資產與 round3 報告為基準，若不一致則回復本輪純文件 commit。
+- 驗證計畫：精確搜尋候選／舊 Latest 敘述、`npm run docs:check`、`npm run docs:check:final`、`git diff --check`，並由獨立上下文代理依六面向審查文件一致性。
+- 實際修改：將 README 的 0.49.0 標題與摘要由發布候選更新為正式發布，加入 v0.49.0 Release 連結與 Windows 正式下載入口，並將 v0.48.1 定位為歷史 Release；同步目前狀態的 Latest 連結、歷史公開版本敘述，以及開發歷程的 0.49.0 正式發布／PR／tag／9 項資產與剩餘 experimental 風險。
+- 開發驗證結果：三個使用者入口的精確過期字串搜尋無命中；GitHub API 實際確認 v0.49.0 為非 draft、非 prerelease 的 Latest，發布時間 `2026-08-13T02:48:41Z` 且有 9 項資產；`npm run docs:check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-13-0-49-0-user-entry-sync-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**DOC-031「0.49.0 發布後使用者入口同步」round1 獨立審查結論為通過：GitHub 已實際確認 v0.49.0 為公開、非 draft、非 prerelease 的 Latest Release，annotated tag 解析至 `1f50b85c0599ef85c73f05085d70925d4d6b670a`，9 項資產與 README 的 Release／Windows 下載名稱一致；README、目前狀態與發展歷程已一致改為正式發布並持續揭露 Breeze experimental 未驗收風險，精確過期字串搜尋、`npm run docs:check`、`git diff --check` 與歷史證據差異檢查均通過，且既有工作紀錄與獨立審查原文未被改寫。**
+- 發布授權：不適用（本輪不建立或修改 tag／Release，不上傳資產）
+- 部署／發布結果：不適用於產品部署；純文件分支 `codex/049-user-entry-sync` 已推送，GitHub PR #13 已建立供同步至 `main`，未修改 v0.49.0 tag、Release 或 9 項既有資產。
+- 遺留風險與後續事項：未發現三個目前使用者入口仍有非歷史語境的過期候選文字；歷史工作紀錄與獨立報告保持原文。未來 Latest 變更時仍須再次同步入口文件；Breeze 真實 checkpoint／官方 runtime、模型品質與效能、長音訊、Windows process tree、雙平台乾淨安裝與下載失敗仍是 v0.49.0 已揭露、未完成實機驗收的產品風險。
+
+---
+
 ## 2026-08-13 — Breeze ASR 25 第一版發布推進（REL-030）
 
 - 狀態：完成
