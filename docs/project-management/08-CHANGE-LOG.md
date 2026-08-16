@@ -2,6 +2,36 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-17 — Breeze BUG-022 修正版 macOS 測試包（REL-035）
+
+- 狀態：完成
+- 結案判定：REL-035 round1 獨立審查通過；可交付 macOS arm64 隔離測試候選，不授權公開 Release
+- 審查／交付屬性：以 `c5e8bbe` 來源建立新的 macOS arm64 隔離測試候選，讓需求方驗證 Breeze runtime 自動探測與首頁工具健康卡修正；不建立 tag／公開 Release，不替換既有 v0.49.0 資產。
+- 執行者：Codex
+- 需求來源：需求方在 BUG-022 修正完成後要求「請繼續」。
+- 關聯需求／缺陷：`REL-035`、`BUG-022`、`BUG-021`、`FR-024`
+- 變更等級：發布（產生可安裝測試候選，但不公開發布）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／build／test／review／closeout 路由（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，commit `c5e8bbe67255c030e377bc018cb6f17186db1244`，產品版本 `0.49.0`；工作開始前工作樹 clean。
+- 目標與成功條件：macOS Apple Silicon DMG／ZIP 由 BUG-022 修正後來源產出；runtime manifest、版本、Breeze guide／checkpoint 排除、ad-hoc codesign、DMG／ZIP 完整性、SHA-256、updater metadata 與 packaged renderer smoke 可追溯；獨立審查後才交付測試候選。
+- 不在範圍：不下載或內建 Python／PyTorch／MediaTek patched Whisper runtime／約 3 GB checkpoint；不建立 tag／公開 Release、不覆寫既有 v0.49.0 資產；不把 deterministic probe 或 packaged renderer 證據宣稱為真實 Breeze 品質、效能、長音訊或乾淨實機驗收。
+- 預計影響檔案／模組：本工作紀錄與獨立審查報告；封裝輸出只寫入 repo 外 `../dist/test-build-c5e8bbe/`。
+- 風險與回復方式：隔離輸出避免覆寫既有資產；若完整回歸、runtime、封裝、checksum、metadata 或審查失敗，停止交付並保留既有 v0.49.0 不變；候選可由同一 commit 重新產生。
+- 驗證計畫：`npm run check`、`runtime:manifest:mac`、`runtime:verify:mac`、macOS arm64 directory／DMG／ZIP、packaged renderer smoke、`hdiutil verify`、`unzip -t`、codesign／版本／Breeze marker／checkpoint 排除、SHA／updater metadata、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：以來源 `c5e8bbe67255c030e377bc018cb6f17186db1244` 建立 repo 外隔離輸出 `../dist/test-build-c5e8bbe/`；產生 macOS arm64 DMG／ZIP、blockmap、`latest-mac.yml` 與 `TEST-CANDIDATE-README.md`；未修改產品版本、tag、Release 或既有正式資產。
+- 開發驗證結果：`npm run check`、`runtime:manifest:mac`／`runtime:verify:mac`、macOS arm64 packaged renderer smoke 通過；DMG `hdiutil verify` 回報 `VALID`、ZIP `unzip -t` 通過、ad-hoc deep strict codesign 通過。DMG SHA-256 `db4bd42ebf32301fa4b25a0ea876a59a067ef0925efbb32bf9ec2a6ee137cac6`（242,714,797 bytes）；ZIP SHA-256 `fff885f8b9958457ca83aa661913558a2a324221f79d1fc8396af9589410dc9d`（249,946,819 bytes）；`latest-mac.yml` 的 SHA-512／size 與兩資產一致；封裝內 BUG-022 marker 存在且無 `.pt` checkpoint。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-08-17-breeze-bug022-macos-test-build-round1.md`
+  - round1 判定（逐字引用「可逐字引用完整結論句」）：**「REL-035 round1 獨立審查通過：來源 `codex/021-breeze-runtime-guide@c5e8bbe67255c030e377bc018cb6f17186db1244` 的 macOS arm64 DMG／ZIP 已完成來源、版本、SHA-256、latest-mac.yml SHA-512／大小、DMG `hdiutil verify`、ZIP 完整性、ad-hoc codesign、ZIP 封裝內 BUG-022 runtime／首頁健康卡 marker 與 Breeze `.pt` checkpoint 排除核對，可作為隔離測試候選交付；packaged renderer smoke 為主代理已提供證據，本代理未重跑，且 DMG attach 受環境限制未逐檔抽查；本結論不代表 macOS 乾淨安裝／Gatekeeper、真實 Breeze runtime、約 3 GB checkpoint、模型品質、效能、長音訊或取消已驗收，亦不授權建立、上傳或替換公開 Release。」**
+- 發布授權：
+  - 是否需要：是（產生 macOS 隔離測試候選；不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-17（本輪延續需求方「請繼續」與先前「產生測試軟體」指示）
+  - 核准範圍：同意由 `c5e8bbe` 打包、提交並在本機工作區交付 macOS arm64 DMG／ZIP 測試候選；接受 macOS ad-hoc／未公證與真實 Breeze runtime／品質／乾淨實機未驗收風險；不授權建立 tag、公開 Release、替換正式資產或對外擴大共享。
+- 部署／發布結果：完成；候選檔案與核對資訊位於 repo 外 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`；未建立 tag／公開 Release，未替換既有 v0.49.0 資產。
+- 遺留風險與後續事項：macOS ad-hoc／未 Developer ID／未公證；獨立審查未重跑 renderer smoke，且 DMG attach 在審查環境受限但 checksum 已驗證；真實 patched runtime／checkpoint／音訊品質／效能／長音訊／取消、macOS 乾淨安裝與 Gatekeeper、Windows 跨平台行為仍未由本輪覆蓋；使用者若未安裝 runtime，App 仍會顯示可操作缺件引導。
+
 ## 2026-08-13 — Breeze macOS runtime 狀態與首頁健康卡修正（BUG-022）
 
 - 狀態：完成
