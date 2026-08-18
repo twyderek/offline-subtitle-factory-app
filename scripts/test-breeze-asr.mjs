@@ -6,6 +6,7 @@ import {
   BREEZE_ASR_ENGINE,
   BREEZE_ASR_MODEL,
   BREEZE_ASR_REVISION,
+  breezeRuntimeInstallGuideDetails,
   buildBreezeAsrArgs,
   buildBreezeRuntimeProbeArgs,
   inspectBreezeAsrModel,
@@ -21,6 +22,30 @@ try {
   assert.equal(BREEZE_ASR_MODEL.sha256, '9c94a3554ff4f0de83494e2ed7ba5826efa74bd87955c034b4d0fd681746b690');
   assert.match(BREEZE_ASR_MODEL.url, new RegExp(BREEZE_ASR_REVISION));
   assert.doesNotMatch(BREEZE_ASR_MODEL.url, /resolve\/main/);
+
+  const runtimeGuide = breezeRuntimeInstallGuideDetails();
+  assert.equal(runtimeGuide.officialRepository, 'https://github.com/mtkresearch/Breeze-ASR-25');
+  assert.match(runtimeGuide.officialDocumentation, /Breeze-ASR-25#readme$/);
+  assert.match(runtimeGuide.modelPage, /huggingface\.co\/MediaTek-Research\/Breeze-ASR-25$/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /third_party\/whisper-patch-breeze/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /third_party[\\\\/]whisper-patch-breeze/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /--recurse-submodules/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /--recurse-submodules/);
+  assert.match(runtimeGuide.platforms.unix.setupCommand, /BREEZE_REPO=/);
+  assert.match(runtimeGuide.platforms.windows.setupCommand, /\$BreezeRepo/);
+  assert.match(runtimeGuide.platforms.unix.launchCommand, /BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.windows.launchCommand, /BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.unix.packagedLaunchCommand, /Contents\/MacOS\/離線字幕工廠/);
+  assert.match(runtimeGuide.platforms.windows.packagedLaunchCommand, /LOCALAPPDATA/);
+  assert.match(runtimeGuide.platforms.unix.launchCommand, /^BREEZE_ASR_PYTHON=/);
+  assert.match(runtimeGuide.platforms.windows.launchCommand, /^\$env:BREEZE_ASR_PYTHON/);
+  assert.match(runtimeGuide.platforms.unix.packagedLaunchCommand, /^BREEZE_ASR_PYTHON=/);
+  assert.match(runtimeGuide.platforms.windows.packagedLaunchCommand, /^\$env:BREEZE_ASR_PYTHON/);
+  assert.doesNotMatch(runtimeGuide.platforms.unix.launchCommand, /[\u4e00-\u9fff]/, '開發版 shell 指令不可含未註解中文說明');
+  assert.doesNotMatch(runtimeGuide.platforms.windows.launchCommand, /[\u4e00-\u9fff]/, 'Windows 指令不可含未註解中文說明');
+  assert.doesNotMatch(runtimeGuide.platforms.unix.launchCommand, /cd Breeze-ASR-25/);
+  assert.doesNotMatch(runtimeGuide.platforms.windows.launchCommand, /Set-Location Breeze-ASR-25/);
+  assert.doesNotMatch(JSON.stringify(runtimeGuide), /(?:api[_-]?key|token|password|secret)/i, 'runtime guide 不可包含秘密欄位');
 
   const missing = await inspectBreezeAsrModel(tempDir);
   assert.equal(missing.valid, false);
@@ -62,6 +87,34 @@ try {
   assert.equal(await probeCommand(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], 250), false, '共用 runtime probe 應逾時失敗');
   assert.ok(Date.now() - sharedProbeStartedAt >= 200, '共用 probe 應等待 child close 後才回報');
   assert.equal(resolveBreezePython({ env: { BREEZE_ASR_PYTHON: '/custom/python' }, platform: 'darwin' }), '/custom/python');
+  const macHome = path.join(tempDir, 'mac-home');
+  const macRuntime = path.join(macHome, 'Breeze-ASR-25', '.venv', 'bin', 'python');
+  fs.mkdirSync(path.dirname(macRuntime), { recursive: true });
+  fs.writeFileSync(macRuntime, 'runtime fixture');
+  assert.equal(resolveBreezePython({ env: { HOME: macHome }, platform: 'darwin' }), macRuntime, 'macOS 應自動找到標準 Breeze venv');
+  const otherMacHome = path.join(tempDir, 'other-mac-home');
+  const otherMacRuntime = path.join(otherMacHome, 'Breeze-ASR-25', '.venv', 'bin', 'python');
+  fs.mkdirSync(path.dirname(otherMacRuntime), { recursive: true });
+  fs.writeFileSync(otherMacRuntime, 'runtime fixture');
+  assert.equal(resolveBreezePython({ env: { HOME: macHome, USERPROFILE: otherMacHome }, platform: 'darwin' }), macRuntime, 'macOS 應優先 HOME 標準 Breeze venv');
+  const bundledMacPython = path.join(tempDir, 'bundled-mac', 'python', 'python');
+  fs.mkdirSync(path.dirname(bundledMacPython), { recursive: true });
+  fs.writeFileSync(bundledMacPython, 'bundled fixture');
+  assert.equal(resolveBreezePython({ env: { HOME: macHome }, toolsDir: path.dirname(path.dirname(bundledMacPython)), platform: 'darwin' }), macRuntime, 'macOS 應優先 Breeze venv 而非一般 bundled Python');
+  const windowsHome = path.join(tempDir, 'windows-home');
+  const windowsRuntime = path.join(windowsHome, 'Breeze-ASR-25', '.venv', 'Scripts', 'python.exe');
+  fs.mkdirSync(path.dirname(windowsRuntime), { recursive: true });
+  fs.writeFileSync(windowsRuntime, 'runtime fixture');
+  assert.equal(resolveBreezePython({ env: { USERPROFILE: windowsHome }, platform: 'win32' }), windowsRuntime, 'Windows 應自動找到標準 Breeze venv');
+  const otherWindowsHome = path.join(tempDir, 'other-windows-home');
+  const otherWindowsRuntime = path.join(otherWindowsHome, 'Breeze-ASR-25', '.venv', 'Scripts', 'python.exe');
+  fs.mkdirSync(path.dirname(otherWindowsRuntime), { recursive: true });
+  fs.writeFileSync(otherWindowsRuntime, 'runtime fixture');
+  assert.equal(resolveBreezePython({ env: { HOME: otherWindowsHome, USERPROFILE: windowsHome }, platform: 'win32' }), windowsRuntime, 'Windows 應優先 USERPROFILE 標準 Breeze venv');
+  const bundledWindowsPython = path.join(tempDir, 'bundled-windows', 'python', 'python.exe');
+  fs.mkdirSync(path.dirname(bundledWindowsPython), { recursive: true });
+  fs.writeFileSync(bundledWindowsPython, 'bundled fixture');
+  assert.equal(resolveBreezePython({ env: { USERPROFILE: windowsHome }, toolsDir: path.dirname(path.dirname(bundledWindowsPython)), platform: 'win32' }), windowsRuntime, 'Windows 應優先 Breeze venv 而非一般 bundled Python');
   const passingProbe = await runBreezeRuntimeProbe({ command: process.execPath, probeArgs: ['-e', 'process.exit(0)'], timeoutMs: 1000 });
   assert.equal(passingProbe.ok, true);
   const timingProbe = await runBreezeRuntimeProbe({ command: process.execPath, probeArgs: ['-e', 'setInterval(() => {}, 1000)'], timeoutMs: 250 });
@@ -91,6 +144,25 @@ try {
   assert.doesNotMatch(quotedImportRedactionProbe.stderr, /secret|LEAK_MARKER|multi word password/);
   const moduleSource = fs.readFileSync(new URL('../lib/breeze-asr.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /(?:open|read|stat)Sync\(/, 'Breeze 模型檢查不可用同步檔案 I/O 阻塞 event loop');
+  const appSource = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const indexSource = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.match(appSource, /async function refreshHomeHealth\(\)[\s\S]*?updateMetrics\(tools\)/, '首頁健康檢查應同步更新系統工具卡');
+  assert.match(appSource, /openBreezeRuntimeInstallDialog/);
+  assert.match(appSource, /recheckBreezeRuntime/);
+  assert.match(indexSource, /id="breezeRuntimeModal"/);
+  assert.match(indexSource, /id="copyBreezeRuntimeSetup"/);
+  assert.match(indexSource, /id="openBreezeRuntimeFromModel"/);
+  assert.match(indexSource, /id="openBreezeRuntimeGuideButton"/);
+  assert.match(indexSource, /id="copyBreezeRuntimePackagedLaunch"/);
+  assert.match(indexSource, /id="breezeRuntimePackagedLaunchCommand"/);
+  assert.match(indexSource, /id="useWhisperCppInstead"/);
+  assert.match(indexSource, /<option value="breeze-asr-25">Breeze ASR 25<\/option>/, 'Breeze 選單應使用一般產品名稱');
+  assert.doesNotMatch(indexSource, /Breeze ASR 25（實驗性/, 'Breeze 選單不可顯示實驗性說明');
+  assert.match(appSource, /首次選擇 Breeze ASR 25 會先協助下載模型/, '首次選擇應提供可操作的設定提示');
+  assert.match(appSource, /form\.elements\.asrEngine\.value !== 'breeze-asr-25'[\s\S]*?await ensureBreezeAsrReady\(\)/, '首次選擇 Breeze 應立即進入模型與 runtime 就緒流程');
+  assert.match(appSource, /breezeReadinessPromise/, 'Breeze readiness 應避免快速重複選擇造成重入');
+  assert.match(appSource, /Breeze ASR 25 已就緒，可開始提交任務/, 'Breeze runtime 就緒後應顯示明確完成狀態');
+  assert.match(appSource, /catch \(error\) \{\s*breezeAsrCatalog = null;/, 'Breeze 狀態查詢失敗不可沿用過期 ready 狀態');
   console.log('Breeze ASR 25 模型契約、runtime 探針與 CLI 參數測試通過');
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });

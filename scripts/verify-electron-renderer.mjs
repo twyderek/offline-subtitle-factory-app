@@ -161,6 +161,31 @@ try {
     returnByValue: true,
   });
 
+  const breezeSelectionFlow = await client.call('Runtime.evaluate', {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(async () => {
+      const select = document.querySelector('select[name="asrEngine"]');
+      if (!select) return { hasSelect: false };
+      select.value = 'breeze-asr-25';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      const deadline = Date.now() + 5000;
+      let opened = false;
+      while (Date.now() < deadline) {
+        opened = document.getElementById('modelDownloadModal')?.classList.contains('is-open') || false;
+        if (opened) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const status = document.getElementById('whisperModelStatus')?.textContent || '';
+      document.getElementById('cancelModelDownload')?.click();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const closed = !document.getElementById('modelDownloadModal')?.classList.contains('is-open');
+      select.value = 'whisper-cpp';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return { hasSelect: true, opened, closed, status };
+    })()`,
+  });
+
   const uploadFlow = await client.call('Runtime.evaluate', {
     awaitPromise: true,
     returnByValue: true,
@@ -310,6 +335,7 @@ try {
     exe: path.resolve(exePath),
     before: evaluateValue(before),
     modalOpenAfterEvent: evaluateValue(after),
+    breezeSelectionFlow: evaluateValue(breezeSelectionFlow),
     uploadFlow: evaluateValue(uploadFlow),
     trimAssets: evaluateValue(trimAssets),
     aiReviewAssets: evaluateValue(aiReviewAssets),
@@ -330,6 +356,7 @@ try {
   if (!result.before.hasOpenArbitraryFolder) throw new Error('Electron openArbitraryFolder API is missing');
   if (!result.before.hasSafeAiKeyApi) throw new Error('Electron safe AI key API is missing');
   if (!result.modalOpenAfterEvent) throw new Error('Settings modal did not open visibly from renderer event');
+  if (!result.breezeSelectionFlow.hasSelect || !result.breezeSelectionFlow.opened || !result.breezeSelectionFlow.closed) throw new Error('Renderer Breeze first-selection download/cancel flow did not complete');
   if (!result.uploadFlow.healthOk) throw new Error('Renderer health fetch failed');
   if (!result.uploadFlow.settingsOk) throw new Error('Renderer settings fetch failed');
   if (result.uploadFlow.createStatus !== 201) throw new Error(`Renderer upload create job failed: ${result.uploadFlow.createStatus}`);

@@ -215,7 +215,7 @@
               <span>🤖 ASR 模型選擇</span>
               <select name="asrEngine">
                 <option value="whisper-cpp" selected>內建 Whisper.cpp（建議）</option>
-                <option value="breeze-asr-25">Breeze ASR 25（實驗性・需另裝 runtime）</option>
+                <option value="breeze-asr-25">Breeze ASR 25</option>
                 <option value="manual">僅使用既有 SRT（需上傳字幕）</option>
               </select>
             </label>
@@ -229,6 +229,7 @@
               <small id="whisperModelHint" class="field-hint">目前安裝包預設內建 Tiny；首次選擇 Base／Small 時可由 App 從官方固定版本下載。</small>
               <div class="whisper-model-actions">
                 <button type="button" id="downloadWhisperModel" class="small-button" hidden>下載目前模型</button>
+                <button type="button" id="openBreezeRuntimeGuideButton" class="small-button" hidden>查看 runtime 安裝指引</button>
                 <span id="whisperModelStatus" role="status">模型狀態檢查中…</span>
               </div>
             </label>
@@ -468,9 +469,66 @@
       <p class="modal-note">若自動下載受限，可開啟下方官方 URL 手動下載同名檔案，放入顯示的模型快取資料夾後重新檢查。</p>
       <p class="modal-note">模型快取：<code id="modelDownloadCacheDirectory">尚未取得</code></p>
       <p><a id="modelDownloadManualLink" href="#" target="_blank" rel="noreferrer">開啟官方模型下載頁</a></p>
+      <p><button type="button" id="openBreezeRuntimeFromModel" class="link-button" hidden>先查看 Breeze runtime 安裝指引</button></p>
       <div class="settings-actions">
         <button type="button" id="startModelDownload" class="primary">下載並安裝</button>
         <button type="button" id="cancelModelDownload" class="secondary">稍後再說</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="breezeRuntimeModal" class="app-modal" aria-hidden="true">
+    <div class="app-modal-dialog breeze-runtime-modal" role="dialog" aria-modal="true" aria-labelledby="breezeRuntimeTitle">
+      <button type="button" id="closeBreezeRuntime" class="settings-close" aria-label="關閉 Breeze runtime 安裝指引">×</button>
+      <div class="section-head">
+        <span class="step-dot">⚙</span>
+        <h2 id="breezeRuntimeTitle">安裝 Breeze ASR 25 runtime</h2>
+      </div>
+      <p id="breezeRuntimeSummary" class="modal-note">Breeze 模型已找到，但目前環境沒有可用的 MediaTek patched Whisper runtime。App 不會自動安裝 Python 或第三方套件，請依下列步驟完成後重新檢查。</p>
+      <div class="runtime-install-alert" role="note">
+        <strong>這是選用的外部元件</strong>
+        <span id="breezeRuntimeRequirement">需要 Python 3.8–3.11 與 third_party/whisper-patch-breeze。</span>
+      </div>
+      <div class="runtime-install-tabs" role="tablist" aria-label="Breeze runtime 平台指令">
+        <button type="button" id="breezeRuntimeUnixTab" class="secondary is-active" role="tab" aria-selected="true">macOS／Linux</button>
+        <button type="button" id="breezeRuntimeWindowsTab" class="secondary" role="tab" aria-selected="false">Windows PowerShell</button>
+      </div>
+      <ol class="runtime-install-steps">
+        <li>開啟官方 Breeze-ASR-25 專案並依平台安裝 Python 與 patched Whisper。</li>
+        <li>先執行安裝區塊中的驗證指令，確認輸出 <code>Breeze runtime OK</code>。</li>
+        <li>在同一個終端設定 <code>BREEZE_ASR_PYTHON</code>，依下方「開發版」或「已安裝 App」區塊啟動。</li>
+      </ol>
+      <div class="runtime-command-group">
+        <div class="runtime-command-head">
+          <strong id="breezeRuntimeSetupLabel">安裝與驗證</strong>
+          <button type="button" id="copyBreezeRuntimeSetup" class="secondary">複製指令</button>
+        </div>
+        <pre class="runtime-command"><code id="breezeRuntimeSetupCommand"></code></pre>
+      </div>
+      <div class="runtime-command-group">
+        <div class="runtime-command-head">
+          <strong>開發版啟動（請在 offline-subtitle-factory-app 目錄）</strong>
+          <button type="button" id="copyBreezeRuntimeLaunch" class="secondary">複製啟動指令</button>
+        </div>
+        <pre class="runtime-command"><code id="breezeRuntimeLaunchCommand"></code></pre>
+      </div>
+      <div class="runtime-command-group">
+        <div class="runtime-command-head">
+          <strong>已安裝 App 啟動（預設安裝路徑）</strong>
+          <button type="button" id="copyBreezeRuntimePackagedLaunch" class="secondary">複製安裝版指令</button>
+        </div>
+        <pre class="runtime-command"><code id="breezeRuntimePackagedLaunchCommand"></code></pre>
+      </div>
+      <p id="breezeRuntimeAfterInstall" class="modal-note"></p>
+      <p class="runtime-links">
+        <button type="button" id="openBreezeRuntimeDocs" class="link-button">開啟官方 runtime 說明</button>
+        <button type="button" id="openBreezeModelPage" class="link-button">開啟 Breeze 模型頁</button>
+      </p>
+      <p id="breezeRuntimeStatus" class="runtime-install-status" role="status">尚未重新檢查 runtime。</p>
+      <div class="settings-actions">
+        <button type="button" id="recheckBreezeRuntime" class="primary">重新檢查 runtime</button>
+        <button type="button" id="useWhisperCppInstead" class="secondary">改用內建 Whisper.cpp</button>
+        <button type="button" id="dismissBreezeRuntime" class="secondary">稍後處理</button>
       </div>
     </div>
   </section>

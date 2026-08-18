@@ -418,8 +418,11 @@ function resolveToolsInfo() {
 function hasAnyTool(candidate) {
   return [
     path.join(candidate, 'python', 'python.exe'),
+    path.join(candidate, 'python', 'python'),
     path.join(candidate, 'python-embed', 'python.exe'),
+    path.join(candidate, 'python-embed', 'python'),
     path.join(candidate, 'python-venv', 'Scripts', 'python.exe'),
+    path.join(candidate, 'python-venv', 'bin', 'python'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg.exe'),
     path.join(candidate, 'ffmpeg', 'bin', 'ffmpeg'),
     path.join(candidate, 'whisper-cpp', 'whisper-cli.exe'),
@@ -445,6 +448,7 @@ function commandDir(command) {
 }
 
 function buildToolsInfo(toolsDir, candidates) {
+  const pythonBinary = process.platform === 'win32' ? 'python.exe' : 'python';
   const paths = {
     node: firstExisting([
       path.join(toolsDir, 'node', 'node.exe'),
@@ -455,10 +459,10 @@ function buildToolsInfo(toolsDir, candidates) {
       'ffmpeg',
     ]),
     python: firstExisting([
-      path.join(toolsDir, 'python', 'python.exe'),
-      path.join(toolsDir, 'python-embed', 'python.exe'),
-      path.join(toolsDir, 'python-venv', 'Scripts', 'python.exe'),
-    ]),
+      path.join(toolsDir, 'python', pythonBinary),
+      path.join(toolsDir, 'python-embed', pythonBinary),
+      path.join(toolsDir, 'python-venv', process.platform === 'win32' ? 'Scripts' : 'bin', pythonBinary),
+    ], process.platform === 'win32' ? 'python' : 'python3'),
     whisperCpp: path.join(toolsDir, 'whisper-cpp', process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli'),
     whisperModels: path.join(toolsDir, 'whisper-models'),
     whisperModelCache: path.join(app.getPath('userData'), 'whisper-models'),

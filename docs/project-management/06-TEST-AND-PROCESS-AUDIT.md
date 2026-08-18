@@ -154,6 +154,13 @@
 - focused `node --check ...` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check`、`docs:check:final` 與 round2 獨立複審結果待本輪結案後補記。
 - 未覆蓋：真實 Windows process tree、官方 runtime／checkpoint、音訊品質、效能與跨平台安裝後流程仍沿用前輪外部驗收缺口。
 
+## REL-037 Breeze 首次選擇流程與 Mac Air 效能發布依據（2026-08-18）
+
+- UI 將選擇器文字改為一般產品名稱 `Breeze ASR 25`；選取事件立即呼叫既有 `ensureBreezeAsrReady()`，模型缺失時開啟固定官方下載，完成驗證後 runtime 缺失則接續開啟安裝／啟動指引。
+- `scripts/test-breeze-asr.mjs` 新增選擇器無「實驗性」字樣、首次選擇設定提示及 readiness flow source assertions；仍保留取消下載不得建立任務、runtime 缺件可切回 Whisper.cpp 的既有契約。
+- 發布依據：需求方回報 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約 6 小時（約 `3.4×`）；未保存 profiler／原始音訊／完整 telemetry，不作跨機型或品質驗收。
+- 未覆蓋：真實 Breeze checkpoint／patched runtime、長音訊品質、CPU／CUDA 效能、跨平台乾淨安裝與安裝後首次選擇的真實使用者流程仍需外部驗收。
+
 ## REL-030 Breeze 0.49.0 第一版發布候選（2026-08-13）
 
 - 來源基線：由 `origin/main=05b275f` 建立 `codex/breeze-first-release`，只移植 Breeze runtime probe／process cleanup／diagnostic redaction 變更並升版至 0.49.0，避免直接發布落後主線 25 個提交的舊開發分支。
@@ -168,6 +175,17 @@
 - 最終 tag／Release：PR #11 merge commit 與 `v0.49.0` target 都是 `1f50b85c0599ef85c73f05085d70925d4d6b670a`。tag run `31661442776` 成功，artifact `9166375562` 大小 490,411,920 bytes、digest `5a45c9d04917bbdd3c7d05867e68c42e1d7f5597fe2dc369364b5039e5371418`；分段完整下載重組、ZIP 與 EXE SHA 通過。正式 Windows SHA：Portable `cbec3c244f80d9e922f7139caacbefd00cabf41a2a0cffc5385392950960f981`（244,674,635 bytes）、Setup `0a5cf5cdf3b94ce4a7621fffcbd2174a92e4288a4c0e380d31c98338b34d65a0`（245,381,896 bytes）。
 - 發布後核對：GitHub v0.49.0 為 `isDraft=false`／`isPrerelease=false`／Latest，9 項 asset URL 均為 `/releases/download/v0.49.0/`。四個主資產與兩平台 checksum／updater metadata／unsigned 說明已從正式 URL 全量重新下載；兩份 SHA 清單全數 OK、DMG checksum VALID、macOS ZIP 無錯、Windows Setup archive 可讀，Setup／macOS ZIP／DMG 的 updater SHA-512 與 size 均一致。
 - 未覆蓋：真實 Breeze checkpoint／官方 runtime／音訊品質、CPU／CUDA 效能、長音訊、Windows process tree、兩平台乾淨安裝後 Breeze 流程與 checkpoint 下載中斷／磁碟不足；不得以候選封裝或 mock 證據取代。
+
+## REL-032 v0.49.0 雙平台測試軟體重建（2026-08-13）
+
+- 來源：`main`／`origin/main` commit `c41d6ad60441687da19ce67bd847256b843b5e69`；產品版本仍為 0.49.0。此來源只比公開 tag target 多 DOC-031 發布後文件同步，測試候選置於 repo 外 `../dist/test-build-c41d6ad/`，未建立 tag／Release 或覆寫既有正式資產。
+- 開發與供應鏈：Apple Silicon macOS 26、Node 22.22.3、npm 10.9.8；`npm run check` 完整通過，`npm audit --json` 為 0 項已知弱點／286 dependencies；macOS runtime manifest／verify 通過。
+- macOS arm64：隔離重建 DMG／ZIP、App 0.49.0／最低 macOS 12；`hdiutil verify` checksum VALID、`unzip -t` 無錯、deep strict codesign 通過且明列 `Signature=adhoc`／無 Team ID。packaged renderer 前兩次分別因 sandbox DevTools 可見性與 target 延後出現逾時；診斷啟動確認 server／bootstrap 正常後，以 `ELECTRON_ENABLE_LOGGING=1`、60 秒期限重跑同一 App 完整通過 bridge、設定、manual SRT job、trim／review、術語 round-trip、七 provider 與 folder event。DMG SHA-256 `7ddb472d361734d020d176a2d3ad51cbc0adb61d856ee1da60bcb74acc20002d`（242,706,304 bytes）、ZIP `4d45ae1f48a44332276e37174e40188ea33d27ff4358a30cf43f7c8d90c1ae0c`（249,941,976 bytes）；`latest-mac.yml` 兩檔 size／SHA-512 與實檔一致。
+- 封裝內容：macOS App 含 `docs/BREEZE-ASR-25.md`、`RELEASE-NOTES-0.49.0.md` 與 Tiny；Small 與 Breeze checkpoint 不存在，且 App 無大於 1 GiB 檔案。這只證明 checkpoint 排除與預設 Tiny 可封裝，不證明外部 Breeze runtime／模型可用。
+- Windows x64：GitHub Actions workflow_dispatch run `31663681837` 由 `main@c41d6ad` 在 `windows-2022` 完成固定 runtime、完整 source／真實 FFmpeg 回歸、unsigned Setup／Portable、Setup 安裝後 renderer、silent uninstall、Portable renderer、兩個 NSIS archive／Breeze guide／checkpoint 排除、SHA 與 artifact upload；signed step 因無憑證按設計 skipped。Actions v4 顯示內部 Node 20 相容層被 runner 強制使用 Node 24 的 deprecation annotation，但 job conclusion 為 success。
+- Windows artifact：artifact ID `9167179425`、大小 490,411,789 bytes、GitHub SHA-256 `c8d1064a52ade1fd7147fbfad665f342ec9b1aded2323480692113b84c7c8182`；八段精確 range 重組後 digest 相同，ZIP `unzip -t` 無錯。Portable SHA-256 `07a3b07bbbc1ab514f8b17f876baae84a923ae43384e9e8ee9e518d31daa3bd9`（244,674,586 bytes）、Setup `8461defe905aefddd45aa7ebac56c67d76e13c5226a29f621d3fca74aca78edf`（245,381,834 bytes）；`latest.yml` Setup size／SHA-512 一致，簽章狀態為 `UNSIGNED INTERNAL PREVIEW`。
+- checksum 邊界：CI 原始 `SHA256SUMS-windows-x64.txt` 為 CRLF，Windows runner 已成功使用且去除 CR 的 macOS 串流重放亦全數 `OK`；本機 extracted 交付另附等值 LF 版 `SHA256SUMS-windows-x64-LF.txt`，原始 CI 清單保留不改寫。
+- 未覆蓋：macOS DMG 拖曳安裝後／乾淨帳號 Gatekeeper、Windows 10／11 使用者實機 SmartScreen 與互動安裝、正式簽章／公證、真實 Breeze checkpoint／官方 runtime／品質／效能／長音訊／取消與 process tree；測試包不得宣稱為新的正式版本或替換已發布 v0.49.0。
 
 ## SYNC-024 GitHub Windows 修正同步驗證（2026-08-06）
 
@@ -192,6 +210,20 @@
 - 可重放證據：`npm run probe:ollama:live`（底層為 `scripts/probe-ollama-live.mjs`）會保存版本、模型清單、完整 capability／single-cue 請求與原始回應；本輪 artifact 為 `docs/project-management/evidence/2026-07-28-ollama-llama3.2-1b-live.json`。該次 capability 回應使用 `Traditional Chinese` 鍵而非產品要求的 `traditionalChinese`，single-cue 回應使用 `cue`、改動時間碼並附 Markdown／自然語言，正好證明 strict contract 與人工審核仍必要。Probe 另以 `isLoopbackAiUrl`、`aiEndpointPrivacy` 與所有 fetch `redirect: manual` 保護資料邊界；本機 probe exit 0，遠端 `OLLAMA_BASE_URL` 負例在 fetch 前 exit 1。
 - Probe 安全矩陣：`http://localhost:11434/v1` 實際 probe 成功；`localhost.example.com` 在 fetch 前拒絕；`[::1]` 通過 loopback 分類但因 Ollama 僅監聽 IPv4 而連線失敗，未被誤判為遠端或送出資料。
 - 未覆蓋即不得宣稱：目前沒有證據時，不得將真實 Ollama／LM Studio、Windows 封裝、macOS 安裝版或斷網端到端標示為通過。
+
+## BUG-021 Breeze runtime 安裝指引驗證
+
+- `scripts/test-breeze-asr.mjs` 驗證 guide 具備官方 repo／模型連結、兩平台 `--recurse-submodules`、submodule 安裝路徑、開發版與已安裝 App 啟動命令，以及不在 Breeze repo 內執行 `npm start` 的負向條件。
+- `scripts/test-core.mjs` 驗證 `/api/breeze-asr` 與 `model` 內的固定 guide details 一致；`node --check public/app.js` 與 UI source marker 驗證 runtime modal、模型下載 modal 入口及 persistent ASR 欄位入口。
+- UI smoke 只驗證隔離本機 server 的 Breeze 缺件狀態、選單與 modal 資產存在；未安裝真實 patched runtime／3 GB checkpoint，不把 mock 或 source marker 當作真實轉錄品質／跨平台驗收。
+- 安裝指引命令不由 App 自動執行；供應鏈、git／pip／Python 版本、Windows PowerShell、macOS shell、安裝位置與實機啟動仍需外部驗收。
+
+## BUG-022 Breeze runtime 路徑與首頁健康卡回歸驗證
+
+- `scripts/test-breeze-asr.mjs` 新增 macOS／Linux 標準 `$HOME/Breeze-ASR-25/.venv/bin/python`、Windows `%USERPROFILE%\\Breeze-ASR-25\\.venv\\Scripts\\python.exe` 偵測 fixture；同時驗證 Windows `USERPROFILE` 優先於 `HOME`，以及外部 patched venv 優先一般 bundled Python，避免假缺件。
+- `scripts/test-breeze-asr.mjs` 以 source assertion 確認首頁 `refreshHomeHealth` 在 `/api/health` 成功後呼叫 `updateMetrics(tools)`，讓 FFmpeg／ASR／Whisper／GPU 卡片更新。
+- focused：`node --check lib/breeze-runtime-probe.mjs`、`server.mjs`、`electron/main.mjs`、`public/app.js` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check` 通過（含 docs validator、核心 API 與所有 deterministic 回歸）。
+- 未覆蓋即不得宣稱：測試 fixture 不代表本機已安裝 MediaTek patched Whisper；真實 Python／PyTorch／submodule／3 GB checkpoint、Breeze 音訊品質／效能、Windows process tree、雙平台乾淨安裝與自訂路徑仍待外部驗收。
 
 ## 0.48.x 穩定化驗證（2026-07-30）
 

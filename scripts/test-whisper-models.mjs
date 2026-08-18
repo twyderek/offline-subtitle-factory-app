@@ -101,7 +101,8 @@ try {
   const indexHtml = fs.readFileSync(path.join(appDir, 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(appDir, 'public', 'app.js'), 'utf8');
   for (const name of ['tiny', 'base', 'small']) assert.match(indexHtml, new RegExp(`value="${name}"`));
-  assert.match(indexHtml, /<option value="breeze-asr-25">Breeze ASR 25（實驗性・需另裝 runtime）<\/option>/);
+  assert.match(indexHtml, /<option value="breeze-asr-25">Breeze ASR 25<\/option>/);
+  assert.doesNotMatch(indexHtml, /Breeze ASR 25（實驗性/, 'Breeze 選單不可把實驗性說明混入產品名稱');
   assert.match(appJs, /\/api\/breeze-asr/);
   assert.match(appJs, /ensureBreezeAsrReady/);
   assert.match(indexHtml, /id="downloadWhisperModel"/);
