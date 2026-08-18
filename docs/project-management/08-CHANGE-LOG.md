@@ -5,7 +5,7 @@
 ## 2026-08-18 — Breeze 0.49.1 正式發布收尾（REL-038）
 
 - 狀態：完成
-- 結案判定：REL-038 發布後核對完成；`v0.49.1` 已公開並標示 Latest，13 項 asset 的 URL／大小／digest／直接下載內容已反向核對
+- 結案判定：REL-038 發布後核對完成；`v0.49.1` 已公開並標示 Latest，13 項 asset 的 URL／大小／digest 已反向核對，metadata／notes／checksum／blockmap 已直接下載比對，四個主資產以 API digest 與 HTTP Content-Length 核對
 - 審查／交付屬性：將 0.49.1 Breeze 首次設定流程與 MacBook Air 效能依據推進至正常公開版本；選擇器不顯示 experimental 字樣，首次選擇會引導模型下載與 patched runtime 設定；真實 runtime／模型品質／效能與跨平台實機缺口仍須在 Release notes 明確揭露。
 - 執行者：Codex
 - 需求來源：需求方要求「繼續完成本版本至正常發布版本」，並明確接受 Breeze 未完成真實 runtime／模型品質／跨平台實機驗收與低資源 Mac Air 效能風險。
