@@ -2,6 +2,27 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-18 — Breeze 0.49.1 正式發布收尾（REL-038）
+
+- 狀態：進行中
+- 結案判定：發布前資產核對完成；待 PR #14 合併、`v0.49.1` tag／Release 建立與發布後 URL／digest 反向核對
+- 審查／交付屬性：將 0.49.1 Breeze 首次設定流程與 MacBook Air 效能依據推進至正常公開版本；選擇器不顯示 experimental 字樣，首次選擇會引導模型下載與 patched runtime 設定；真實 runtime／模型品質／效能與跨平台實機缺口仍須在 Release notes 明確揭露。
+- 執行者：Codex
+- 需求來源：需求方要求「繼續完成本版本至正常發布版本」，並明確接受 Breeze 未完成真實 runtime／模型品質／跨平台實機驗收與低資源 Mac Air 效能風險。
+- 關聯需求／缺陷：`REL-038`、`REL-037`、`FR-024`、`BUG-022`、`NFR-006`
+- 變更等級：發布（PR ready／merge、tag、公開 Release 與發布後資產核對）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／build／test／review／closeout 路由（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，commit `b14e4d3`，產品版本 `0.49.1`；既有公開版本 `v0.49.0` 保留不變。
+- 目標與成功條件：PR #14 轉 ready 並合併至 `main`；以最終 merge commit 建立 annotated tag `v0.49.1`；公開 Release 附 macOS arm64 DMG／ZIP、Windows x64 Setup／Portable、兩平台 updater metadata、SHA-256、blockmap 與未簽章／未公證說明；發布後從 GitHub 直接下載核對名稱、大小、digest、URL 與內容。
+- 不在範圍：不把 Breeze Python／PyTorch／MediaTek patched Whisper runtime／3 GB checkpoint 放入安裝包；不宣稱真實 Breeze 品質、即時效能、長音訊、取消／恢復或兩平台乾淨安裝已驗收。
+- 授權依據：需求方已明確要求正常發布；另引用有效常設授權 `AUTH-2026-07-23-01`（允許 Windows Authenticode 未簽章、macOS 未 Developer ID／公證公開發布），不延伸至未驗證風險。
+- Windows CI／artifact 證據：最終文件 commit `b14e4d391f24a8a8e845d54ef823726908393035` 的 run `32093408495` 成功；artifact `9309205866`、490,424,583 bytes、GitHub digest `sha256:1fb0a40a3c5ce200ff82c56736e13054f10314d3f700fab9515ec3becc8ec5fc`。本機下載 ZIP SHA-256 同為 `1fb0a40a3c5ce200ff82c56736e13054f10314d3f700fab9515ec3becc8ec5fc`，`unzip -t` 無錯；Setup `af64c6159cd7d0a96e04587d33a0c6f562edc0ea3d6b6923eb875d917ee5ee6e`（245,388,252 bytes）、Portable `1d8393f95cd84451cb244cdf7fdf6c8708e86bb57822fbfd03b59f8697e03321`、blockmap `8f059c2af8015dae4a6a1b829cd963524c9878dee2f0d603d820a42b0f156f02`；`latest.yml` SHA-512／size 與 Setup 一致；`SIGNING-STATUS-windows-x64.txt` 如實標示 `UNSIGNED INTERNAL PREVIEW`。
+- macOS candidate 證據：DMG `8e0afe0065f4ed3e608248dc5b26558a2e5dfb1effe9c3ef93572ceaf2eff0df`（242,718,460 bytes，`hdiutil verify` VALID）；ZIP `99837a1de3742e40d752a27a9a58e01db29bd5704de7905a07609ecfc7ebdf64`（256,980,540 bytes，`unzip -t` 通過）；`latest-mac.yml` 的 ZIP／DMG SHA-512 與大小已重算一致；ad-hoc、未 Developer ID／公證狀態已揭露。
+- 開發驗證結果：`node --check`、Breeze／核心 focused tests、完整受控 `npm run check`、`npm run docs:check:final`、`git diff --check` 已通過；packaged renderer 已確認 Breeze first-selection modal opened／cancelled、manual job／trim／review／folder flows 通過，但 smoke cleanup 未自然結束，未冒充 exit 0。
+- 發布後核對：待 Release 建立後，必須重新取得 GitHub 實際 asset metadata／direct URL／digest 與下載內容；任何不一致均不得宣稱發布完成。
+- 獨立審查是否執行：是（REL-037 round1／round2／round3；本輪另請獨立上下文進行 round4 發布複核）
+- 遺留風險與後續事項：Breeze 真實 checkpoint／runtime、台灣華語品質、1:46 長音訊、Mac Air 約 3.4× 效能、取消／恢復、Windows／macOS 乾淨安裝與 smoke cleanup 仍需如實保留；Windows 未簽章與 macOS 未公證可能觸發安全警告。
+
 ## 2026-08-18 — Breeze 首次設定流程與 Mac Air 效能發布依據（REL-037）
 
 - 狀態：完成
