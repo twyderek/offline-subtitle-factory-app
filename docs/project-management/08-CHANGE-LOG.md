@@ -20,7 +20,7 @@
 - 風險與回復方式：首次選擇會觸發下載／設定對話框，取消仍不得建立任務；若 UI／下載／回歸失敗，停止發布候選並回復本輪變更；效能證據僅作警示與發布依據。
 - 驗證計畫：focused Breeze／UI tests、Node syntax、完整 `npm run check`、docs check、packaged renderer smoke、Mac Air 效能證據與獨立六面向審查；若建立新候選，另核對 DMG／ZIP／SHA／metadata。
 - 實際修改：完成 Breeze 選單一般產品文字與首次選擇 readiness flow；加入模型下載→runtime 指引串接、ready／缺件狀態、重入保護與 stale catalog 清理；同步 UI／API／文件／Release notes／測試；版本升至 `0.49.1`，workflow 改用現行分支與 `v0.49.1`；新增 packaged renderer 的 Breeze 首次選擇下載 modal／取消 smoke。
-- 開發驗證結果：focused `node --check`、`node scripts/test-breeze-asr.mjs`、`git diff --check` 通過；受控完整 `npm run check` 通過（版本 0.49.1）；`npm run probe:breeze -- --json` 預期 exit 1，模型缺失且 `ready:false`；macOS arm64 0.49.1 目錄候選 runtime manifest／verify 通過，app 版本、Release notes／Breeze guide 存在且未含 `.pt`／大於 1 GiB 檔案；DMG `hdiutil verify` VALID、ZIP `unzip -t` 通過，SHA-256 已記錄於候選交付證據；renderer smoke 輸出確認 Breeze first-selection modal opened／cancelled、manual job、trim、review 與 folder flow 通過，但 smoke cleanup 在輸出後未自然結束，未將中止狀態冒充 exit 0。
+- 開發驗證結果：focused `node --check`、`node scripts/test-breeze-asr.mjs`、`git diff --check` 通過；受控完整 `npm run check` 通過（版本 0.49.1）；`npm run probe:breeze -- --json` 預期 exit 1，模型缺失且 `ready:false`；macOS arm64 0.49.1 目錄候選 runtime manifest／verify 通過，app 版本、Release notes／Breeze guide 存在且未含 `.pt`／大於 1 GiB 檔案；DMG `hdiutil verify` VALID、ZIP `unzip -t` 通過，SHA-256 已記錄於候選交付證據；renderer smoke 輸出確認 Breeze first-selection modal opened／cancelled、manual job、trim、review 與 folder flow 通過，但 smoke cleanup 在輸出後未自然結束，未將中止狀態冒充 exit 0。推送後 GitHub Actions run `32092940674` 成功完成 Windows source／FFmpeg、unsigned Setup／Portable、renderer、安裝解除、archive 與 upload；artifact `9309011601` 為 490,424,588 bytes、GitHub digest `sha256:781cb73e801425d396481aeb772214db69daeae35d6876e43d8203545cee6cab`，Setup／Portable／metadata 的全量下載與內容 SHA 尚待補核。
 - 獨立審查是否執行：是（round1、round2、round3）
 - 獨立審查結論：round1／round2／round3 均為有條件通過；round3 條件是否已被需求方接受：是（僅限 0.49.1 隔離候選交付，不把未完成的 Windows CI、smoke cleanup 或真實 Breeze 驗收宣稱為公開完成）。
   - round1 審查檔案：`docs/project-management/reviews/2026-08-18-breeze-first-selection-performance-round1.md`
@@ -35,8 +35,8 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-18（本輪明確要求繼續完成版本）
   - 核准範圍：同意修改首次 Breeze 設定流程、記錄本機效能證據並準備正常發布候選；接受低資源 Mac Air 效能與真實 runtime／品質／跨平台驗收風險；公開 Release 是否建立須待本輪測試與審查後核對。
-- 部署／發布結果：完成 0.49.1 macOS arm64 隔離候選；目錄版位於 repo 外 `../dist/mac-arm64/`，DMG／ZIP 位於 `../dist/`，未建立 tag、未推送新 Release、未覆寫既有公開 `v0.49.0` 資產。Windows 0.49.1 需待 branch push 後由 CI 產出並核對。
-- 遺留風險與後續事項：Breeze 仍可能在 8 GB Mac Air 上遠慢於即時；renderer smoke 輸出後 cleanup 未自然結束；尚無 Windows CI／asset metadata、真實 checkpoint／runtime、長音訊品質、取消／恢復、Windows／macOS 乾淨安裝證據；若要建立 0.49.1 公開 Release，必須先完成上述條件並保留效能限制與安裝前置條件。
+- 部署／發布結果：完成 0.49.1 macOS arm64 隔離候選；目錄版位於 repo 外 `../dist/mac-arm64/`，DMG／ZIP 位於 `../dist/`；Windows CI artifact 已產出於 run `32092940674`，未建立 tag、未推送新 Release、未覆寫既有公開 `v0.49.0` 資產。
+- 遺留風險與後續事項：Breeze 仍可能在 8 GB Mac Air 上遠慢於即時；renderer smoke 輸出後 cleanup 未自然結束；Windows artifact 的 Setup／Portable／latest.yml／checksum 全量下載內容與 SHA 尚待核對；真實 checkpoint／runtime、長音訊品質、取消／恢復、Windows／macOS 乾淨安裝證據仍缺；若要建立 0.49.1 公開 Release，必須先完成上述條件並保留效能限制與安裝前置條件。
 
 ## 2026-08-18 — Breeze BUG-022 修正版分支同步 GitHub（REL-036）
 
