@@ -244,3 +244,13 @@
 - 驗證：Node syntax、`node scripts/test-breeze-asr.mjs` 與完整 `npm run check` 通過；新增 macOS／Windows 標準 venv 偵測、Windows `USERPROFILE` 優先序、外部 venv 優先 bundled Python 與首頁 `updateMetrics` source assertion。
 - 防回歸：明確 `BREEZE_ASR_PYTHON` 仍優先；缺件時不自動執行安裝命令；任何新平台路徑變更須加入平台衝突與 bundled／external 優先序測試。
 - 剩餘風險：本機未安裝或未執行真實 MediaTek patched runtime、3 GB checkpoint、長音訊與品質／效能；Windows process tree、macOS／Windows 乾淨安裝與自訂 runtime 路徑仍需外部驗收。
+
+# BUG-023 — Breeze 首次選擇未立即協助設定
+
+- 日期／版本：2026-08-18／0.49.1 修正版候選
+- 現象：選取 Breeze 時只更新狀態文字，模型下載與 runtime 指引要等到提交任務才出現；選單文字也把「實驗性／需另裝 runtime」混在產品名稱中。
+- 根因：ASR 選擇器 change handler 只查詢狀態並自行分支，沒有共用提交前的 `ensureBreezeAsrReady()` readiness flow；產品名稱與限制說明未分離。
+- 修正：選取 Breeze 後立即共用模型／runtime readiness flow；模型缺失開啟固定官方下載對話框，下載完成後接續 runtime guide，取消仍阻止任務建立；選單改為 `Breeze ASR 25`，限制與效能風險移至說明／發布文件。
+- 驗證：`scripts/test-breeze-asr.mjs` 新增 UI 文字與首次選擇 source assertions；完整回歸與獨立審查待本輪結案補記。
+- 效能依據：需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約需 6 小時（約 `3.4×`）；單一本機觀察，不代表品質或跨平台效能驗收。
+- 剩餘風險：模型約 2.88 GiB 且 runtime 不隨包提供；低資源 CPU 可能長時間執行，仍需真實 profiler、長音訊、品質、Windows／macOS 乾淨安裝驗收。

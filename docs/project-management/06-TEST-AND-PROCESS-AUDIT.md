@@ -154,6 +154,13 @@
 - focused `node --check ...` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check`、`docs:check:final` 與 round2 獨立複審結果待本輪結案後補記。
 - 未覆蓋：真實 Windows process tree、官方 runtime／checkpoint、音訊品質、效能與跨平台安裝後流程仍沿用前輪外部驗收缺口。
 
+## REL-037 Breeze 首次選擇流程與 Mac Air 效能發布依據（2026-08-18）
+
+- UI 將選擇器文字改為一般產品名稱 `Breeze ASR 25`；選取事件立即呼叫既有 `ensureBreezeAsrReady()`，模型缺失時開啟固定官方下載，完成驗證後 runtime 缺失則接續開啟安裝／啟動指引。
+- `scripts/test-breeze-asr.mjs` 新增選擇器無「實驗性」字樣、首次選擇設定提示及 readiness flow source assertions；仍保留取消下載不得建立任務、runtime 缺件可切回 Whisper.cpp 的既有契約。
+- 發布依據：需求方回報 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約 6 小時（約 `3.4×`）；未保存 profiler／原始音訊／完整 telemetry，不作跨機型或品質驗收。
+- 未覆蓋：真實 Breeze checkpoint／patched runtime、長音訊品質、CPU／CUDA 效能、跨平台乾淨安裝與安裝後首次選擇的真實使用者流程仍需外部驗收。
+
 ## REL-030 Breeze 0.49.0 第一版發布候選（2026-08-13）
 
 - 來源基線：由 `origin/main=05b275f` 建立 `codex/breeze-first-release`，只移植 Breeze runtime probe／process cleanup／diagnostic redaction 變更並升版至 0.49.0，避免直接發布落後主線 25 個提交的舊開發分支。

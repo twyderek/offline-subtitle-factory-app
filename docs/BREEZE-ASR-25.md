@@ -11,6 +11,10 @@
 
 本輪沒有把 Python、PyTorch 或 patched Whisper 放入安裝包，因此只有下載模型仍不足以執行 Breeze。
 
+## 第一次選擇 Breeze
+
+首頁選取 `Breeze ASR 25` 後，App 會立即檢查模型與 runtime；模型缺失時開啟固定官方版本的下載對話框，下載完成並通過大小／SHA-256 驗證後，若仍缺少 runtime 會接續開啟安裝與啟動指引。下載約 2.88 GiB，需由使用者確認開始；App 不會在背景自動執行下載、`git clone`、`pip install` 或修改 PATH。完成指引中的外部安裝並重新啟動 App 後，按「重新檢查 runtime」即可繼續。若暫不設定，可在 runtime 對話框切回內建 Whisper.cpp。
+
 ## 安裝官方 runtime
 
 建議使用獨立 Python 3.8–3.11 virtual environment：
@@ -88,6 +92,12 @@ npm run probe:breeze -- --json
 - 模型未完成驗證、runtime 不相容或推論失敗時，任務不會標記成功。
 - 若不使用 Breeze，將 ASR 模型選回「內建 Whisper.cpp」即可；可刪除 App 顯示的 Breeze 模型快取以回收約 3 GB 空間。
 - 本功能尚未完成 Windows／macOS 安裝版實機、長音訊效能與真實台灣華語品質驗收。
+
+## Mac Air 效能發布依據（需求方實機回報）
+
+- 環境：MacBook Air `Mac15,12`、Apple M3、8 GB RAM、8 cores、macOS `26.5.2`（Build `25F84`）。
+- Breeze ASR 25 對約 1 小時 46 分鐘影片耗時約 6 小時，約為影片長度的 `3.4×`；這是單一低資源 Mac Air 的 CPU／runtime 觀察，不是跨機型保證。
+- 未保存 profiler、原始音訊或完整逐段 telemetry，因此不能據此推導品質、溫度、記憶體峰值或其他硬體效能。需要較快結果時，請改用內建 Whisper.cpp；Breeze 的「快速」模式僅是參數選擇，不保證達到即時或固定倍率。
 
 ## 官方來源
 

@@ -116,6 +116,7 @@ let currentProjectPath = null;
 let allTasks = [];
 let whisperModelCatalog = null;
 let breezeAsrCatalog = null;
+let breezeReadinessPromise = null;
 
 // ── First-launch bootstrap check ────────────────────────────────────────────
 (async function runBootstrapCheck() {
@@ -472,6 +473,7 @@ async function refreshBreezeAsrStatus(force = false) {
     breezeAsrCatalog = data;
     return data;
   } catch (error) {
+    breezeAsrCatalog = null;
     setStatus({ progress: 0, stage: 'waiting', message: `Breeze ASR 25 狀態無法取得：${error.message}`, logs: ['GET /api/breeze-asr 失敗'] });
     return null;
   }
@@ -796,7 +798,7 @@ async function ensureSelectedWhisperModel() {
   return Boolean(refreshed?.models?.[modelName]?.valid);
 }
 
-async function ensureBreezeAsrReady() {
+async function ensureBreezeAsrReadyInternal() {
   let catalog = await refreshBreezeAsrStatus(true);
   let model = catalog?.model;
   if (!model) return false;
@@ -830,6 +832,16 @@ async function ensureBreezeAsrReady() {
   return Boolean(model.valid && model.runtimeReady);
 }
 
+async function ensureBreezeAsrReady() {
+  if (breezeReadinessPromise) return breezeReadinessPromise;
+  breezeReadinessPromise = ensureBreezeAsrReadyInternal();
+  try {
+    return await breezeReadinessPromise;
+  } finally {
+    breezeReadinessPromise = null;
+  }
+}
+
 function updateAsrEngineUi() {
   const engine = form.elements.asrEngine?.value || 'whisper-cpp';
   const whisperField = document.getElementById('whisperModelField');
@@ -840,7 +852,15 @@ function updateAsrEngineUi() {
   const downloadButton = document.getElementById('downloadWhisperModel');
   const runtimeGuideButton = document.getElementById('openBreezeRuntimeGuideButton');
   if (engine === 'breeze-asr-25') {
-    if (statusEl) statusEl.textContent = 'Breeze ASR 25 會在提交前檢查模型與 patched runtime。';
+    const breezeModel = breezeAsrCatalog?.model;
+    const breezeStatus = !breezeModel
+      ? '首次選擇 Breeze ASR 25 會先協助下載模型，再引導設定 patched runtime。'
+      : !breezeModel.valid
+        ? `Breeze ASR 25 尚未安裝（約 ${formatModelDownloadSize(breezeModel.download?.size)}）；可開始官方下載。`
+        : !breezeModel.runtimeReady
+          ? 'Breeze ASR 25 模型已安裝，請完成 patched runtime 設定後重新檢查。'
+          : 'Breeze ASR 25 已就緒，可開始提交任務。';
+    if (statusEl) statusEl.textContent = breezeStatus;
     if (downloadButton) downloadButton.hidden = true;
     if (runtimeGuideButton) runtimeGuideButton.hidden = !(breezeAsrCatalog?.model?.valid && !breezeAsrCatalog?.model?.runtimeReady);
   } else if (engine === 'manual') {
@@ -855,18 +875,9 @@ function updateAsrEngineUi() {
 
 form.elements.asrEngine?.addEventListener('change', async () => {
   updateAsrEngineUi();
-  if (form.elements.asrEngine.value === 'breeze-asr-25') {
-    const catalog = await refreshBreezeAsrStatus();
-    const model = catalog?.model;
-    if (model && !model.valid) {
-      document.getElementById('whisperModelStatus').textContent = `Breeze ASR 25 尚未安裝（約 ${formatModelDownloadSize(model.download?.size)}）；提交任務時會先確認下載。`;
-    } else if (model) {
-      document.getElementById('whisperModelStatus').textContent = model.runtimeReady ? 'Breeze ASR 25 已就緒。' : 'Breeze 模型已安裝，但缺少 patched Whisper runtime；已開啟安裝指引。';
-      const runtimeGuideButton = document.getElementById('openBreezeRuntimeGuideButton');
-      if (runtimeGuideButton) runtimeGuideButton.hidden = !(!model.runtimeReady && model.valid);
-      if (!model.runtimeReady) openBreezeRuntimeInstallDialog(catalog, model);
-    }
-  }
+  if (form.elements.asrEngine.value !== 'breeze-asr-25') return;
+  await ensureBreezeAsrReady();
+  updateAsrEngineUi();
 });
 
 document.querySelector('select[name="modelName"]')?.addEventListener('change', async () => {

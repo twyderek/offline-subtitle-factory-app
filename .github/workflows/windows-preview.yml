@@ -1,12 +1,12 @@
-name: Build Windows 0.49.0
+name: Build Windows 0.49.1
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - codex/breeze-first-release
+      - codex/021-breeze-runtime-guide
     tags:
-      - v0.49.0
+      - v0.49.1
 
 permissions:
   contents: read
@@ -54,8 +54,8 @@ jobs:
       - name: Verify Windows packaged renderer and install lifecycle
         shell: pwsh
         run: |
-          $setup = (Get-ChildItem ../dist -Filter '*setup-0.49.0.exe' -File | Select-Object -First 1).FullName
-          $portable = (Get-ChildItem ../dist -Filter '*portable-0.49.0.exe' -File | Select-Object -First 1).FullName
+          $setup = (Get-ChildItem ../dist -Filter '*setup-0.49.1.exe' -File | Select-Object -First 1).FullName
+          $portable = (Get-ChildItem ../dist -Filter '*portable-0.49.1.exe' -File | Select-Object -First 1).FullName
           if (-not $setup -or -not $portable) { throw 'Setup 或 Portable artifact 不存在。' }
           powershell -ExecutionPolicy Bypass -File scripts/verify-windows-installation.ps1 `
             -SetupPath $setup `
@@ -84,9 +84,9 @@ jobs:
             }
           }
 
-          $releaseNotes = '../dist/win-unpacked/resources/app/RELEASE-NOTES-0.49.0.md'
+          $releaseNotes = '../dist/win-unpacked/resources/app/RELEASE-NOTES-0.49.1.md'
           if (-not (Test-Path -LiteralPath $releaseNotes -PathType Leaf)) {
-            throw 'Packaged 0.49.0 release notes are missing.'
+            throw 'Packaged 0.49.1 release notes are missing.'
           }
 
           $breezeGuide = '../dist/win-unpacked/resources/app/docs/BREEZE-ASR-25.md'
@@ -127,7 +127,7 @@ jobs:
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: offline-subtitle-factory-0.49.0-windows-x64
+          name: offline-subtitle-factory-0.49.1-windows-x64
           path: |
             .artifacts/windows-x64/*
           if-no-files-found: error

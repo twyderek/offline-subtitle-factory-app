@@ -156,6 +156,13 @@ try {
   assert.match(indexSource, /id="copyBreezeRuntimePackagedLaunch"/);
   assert.match(indexSource, /id="breezeRuntimePackagedLaunchCommand"/);
   assert.match(indexSource, /id="useWhisperCppInstead"/);
+  assert.match(indexSource, /<option value="breeze-asr-25">Breeze ASR 25<\/option>/, 'Breeze 選單應使用一般產品名稱');
+  assert.doesNotMatch(indexSource, /Breeze ASR 25（實驗性/, 'Breeze 選單不可顯示實驗性說明');
+  assert.match(appSource, /首次選擇 Breeze ASR 25 會先協助下載模型/, '首次選擇應提供可操作的設定提示');
+  assert.match(appSource, /form\.elements\.asrEngine\.value !== 'breeze-asr-25'[\s\S]*?await ensureBreezeAsrReady\(\)/, '首次選擇 Breeze 應立即進入模型與 runtime 就緒流程');
+  assert.match(appSource, /breezeReadinessPromise/, 'Breeze readiness 應避免快速重複選擇造成重入');
+  assert.match(appSource, /Breeze ASR 25 已就緒，可開始提交任務/, 'Breeze runtime 就緒後應顯示明確完成狀態');
+  assert.match(appSource, /catch \(error\) \{\s*breezeAsrCatalog = null;/, 'Breeze 狀態查詢失敗不可沿用過期 ready 狀態');
   console.log('Breeze ASR 25 模型契約、runtime 探針與 CLI 參數測試通過');
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });

@@ -62,7 +62,7 @@ Breeze ASR 25 是獨立的 ASR 引擎選項，不加入 Whisper.cpp `tiny`／`ba
 
 執行路徑使用外部 Python 與 MediaTek 官方 patched Whisper CLI；健康檢查不是只驗證 `import whisper`，而是執行能力探針確認 `whisper.available_models()` 包含 `breeze-asr-25`。模型與 runtime 任一缺失時，任務在音訊推論前進入可採取行動的失敗／等待狀態，不允許 patched CLI 自行從未固定的 `main` 下載。模型有效時以 `python -m whisper <audio> --model breeze-asr-25 --model_dir <cache>` 執行，沿用 16 kHz 音訊、CPU／CUDA、beam preset、取消、SRT 清理與後續規則／人工校閱。由於本輪不封裝 Python、PyTorch 或 patched Whisper，UI 必須明示這是需另裝官方 runtime 的實驗功能；Whisper.cpp 仍為預設與可回復路徑。
 
-runtime 缺件時，UI 立即提供可操作的官方安裝指引：使用 `git clone --recurse-submodules` 取得 patched Whisper submodule，將 venv 放在使用者家目錄，並分別提供本專案開發版與 macOS／Windows 預設安裝版的啟動命令。指引不會在 App 內執行 clone、pip 或任意 shell；使用者完成外部安裝並以同一 process environment 設定 `BREEZE_ASR_PYTHON` 後，可按「重新檢查 runtime」。
+首次選取 Breeze 時，UI 立即查詢模型與 runtime；模型缺件會開啟固定官方模型下載對話框，下載完成且驗證成功後若 runtime 缺件則接續開啟安裝指引。使用者取消下載或切回 Whisper.cpp 都不會建立 Breeze 任務。runtime 缺件時，UI 提供可操作的官方安裝指引：使用 `git clone --recurse-submodules` 取得 patched Whisper submodule，將 venv 放在使用者家目錄，並分別提供本專案開發版與 macOS／Windows 預設安裝版的啟動命令。指引不會在 App 內執行 clone、pip 或任意 shell；使用者完成外部安裝並以同一 process environment 設定 `BREEZE_ASR_PYTHON` 後，可按「重新檢查 runtime」。選擇器使用一般產品名稱，experimental／效能與品質限制留在說明與發布文件中。
 
 runtime 探測與首頁健康狀態（BUG-022）
 
