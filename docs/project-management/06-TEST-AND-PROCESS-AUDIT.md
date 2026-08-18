@@ -154,6 +154,16 @@
 - focused `node --check ...` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check`、`docs:check:final` 與 round2 獨立複審結果待本輪結案後補記。
 - 未覆蓋：真實 Windows process tree、官方 runtime／checkpoint、音訊品質、效能與跨平台安裝後流程仍沿用前輪外部驗收缺口。
 
+## REL-038 Breeze 0.49.1 正式發布後核對（2026-08-18）
+
+- PR #14 已轉 ready 並合併；merge commit `917ae82886a0dff195009c66ce9438b78675fcc0`，annotated tag `v0.49.1` 指向同一 commit，既有 `v0.49.0` 未移動。
+- tag workflow run `32095872065` 成功；artifact `9309963799` 大小 `490,424,761` bytes，GitHub digest `sha256:6551957e320b6f299328bc2b13898134814534585854b1c9d9164096419be04a`；本機分段下載重組後 digest／ZIP／PE／checksum／`latest.yml` 一致，Windows Setup／Portable／blockmap 與 unsigned 狀態可追溯。
+- macOS arm64 0.49.1 DMG SHA-256 `8e0afe0065f4ed3e608248dc5b26558a2e5dfb1effe9c3ef93572ceaf2eff0df`（242,718,460 bytes，`hdiutil verify` VALID），ZIP SHA-256 `99837a1de3742e40d752a27a9a58e01db29bd5704de7905a07609ecfc7ebdf64`（256,980,540 bytes，`unzip -t` 通過）；`latest-mac.yml` SHA-512／size 一致。
+- GitHub Release `v0.49.1` 已 `isDraft=false`／`isPrerelease=false`，公開 13 項 asset；API 核對所有名稱／大小／digest／`/releases/download/v0.49.1/` URL。metadata、checksum、簽章狀態、blockmap、Release notes 與直接下載 hash 全數一致；四個主資產的 HTTP Content-Length 與 API size 一致。
+- Breeze 首次選擇流程與雙平台 renderer smoke 證據已交付；MacBook Air M3／8 GB 的 1:46 影片約 6 小時（約 `3.4×`）列為效能警示，不作跨機型或品質保證。
+- round4 獨立發布複審報告：`reviews/2026-08-18-breeze-first-selection-performance-round4.md`；其判定為有條件通過，明列 smoke cleanup 未自然退出及真實 Breeze runtime／checkpoint／品質／效能／乾淨安裝缺口；本次 Release 已在該風險如實揭露下完成。
+- 未覆蓋：MediaTek patched Whisper runtime 實際載入、3.09 GiB checkpoint／長音訊／取消恢復／CPU 記憶體效能、Windows／macOS 乾淨實機與 macOS smoke cleanup 自然 exit 仍待後續外部驗收。
+
 ## REL-037 Breeze 首次選擇流程與 Mac Air 效能發布依據（2026-08-18）
 
 - UI 將選擇器文字改為一般產品名稱 `Breeze ASR 25`；選取事件立即呼叫既有 `ensureBreezeAsrReady()`，模型缺失時開啟固定官方下載，完成驗證後 runtime 缺失則接續開啟安裝／啟動指引。

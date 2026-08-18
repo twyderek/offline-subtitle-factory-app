@@ -23,6 +23,7 @@
 | 0.48.0／2026-07-30 | Ollama／LM Studio、本機 AI 翻譯與雙語顯示修正 | GitHub `v0.48.0` 已正式公開並標示 Latest；tag `4cdb017`，9 項 macOS／Windows 資產、大小、digest 與下載 URL 已核對 |
 | 0.48.1／2026-08-11 | Whisper Tiny／Base／Small、安全模型下載、Windows／Ollama／Azure 穩定化 | GitHub `v0.48.1` 已公開；PR、tag、12 項雙平台資產、Windows CI 與 metadata 已核對 |
 | 0.49.0／2026-08-13 | Breeze ASR 25 第一版實驗性正式發布 | 由最新 `main` 移植 runtime／模型 probe 與診斷遮罩；PR #11、最終 tag Windows workflow、9 項正式資產與發布後全量下載核對通過；真實 checkpoint／runtime／音訊品質與效能仍是已揭露的 experimental 風險 |
+| 0.49.1／2026-08-18 | Breeze 首次選擇設定協助與 Mac Air 效能依據正式發布 | PR #14、merge `917ae828`、tag workflow `32095872065` 與 13 項公開資產已核對；選擇器移除 experimental 字樣並引導模型／runtime 設定；MacBook Air M3／8 GB 的 1:46 影片約 6 小時列為效能警示，真實 Breeze runtime／品質／跨平台驗收仍未完成 |
 
 ## 0.45.1 發布補充
 

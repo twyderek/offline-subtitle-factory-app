@@ -1,24 +1,26 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-08-18
-> 現行版本：0.49.1（Breeze 首次設定流程修正版候選）
-> 現行公開版本：0.49.0（GitHub Latest）
-> 發布 tag／commit：`v0.49.0` → `1f50b85c0599ef85c73f05085d70925d4d6b670a`
+> 現行版本：0.49.1（Breeze 首次設定流程正式發布）
+> 現行公開版本：0.49.1（GitHub Latest）
+> 發布 tag／commit：`v0.49.1` → `917ae82886a0dff195009c66ce9438b78675fcc0`
 > 主分支：`main`
 
 ## 0.49.0 Breeze 第一版正式發布
 
-## 0.49.1 Breeze 首次設定流程修正版候選
+## 0.49.1 Breeze 首次設定流程正式發布
 
-- 本分支以 `0.49.1` 作為不覆寫既有 `v0.49.0` 的修正版候選；公開 Latest 仍是 `v0.49.0`，待新候選完成 CI／封裝／checksum／下載核對後才可建立新 Release。
+- PR #14 已合併至 `main`，annotated tag `v0.49.1` 指向 merge commit `917ae82886a0dff195009c66ce9438b78675fcc0`；GitHub Release 已公開並標示 Latest，既有 `v0.49.0` 保留為歷史版本。
 - 首次選取 Breeze 會立即開啟模型下載／runtime 設定協助；選單不再把 experimental 說明混入產品名稱，文件與 Release notes 仍保留真實 runtime／品質／效能限制。
 - 需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2` 回報 1:46:00 影片約需 6 小時（約 `3.4×`），列為 0.49.1 發布依據與低資源效能警示，非跨機型驗收。
+- tag workflow run `32095872065` 成功；Windows artifact `9309963799`（490,424,761 bytes，digest `sha256:6551957e320b6f299328bc2b13898134814534585854b1c9d9164096419be04a`）已下載重組並通過 ZIP／PE／checksum／`latest.yml` 核對。公開 Release 13 項 asset 的名稱、大小、digest、`/releases/download/v0.49.1/` URL 均已從 GitHub API 反向核對；metadata／blockmap／notes 直接下載 hash 與本機一致，四個主資產 Content-Length 與 API size 一致。
+- 公開 Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1>
 
 - `codex/breeze-first-release` 由最新 `origin/main=05b275f` 建立，保留 0.48.1 已合併的 Windows CI、模型完整性、外部驗收與發布收尾修正；沒有直接發布落後 25 個提交的舊 Breeze 開發分支。
 - FR-024 的 Breeze runtime／模型只讀探針與診斷遮罩已移植；`npm run probe:breeze -- --json` 會檢查固定 checkpoint 契約與 `whisper.available_models()` 能力，缺件時非零結束且不下載、不安裝或啟動任務。
 - Breeze ASR 25 仍為實驗性選用功能；Whisper.cpp Tiny／Base／Small 維持預設。約 2.88 GiB checkpoint、Python、PyTorch 與 patched Whisper runtime 不納入安裝包。
 - Breeze 首次選擇已改為立即開啟模型下載／runtime 設定協助；需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2` 回報 1:46:00 影片約需 6 小時（約 `3.4×`），列為發布依據與低資源效能風險，非跨機型驗收。
-- 0.49.0 已由 PR #11 合併至 `main`，annotated tag `v0.49.0` 解析至 merge commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`；GitHub Release 已正式公開並標示 Latest，共 9 項資產。
+- 0.49.0 已由 PR #11 合併至 `main`，annotated tag `v0.49.0` 解析至 merge commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`；GitHub Release 保留為歷史版本，共 9 項資產。
 - tag workflow run `31661442776` 完整通過，Windows artifact `9166375562` 來源為最終 tag commit；Setup／Portable、renderer、安裝解除、archive、checkpoint 排除與 updater metadata 已通過。公開 Release 的四個主資產、checksum、metadata 與簽章說明已從正式 URL 重新下載並反向核對；round3 獨立發布後審查已通過。
 - GitHub CLI 已於 2026-08-13 重新登入 `twyderek`；公開 repo、PR #11、tag 與 Release 已完成。
 
@@ -36,7 +38,7 @@
 
 - Windows 10／11 x64：NSIS Setup 與 Portable 已建置並發布。
 - Apple Silicon macOS 12+：DMG 與 ZIP 已發布。
-- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0>
+- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1>
 - 線上完整操作說明：<https://offline-subtitle-factory-0451-guide.derek62101.chatgpt.site>
 - Windows 安裝包內含 `resources/docs/0.45.2/USER-GUIDE.html`、圖文資產與三段操作動畫。
 - 0.45.1 已修正 Azure OpenAI GPT-5 的 `max_completion_tokens` 與 `temperature` 相容性，並加入可收合 AI 優化面板。
