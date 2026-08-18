@@ -2,6 +2,34 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-18 — Breeze BUG-022 修正版分支同步 GitHub（REL-036）
+
+- 狀態：進行中
+- 結案判定：待執行
+- 審查／交付屬性：依需求方既有公開 repo 推送授權，將已完成並通過 REL-035 審查的來源修正與 macOS 測試候選 provenance 同步至 `twyderek/offline-subtitle-factory-app`；建立 draft PR，不建立或替換公開 Release。
+- 執行者：Codex
+- 需求來源：需求方先前明確同意將完整原始碼與文件推送至公開 GitHub repo，本輪要求「繼續」。
+- 關聯需求／缺陷：`REL-036`、`REL-035`、`BUG-022`、`FR-024`
+- 變更等級：發布（GitHub 分支／draft PR 同步；不建立公開 Release）
+- 執行前已讀：`npm run project:preflight -- --type=release` 與 GitHub `yeet` 發布流程（是）
+- 來源基準：`codex/021-breeze-runtime-guide`，目前 commit `406e94c`，產品版本 `0.49.0`；工作開始前工作樹 clean、分支較遠端超前 2 commits。
+- 目標與成功條件：以 tracking push 同步目前分支；draft PR base=`main`、head=`codex/021-breeze-runtime-guide`；PR 說明包含 BUG-022 根因／修正、驗證與 Breeze experimental 風險；不變更公開 Release。
+- 不在範圍：不建立 tag／Release、不上傳或替換正式資產、不宣稱真實 patched runtime／checkpoint／品質／跨平台乾淨實機已驗收。
+- 預計影響檔案／模組：本工作紀錄；GitHub branch／draft PR 為外部部署結果，不修改產品程式。
+- 風險與回復方式：只推送目前已審查的兩個 commits 與文件；若遠端拒絕或 PR 建立失敗，保留本地 clean branch，不重寫歷史、不修改公開 Release。
+- 驗證計畫：`gh auth status`、remote／branch scope、`npm run docs:check:final`、`git diff --check`、tracking push、draft PR metadata／URL 核對。
+- 實際修改：待執行
+- 開發驗證結果：待執行
+- 獨立審查是否執行：承接 REL-035 round1（本輪無產品程式／封裝變更）
+- 獨立審查結論：待執行
+- 發布授權：
+  - 是否需要：是（推送來源分支並建立 draft PR；不含公開 Release）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：先前對話已明確核准公開 GitHub repo 推送；本輪 2026-08-18 延續指示「繼續」
+  - 核准範圍：同意提交並推送目前已審查來源、建立 draft PR 與共享 PR 連結；接受 Breeze experimental 及未完成真實 runtime／品質／跨平台實機驗收風險；不授權建立公開 Release、tag 或替換正式資產。
+- 部署／發布結果：待執行；預期只同步 branch／draft PR，不建立公開 Release。
+- 遺留風險與後續事項：PR 合併、公開 Release、真實 Breeze runtime／checkpoint／品質／效能／長音訊／取消、macOS／Windows 乾淨安裝仍未因本輪推送而完成；macOS 測試包仍位於本機隔離目錄。
+
 ## 2026-08-17 — Breeze BUG-022 修正版 macOS 測試包（REL-035）
 
 - 狀態：完成
