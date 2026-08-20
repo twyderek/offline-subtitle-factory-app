@@ -6,6 +6,8 @@
 
 Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點拆分；正常時顯示最多兩行、每行可見文字最多 20 字元，必要時以連續時間碼分段，不以截斷方式修正。若原始 cue 只有極短時間而無法安全分配多個時間碼，會保留單一 cue、最多兩行，第二行可能超過 20 字元以避免拆斷英文單字。此為 0.50 開發中的可讀性修正，真實長音訊斷句品質仍需實機驗收。
 
+0.50 同時修正 macOS 乾淨 profile 首次啟動：沒有既存加密 AI 金鑰檔時，App 不再先查詢系統 Keychain，避免不必要的金鑰提示或啟動等待；只有實際存在安全金鑰檔時才會檢查並解密。
+
 - 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
 - 目前公開版本仍為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)
 

@@ -255,6 +255,17 @@
 - 效能依據：需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約需 6 小時（約 `3.4×`）；單一本機觀察，不代表品質或跨平台效能驗收。
 - 剩餘風險：模型約 2.88 GiB 且 runtime 不隨包提供；低資源 CPU 可能長時間執行，仍需真實 profiler、長音訊、品質、Windows／macOS 乾淨安裝驗收。
 
+# BUG-025 — macOS 乾淨 profile 首次啟動卡在不必要 Keychain 查詢
+
+- 日期／版本：2026-08-20／0.50.0 macOS 測試候選
+- 現象：commit `2c9612e` 的封裝可完成 DMG／ZIP、codesign 與靜態內容核對，但隔離 userData 的 packaged renderer smoke 只啟動 DevTools browser，60 秒內沒有主視窗 target；主程序未啟動 server／renderer。
+- 診斷：對停滯主程序執行 1 秒 `sample`，主執行緒持續停在 Security framework 的 `SecItemCopyMatching`／Keychain 解密路徑；乾淨 userData 不含 `config/ai-keys.safe`，但 `readSecureAiKeys()` 原先先呼叫 `safeStorage.isEncryptionAvailable()`，之後才檢查檔案是否存在。
+- 根因判定：不存在安全金鑰檔時仍先觸發 OS 安全儲存能力檢查；在自動化／乾淨 profile 環境可能等待 Keychain 互動，阻止 `app.whenReady()` 後續 server 與主視窗流程。
+- 修正：`readSecureAiKeys()` 先解析單一 `securePath` 並檢查檔案存在；只有檔案存在時才呼叫 `safeStorage.isEncryptionAvailable()` 與 decrypt。既有金鑰檔的安全儲存語意不變。
+- 防回歸：`scripts/test-electron-main.mjs` 驗證檔案存在檢查嚴格位於 safeStorage 能力檢查之前，且解密沿用同一已檢查路徑；測試納入 `npm test`。
+- 驗證：focused syntax／新測試、完整 `npm run check` 通過；修正版 packaged renderer smoke 以隔離 userData 實際通過首頁、設定、Breeze 首次選擇 modal、上傳／完成、SRT、AI 校閱與資料夾事件。最終資產須在 Release notes 同步後重建並重新核對。
+- 剩餘風險：尚未以既有真實加密 AI 金鑰檔重放跨版本 decrypt／Keychain 權限提示，也不等同乾淨使用者帳號 Gatekeeper 或公證驗收。
+
 # BUG-024 — Whisper Small 輸出過長字幕 cue
 
 - 日期／版本：2026-08-20／0.50.0 開發分支

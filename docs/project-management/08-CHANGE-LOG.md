@@ -5,11 +5,11 @@
 - 狀態：進行中
 - 執行者：Codex
 - 需求來源：需求方在 BUG-024 Whisper Small 長字幕修正完成後要求「請繼續」；承接既有提供測試軟體的需求，推進為本機 macOS Apple Silicon 隔離測試候選。
-- 關聯需求／缺陷：`REL-040`、`BUG-024`、`FR-022`、`FR-024`、`NFR-005`
+- 關聯需求／缺陷：`REL-040`、`BUG-024`、`BUG-025`、`FR-022`、`FR-024`、`NFR-005`
 - 變更等級：發布（本機隔離測試候選；不公開）
 - 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／test／review／closeout 路由（是）
 - 來源基準：`codex/0.50-whisper-small-long-cues@2c9612e1b9d0e5a1eb4ff3b004c7f9d24d180ad7`、版本 `0.50.0`、工作樹 clean。
-- 目標與成功條件：以目前 commit 產出 macOS arm64 DMG／ZIP；核對 App 版本、封裝來源、runtime manifest、Tiny 內建與 Base／Small／Breeze checkpoint 排除、Whisper Small BUG-024 程式 marker、archive／DMG、ad-hoc 簽章、updater metadata 與 SHA-256；只作隔離測試候選，不建立 tag 或 GitHub Release。
+- 目標與成功條件：以目前 commit 產出 macOS arm64 DMG／ZIP；核對 App 版本、封裝來源、runtime manifest、Tiny 內建與 Base／Small／Breeze checkpoint 排除、Whisper Small BUG-024 與首次啟動 BUG-025 程式 marker、archive／DMG、ad-hoc 簽章、updater metadata、packaged renderer 與 SHA-256；只作隔離測試候選，不建立 tag 或 GitHub Release。
 - 不在範圍：不建立或推送 Git tag／GitHub Release、不打包 Windows、不宣稱真實 Whisper Small／Breeze 模型品質、長音訊效能、乾淨帳號 Gatekeeper 或跨平台實機驗收完成。
 - 預計影響檔案／模組：`../dist/test-build-2c9612e/` 本機封裝資產；`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
 - 風險與回復方式：macOS 候選為 ad-hoc 簽章且未公證，可能受 Gatekeeper 阻擋；本機剩餘儲存空間有限，使用 commit 專屬輸出目錄避免覆寫既有資產；若建置或 checksum 不一致即停止交付並保留既有公開 `v0.49.1`。
