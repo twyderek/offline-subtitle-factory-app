@@ -19,8 +19,12 @@ let secureAiKeys = {};
 function secureAiKeysPath() { return path.join(app.getPath('userData'), 'config', 'ai-keys.safe'); }
 function readSecureAiKeys() {
   try {
-    if (!safeStorage.isEncryptionAvailable() || !fs.existsSync(secureAiKeysPath())) return {};
-    return JSON.parse(safeStorage.decryptString(Buffer.from(fs.readFileSync(secureAiKeysPath(), 'utf8'), 'base64')));
+    const securePath = secureAiKeysPath();
+    // A clean profile has no encrypted key file. Avoid touching Keychain in
+    // that case so first launch cannot block on an unnecessary OS prompt.
+    if (!fs.existsSync(securePath)) return {};
+    if (!safeStorage.isEncryptionAvailable()) return {};
+    return JSON.parse(safeStorage.decryptString(Buffer.from(fs.readFileSync(securePath, 'utf8'), 'base64')));
   } catch { return {}; }
 }
 function writeSecureAiKeys(keys) {

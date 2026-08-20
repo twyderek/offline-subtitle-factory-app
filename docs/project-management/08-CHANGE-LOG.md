@@ -1,5 +1,30 @@
 # 改版與工作紀錄
 
+## 2026-08-20 — 0.50.0 Whisper Small 修正版 macOS 測試候選（REL-040）
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：需求方在 BUG-024 Whisper Small 長字幕修正完成後要求「請繼續」；承接既有提供測試軟體的需求，推進為本機 macOS Apple Silicon 隔離測試候選。
+- 關聯需求／缺陷：`REL-040`、`BUG-024`、`FR-022`、`FR-024`、`NFR-005`
+- 變更等級：發布（本機隔離測試候選；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／test／review／closeout 路由（是）
+- 來源基準：`codex/0.50-whisper-small-long-cues@2c9612e1b9d0e5a1eb4ff3b004c7f9d24d180ad7`、版本 `0.50.0`、工作樹 clean。
+- 目標與成功條件：以目前 commit 產出 macOS arm64 DMG／ZIP；核對 App 版本、封裝來源、runtime manifest、Tiny 內建與 Base／Small／Breeze checkpoint 排除、Whisper Small BUG-024 程式 marker、archive／DMG、ad-hoc 簽章、updater metadata 與 SHA-256；只作隔離測試候選，不建立 tag 或 GitHub Release。
+- 不在範圍：不建立或推送 Git tag／GitHub Release、不打包 Windows、不宣稱真實 Whisper Small／Breeze 模型品質、長音訊效能、乾淨帳號 Gatekeeper 或跨平台實機驗收完成。
+- 預計影響檔案／模組：`../dist/test-build-2c9612e/` 本機封裝資產；`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：macOS 候選為 ad-hoc 簽章且未公證，可能受 Gatekeeper 阻擋；本機剩餘儲存空間有限，使用 commit 專屬輸出目錄避免覆寫既有資產；若建置或 checksum 不一致即停止交付並保留既有公開 `v0.49.1`。
+- 驗證計畫：完整 `npm run check`、macOS runtime manifest／verify、commit 專屬 DMG／ZIP build、`hdiutil verify`、`unzip -t`、`codesign --verify --deep --strict`、封裝檔案／模型排除、`latest-mac.yml` SHA-512／size、SHA-256、`git diff --check`、`npm run docs:check:final` 與獨立六面向審查。
+- 實際修改：待執行
+- 開發驗證結果：待執行
+- 獨立審查是否執行：待執行
+- 發布授權：
+  - 是否需要：是（僅本機測試候選打包與交付，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-20（本輪指示「請繼續」，承接既有測試軟體交付要求）
+  - 核准範圍：同意建立並交付來源 `2c9612e` 的 macOS arm64 本機測試候選；接受測試包為 ad-hoc 簽章、未公證且尚未完成真實 Small／Breeze 長音訊與乾淨帳號實機驗收；不包含推送、公開 Release、Windows 資產或覆寫既有版本。
+- 部署／發布結果：待執行；僅本機隔離測試候選。
+- 遺留風險與後續事項：待建置後記錄真實資產、checksum、封裝驗證與獨立審查；真實 Small／Breeze runtime、長音訊品質／效能、Gatekeeper／乾淨安裝與 Windows 仍不在本輪驗收範圍。
+
 ## 2026-08-20 — Whisper Small 過長字幕 cue 分析與修正（BUG-024）
 
 - 狀態：完成
