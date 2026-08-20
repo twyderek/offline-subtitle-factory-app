@@ -12,6 +12,7 @@ import {
   WHISPER_MODEL_DEFINITIONS,
 } from '../lib/whisper-models.mjs';
 import { parseWhisperQualityJson } from '../lib/whisper-quality.mjs';
+import { sanitizeWhisperSrt } from '../lib/whisper-srt.mjs';
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-whisper-models-'));
 const modelsDir = path.join(tempDir, 'whisper-models');
@@ -70,6 +71,12 @@ try {
     assert.equal(quality[0].noSpeechProbability, 0.01);
   }
 
+  const longSmall = sanitizeWhisperSrt('1\n00:00:00,000 --> 00:00:06,000\n這是一段由 Whisper Small mock runner 產生的過長字幕，應依標點拆成可閱讀的連續片段。\n', { splitLongCues: true });
+  assert.ok(longSmall.splitCueCount > 0, 'Small mock output 應走長 cue 拆分路徑');
+  assert.ok(longSmall.cues.every((cue) => cue.end > cue.start), 'Small mock output 拆分後時間碼應有效');
+  const longTiny = sanitizeWhisperSrt('1\n00:00:00,000 --> 00:00:06,000\n這是一段由 Tiny mock runner 產生的過長字幕，預設不應由 Small 政策改寫。\n');
+  assert.equal(longTiny.cues.length, 1, 'Tiny mock output 不應啟用 Small 長 cue 政策');
+
   const basePath = path.join(modelsDir, WHISPER_MODEL_DEFINITIONS.base.filename);
   const baseSize = fs.statSync(basePath).size;
   const baseDigest = crypto.createHash('sha256').update(fs.readFileSync(basePath)).digest('hex');
@@ -100,6 +107,7 @@ try {
   const appDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   const indexHtml = fs.readFileSync(path.join(appDir, 'public', 'index.html'), 'utf8');
   const appJs = fs.readFileSync(path.join(appDir, 'public', 'app.js'), 'utf8');
+  const serverJs = fs.readFileSync(path.join(appDir, 'server.mjs'), 'utf8');
   for (const name of ['tiny', 'base', 'small']) assert.match(indexHtml, new RegExp(`value="${name}"`));
   assert.match(indexHtml, /<option value="breeze-asr-25">Breeze ASR 25<\/option>/);
   assert.doesNotMatch(indexHtml, /Breeze ASR 25（實驗性/, 'Breeze 選單不可把實驗性說明混入產品名稱');
@@ -113,6 +121,11 @@ try {
   assert.match(indexHtml, /id="modelDownloadModal"/);
   assert.match(indexHtml, /id="modelDownloadCacheDirectory"/);
   assert.match(appJs, /method: 'DELETE'/, '下載視窗取消操作應停止背景下載');
+  assert.match(serverJs, /splitLongCues: normalizeWhisperModelName\(job\.config\.modelName\) === 'small'/, 'Python Whisper Small 應啟用長 cue 正規化');
+  assert.match(serverJs, /splitLongCues: modelName === 'small'/, 'Whisper.cpp Small 應啟用長 cue 正規化');
+  assert.match(serverJs, /if \(allowPartialQuality && cue\.splitFromSource\) return null/, 'Small 拆分來源應以 null quality entry 保護精確對應');
+  assert.match(serverJs, /const allowPartialQuality = sanitized\.splitCueCount > 0/, '只有 Small 實際拆分時才允許 partial quality attach');
+  assert.match(serverJs, /qualityForCues\.some\(Boolean\)/, 'Small 未拆分 cue 應保留可取得的品質 metadata');
 
   const packageJson = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
   for (const platform of ['win', 'mac']) {

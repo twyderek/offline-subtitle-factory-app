@@ -1866,7 +1866,10 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         finish(() => reject(new Error('Whisper did not produce an SRT file')));
         return;
       }
-      const sanitized = sanitizeWhisperSrt(fs.readFileSync(path.join(workingDir, srtFile), 'utf8'));
+      const sanitized = sanitizeWhisperSrt(
+        fs.readFileSync(path.join(workingDir, srtFile), 'utf8'),
+        { splitLongCues: normalizeWhisperModelName(job.config.modelName) === 'small' },
+      );
       if (!sanitized.cues.length) {
         finish(() => reject(new Error('Whisper 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
         return;
@@ -1874,6 +1877,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       fs.writeFileSync(path.join(workingDir, 'draft.srt'), sanitized.subtitle, 'utf8');
       if (sanitized.droppedCount > 0) {
         updateJob(job, { progress: 58, message: `Whisper 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
+      }
+      if (sanitized.normalizedCueCount > 0) {
+        updateJob(job, { progress: 59, message: `Whisper Small 已整理 ${sanitized.normalizedCueCount} 段過長字幕` }, `Small 長 cue：${sanitized.splitCueCount} 段拆分、正常時每行最多 20 字元；未截斷文字`);
       }
       finish(resolve);
     });
@@ -1989,7 +1995,10 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
         finish(() => reject(new Error('Whisper.cpp 未產生 SRT 字幕檔')));
         return;
       }
-      const sanitized = sanitizeWhisperSrt(fs.readFileSync(outputSrt, 'utf8'));
+      const sanitized = sanitizeWhisperSrt(
+        fs.readFileSync(outputSrt, 'utf8'),
+        { splitLongCues: modelName === 'small' },
+      );
       if (!sanitized.cues.length) {
         finish(() => reject(new Error('Whisper.cpp 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
         return;
@@ -1998,17 +2007,32 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
       if (sanitized.droppedCount > 0) {
         updateJob(job, { progress: 58, message: `Whisper.cpp 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
       }
+      if (sanitized.normalizedCueCount > 0) {
+        updateJob(job, { progress: 59, message: `Whisper Small 已整理 ${sanitized.normalizedCueCount} 段過長字幕` }, `Small 長 cue：${sanitized.splitCueCount} 段拆分、正常時每行最多 20 字元；未截斷文字`);
+      }
       try {
         const jsonPath = `${outputBase}.json`;
         const quality = parseWhisperQualityJson(JSON.parse(fs.readFileSync(jsonPath, 'utf8')));
+        const allowPartialQuality = sanitized.splitCueCount > 0;
         const qualityForCues = sanitized.cues.map((cue) => {
+          if (allowPartialQuality && cue.splitFromSource) return null;
           const segment = quality[cue.sourceIndex];
           return segment ? { ...segment, id: cue.id } : null;
         });
-        const matched = qualityForCues.every(Boolean)
+        const matched = (allowPartialQuality ? qualityForCues.some(Boolean) : qualityForCues.every(Boolean))
           ? attachWhisperQuality(sanitized.cues, qualityForCues)
           : { matched: false, reason: 'source-metadata-mismatch' };
-        if (matched.matched && matched.reason === 'engine-metrics') writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map(({ id, start, end, confidence, noSpeechProbability }) => ({ id, start, end, confidence, noSpeechProbability })));
+        if (matched.matched && matched.reason === 'engine-metrics') {
+          writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map((cue, index) => {
+            const segment = qualityForCues[index];
+            return segment
+              ? { id: cue.id, start: cue.start, end: cue.end, confidence: cue.confidence, noSpeechProbability: cue.noSpeechProbability }
+              : null;
+          }));
+        }
+        if (sanitized.splitCueCount > 0) {
+          updateJob(job, { progress: 60, message: 'Whisper Small 字幕已整理；未拆分片段仍保留品質指標' }, 'Small 拆分 cue 不使用不精確的 segment 對應，其他 cue 保留可取得的 engine metadata');
+        }
       } catch { /* malformed or incompatible metadata must not block SRT completion */ }
       finish(resolve);
     });

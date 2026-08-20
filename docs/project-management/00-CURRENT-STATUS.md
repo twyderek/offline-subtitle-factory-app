@@ -1,6 +1,6 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-08-18
+> 最後查證日期：2026-08-20
 > 現行版本：0.50.0（Breeze 效能透明化與首次選擇提醒開發中）
 > 現行公開版本：0.49.1（GitHub Latest）
 > 發布 tag／commit：`v0.49.1` → `917ae82886a0dff195009c66ce9438b78675fcc0`
@@ -8,10 +8,11 @@
 
 ## 0.50.0 Breeze 效能透明化與首次選擇提醒（開發中）
 
-- 開發分支：`codex/0.50-breeze-hardening`；來源基準為公開 `v0.49.1` 的 `main@7829876`。
+- 開發分支：`codex/0.50-whisper-small-long-cues`（由 `codex/0.50-breeze-hardening` 延伸）；來源基準為公開 `v0.49.1` 的 `main@7829876`。
 - `/api/breeze-asr` 將提供固定 `performanceReference`，首頁任務表單在選取 Breeze 時於產品名稱外顯示低資源效能提醒與 Whisper.cpp 回退建議。
 - 此提醒只重述需求方提供的單一 MacBook Air M3／8 GB 觀察：1:46 影片約 6 小時（約 `3.4×`）；不代表跨機型保證、真實模型品質或已改善推論速度。
 - 0.50.0 目前尚未建立 tag、GitHub Release 或新的安裝資產；公開 Latest 仍為 `v0.49.1`。
+- BUG-024 已完成本輪 deterministic 開發切片：Whisper Small 長 cue 保留完整文字，依標點／空白拆分並在正常時間下控制每行最多 20 字元；極短時間 fallback 的第二行可能較長，完整真實模型／長音訊品質仍待外部驗收，且尚未列為公開發布功能。
 
 ## 0.49.0 Breeze 第一版正式發布
 

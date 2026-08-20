@@ -254,3 +254,16 @@
 - 驗證：`scripts/test-breeze-asr.mjs` 新增 UI 文字與首次選擇 source assertions；完整回歸與獨立審查待本輪結案補記。
 - 效能依據：需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約需 6 小時（約 `3.4×`）；單一本機觀察，不代表品質或跨平台效能驗收。
 - 剩餘風險：模型約 2.88 GiB 且 runtime 不隨包提供；低資源 CPU 可能長時間執行，仍需真實 profiler、長音訊、品質、Windows／macOS 乾淨安裝驗收。
+
+# BUG-024 — Whisper Small 輸出過長字幕 cue
+
+- 日期／版本：2026-08-20／0.50.0 開發分支
+- 現象：使用 Whisper Small 語言包時，單一 SRT cue 可能包含完整長句或超長單行文字，校閱與播放時可讀性差；原有「過長」品質篩選只標記問題，不會改善輸出。
+- 重現：以 deterministic SRT `00:00:10,000 --> 00:00:16,000` 搭配超過 40 個中英文混合字元的長句呼叫 `sanitizeWhisperSrt(input, { splitLongCues: true })`；基準未啟用選項時維持單一長 cue。
+- 影響：Small 的原始辨識文字雖未遺失，但超長 cue 需要人工重排；若直接截斷會造成字幕內容損失，若任意拆分又可能產生零長度／重疊時間碼或錯誤品質指標對應。
+- 根因判定：Whisper SRT 清理器原先只驗證時間碼與重編號，沒有 Small 專用的顯示長度政策，也沒有在拆分後重新分配時間；品質模組的 `字幕過長` 是篩選訊號，不是輸出修正器。
+- 修正：`lib/whisper-srt.mjs` 新增 opt-in `splitLongCues`；Small 輸出最多兩行、每行最多 20 字元，超過 40 字元優先依標點／空白拆成多個連續 cue，再按字數比例分配原始時段；保留完整文字，時間不足時不強拆。`server.mjs` 的 Python Whisper／Whisper.cpp Small 路徑一致啟用，Tiny／Base／Breeze 不變。
+- 品質 metadata：Small cue 拆分來源以同長度陣列的 `null` 項標記，避免一個 segment 被誤當成多個新 cue；未拆分 cue 仍保存可取得的 confidence／no-speech 指標，拆分 cue 改由校閱頁既有 rule-score 重新評估。
+- 驗證：`node --check lib/whisper-srt.mjs`、`node --check server.mjs`、`node scripts/test-whisper-srt.mjs`、`node scripts/test-whisper-quality.mjs`、`node scripts/test-whisper-models.mjs`、完整 `npm run check`、`npm run docs:check`、`npm run docs:check:final` 與獨立 round1／round2／round3 審查通過；測試覆蓋未啟用相容性、文字無損、正常時最多兩行／每行 20 字元、連續時間碼、零長度防護、超過 40 字元純中文 1 ms fallback 不新增空格與 partial quality metadata 邊界。
+- 防回歸：後續不得以截斷、摘要或假的 quality metadata 解決長 cue；若修改字元門檻、拆分邊界或時間分配，必須同步 focused 測試、功能設計、需求／稽核與 Release notes。
+- 剩餘風險：尚未以真實 Whisper Small 權重與 1:46 長音訊驗證中文斷句、閱讀速度、模型品質、品質 metadata 及 macOS／Windows 封裝後行為；過短原始 cue 會保留長文字並交由人工校閱。

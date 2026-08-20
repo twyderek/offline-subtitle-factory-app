@@ -116,6 +116,14 @@
 - `npm test` 通過，包含核心 API／任務回歸；本輪沒有下載或執行實際 base／small 權重，因此未宣稱三模型實際中文準確率、速度、記憶體或 Windows／macOS 安裝後驗收。
 - 未覆蓋：實際 base／small 模型檔、模型匯入 UI、Windows／macOS 乾淨安裝與長音訊實機；這些應於加入相應模型資產前另行驗收。
 
+## BUG-024 Whisper Small 過長字幕 cue 正規化驗證（2026-08-20）
+
+- `scripts/test-whisper-srt.mjs` 覆蓋 Small 長 cue 的標點拆分、最多兩行／正常情況每行最多 20 字元（可見文字）、跨英文 cue／換行的空白保留、原本兩行各 20 字元不重拆、時間碼連續與嚴格遞增、文字無損、超過 40 字元純中文在 1 ms fallback 不新增 ASCII 空格、短時間不足時保留單一 cue，以及未啟用選項時 Tiny／Base 相容行為。
+- `lib/whisper-srt.mjs` 是所有 Whisper SRT 寫入路徑共用的純函式清理器；只有模型正規化為 `small` 時啟用 `splitLongCues`，Python Whisper 與 Whisper.cpp 兩條路徑一致，Breeze 不受影響。
+- Whisper.cpp Small 發生 cue 拆分時，以同長度陣列的 `null` 項標記無法精確對應的拆分來源；未拆分 cue 仍寫入可取得的 `quality-metadata.json`，校閱頁的 partial attach 會保留這些 engine metrics，拆分 cue 則由既有 `rule-score` 重新評估。
+- focused `node --check`／`node scripts/test-whisper-srt.mjs`、完整 `npm run check`、`npm run docs:check`、`npm run docs:check:final` 與獨立 round1／round2／round3 審查均已完成；未宣稱真實 Small runtime 或跨平台實機品質。
+- 未覆蓋：真實 Whisper Small 權重、1:46 長音訊、實際閱讀速度／中文斷句品質、macOS／Windows 封裝後模型執行與品質 metadata 對應仍待外部驗收。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。

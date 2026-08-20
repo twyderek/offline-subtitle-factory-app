@@ -50,6 +50,8 @@ Electron 主行程
 
 三個模型共用既有 whisper.cpp CLI、SRT／JSON 輸出、quality metadata 容錯解析、取消與 Metal→CPU fallback。正式安裝包只內建 tiny；Base／Small 缺失時，UI 在首次選擇或提交任務前提供官方固定來源下載確認，也保留手動匯入／下載說明。下載來源使用 pinned revision、固定檔名、預期大小與 SHA-256，寫入 Electron `userData` 下的可寫入模型快取，不覆寫安裝包內建檔案；下載先寫暫存檔，校驗成功後原子置換，取消或失敗清理暫存檔。模型狀態由 server API 回報 `missing`／`downloading`／`cancelled`／`installed`／`failed`；缺失或驗證失敗不得建立或啟動 ASR 任務。測試使用 deterministic mock runner 模擬三模型輸出，並以本機 HTTP fixture 驗證下載成功／取消／失敗／校驗與狀態契約，不把 mock 結果宣稱為實際模型品質或跨平台實機驗收。
 
+Small 過長 cue 正規化（BUG-024）：Small 的 Whisper SRT 在寫入 `draft.srt` 前使用同一個 sanitizer 將超過 20 字元的行換成最多兩行；完整 cue 超過 40 字元時，優先依標點／空白拆成多個連續 cue，再依各片段字數比例分配原始時間區間。文字不截斷、不摘要，跨行／跨 cue 的英文分隔空白保留為格式分隔；每個新 cue 必須維持嚴格遞增時間碼。若原始時間不足以安全分配，保留單一 cue、最多兩行並留下可追蹤計數，不製造零長度字幕；此極端情況允許第二行超過 20 字元，以避免拆斷英文單字。Tiny／Base 與既有呼叫預設不啟用此政策。拆分來源 cue 不附原始 JSON segment 的不精確對應，但未拆分 cue 仍保留可取得的 engine metadata；拆分 cue 由校閱頁既有 rule-score 重新判讀。
+
 ### Whisper 高階模型下載資料流（FR-023）
 
 首頁模型管理與任務表單共用 `/api/whisper-models` 狀態；選擇未安裝的 Base／Small 時，前端顯示模型大小、來源與「下載並安裝」確認。POST `/api/whisper-models/:model/download` 只啟動固定白名單下載，GET 同一路徑回傳進度，DELETE 同一路徑以 AbortController 中止背景下載；任務提交前再次查詢狀態，避免健康檢查快取過期造成缺檔任務。伺服器不接受任意 URL，下載 response 需通過 HTTP 成功、大小上限／預期大小與 SHA-256，並以暫存檔完成後 rename；取消、HTTP、超時、內容長度或 hash 錯誤均回報可採取行動訊息並刪除暫存檔。

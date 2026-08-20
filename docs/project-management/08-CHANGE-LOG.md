@@ -1,5 +1,33 @@
 # 改版與工作紀錄
 
+## 2026-08-20 — Whisper Small 過長字幕 cue 分析與修正（BUG-024）
+
+- 狀態：完成
+- 結案判定：BUG-024 round3 獨立複審有條件通過（限 0.50.0 deterministic／開發切片）；可交付來源修正，不授權公開 Release
+- 審查／交付屬性：0.50 開發分支；針對 Whisper.cpp Small 輸出的過長字幕文字，保留內容並以可追溯的 cue 拆分／換行處理改善可讀性，不截斷文字，不宣稱真實 Small 長音訊品質已驗收
+- 執行者：Codex
+- 需求來源：需求方要求增加 Whisper Small 語言包字幕文字過長問題的分析與排除
+- 關聯需求／缺陷：`BUG-024`、`FR-020`、`FR-022`、`NFR-005`
+- 變更等級：中（Whisper Small SRT 正規化、時間碼／品質 metadata 邊界、測試與治理文件）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug／test／review／closeout 路由（是）
+- 來源基準：`codex/0.50-breeze-hardening`、版本 `0.50.0`、工作樹 clean；本輪建立 `codex/0.50-whisper-small-long-cues`
+- 目標與成功條件：重現並說明 Small 長 cue 的近因與影響；對 Small 輸出套用最多兩行、每行最多 20 字元的可讀化處理，超過 40 字元時按文字邊界拆成多個連續 cue 並按字數比例分配時間；不丟字、不產生零長度時間碼；補上 focused／負向／完整回歸與獨立審查
+- 不在範圍：不修改 Whisper 推論模型或語言包、不截斷／摘要字幕、不改變 Tiny／Base 預設行為、不把 deterministic mock 視為真實模型品質、速度或跨平台實機驗收
+- 發布授權：目前不需要；本輪不建立 tag、Release 或新測試安裝資產
+- 風險與回復方式：自動拆 cue 會使 Small 的 cue 數量增加；拆分 cue 以 null placeholder 表示沒有精確 segment 品質對應，未拆分 cue 仍保留可取得的 engine metadata；若回歸失敗，可關閉 Small 專用選項並保留原有 SRT 清理器
+- 驗證計畫：`node scripts/test-whisper-srt.mjs`（長 cue／Unicode／時間碼／負向）、Whisper model focused、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向複審
+- 實際修改：`lib/whisper-srt.mjs` 新增 Small 專用長 cue 正規化：保留完整文字、優先依標點／空白換行、超過 40 字元按字數比例拆成連續 cue、極短時間安全 fallback；`server.mjs` 僅對 Small 啟用並以 partial quality metadata 保留未拆分 cue；`lib/whisper-quality.mjs` 支援 null placeholder；新增 SRT／quality／三模型 focused 與負向回歸；同步 README、Release notes、模型下載說明、需求／設計／測試稽核／debug 文件。
+- 開發驗證結果：`node scripts/test-whisper-srt.mjs`、`node scripts/test-whisper-quality.mjs`、`node scripts/test-whisper-models.mjs`、`npm run check`（exit 0）、`npm run docs:check`、`npm run docs:check:final`、`git diff --check` 均通過；已補純中文 1 ms fallback 不新增 ASCII 空格且文字完全保留的負向測試。
+- 獨立審查是否執行：是（round1 不通過、round2 有條件通過、round3 複審）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-20-whisper-small-long-cues-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 BUG-024 Whisper Small 過長字幕 cue round1 獨立審查結論為不通過：Small 長 cue 的 opt-in 路由、文字保留、時間碼拆分與 focused／完整回歸基礎已具備，但英文跨 cue 空白遺失、原本兩行各 20 字元被重拆、極短時間 fallback 可能超過兩行，且拆分後 quality metadata 整體被捨棄；在修正資料保真、行數／可讀性、partial quality metadata 與補測後，不得宣稱 BUG-024 完成。**
+- round2 審查檔案：`docs/project-management/reviews/2026-08-20-whisper-small-long-cues-round2.md`
+- round2 判定（逐字引用完整結論句）：**本輪 BUG-024 Whisper Small 過長字幕 cue round2 獨立複審結論為有條件通過：round1 指出的英文空白遺失、原本兩行各 20 字元被重拆、極短時間超過兩行及整體捨棄 quality metadata 均已由 sanitizer／partial attach 修正，focused checks、三模型 mock、quality tests、`npm run docs:check`、`git diff --check` 與受控權限完整 `npm run check` 均 exit 0；但 1 ms 中文 fallback 的 `texts.join(' ')` 仍在中文標點／詞組間新增可見 ASCII 空格，且 `docs:check:final` 尚因 BUG-024 條目進行中而失敗，因此在決定／修正 CJK fallback 空格、補回歸與完成文件結案前，不得將 BUG-024 視為無條件完成。**
+- round3 審查檔案：`docs/project-management/reviews/2026-08-20-whisper-small-long-cues-round3.md`
+- round3 判定（逐字引用完整結論句）：**本輪 BUG-024 Whisper Small 過長字幕 cue round3 獨立複審結論為有條件通過：round2 的中文 fallback 額外 ASCII 空格已移除，英文空白、兩行各 20 字元不重拆、極短時段最多兩行、partial quality metadata、Tiny／Base／Breeze 相容性均經 focused 重放確認，`node --check`、SRT／quality／三模型測試、`npm run docs:check`、`git diff --check` 與受控權限完整 `npm run check` 全部 exit 0；但 `docs:check:final` 仍因 BUG-024 工作紀錄尚未結案而失敗，純中文 focused fixture 尚未真正進入超短 fallback 分支，且真實 Small runtime／長音訊／跨平台實機仍未驗收，因此完成文件結案與 fallback focused 補強前，不得宣稱 0.50.0 已完成公開發布。**
+- 條件是否已被需求方接受：是（僅限 0.50.0 deterministic／開發切片與來源修正交付；不代表真實 Small runtime、長音訊品質、跨平台實機或公開 Release 完成）
+- 遺留風險與後續事項：未驗收真實 Whisper Small 權重／patched runtime、需求方提供的 1 小時 46 分長音訊、中文及中英斷句品質、閱讀速度、CPU／Metal 效能、quality metadata 端到端對應、取消流程與 macOS／Windows 封裝／乾淨安裝；本輪不建立 tag 或公開 Release。
+
 ## 2026-08-20 — Breeze 0.50 效能透明化與首次設定強化（REL-039）
 
 - 狀態：完成
