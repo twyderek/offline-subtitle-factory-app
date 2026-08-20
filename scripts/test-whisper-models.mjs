@@ -103,6 +103,9 @@ try {
   for (const name of ['tiny', 'base', 'small']) assert.match(indexHtml, new RegExp(`value="${name}"`));
   assert.match(indexHtml, /<option value="breeze-asr-25">Breeze ASR 25<\/option>/);
   assert.doesNotMatch(indexHtml, /Breeze ASR 25（實驗性/, 'Breeze 選單不可把實驗性說明混入產品名稱');
+  assert.match(indexHtml, /id="breezePerformanceNotice"/, 'Breeze 效能提醒應位於選擇器外的獨立提示欄位');
+  assert.match(indexHtml, /class="sidebar-version">0\.50\.0/, '首頁版本識別應與 package 版本同步');
+  assert.match(appJs, /appVersion: '0\.50\.0'/, '專案檔版本識別應與 package 版本同步');
   assert.match(appJs, /\/api\/breeze-asr/);
   assert.match(appJs, /ensureBreezeAsrReady/);
   assert.match(indexHtml, /id="downloadWhisperModel"/);

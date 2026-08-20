@@ -154,6 +154,14 @@
 - focused `node --check ...` 與 `node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check`、`docs:check:final` 與 round2 獨立複審結果待本輪結案後補記。
 - 未覆蓋：真實 Windows process tree、官方 runtime／checkpoint、音訊品質、效能與跨平台安裝後流程仍沿用前輪外部驗收缺口。
 
+## REL-039 Breeze 0.50 效能透明化與首次選擇提醒（2026-08-20）
+
+- `lib/breeze-asr.mjs` 建立唯一定義的 `BREEZE_ASR_PERFORMANCE_REFERENCE`；`server.mjs` 由 `/api/breeze-asr` 回傳，包含單一 MacBook Air M3／8 GB 觀察、1:46 影片約 6 小時（約 `3.4×`）、日期與未保存 profiler／原始音訊範圍。
+- `public/index.html`／`public/app.js` 在選取 Breeze 時顯示獨立 `breezePerformanceNotice`，不改變 `Breeze ASR 25` 選項文字、不自動切換效能 preset，也提供切回 Whisper.cpp 的建議；未選取 Breeze 時提示隱藏。
+- `scripts/test-breeze-asr.mjs` 驗證固定參考 payload、硬體與範圍文字；`scripts/test-whisper-models.mjs` 驗證獨立提示欄位、0.50.0 版本識別與選項不含 experimental 字樣。
+- focused `node --check`、Breeze／Whisper tests、VM fallback／null element 行為、受控權限完整 `npm run check`、`npm run docs:check`、`docs:check:final` 與 `git diff --check` 已通過；round1 的作用域阻擋已由 round2 獨立複審確認解除。
+- 未覆蓋：本輪沒有改變或實測 MediaTek patched runtime、3.09 GiB checkpoint、真實長音訊品質／速度／記憶體、Windows／macOS 乾淨安裝或 smoke cleanup；效能參考不可替代外部驗收。
+
 ## REL-038 Breeze 0.49.1 正式發布後核對（2026-08-18）
 
 - PR #14 已轉 ready 並合併；merge commit `917ae82886a0dff195009c66ce9438b78675fcc0`，annotated tag `v0.49.1` 指向同一 commit，既有 `v0.49.0` 未移動。

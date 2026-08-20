@@ -4,6 +4,7 @@
 
 - Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。
 - 0.49.1 已鎖定 Electron 43.3.0／electron-builder 26.15.7 並正式公開；依賴或版本更新後必須重跑完整 audit、雙平台封裝與 packaged renderer smoke。既有公開 `v0.49.0` 資產保留為歷史版本，不得覆寫。
+- 0.50.0 開發分支目前只變更 Breeze 效能參考 payload、選取後提醒與版本識別；尚未建立 tag／Release。若進入發布流程，需以 `v0.50.0` 重新建置並重新核對雙平台資產。
 - Windows 10/11 x64；封裝由 `windows-2022` runner 執行。
 - Apple Silicon macOS 12 以上。
 

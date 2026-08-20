@@ -1,5 +1,37 @@
 # 改版與工作紀錄
 
+## 2026-08-20 — Breeze 0.50 效能透明化與首次設定強化（REL-039）
+
+- 狀態：完成
+- 結案判定：REL-039 round2 有條件通過；0.50.0 開發切片完成，可供後續隔離測試候選使用，尚未授權或建立公開 Release
+- 審查／交付屬性：0.50 開發分支；新增 Breeze 效能參考資料與選取後提醒，不改變 Whisper.cpp 預設，不把單一 MacBook Air 觀察宣稱為效能保證
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續推進專案進度至 0.50」，並延續已提供的 MacBook Air M3／8 GB Breeze 長音訊效能觀察
+- 關聯需求／缺陷：`REL-039`、`FR-024`、`NFR-006`
+- 變更等級：中（API payload、首頁／任務表單 UI、文件與版本識別）
+- 執行前已讀：`npm run project:preflight -- --type=development` 列出的固定核心與 development／test／review／closeout 路由（是）
+- 來源基準：`main@7829876`、公開版本 `v0.49.1`；本輪建立 `codex/0.50-breeze-hardening`
+- 目標與成功條件：Breeze API 提供固定且可追溯的效能參考；選擇 Breeze 後在選擇器外顯示低資源效能提醒與 Whisper.cpp 回退建議；產品名稱不加入 experimental 字樣；自動測試、完整回歸、文件檢查與獨立六面向審查通過
+- 不在範圍：不修改第三方 runtime／推論演算法、不保證 1:1 即時速度、不自動安裝 Python／PyTorch／patched Whisper、不建立公開 `v0.50.0` Release 或替換 `v0.49.1`
+- 發布授權：
+  - 是否需要：目前不需要（本輪僅開發與測試分支，未建立 tag／Release）
+  - 核准人／角色：待 0.50 公開發布時由需求提出者／產品負責人另行核准
+  - 核准時間：不適用
+  - 核准範圍：不適用；若後續發布，須另記錄版本、資產、未簽章／未公證與 Breeze 實機風險
+- 風險與回復方式：效能參考為單一使用者提供、未保存 profiler 的觀察；若 API／UI 回歸，移除提醒欄位與客戶端顯示，保留 0.49.1 行為
+- 驗證計畫：Breeze focused test、UI marker test、Node syntax、完整 `npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向複審
+- 實際修改：`lib/breeze-asr.mjs` 新增固定 `BREEZE_ASR_PERFORMANCE_REFERENCE`；`server.mjs` 將其放入 `/api/breeze-asr` 的 `model.performanceReference`；`public/index.html`／`public/app.js`／`public/styles.css` 新增選擇器外的 Breeze 效能提醒、Whisper／manual 隱藏與 0.50.0 版本識別；同步 package／lock、Windows workflow、README、Breeze guide、Release notes、需求／設計／稽核／狀態文件；round1 作用域阻擋以共用 helper 修正，focused test 加入 VM DOM-like 行為驗證。
+- 開發驗證結果：`node --check`、Breeze／Whisper focused tests、VM fallback／null element 邊界、空模型 `/api/breeze-asr` smoke、受控權限完整 `npm run check`（exit 0）、`npm run docs:check` 與 `git diff --check` 均通過；未重新建置 packaged renderer／Windows runner，未以真實 MediaTek runtime／checkpoint／長音訊驗收。
+- 獨立審查是否執行：是（round1 發現阻擋，round2 複審完成）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-20-rel-039-breeze-performance-round1.md`
+- round1 判定：**本輪 REL-039 Breeze 0.50 獨立複審結論為不通過：`/api/breeze-asr` 的巢狀 `model.performanceReference`、固定 MacBook Air 單機觀察、獨立 UI 提示、0.50.0 版本識別、Whisper.cpp 預設與文件風險揭露均已具備，focused／受控權限完整回歸與 API smoke 也通過；但 `public/app.js:858` 在 `updateAsrEngineUi()` 使用未宣告的 `performanceNotice`，首次選擇 Breeze 會在 readiness flow 前拋出 ReferenceError，且現有測試只有 source marker 未涵蓋實際 UI 行為，因此修正作用域、補上 renderer 行為測試並完成 round2 前，不得判定 FR-025 或 0.50.0 開發完成。**
+- round2 審查檔案：`docs/project-management/reviews/2026-08-20-rel-039-breeze-performance-round2.md`
+- round2 判定（逐字引用完整結論句）：**本輪 REL-039 Breeze 0.50 round2 獨立複審結論為有條件通過：round1 指出的 `performanceNotice` 未宣告錯誤已由 `updateBreezePerformanceNotice` 與正確作用域修正，API 的 `model.performanceReference`、單機效能揭露、Breeze 選項無 experimental 字樣、0.50.0 版本識別、Whisper.cpp 預設與首次 readiness path 均具備；focused VM 行為、Breeze／Whisper focused、受控權限完整 `npm run check`、文件檢查、`git diff --check` 與空模型 API smoke 全部通過，未發現本輪未處理阻擋，但真實 MediaTek runtime／模型品質／長音訊效能、雙平台 packaged／乾淨安裝與 0.50.0 Release 仍未驗收，因此本結論不代表公開發布或跨平台實機完成。**
+- round3 審查檔案：`docs/project-management/reviews/2026-08-20-rel-039-breeze-performance-round3.md`
+- round3 判定（逐字引用完整結論句）：**本輪 REL-039 Breeze 0.50 round3 獨立複審結論為有條件通過：round1 的 performanceNotice 作用域錯誤已解除，API 的 model.performanceReference、單機效能揭露、Breeze 選項無 experimental 字樣、0.50.0 版本識別、Whisper.cpp 預設與首次 readiness path 均具備；focused 行為、Breeze／Whisper 測試、受控權限完整 npm run check、docs:check、git diff --check 與空模型 API smoke 通過，未發現本輪未處理阻擋，但真實 MediaTek runtime／模型品質／長音訊效能、雙平台 packaged／乾淨安裝與 0.50.0 Release 仍未驗收，因此本結論不代表公開發布或跨平台實機完成。**
+- 條件是否已被需求方接受：是（僅限 0.50.0 開發切片／隔離測試候選，不含公開 tag、Release 或跨平台實機完成聲明）
+- 遺留風險與後續事項：真實 MediaTek runtime／3 GB checkpoint、長音訊品質、CPU／記憶體效能、跨平台乾淨安裝與 smoke cleanup 仍屬外部驗收範圍
+
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
 ## 2026-08-18 — Breeze 0.49.1 正式發布收尾（REL-038）

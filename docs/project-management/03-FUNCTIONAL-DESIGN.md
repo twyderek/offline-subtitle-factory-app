@@ -68,6 +68,10 @@ runtime 探測與首頁健康狀態（BUG-022）
 
 未設定 `BREEZE_ASR_PYTHON` 時，Breeze runtime 探針會依平台尋找使用者家目錄的標準路徑：macOS／Linux 為 `$HOME/Breeze-ASR-25/.venv/bin/python`，Windows 優先 `%USERPROFILE%\\Breeze-ASR-25\\.venv\\Scripts\\python.exe`。外部 patched venv 優先於一般 bundled Python，避免把未安裝 patched Whisper 的通用 Python 誤判為 Breeze runtime；明確設定的 `BREEZE_ASR_PYTHON` 仍具有最高優先權。首頁健康檢查成功後同步更新 FFmpeg、ASR、Whisper 與 GPU 狀態卡片；Breeze 模型存在但 runtime 探針失敗時仍顯示可採取行動的缺件指引，不自動安裝或執行第三方命令。
 
+### Breeze 效能透明化與首次選擇提醒（FR-025）
+
+`/api/breeze-asr` 同步回傳 `performanceReference`，內容包含需求方提供的單一 MacBook Air M3／8 GB 觀察、1 小時 46 分影片約 6 小時（約 `3.4×`）的固定數值、日期與「未保存 profiler／原始音訊」範圍。前端只在選取器外的獨立提示欄位顯示此提醒，不把 experimental 或效能警語混入 `Breeze ASR 25` 產品名稱；提示同時提供切回內建 Whisper.cpp 的建議。此資料是風險揭露與決策輔助，不參與任務排程、不自動改變效能 preset，也不取代真實 runtime／品質／跨平台效能驗收。
+
 ### AI 優化流程
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。

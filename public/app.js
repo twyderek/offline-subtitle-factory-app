@@ -471,6 +471,7 @@ async function refreshBreezeAsrStatus(force = false) {
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
     breezeAsrCatalog = data;
+    if (form.elements.asrEngine?.value === 'breeze-asr-25') updateAsrEngineUi();
     return data;
   } catch (error) {
     breezeAsrCatalog = null;
@@ -842,6 +843,18 @@ async function ensureBreezeAsrReady() {
   }
 }
 
+function updateBreezePerformanceNotice(element, engine, reference) {
+  if (!element) return;
+  if (engine !== 'breeze-asr-25') {
+    element.hidden = true;
+    element.textContent = '';
+    return;
+  }
+  element.hidden = false;
+  element.textContent = reference?.message
+    || '效能提示：Breeze 在低資源裝置上可能明顯慢於影片時長；需要較快結果時可改用內建 Whisper.cpp。';
+}
+
 function updateAsrEngineUi() {
   const engine = form.elements.asrEngine?.value || 'whisper-cpp';
   const whisperField = document.getElementById('whisperModelField');
@@ -849,8 +862,10 @@ function updateAsrEngineUi() {
   if (whisperField) whisperField.classList.toggle('is-disabled', engine !== 'whisper-cpp');
   if (whisperSelect) whisperSelect.disabled = engine !== 'whisper-cpp';
   const statusEl = document.getElementById('whisperModelStatus');
+  const performanceNotice = document.getElementById('breezePerformanceNotice');
   const downloadButton = document.getElementById('downloadWhisperModel');
   const runtimeGuideButton = document.getElementById('openBreezeRuntimeGuideButton');
+  updateBreezePerformanceNotice(performanceNotice, engine, breezeAsrCatalog?.model?.performanceReference);
   if (engine === 'breeze-asr-25') {
     const breezeModel = breezeAsrCatalog?.model;
     const breezeStatus = !breezeModel
@@ -864,10 +879,12 @@ function updateAsrEngineUi() {
     if (downloadButton) downloadButton.hidden = true;
     if (runtimeGuideButton) runtimeGuideButton.hidden = !(breezeAsrCatalog?.model?.valid && !breezeAsrCatalog?.model?.runtimeReady);
   } else if (engine === 'manual') {
+    if (performanceNotice) performanceNotice.hidden = true;
     if (statusEl) statusEl.textContent = '手動模式只使用已上傳的 SRT。';
     if (downloadButton) downloadButton.hidden = true;
     if (runtimeGuideButton) runtimeGuideButton.hidden = true;
   } else {
+    if (performanceNotice) performanceNotice.hidden = true;
     if (runtimeGuideButton) runtimeGuideButton.hidden = true;
     updateWhisperModelUi();
   }
@@ -1616,7 +1633,7 @@ function bindProjectMenuControls() {
 
 function collectProjectData() {
   return {
-    appVersion: '0.45.1',
+    appVersion: '0.50.0',
     jobId: currentJobId,
     projectPath: currentProjectPath,
     form: {

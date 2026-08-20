@@ -38,6 +38,7 @@
 | FR-022 | Whisper 多模型模式 | 離線轉錄可選 `tiny`（快速）、`base`（平衡）與 `small`（精準）三個多語 Whisper.cpp 模型；選擇保存於任務設定；模型缺失、大小或 SHA-256 不符時不得假成功；三模式共用 SRT、JSON 品質 metadata、取消與平台 fallback 契約；高階模型可由 FR-023 的官方固定來源下載或手動匯入 |
 | FR-023 | Whisper 高階模型取得 | Base／Small 缺失時，首次選擇或提交任務前提供明確下載確認；只允許官方 pinned revision、固定檔名、預期大小與 SHA-256；下載至可寫入的使用者模型快取，顯示進度並以暫存檔／原子置換保護；取消須中止背景請求並清除未完成檔案；失敗不得建立或啟動缺模型任務，並保留手動下載 URL 與說明 |
 | FR-024 | Breeze ASR 25 實驗性本機轉錄 | 可選用 MediaTek Research Breeze ASR 25 處理台灣華語與中英混用字幕；只從固定官方 revision 下載 3,087,008,569 bytes checkpoint 並驗證 SHA-256；執行前必須確認外部 Python runtime 的 `whisper.available_models()` 真正包含 `breeze-asr-25`，缺少 runtime 或有效模型時不得啟動或假成功；沿用既有音訊前處理、SRT 時間碼清理、取消與人工校閱流程；Whisper.cpp 維持預設且本輪不宣稱已隨安裝包提供 Breeze runtime |
+| FR-025 | Breeze 效能透明化與首次選擇提醒 | `/api/breeze-asr` 提供固定、可追溯且標示單機觀察範圍的效能參考；選擇 Breeze 後在產品名稱外顯示低資源裝置可能較慢、MacBook Air 參考值與 Whisper.cpp 回退建議；不把參考值宣稱為跨機型保證或真實模型驗收 |
 
 ## 非功能需求
 

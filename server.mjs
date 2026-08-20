@@ -13,7 +13,7 @@ import { sanitizeWhisperSrt } from './lib/whisper-srt.mjs';
 import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
 import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
 import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
-import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
+import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_PERFORMANCE_REFERENCE, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
 import { resolveBreezePython } from './lib/breeze-runtime-probe.mjs';
 import { probeCommand } from './lib/process-probe.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
@@ -1103,6 +1103,7 @@ async function getBreezeModelStatusPayload(runtimeReady = false) {
       ? (runtimeReady ? 'Breeze ASR 25 模型與 runtime 已就緒' : '模型已安裝，但缺少 MediaTek patched Whisper runtime')
       : '尚未安裝 Breeze ASR 25 模型'),
     error: breezeModelDownloadJob?.error || null,
+    performanceReference: BREEZE_ASR_PERFORMANCE_REFERENCE,
     runtimeInstallGuide: breezeRuntimeInstallGuide(),
     runtimeInstallGuideDetails: breezeRuntimeInstallGuideDetails(),
   };

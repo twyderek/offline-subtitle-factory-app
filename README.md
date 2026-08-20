@@ -1,5 +1,12 @@
 # 離線字幕工廠
 
+## 0.50.0 開發中：Breeze 效能透明化
+
+0.50.0 在 0.49.1 的首次 Breeze 設定流程上，新增固定效能參考與選取後提醒。需求方提供的 MacBook Air M3／8 GB 觀察為 1 小時 46 分影片約需 6 小時（約 `3.4×`）；這是單機風險訊號，不是跨機型保證或效能改善承諾。Whisper.cpp 仍是預設，速度敏感時可切回內建引擎。
+
+- 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
+- 目前公開版本仍為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)
+
 ## 0.49.0 Breeze 第一版正式發布
 
 0.49.0 將 Breeze ASR 25 以實驗性、選用的本機轉錄引擎納入正式版本，並保留內建 Whisper.cpp Tiny／Base／Small 為預設路徑。Breeze checkpoint 只允許固定官方 revision、檔案大小與 SHA-256；外部 Python runtime 必須通過 `whisper.available_models()` 能力檢查，缺件時不會啟動推論或產生假成功字幕。
