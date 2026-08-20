@@ -11,8 +11,9 @@
 - 開發分支：`codex/0.50-whisper-small-long-cues`（由 `codex/0.50-breeze-hardening` 延伸）；來源基準為公開 `v0.49.1` 的 `main@7829876`。
 - `/api/breeze-asr` 將提供固定 `performanceReference`，首頁任務表單在選取 Breeze 時於產品名稱外顯示低資源效能提醒與 Whisper.cpp 回退建議。
 - 此提醒只重述需求方提供的單一 MacBook Air M3／8 GB 觀察：1:46 影片約 6 小時（約 `3.4×`）；不代表跨機型保證、真實模型品質或已改善推論速度。
-- 0.50.0 目前尚未建立 tag、GitHub Release 或新的安裝資產；公開 Latest 仍為 `v0.49.1`。
+- 0.50.0 尚未建立 tag 或 GitHub Release；公開 Latest 仍為 `v0.49.1`。本機已由 `codex/0.50-whisper-small-long-cues@6beee98` 產生 macOS arm64 隔離測試候選，位置為 `../dist/test-build-6beee98/`，不屬公開發布資產。
 - BUG-024 已完成本輪 deterministic 開發切片：Whisper Small 長 cue 保留完整文字，依標點／空白拆分並在正常時間下控制每行最多 20 字元；極短時間 fallback 的第二行可能較長，完整真實模型／長音訊品質仍待外部驗收，且尚未列為公開發布功能。
+- BUG-025 已修正乾淨 profile 首次啟動的不必要 Keychain 查詢；最終 packaged renderer 以隔離 userData 通過主視窗、Breeze 首次選擇 modal、上傳／完成與 AI 校閱 smoke。既有真實加密 AI 金鑰跨版本解密、乾淨帳號 Gatekeeper 與公證仍未驗收。
 
 ## 0.49.0 Breeze 第一版正式發布
 

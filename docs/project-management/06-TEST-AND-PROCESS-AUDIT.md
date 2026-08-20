@@ -124,6 +124,16 @@
 - focused `node --check`／`node scripts/test-whisper-srt.mjs`、完整 `npm run check`、`npm run docs:check`、`npm run docs:check:final` 與獨立 round1／round2／round3 審查均已完成；未宣稱真實 Small runtime 或跨平台實機品質。
 - 未覆蓋：真實 Whisper Small 權重、1:46 長音訊、實際閱讀速度／中文斷句品質、macOS／Windows 封裝後模型執行與品質 metadata 對應仍待外部驗收。
 
+## REL-040 0.50.0 Whisper Small 修正版 macOS 測試候選（2026-08-20）
+
+- 最終候選來源：`codex/0.50-whisper-small-long-cues@6beee985f50e2045fb9520630e4fde8d67b61bb7`；輸出為 `../dist/test-build-6beee98/`，版本 `0.50.0`、Electron `43.3.0`、electron-builder `26.15.7`、macOS arm64。沒有建立 tag、推送或公開 Release。
+- 首輪 `2c9612e` package 的 renderer smoke 只出現 DevTools browser 而無主視窗；1 秒 process sample 將停滯定位到 Security framework `SecItemCopyMatching`。BUG-025 把不存在 `ai-keys.safe` 的檔案檢查移到 safeStorage 前，`scripts/test-electron-main.mjs` 納入 `npm test`；修正後最終候選的隔離 userData renderer smoke 通過首頁、設定、Breeze model modal、上傳／任務完成、cleaned SRT、AI review、術語 round-trip、七個 provider 與資料夾事件，且無背景程序殘留。
+- 來源驗證：`npm run check` 通過，包含 BUG-024 Whisper Small SRT／quality／三模型、BUG-025 Electron 啟動順序、Breeze、治理與核心 API；`runtime:manifest:mac`／`runtime:verify:mac` 通過。
+- 封裝內容：Info.plist 與 packaged package 均為 `0.50.0`／arm64；runtime manifest 與來源逐位元一致；App 只含 FFmpeg、Whisper.cpp 與 `ggml-tiny.bin`，沒有 `.pt`、`ggml-base.bin`、`ggml-small.bin`、PFX／P12／PEM／key；封裝內已核對 BUG-024、BUG-025 及 `RELEASE-NOTES-0.50.0.md` marker。
+- 最終資產：DMG `285c6782159fa884e0d43a2f8bdad10fdf1468ae5abb90aed5532c1e01b656a3`（242,718,360 bytes）；ZIP `cbff5ce253309c61c4f1cbb8aeabff1227e2f3c85163fd3c44f394214172c850`（249,955,644 bytes）；DMG blockmap `c9d5d8b222d620528992923cfa2c5699b7f2dfc1c1b4aeb64d69b520e20ff6a8`；ZIP blockmap `4689d9f139fb6dbae4207712f4aa7d6b2c65412c7bde8aa55ff197da7498fe6c`。`SHA256SUMS-macos-arm64.txt` 已以 basename／LF 建立並重放全部 OK。
+- 封裝驗證：DMG `hdiutil verify` 為 VALID；ZIP `unzip -t` 無錯；`codesign --verify --deep --strict` 通過，簽章為 ad-hoc、TeamIdentifier 未設定；`latest-mac.yml` 的 DMG／ZIP SHA-512 與 size 逐項重算一致。`PROVENANCE.txt`、`SIGNING-STATUS-macos-arm64.txt`、測試候選 README 與去除 API token／暫存路徑的 `mac-renderer-smoke.json` 已附於候選目錄。
+- 未覆蓋：真實 Whisper Small 權重／1:46 長音訊、真實 Breeze runtime／checkpoint、既有真實加密 AI 金鑰跨版本 decrypt、乾淨帳號 Gatekeeper、DMG 拖曳安裝後完整操作、Windows 版本與公開 Release；本候選不得宣稱上述項目通過。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。
