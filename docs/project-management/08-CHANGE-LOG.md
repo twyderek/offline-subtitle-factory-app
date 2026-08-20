@@ -2,7 +2,9 @@
 
 ## 2026-08-20 — 0.50.0 Whisper Small 修正版 macOS 測試候選（REL-040）
 
-- 狀態：進行中
+- 狀態：完成
+- 結案判定：REL-040 round1 有條件通過；0.50.0 macOS arm64 本機隔離測試候選可交付，不授權或宣稱公開正式發布
+- 審查／交付屬性：本機 macOS Apple Silicon 測試候選；候選為 ad-hoc 簽章、未公證，只供隔離測試，不建立 tag、push 或 GitHub Release
 - 執行者：Codex
 - 需求來源：需求方在 BUG-024 Whisper Small 長字幕修正完成後要求「請繼續」；承接既有提供測試軟體的需求，推進為本機 macOS Apple Silicon 隔離測試候選。
 - 關聯需求／缺陷：`REL-040`、`BUG-024`、`BUG-025`、`FR-022`、`FR-024`、`NFR-005`
@@ -11,19 +13,22 @@
 - 來源基準：起始 `codex/0.50-whisper-small-long-cues@2c9612e1b9d0e5a1eb4ff3b004c7f9d24d180ad7`、版本 `0.50.0`、工作樹 clean；封裝診斷後加入 BUG-025 與 Release notes，同分支最終候選來源為 `6beee985f50e2045fb9520630e4fde8d67b61bb7`。
 - 目標與成功條件：以目前 commit 產出 macOS arm64 DMG／ZIP；核對 App 版本、封裝來源、runtime manifest、Tiny 內建與 Base／Small／Breeze checkpoint 排除、Whisper Small BUG-024 與首次啟動 BUG-025 程式 marker、archive／DMG、ad-hoc 簽章、updater metadata、packaged renderer 與 SHA-256；只作隔離測試候選，不建立 tag 或 GitHub Release。
 - 不在範圍：不建立或推送 Git tag／GitHub Release、不打包 Windows、不宣稱真實 Whisper Small／Breeze 模型品質、長音訊效能、乾淨帳號 Gatekeeper 或跨平台實機驗收完成。
-- 預計影響檔案／模組：`../dist/test-build-2c9612e/` 本機封裝資產；`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
+- 預計影響檔案／模組：`../dist/test-build-6beee98/` 本機封裝資產；`electron/main.mjs`、`scripts/test-electron-main.mjs`、`package.json`、README／Release notes／BUG-025、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
 - 風險與回復方式：macOS 候選為 ad-hoc 簽章且未公證，可能受 Gatekeeper 阻擋；本機剩餘儲存空間有限，使用 commit 專屬輸出目錄避免覆寫既有資產；若建置或 checksum 不一致即停止交付並保留既有公開 `v0.49.1`。
 - 驗證計畫：完整 `npm run check`、macOS runtime manifest／verify、commit 專屬 DMG／ZIP build、`hdiutil verify`、`unzip -t`、`codesign --verify --deep --strict`、封裝檔案／模型排除、`latest-mac.yml` SHA-512／size、SHA-256、`git diff --check`、`npm run docs:check:final` 與獨立六面向審查。
 - 實際修改：以 commit 專屬輸出目錄建立 macOS arm64 DMG／ZIP；首輪 renderer smoke 以 process sample 定位乾淨 profile 不必要 Keychain 查詢，`electron/main.mjs` 改為先檢查 `ai-keys.safe` 是否存在，新增 `scripts/test-electron-main.mjs` 並納入 `npm test`；同步 README、0.50 Release notes、BUG-025、目前狀態與測試稽核；最終候選附 SHA、provenance、簽章狀態、README 與去敏 smoke JSON。
 - 開發驗證結果：`npm run check`、macOS runtime manifest／verify、最終 `electron-builder --mac --arm64`、隔離 userData packaged renderer smoke、DMG `hdiutil verify`、ZIP `unzip -t`、deep strict ad-hoc codesign、App 版本／arm64／來源 marker／模型與機密檔排除、runtime manifest 一致、`latest-mac.yml` SHA-512／size、四項 SHA-256 重放與背景程序清理均通過。
-- 獨立審查是否執行：待執行
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-20-rel-040-macos-test-candidate-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 REL-040 0.50.0 macOS arm64 隔離測試候選獨立審查結論為有條件通過：候選來源、版本、runtime manifest、模型排除、BUG-024／BUG-025、DMG／ZIP 完整性、SHA／updater metadata、ad-hoc codesign 與 packaged renderer smoke 均已重放通過，可交付本機測試；但真實 Whisper Small／Breeze runtime 與 1:46 長音訊品質／效能、既有加密 AI 金鑰跨版本 decrypt、乾淨帳號 Gatekeeper／DMG 安裝、Windows／跨平台實機、正式簽章／公證及公開 Release 均未驗收，因此不得宣稱 0.50.0 已完成公開正式發布。**
+- 條件是否已被需求方接受：是（僅限需求方本輪要求繼續提供的 macOS 本機隔離測試候選；不包含公開 0.50.0、Windows、正式簽章／公證或尚未完成的實機驗收）
 - 發布授權：
   - 是否需要：是（僅本機測試候選打包與交付，不含公開發布）
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-20（本輪指示「請繼續」，承接既有測試軟體交付要求）
-  - 核准範圍：同意建立並交付來源 `2c9612e` 的 macOS arm64 本機測試候選；接受測試包為 ad-hoc 簽章、未公證且尚未完成真實 Small／Breeze 長音訊與乾淨帳號實機驗收；不包含推送、公開 Release、Windows 資產或覆寫既有版本。
+  - 核准範圍：同意打包並交付最終候選來源 `6beee985f50e2045fb9520630e4fde8d67b61bb7` 的 macOS arm64 本機測試候選；接受測試包為 ad-hoc 簽章、未公證且尚未完成真實 Small／Breeze 長音訊與乾淨帳號實機驗收；範圍僅止於本機候選，不涵蓋建立或推送 Git tag、Git push、建立或更新 GitHub Release、Windows 資產或覆寫既有公開版本。
 - 部署／發布結果：本機候選位於 `../dist/test-build-6beee98/`；DMG SHA-256 `285c6782159fa884e0d43a2f8bdad10fdf1468ae5abb90aed5532c1e01b656a3`，ZIP SHA-256 `cbff5ce253309c61c4f1cbb8aeabff1227e2f3c85163fd3c44f394214172c850`。未建立 tag、推送、GitHub Release 或 Windows 資產，未覆寫公開 `v0.49.1`。
-- 遺留風險與後續事項：真實 Whisper Small／Breeze runtime、1:46 長音訊品質與效能、既有真實加密 AI 金鑰跨版本解密、Gatekeeper／乾淨安裝、Windows 與公開發布仍不在本輪驗收範圍；目前尚待本輪獨立審查與文件結案。
+- 遺留風險與後續事項：真實 Whisper Small／Breeze runtime、1:46 長音訊品質與效能、既有真實加密 AI 金鑰跨版本解密、乾淨帳號 Keychain／Gatekeeper／DMG 安裝、Windows／跨平台實機、正式簽章／公證與公開發布仍不在本輪驗收範圍；DMG 在審查環境可通過 `hdiutil verify`，但 direct attach 未覆蓋。公開 0.50.0 前須另行驗收並取得明確發布授權。
 
 ## 2026-08-20 — Whisper Small 過長字幕 cue 分析與修正（BUG-024）
 
