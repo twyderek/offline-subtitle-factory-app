@@ -92,6 +92,53 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-08-24 — 0.50.0 macOS 測試候選重建（REL-042）
+
+- 狀態：完成
+- 結案判定：REL-042 round1 有條件通過；0.50.0 macOS arm64 本機隔離測試候選可交付，不授權或宣稱公開正式發布
+- 審查／交付屬性：本機 macOS Apple Silicon 測試候選；候選為 ad-hoc 簽章、未公證，只供隔離測試，不建立 tag、push 或 GitHub Release
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；既有 0.50.0 macOS arm64 候選資產已不在本機 `dist/`，需依已審查來源重建可交付測試檔。
+- 關聯需求／缺陷：`REL-042`、`REL-040`、`BUG-024`、`BUG-025`、`FR-022`、`FR-024`
+- 變更等級：發布（本機隔離測試候選重建；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release／test／review／closeout 路由（是）
+- 來源基準：`codex/0.50-whisper-small-long-cues@bb127c7`；版本 `0.50.0`；保留現有未提交的 MAINT-041 清理文件變更，不覆蓋或回退。
+- 目標與成功條件：以已審查 0.50.0 來源重建 macOS arm64 DMG／ZIP 至 `../dist/test-build-bb127c7/`，重新核對版本、runtime manifest、Tiny 內建與高階模型排除、BUG-024／BUG-025 marker、封裝完整性、ad-hoc 簽章、updater metadata、SHA-256 與 packaged renderer；只交付本機隔離測試候選。
+- 不在範圍：不建立或推送 Git tag／GitHub Release、不打包 Windows、不宣稱真實 Whisper Small／Breeze runtime、1:46 長音訊品質／效能、乾淨帳號 Gatekeeper／DMG 安裝或跨平台實機驗收完成。
+- 預計影響檔案／模組：`../dist/test-build-bb127c7/` 本機封裝資產；本條治理紀錄與獨立審查報告。既有 MAINT-041 未提交變更必須保留。
+- 風險與回復方式：候選為 ad-hoc 簽章且未公證；若建置、checksum 或 renderer smoke 不一致則停止交付，保留現有來源與公開 `v0.49.1`。
+- 驗證計畫：完整 `npm run check`、macOS runtime manifest／verify、`electron-builder --mac --arm64`、DMG `hdiutil verify`、ZIP `unzip -t`、deep strict codesign、封裝內容／模型排除、`latest-mac.yml` SHA-512／size、SHA-256、隔離 userData packaged renderer smoke、`docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：以 `electron-builder --mac --arm64 --publish never --config.directories.output=../dist/test-build-bb127c7` 重建 DMG／ZIP；新增候選 `PROVENANCE.txt`、`SIGNING-STATUS-macos-arm64.txt`、`SHA256SUMS-macos-arm64.txt`、`TEST-CANDIDATE-README.md` 與去敏 `mac-renderer-smoke.json`。
+- 開發驗證結果：受控權限完整 `npm run check`、`runtime:manifest:mac`、`runtime:verify:mac`、最終 macOS arm64 build、隔離 userData packaged renderer smoke、DMG `hdiutil verify`（VALID）、ZIP `unzip -t`、deep strict ad-hoc codesign、版本／arm64／來源 marker／模型與機密檔排除、runtime manifest 一致、`latest-mac.yml` SHA-512／size、四項 SHA-256 重放均通過；renderer smoke 流程含主視窗、設定、Breeze modal 開關／缺件狀態、上傳完成與 cleaned SRT、修剪頁、AI 校閱／術語 round-trip／七個 provider。沙箱首次回歸因 listener EPERM，受控權限重跑 exit 0。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-24-rel-042-macos-test-candidate-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 REL-042 0.50.0 macOS arm64 隔離測試候選獨立審查結論為有條件通過：候選來源、版本、Whisper Small 長 cue／BUG-025 marker、Tiny-only 與 Breeze／高階模型排除、DMG／ZIP 完整性、SHA-256、updater metadata、ad-hoc codesign 及受控權限 packaged renderer smoke 均已重放通過，可交付本機隔離測試；但沙箱內首次 smoke 因 listener／Electron 權限逾時且僅受控權限重跑成功、docs:check:final 尚因 REL-042 工作條目進行中而未通過，另真實 Whisper Small／Breeze runtime、1:46 長音訊品質／效能、既有加密 AI 金鑰跨版本 decrypt、乾淨帳號 Gatekeeper／DMG 安裝、Windows／跨平台實機、正式簽章／公證及公開 Release 均未驗收，因此不得宣稱 0.50.0 已完成公開正式發布。**
+- 條件是否已被需求方接受：是（僅限本機 macOS arm64 隔離測試候選；接受 ad-hoc／未公證、受控權限 smoke 限制與真實模型／長音訊／跨平台未驗收，不包含公開 0.50.0）
+- 發布授權：
+  - 是否需要：是（僅本機測試候選重建與交付，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-24（本輪指示「請繼續」）
+  - 核准範圍：同意依 `bb127c7` 打包並交付 macOS arm64 本機測試候選；接受 ad-hoc／未公證及真實 Small／Breeze runtime、長音訊、乾淨安裝與跨平台實機尚未驗收；不涵蓋建立或推送 tag、GitHub Release、Windows 資產或公開 0.50.0。
+- 部署／發布結果：本機候選位於 `../dist/test-build-bb127c7/`；DMG SHA-256 `0c19a8ad72b4400f0a62a1801959a1f2beadab5fbd254b6a2b997f70deda7624`（242718102 bytes），ZIP SHA-256 `57cfff7a14e837aee0e68ec39d8ff28bb7b95ea30dcb4361182495706d6e88e8`（249955645 bytes）；未建立 tag、推送、GitHub Release、Windows 資產或覆寫 `v0.49.1`。
+- 遺留風險與後續事項：真實模型／runtime、1:46 長音訊品質與效能、Keychain 跨版本解密、Gatekeeper／DMG direct attach／乾淨安裝、Windows／跨平台實機、正式簽章／公證與公開發布仍待外部驗收；沙箱 listener／Electron 權限下首次 renderer smoke 逾時，受控權限以同一候選重跑成功，後續測試須保留權限條件。
+
+## 2026-08-21 — 專案資料夾冗餘版本／建置快取清理（MAINT-041）
+
+- 狀態：完成
+- 結案判定：已移除已解壓安裝檔的冗餘下載副本與可重建 Remotion 快取；目前 runtime、模型、來源碼與治理證據保留。
+- 變更等級：低風險維護清理（不修改產品行為）
+- 發布授權：不適用；未建立、推送或修改任何發布資產／tag／Release。
+- 需求來源：需求方要求整理本專案資料夾下多餘的過期軟體版本檔案，釋放硬碟空間。
+- 範圍：僅處理 `tools/_downloads/` 已解壓且已有 runtime manifest／實體檔案對應的安裝壓縮檔，以及可由 `npm install`／Remotion 重新產生的本機建置快取；不處理目前 runtime、模型、來源碼、治理證據、公開 Release notes 或使用者任務資料。
+- 預計移除：`tools/_downloads/ffmpeg-release-essentials.zip`、`tools/_downloads/whisper-bin-x64-v1.9.1.zip`，以及 `remotion-splash/node_modules/.cache/`、`remotion-splash/node_modules/.remotion/`（若刪除前驗證為快取）。
+- 風險與回復：刪除下載壓縮檔後，若需重新建立 Windows runtime 必須重新下載；刪除 Remotion 快取後，下次開發／渲染會重新產生。runtime 本體、模型與 lockfile 保留。
+- 驗證計畫：刪除前保存逐項大小／SHA／引用盤點；刪除後確認 runtime manifest 對應檔案仍在、`npm run docs:check`、`node --check`、`git diff --check` 與必要的快取重建邊界；最後執行 `npm run docs:check:final`。
+- 實際修改：刪除 `tools/_downloads/ffmpeg-release-essentials.zip`（105 MiB）、`tools/_downloads/whisper-bin-x64-v1.9.1.zip`（7.6 MiB）、`remotion-splash/node_modules/.cache/`（120 MiB）與 `remotion-splash/node_modules/.remotion/`（193 MiB）。保留 `tools/ffmpeg/`、`tools/whisper-cpp/`、`tools/whisper-models/` 及所有治理／版本文件。
+- 開發驗證結果：刪除後四個目標均確認不存在；`npm run runtime:verify -- --target=win32-x64`、`npm run runtime:verify:mac -- --target=darwin-arm64`、`node --check server.mjs`、`node --check electron/main.mjs`、`npm run docs:check`（19 文件）與 `git diff --check` 均通過。釋放空間約 425.6 MiB（以刪除前 `du` 四捨五入值估算）；Remotion 快取下次建置時可重新產生。
+- 獨立審查是否執行：否；本次未執行獨立審查，原因：本輪僅刪除需求方明確要求清理範圍內的下載副本與可重建快取，未修改程式、runtime、模型、lockfile 或產品行為；需求方同意記錄：「幫我整理本專案資料夾下多餘的過期軟體版本檔案，釋放出硬碟空間」。
+- 獨立審查結論：不適用（低風險清理，已以雙平台 runtime 驗證與文件檢查替代）。
+- 遺留風險：若需要完全離線重建 Windows runtime，原始 FFmpeg／Whisper 下載壓縮檔已移除，需重新取得；目前必要 runtime 與模型仍在專案內。
+
 ## 2026-08-18 — Breeze 0.49.1 正式發布收尾（REL-038）
 
 - 狀態：完成
