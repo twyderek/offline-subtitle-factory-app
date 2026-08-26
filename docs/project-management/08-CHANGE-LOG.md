@@ -1,5 +1,68 @@
 # 改版與工作紀錄
 
+## 2026-08-26 — Whisper／FFmpeg 取消後子程序與部分輸出清理（BUG-026）
+
+- 狀態：完成
+- 結案判定：round5 有條件通過；deterministic 取消生命週期與 FFmpeg 成功音訊保留已完成，跨平台／真實 runtime 風險持續揭露
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續開發」；依目前 0.50.0 可靠性風險盤點，優先補強內建 Whisper 路徑的取消與部分輸出清理。
+- 關聯需求／缺陷：`BUG-026`、`FR-003`、`FR-022`、`NFR-005`、`BUG-WHISPER-METAL-139`
+- 變更等級：高（本機媒體／ASR 子程序取消、暫存檔清理與任務狀態可靠性）
+- 執行前已讀：`npm run project:preflight -- --type=development` 列出的固定核心與 development／test／review／closeout 路由（是）
+- 來源基準：`codex/0.50-whisper-small-long-cues@aa37d156b302e32d0d84ac1b775e6c9b600745cf`；既有未提交的 SYNC-025 工作紀錄與 round1／round2／round3 審查報告必須保留；產品程式碼在本輪開始前無未提交變更。
+- 目標與成功條件：FFmpeg 音訊前處理、Python Whisper 與 Whisper.cpp 取消時等待子程序 close；Unix 先送 SIGTERM、超過 grace period 才 SIGKILL，Windows 使用 taskkill tree；取消後清理暫存音訊、部分 SRT／JSON 與品質檔，不讓背景子程序在任務已標記取消後繼續寫入；正常成功、失敗與 Metal CPU fallback 行為不變。
+- 不在範圍：不修改 Whisper 模型、推論參數、字幕品質演算法、外部 Breeze runtime、發布版本或 GitHub refs；不宣稱跨平台實機已驗收。
+- 預計影響檔案／模組：`server.mjs`、`scripts/test-core.mjs`、`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/fixtures/mock-whisper-python-runtime.mjs`、`scripts/fixtures/mock-ffmpeg-runtime.mjs`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：取消後等待最多 3 秒可能延後任務進入 cancelled；若測試或實機發現回歸，可回復至本條目來源 commit 的既有終止邏輯，但不得保留已知的背景寫檔風險而不記錄。
+- 驗證計畫：新增 Whisper.cpp deterministic cancel／stubborn-child fixture；執行 `node --check server.mjs`、focused `node scripts/test-core.mjs`、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：`server.mjs` 的 Python Whisper／Whisper.cpp／FFmpeg 取消流程改為等待 child `close`，Unix 3 秒 grace period 後 SIGKILL，Windows taskkill tree；新增 ASR 輸出 allowlist 清理與 Python spawn 前音訊清理；修正 FFmpeg 前處理僅在取消／失敗清理音訊、成功時保留給後續 ASR；新增 Whisper.cpp、Python Whisper、FFmpeg deterministic fixtures 與核心回歸案例；功能設計與測試稽核已同步更新。
+- 開發驗證結果：初輪 `node --check`、`git diff --check`、`node scripts/test-core.mjs` 與 `npm run check` 均通過；round1 指出 Python spawn 前暫存音訊未清理及廣泛 JSON 清理問題後，已改為 basename allowlist、補 spawn 前取消／非 ASR 工作檔保留／FFmpeg／Python child 測試；round2 後另發現 FFmpeg 成功 callback 誤刪音訊，已修正並讓 Cpp／Python fixture 驗證音訊存在。修正後再次執行上述語法／差異檢查、`node scripts/test-core.mjs` 與 `npm run check` 均通過。第一次 sandbox 核心測試因 listener `EPERM`，取得本機測試權限後通過；此為執行環境限制，不是產品測試失敗。round4 後 `npm run docs:check:final` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1 不通過後完成修正；round2、round3、round4、round5 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-26-bug-026-asr-cancel-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 BUG-026 獨立審查結論為不通過：Whisper.cpp deterministic 取消等待與完整回歸雖已在 macOS 通過，但 Python Whisper spawn 前暫存音訊洩漏、取消時廣泛刪除非部分 ASR metadata，以及 FFmpeg／Python／Windows 路徑證據不足仍未解除，因此在完成上述修正、補足回歸或平台證據並通過 round2 前不得結案。**
+- round1 修正狀態：已處理 Python spawn 前音訊清理、ASR 輸出 allowlist 與非 ASR JSON 保留；已補 Python／FFmpeg deterministic runner、取消案例與重跑完整回歸；Windows taskkill 實機與真實 runtime 仍列為剩餘風險，交由 round2 確認。
+- round2 審查檔案：`docs/project-management/reviews/2026-08-26-bug-026-asr-cancel-round2.md`
+- round2 判定（逐字引用審查報告「完整結論句」）：**BUG-026 round2 獨立複審結論為有條件通過：Python Whisper spawn 前取消已清理 whisper-input.wav，ASR partial cleanup 已改為明確 basename allowlist 並保留 edit-plan.json、trim-status.json 與 waveform*.json，FFmpeg／Python／Whisper.cpp 的正常與取消 close 以及 Python spawn 前競態均已由可實際執行的 deterministic 回歸覆蓋；但 Python／FFmpeg 各自 stubborn grace、Windows taskkill 實機、Unix descendant process group、真實 Whisper／FFmpeg 長音訊、Metal fallback 與 Breeze runtime 仍未驗證，且本輪不得藉由修改其他文件完成 docs:check:final，因此不得將本輪視為跨平台或真實 runtime 完整驗收。**
+- round2 條件是否已被需求方接受：是（依需求方本次要求繼續開發；本輪不發布，僅以 deterministic 測試完成 BUG-026 開發結案，Windows／真實 runtime 缺口持續列為遺留風險）
+- round3 審查檔案：`docs/project-management/reviews/2026-08-26-bug-026-asr-cancel-round3.md`
+- round3 判定（逐字引用審查報告「完整結論句」）：**BUG-026 round3 獨立複審結論為有條件通過：`prepareWhisperAudio` 的 FFmpeg `finish` 僅在取消或失敗時清理 `audioFile`、成功時保留音訊供 Whisper 使用，Python／Whisper.cpp fixture 實際檢查音訊存在，round1／round2 的產品行為修正與本機 deterministic 回歸、完整 `npm run check` 均已通過；但 Windows taskkill／process tree、Python／FFmpeg stubborn、Unix descendant、真實 Whisper／FFmpeg 長音訊、Metal／Breeze runtime 與治理 `npm run docs:check:final` 仍未驗證或未通過，因此本結論不代表跨平台或真實 runtime 完整驗收。**
+- round4 審查檔案：`docs/project-management/reviews/2026-08-26-bug-026-asr-cancel-round4.md`
+- round4 判定（逐字引用審查報告「完整結論句」）：**BUG-026 round4 獨立複審結論為有條件通過：round1 的 Python Whisper spawn 前暫存音訊清理與 ASR basename allowlist、round2 後的 FFmpeg `finish` 成功保留 `whisper-input.wav` 修正，均已由目前 source、Python／Whisper.cpp 音訊存在檢查 fixture、核心取消／清理回歸與完整 `npm run check` 重新驗證通過；deterministic 產品範圍內沒有新的阻擋問題，但 Windows taskkill／process tree、Python／FFmpeg stubborn、Unix descendant、真實 Whisper／FFmpeg 長音訊、Metal／Breeze runtime 與治理 `npm run docs:check:final` 仍未驗證或未通過，因此本結論不代表跨平台或真實 runtime 完整驗收。**
+- round4 條件是否已被需求方接受：是（依需求方本次要求繼續開發；本輪不發布，僅以 deterministic 測試完成 BUG-026 開發結案，Windows／真實 runtime 缺口持續列為遺留風險）
+- round5 審查檔案：`docs/project-management/reviews/2026-08-26-bug-026-asr-cancel-round5.md`
+- round5 判定（逐字引用審查報告「完整結論句」）：**BUG-026 round5 最終格式合規複審結論為有條件通過：deterministic 產品範圍內的 Python spawn 前音訊清理、ASR basename allowlist、FFmpeg 成功保留音訊、三路徑取消等待 child close、部分輸出清理與既有回歸均已由目前 source、測試與本輪實際指令重新驗證，沒有新的產品阻擋問題；但既有 round4 報告的兩個 section 判定仍不符合 validator 格式，且 Windows taskkill／process tree、Unix descendant、Python／FFmpeg stubborn、真實 Whisper／FFmpeg 長音訊、Apple Metal fallback、Breeze runtime 與跨平台實機仍未驗證，因此不得宣稱跨平台或真實 runtime 完整驗收。**
+- round5 條件是否已被需求方接受：是（依需求方本次要求繼續開發；本輪不發布，僅以 deterministic 測試完成 BUG-026 開發結案，Windows／真實 runtime 缺口持續列為遺留風險）
+- 發布授權：不適用；本輪不打包、不發布、不推送、不建立 GitHub Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：Windows taskkill 實機與 process tree、macOS／Windows 實機取消、Unix descendant process group、Python／FFmpeg stubborn grace、長音訊與真實 Whisper／Breeze runtime、Apple Metal fallback 仍需外部驗收；deterministic 測試不等同跨平台實機驗收。若要宣稱跨平台或真實 runtime 完整驗收，需另開工作取得對應證據。
+
+## 2026-08-25 — GitHub 遠端資料同步至本機（SYNC-025）
+
+- 狀態：完成
+- 結案判定：SYNC-025 round3 通過；GitHub refs 已 fetch，`origin/main` 與本機 `main` 一致，因目前 topic branch 沒有同名遠端分支且 `origin/main` 無新提交，本輪不執行猜測性合併
+- 執行者：Codex
+- 需求來源：需求方要求「幫我更新 GitHub 上的新資料到本機」。
+- 關聯需求／缺陷：`SYNC-025`、`NFR-006`、`NFR-008`
+- 變更等級：低（Git fetch 與分支／tag 狀態同步；不預期修改產品程式碼）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與任務路由（是）
+- 來源基準：本機分支 `codex/0.50-whisper-small-long-cues@aa37d156b302e32d0d84ac1b775e6c9b600745cf`；執行前工作樹 clean；遠端 `origin` 為 `https://github.com/twyderek/offline-subtitle-factory-app.git`。
+- 目標與成功條件：取得 GitHub `origin` 最新 refs；確認目前分支是否有可安全快轉的同名遠端分支；若無則不猜測合併目標，核對 `origin/main`、本機 `main`、目前 topic branch 與新增 tag 的差異，並保留可追溯結果。
+- 不在範圍：不將 `origin/main` 猜測性合併進目前 topic branch；不建立或推送 commit／tag；不修改或刪除 GitHub 資料；不覆蓋本機使用者檔案。
+- 風險與回復方式：目前 topic branch 沒有 upstream／同名遠端分支，將 `main` 合併進來會改變開發分支內容；本輪只 fetch refs，不做未授權合併。若需回復新增的本機 ref，可由 Git 管理者依明確目標處理；本輪不刪除任何 ref。
+- 驗證計畫：`git fetch origin`、remote branch／tag 核對、`git rev-list` 分歧計數、`git status`、`git diff --check`、`npm run docs:check:final` 與獨立六面向審查。
+- 實際修改：執行 `git fetch origin`；GitHub 新增本機遠端 tag `breeze-runtime-2026.08.1`，其 peeled commit 為 `7829876862bca5dff72098aa6831b61fc266d594`。未修改產品程式碼，未合併、rebase、push 或刪除任何 branch／tag。
+- 開發驗證結果：首次 sandbox fetch 因 DNS 無法解析 `github.com` 失敗；取得網路權限後 `git fetch origin` exit 0。`origin/main` 與本機 `main` 均為 `7829876862bca5dff72098aa6831b61fc266d594`，`git rev-list --left-right --count origin/main...main` 為 `0 0`；目前 topic branch 相對 `origin/main` 為 `0 7`，且沒有 `origin/codex/0.50-whisper-small-long-cues`。`npm run docs:check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1 有條件通過；round2 複審有條件通過；round3 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-25-sync-025-round1.md`
+- round2 審查檔案：`docs/project-management/reviews/2026-08-25-sync-025-round2.md`
+- round2 判定（逐字引用審查報告「綜合判定」）：**本輪 SYNC-025 重新審查結論為有條件通過：Git refs、main 一致性、topic branch 關係、合併／覆蓋風險與一般文件檢查均重新驗證通過，但主要代理尚未將本 round2 報告納入最新工作紀錄並重新通過 docs:check:final。**
+- 條件是否已被需求方接受：是（需求方本輪已明確要求完成 GitHub 到本機同步；round2 條件僅為補齊本次工作紀錄、審查連結與 final 文件檢查，不涉及產品行為、發布或外部資料風險）
+- round3 審查檔案：`docs/project-management/reviews/2026-08-25-sync-025-round3.md`
+- round3 判定（逐字引用審查報告「綜合判定」）：**本輪 SYNC-025 最終複審結論為通過：已 fetch 的 Git refs、origin/main 與本機 main 一致性、topic branch 無 upstream、無不當合併或覆蓋，且工作紀錄已連結 round2 並通過 docs:check:final 與 git diff --check。**
+- 發布授權：不適用；本輪不發布、不推送、不建立 GitHub Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：若需求方要將目前 topic branch 更新至 `origin/main`，需另行確認是否接受把 7 個本機開發提交合併／rebase 到最新主線；本輪不執行該歷史改寫或合併。
+
 ## 2026-08-20 — 0.50.0 Whisper Small 修正版 macOS 測試候選（REL-040）
 
 - 狀態：完成

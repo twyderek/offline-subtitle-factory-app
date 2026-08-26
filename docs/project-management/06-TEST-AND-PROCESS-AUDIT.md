@@ -15,6 +15,15 @@
 
 治理前置流程另以 `test-project-preflight.mjs` 驗證任務路由，確保一般任務不載入完整歷史，發布與 full 類型仍包含必要治理／授權文件；未知類型必須失敗。
 
+## 2026-08-26 BUG-026 Whisper／FFmpeg 取消生命週期
+
+- 關聯需求／缺陷：`BUG-026`、`FR-003`、`FR-022`、`NFR-005`
+- 變更內容：內建 FFmpeg、Python Whisper 與 Whisper.cpp 取消時等待子程序 `close`；Unix 逾時後 `SIGKILL`、Windows 使用 taskkill tree；取消後清理暫存音訊與部分 SRT／JSON／品質 metadata。
+- 新增 deterministic 證據：`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/fixtures/mock-whisper-python-runtime.mjs`、`scripts/fixtures/mock-ffmpeg-runtime.mjs`；`scripts/test-core.mjs` 覆蓋正常完成、spawn 前取消、取消等待、暫存檔清理、非 ASR 工作檔保留與 stubborn child grace period。
+- 已執行：`node --check server.mjs`、三個 fixture 與 `scripts/test-core.mjs` 的 `node --check`、`git diff --check`、`node scripts/test-core.mjs`、`npm run check`。
+- 目前結果：上述語法／差異檢查、核心整合測試與完整 `npm run check` 修正後均通過；round2 後補修 FFmpeg 成功前處理音訊保留，round5 格式合規獨立六面向複審為有條件通過；`npm run docs:check:final` 與 `git diff --check` 已通過。
+- 未覆蓋：Windows taskkill 實機、真實 Whisper／FFmpeg 長音訊、Apple Metal fallback 與 Breeze 真實 runtime；本輪不宣稱跨平台實機驗收。
+
 ## 六面向獨立審查
 
 審查代理必須提供證據並逐項判定：

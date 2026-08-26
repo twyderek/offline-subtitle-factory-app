@@ -114,6 +114,10 @@ const server = spawn(serverCommand, [path.join(appDir, 'server.mjs')], {
     OFFLINE_SUBTITLE_API_TOKEN: token,
     NODE_ENV: 'test',
     OFFLINE_SUBTITLE_TEST_BREEZE_RUNNER: path.join(sourceAppDir, 'scripts', 'fixtures', 'mock-breeze-runtime.mjs'),
+    OFFLINE_SUBTITLE_TEST_WHISPER_CPP_RUNNER: path.join(sourceAppDir, 'scripts', 'fixtures', 'mock-whisper-cpp-runtime.mjs'),
+    OFFLINE_SUBTITLE_TEST_WHISPER_PYTHON_RUNNER: path.join(sourceAppDir, 'scripts', 'fixtures', 'mock-whisper-python-runtime.mjs'),
+    OFFLINE_SUBTITLE_TEST_FFMPEG_RUNNER: path.join(sourceAppDir, 'scripts', 'fixtures', 'mock-ffmpeg-runtime.mjs'),
+    OFFLINE_SUBTITLE_TEST_WHISPER_SPAWN_DELAY_MS: '500',
     OFFLINE_SUBTITLE_TEST_WHISPER_PARTIAL_DOWNLOAD: '1',
     ELECTRON_RUN_AS_NODE: process.env.OFFLINE_SUBTITLE_TEST_NODE ? '1' : process.env.ELECTRON_RUN_AS_NODE,
   },
@@ -519,6 +523,101 @@ try {
   assert.equal(breezeCompleted.metrics?.asrEngine, 'breeze-asr-25');
   assert.match(fs.readFileSync(path.join(dataDir, breezeRunJob.jobId, 'working', 'draft.srt'), 'utf8'), /Breeze mock 字幕/);
 
+  const whisperCppRunForm = new FormData();
+  whisperCppRunForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-run.wav');
+  whisperCppRunForm.set('asrEngine', 'whisper-cpp');
+  whisperCppRunForm.set('modelName', 'tiny');
+  whisperCppRunForm.set('language', 'zh-TW');
+  const whisperCppRunResponse = await api('/api/jobs', { method: 'POST', body: whisperCppRunForm });
+  assert.equal(whisperCppRunResponse.status, 201, 'Whisper.cpp mock 轉錄任務應可建立');
+  const whisperCppRunJob = await whisperCppRunResponse.json();
+  assert.equal((await api(`/api/jobs/${whisperCppRunJob.jobId}/start`, { method: 'POST' })).status, 202, 'Whisper.cpp mock 轉錄任務應可啟動');
+  const whisperCppCompleted = await waitForJob(whisperCppRunJob.jobId, ['completed', 'failed', 'needs-action'], 15000);
+  assert.equal(whisperCppCompleted.status, 'completed', `Whisper.cpp mock 轉錄失敗：${whisperCppCompleted.message}`);
+  assert.equal(whisperCppCompleted.metrics?.asrEngine, 'whisper.cpp');
+  assert.match(fs.readFileSync(path.join(dataDir, whisperCppRunJob.jobId, 'working', 'draft.srt'), 'utf8'), /Whisper\.cpp mock 字幕/);
+
+  const whisperPythonRunForm = new FormData();
+  whisperPythonRunForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-python-run.wav');
+  whisperPythonRunForm.set('asrEngine', 'whisper-cpp');
+  whisperPythonRunForm.set('modelName', 'tiny');
+  const whisperPythonRunResponse = await api('/api/jobs', { method: 'POST', body: whisperPythonRunForm });
+  assert.equal(whisperPythonRunResponse.status, 201, 'Python Whisper mock 轉錄任務應可建立');
+  const whisperPythonRunJob = await whisperPythonRunResponse.json();
+  const whisperPythonRunWorking = path.join(dataDir, whisperPythonRunJob.jobId, 'working');
+  fs.writeFileSync(path.join(whisperPythonRunWorking, 'whisper-python-mock'), 'yes');
+  assert.equal((await api(`/api/jobs/${whisperPythonRunJob.jobId}/start`, { method: 'POST' })).status, 202, 'Python Whisper mock 轉錄任務應可啟動');
+  const whisperPythonCompleted = await waitForJob(whisperPythonRunJob.jobId, ['completed', 'failed', 'needs-action'], 15000);
+  assert.equal(whisperPythonCompleted.status, 'completed', `Python Whisper mock 轉錄失敗：${whisperPythonCompleted.message}`);
+  assert.match(fs.readFileSync(path.join(whisperPythonRunWorking, 'draft.srt'), 'utf8'), /Whisper Python mock 字幕/);
+
+  const whisperPythonSpawnCancelForm = new FormData();
+  whisperPythonSpawnCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-python-spawn-cancel.wav');
+  whisperPythonSpawnCancelForm.set('asrEngine', 'whisper-cpp');
+  whisperPythonSpawnCancelForm.set('modelName', 'tiny');
+  const whisperPythonSpawnCancelResponse = await api('/api/jobs', { method: 'POST', body: whisperPythonSpawnCancelForm });
+  assert.equal(whisperPythonSpawnCancelResponse.status, 201, 'Python Whisper spawn 前取消任務應可建立');
+  const whisperPythonSpawnCancelJob = await whisperPythonSpawnCancelResponse.json();
+  const whisperPythonSpawnCancelWorking = path.join(dataDir, whisperPythonSpawnCancelJob.jobId, 'working');
+  fs.writeFileSync(path.join(whisperPythonSpawnCancelWorking, 'whisper-python-mock'), 'yes');
+  await api(`/api/jobs/${whisperPythonSpawnCancelJob.jobId}/start`, { method: 'POST' });
+  await waitForJobStage(whisperPythonSpawnCancelJob.jobId, 'transcribing', 15000);
+  assert.equal((await api(`/api/jobs/${whisperPythonSpawnCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202);
+  const whisperPythonSpawnCancelled = await waitForJob(whisperPythonSpawnCancelJob.jobId, ['cancelled'], 10000);
+  assert.equal(whisperPythonSpawnCancelled.stage, 'cancelled');
+  assert.equal(fs.existsSync(path.join(whisperPythonSpawnCancelWorking, 'whisper-input.wav')), false, 'Python Whisper spawn 前取消應清理暫存音訊');
+  assert.equal(fs.existsSync(path.join(whisperPythonSpawnCancelWorking, 'whisper-python-child-started')), false, 'Python Whisper spawn 前取消不應啟動 child');
+
+  const whisperPythonCancelForm = new FormData();
+  whisperPythonCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-python-cancel.wav');
+  whisperPythonCancelForm.set('asrEngine', 'whisper-cpp');
+  whisperPythonCancelForm.set('modelName', 'tiny');
+  const whisperPythonCancelResponse = await api('/api/jobs', { method: 'POST', body: whisperPythonCancelForm });
+  assert.equal(whisperPythonCancelResponse.status, 201, 'Python Whisper child 取消任務應可建立');
+  const whisperPythonCancelJob = await whisperPythonCancelResponse.json();
+  const whisperPythonCancelWorking = path.join(dataDir, whisperPythonCancelJob.jobId, 'working');
+  fs.writeFileSync(path.join(whisperPythonCancelWorking, 'whisper-python-mock'), 'yes');
+  fs.writeFileSync(path.join(whisperPythonCancelWorking, 'whisper-python-mock-delay'), 'yes');
+  await api(`/api/jobs/${whisperPythonCancelJob.jobId}/start`, { method: 'POST' });
+  await waitForFile(path.join(whisperPythonCancelWorking, 'whisper-python-child-started'), 15000);
+  assert.equal((await api(`/api/jobs/${whisperPythonCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202);
+  const whisperPythonCancellingResponse = await api(`/api/jobs/${whisperPythonCancelJob.jobId}/status`);
+  const whisperPythonCancelling = await whisperPythonCancellingResponse.json();
+  assert.equal(whisperPythonCancelling.stage, 'cancelling', 'Python Whisper child 尚未 close 前應維持 cancelling');
+  const whisperPythonCancelled = await waitForJob(whisperPythonCancelJob.jobId, ['cancelled'], 10000);
+  assert.equal(whisperPythonCancelled.stage, 'cancelled');
+  if (process.platform === 'win32') {
+    assert.equal(fs.existsSync(path.join(whisperPythonCancelWorking, 'whisper-python-child-closed')), false, 'Windows taskkill 強制終止時不應期待 Python Whisper mock 執行 SIGTERM handler');
+  } else {
+    assert.equal(fs.existsSync(path.join(whisperPythonCancelWorking, 'whisper-python-child-closed')), true, '確認 Python Whisper child close 後才完成取消');
+  }
+  assert.equal(fs.existsSync(path.join(whisperPythonCancelWorking, 'whisper-input.wav')), false, 'Python Whisper 取消後應清理暫存音訊');
+  assert.equal(fs.existsSync(path.join(whisperPythonCancelWorking, 'whisper-input.srt')), false, 'Python Whisper 取消後應清理部分 SRT');
+
+  const ffmpegCancelForm = new FormData();
+  ffmpegCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'ffmpeg-cancel.wav');
+  ffmpegCancelForm.set('asrEngine', 'breeze-asr-25');
+  const ffmpegCancelResponse = await api('/api/jobs', { method: 'POST', body: ffmpegCancelForm });
+  assert.equal(ffmpegCancelResponse.status, 201, 'FFmpeg mock 取消任務應可建立');
+  const ffmpegCancelJob = await ffmpegCancelResponse.json();
+  const ffmpegCancelWorking = path.join(dataDir, ffmpegCancelJob.jobId, 'working');
+  fs.writeFileSync(path.join(ffmpegCancelWorking, 'ffmpeg-mock-delay'), 'yes');
+  await api(`/api/jobs/${ffmpegCancelJob.jobId}/start`, { method: 'POST' });
+  await waitForJobStage(ffmpegCancelJob.jobId, 'audio-preprocessing', 15000);
+  await waitForFile(path.join(ffmpegCancelWorking, 'ffmpeg-child-started'), 15000);
+  assert.equal((await api(`/api/jobs/${ffmpegCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202);
+  const ffmpegCancellingResponse = await api(`/api/jobs/${ffmpegCancelJob.jobId}/status`);
+  const ffmpegCancelling = await ffmpegCancellingResponse.json();
+  assert.equal(ffmpegCancelling.stage, 'cancelling', 'FFmpeg child 尚未 close 前應維持 cancelling');
+  const ffmpegCancelled = await waitForJob(ffmpegCancelJob.jobId, ['cancelled'], 10000);
+  assert.equal(ffmpegCancelled.stage, 'cancelled');
+  if (process.platform === 'win32') {
+    assert.equal(fs.existsSync(path.join(ffmpegCancelWorking, 'ffmpeg-child-closed')), false, 'Windows taskkill 強制終止時不應期待 FFmpeg mock 執行 SIGTERM handler');
+  } else {
+    assert.equal(fs.existsSync(path.join(ffmpegCancelWorking, 'ffmpeg-child-closed')), true, '確認 FFmpeg child close 後才完成取消');
+  }
+  assert.equal(fs.existsSync(path.join(ffmpegCancelWorking, 'whisper-input.wav')), false, 'FFmpeg 取消後應清理部分音訊');
+
   const breezeCancelForm = new FormData();
   breezeCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'breeze-cancel.wav');
   breezeCancelForm.set('asrEngine', 'breeze-asr-25');
@@ -545,6 +644,42 @@ try {
   assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.wav')), false, '取消後應清理暫存音訊');
   assert.equal(fs.existsSync(path.join(breezeCancelWorking, 'whisper-input.srt')), false, '取消後應清理部分 SRT');
 
+  const whisperCppCancelForm = new FormData();
+  whisperCppCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-cancel.wav');
+  whisperCppCancelForm.set('asrEngine', 'whisper-cpp');
+  whisperCppCancelForm.set('modelName', 'tiny');
+  const whisperCppCancelResponse = await api('/api/jobs', { method: 'POST', body: whisperCppCancelForm });
+  assert.equal(whisperCppCancelResponse.status, 201, 'Whisper.cpp mock 取消任務應可建立');
+  const whisperCppCancelJob = await whisperCppCancelResponse.json();
+  const whisperCppCancelWorking = path.join(dataDir, whisperCppCancelJob.jobId, 'working');
+  fs.writeFileSync(path.join(whisperCppCancelWorking, 'whisper-cpp-mock-delay'), 'yes');
+  assert.equal((await api(`/api/jobs/${whisperCppCancelJob.jobId}/start`, { method: 'POST' })).status, 202);
+  await waitForJobStage(whisperCppCancelJob.jobId, 'transcribing', 15000);
+  await waitForFile(path.join(whisperCppCancelWorking, 'whisper-cpp-child-started'), 15000);
+  fs.writeFileSync(path.join(whisperCppCancelWorking, 'quality-metadata.json'), '{}');
+  for (const file of ['edit-plan.json', 'trim-status.json', 'waveform-512.json']) {
+    fs.writeFileSync(path.join(whisperCppCancelWorking, file), '{}');
+  }
+  assert.equal((await api(`/api/jobs/${whisperCppCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202);
+  const whisperCppCancellingResponse = await api(`/api/jobs/${whisperCppCancelJob.jobId}/status`);
+  const whisperCppCancelling = await whisperCppCancellingResponse.json();
+  assert.equal(whisperCppCancelling.stage, 'cancelling', 'Whisper.cpp child 尚未 close 前應維持 cancelling');
+  assert.equal(whisperCppCancelling.status, 'running', 'Whisper.cpp child 尚未 close 前不可提前標記 cancelled');
+  const whisperCppCancelled = await waitForJob(whisperCppCancelJob.jobId, ['cancelled'], 10000);
+  assert.equal(whisperCppCancelled.stage, 'cancelled');
+  if (process.platform === 'win32') {
+    assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'whisper-cpp-child-closed')), false, 'Windows taskkill 強制終止時不應期待 child 執行 SIGTERM handler');
+  } else {
+    assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'whisper-cpp-child-closed')), true, '確認 Whisper.cpp child close 後才完成取消');
+  }
+  assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'whisper-input.wav')), false, 'Whisper.cpp 取消後應清理暫存音訊');
+  assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'whisper-cpp-output.srt')), false, 'Whisper.cpp 取消後應清理部分 SRT');
+  assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'whisper-cpp-output.json')), false, 'Whisper.cpp 取消後應清理部分 JSON');
+  assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, 'quality-metadata.json')), false, 'Whisper.cpp 取消後應清理品質 metadata');
+  for (const file of ['edit-plan.json', 'trim-status.json', 'waveform-512.json']) {
+    assert.equal(fs.existsSync(path.join(whisperCppCancelWorking, file)), true, `取消後應保留非 ASR 工作檔 ${file}`);
+  }
+
   if (process.platform !== 'win32') {
     const breezeForceForm = new FormData();
     breezeForceForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'breeze-force-cancel.wav');
@@ -564,6 +699,27 @@ try {
     assert.ok(Date.now() - forceStartedAt >= 2800, '忽略 SIGTERM 的 child 應等待 grace period 後才由 SIGKILL 結束');
     assert.equal(fs.existsSync(path.join(breezeForceWorking, 'whisper-input.wav')), false);
     assert.equal(fs.existsSync(path.join(breezeForceWorking, 'whisper-input.srt')), false);
+
+    const whisperCppForceForm = new FormData();
+    whisperCppForceForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-force-cancel.wav');
+    whisperCppForceForm.set('asrEngine', 'whisper-cpp');
+    whisperCppForceForm.set('modelName', 'tiny');
+    const whisperCppForceResponse = await api('/api/jobs', { method: 'POST', body: whisperCppForceForm });
+    assert.equal(whisperCppForceResponse.status, 201);
+    const whisperCppForceJob = await whisperCppForceResponse.json();
+    const whisperCppForceWorking = path.join(dataDir, whisperCppForceJob.jobId, 'working');
+    fs.writeFileSync(path.join(whisperCppForceWorking, 'whisper-cpp-mock-delay'), 'yes');
+    fs.writeFileSync(path.join(whisperCppForceWorking, 'whisper-cpp-mock-stubborn'), 'yes');
+    await api(`/api/jobs/${whisperCppForceJob.jobId}/start`, { method: 'POST' });
+    await waitForFile(path.join(whisperCppForceWorking, 'whisper-cpp-child-started'), 15000);
+    const whisperCppForceStartedAt = Date.now();
+    await api(`/api/jobs/${whisperCppForceJob.jobId}/cancel`, { method: 'POST' });
+    const whisperCppForceCancelled = await waitForJob(whisperCppForceJob.jobId, ['cancelled'], 10000);
+    assert.equal(whisperCppForceCancelled.stage, 'cancelled');
+    assert.ok(Date.now() - whisperCppForceStartedAt >= 2800, '忽略 SIGTERM 的 Whisper.cpp child 應等待 grace period 後才由 SIGKILL 結束');
+    assert.equal(fs.existsSync(path.join(whisperCppForceWorking, 'whisper-input.wav')), false);
+    assert.equal(fs.existsSync(path.join(whisperCppForceWorking, 'whisper-cpp-output.srt')), false);
+    assert.equal(fs.existsSync(path.join(whisperCppForceWorking, 'whisper-cpp-output.json')), false);
   }
   fs.mkdirSync(path.join(dataDir, created.jobId, 'working'), { recursive: true });
   fs.writeFileSync(path.join(dataDir, created.jobId, 'working', 'quality-metadata.json'), JSON.stringify([{ id: 1, start: 0, end: 1, confidence: 0.1 }]));

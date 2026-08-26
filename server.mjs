@@ -47,6 +47,9 @@ const toolsInfo = resolveToolsInfo();
 const toolsDir = toolsInfo.toolsDir;
 const toolPaths = toolsInfo.paths;
 const breezeTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_BREEZE_RUNNER || '' : '';
+const whisperCppTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_WHISPER_CPP_RUNNER || '' : '';
+const whisperPythonTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_WHISPER_PYTHON_RUNNER || '' : '';
+const ffmpegTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_FFMPEG_RUNNER || '' : '';
 const allowMockBreezeModel = Boolean(breezeTestRunner);
 const usePartialWhisperDownloadFixture = process.env.NODE_ENV === 'test'
   && process.env.OFFLINE_SUBTITLE_TEST_WHISPER_PARTIAL_DOWNLOAD === '1';
@@ -922,7 +925,7 @@ async function getBasicToolsStatus(force = false) {
   if (!force && basicToolsPromise) return basicToolsPromise;
   basicToolsPromise = Promise.all([
     commandExists(toolPaths.node),
-    commandExists(toolPaths.ffmpeg, ['-version']),
+    ffmpegTestRunner ? Promise.resolve(true) : commandExists(toolPaths.ffmpeg, ['-version']),
     commandExists(toolPaths.python),
     commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
     breezeTestRunner ? Promise.resolve(true) : commandExists(toolPaths.breezePython, buildBreezeRuntimeProbeArgs(), 15000),
@@ -1368,6 +1371,21 @@ function throwIfJobCancelled(signal) {
   if (signal?.aborted) throw createJobCancelledError();
 }
 
+function throwIfJobCancelledWithAudioCleanup(signal, audioFile) {
+  if (!signal?.aborted) return;
+  try { fs.unlinkSync(audioFile); } catch {}
+  throw createJobCancelledError();
+}
+
+function removeWhisperPartialOutputs(workingDir, outputBases) {
+  for (const outputBase of outputBases) {
+    for (const suffix of ['.srt', '.json']) {
+      try { fs.unlinkSync(`${outputBase}${suffix}`); } catch {}
+    }
+  }
+  try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
+}
+
 function startJob(jobId) {
   if (runningJobs.has(jobId)) return { started: false, alreadyRunning: true };
   if (runningTrims.has(jobId)) return { started: false, error: '影片修剪進行中，完成後才能開始字幕轉錄' };
@@ -1762,8 +1780,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
   const videoFile = getEffectiveVideoPath(job);
   if (!videoFile) throw new Error('找不到可轉錄的有效影片');
   const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
-  throwIfJobCancelled(signal);
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const tools = await getBasicToolsStatus();
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const selectedModel = inspectWhisperModelWithCache(job.config.modelName);
   if (!selectedModel.valid) {
     try { fs.unlinkSync(audioFile); } catch {}
@@ -1772,10 +1791,12 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       : `Whisper ${selectedModel.name.toUpperCase()} 模型檔案驗證失敗（${selectedModel.reason}）`;
     throw new Error(`${reason}；請在模型管理下載或手動放入模型快取後再試`);
   }
-  if (tools.asrEngine === 'whisper.cpp') {
+  const usePythonTestRunner = Boolean(whisperPythonTestRunner && fs.existsSync(path.join(workingDir, 'whisper-python-mock')));
+  if (tools.asrEngine === 'whisper.cpp' && !usePythonTestRunner) {
     return runWhisperCpp(job, audioFile, workingDir, signal);
   }
   const gpu = await getGpuStatus();
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const useCuda = gpu.available && gpu.status === 'cuda';
   const preset = job.config.performancePreset || 'balanced';
   const configuredThreads = Number(job.config.cpuThreads || 0);
@@ -1794,8 +1815,15 @@ async function runWhisper(job, inputDir, workingDir, signal) {
     },
   }, `Whisper 裝置=${useCuda ? 'CUDA' : 'CPU'} 模式=${preset}`);
 
+  const testSpawnDelayMs = usePythonTestRunner ? Number(process.env.OFFLINE_SUBTITLE_TEST_WHISPER_SPAWN_DELAY_MS || 0) : 0;
+  if (testSpawnDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, testSpawnDelayMs));
+    throwIfJobCancelledWithAudioCleanup(signal, audioFile);
+  }
+
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
       reject(createJobCancelledError());
       return;
     }
@@ -1814,7 +1842,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
     if (preset === 'accurate') args.push('--beam_size', '5');
     if (job.config.modelName) args.push('--model', job.config.modelName);
     let lastProgressLogAt = 0;
-    const child = spawn(toolPaths.python, args, {
+    const runtimeCommand = usePythonTestRunner ? process.execPath : toolPaths.python;
+    const runtimeArgs = usePythonTestRunner ? [whisperPythonTestRunner, ...args] : args;
+    const child = spawn(runtimeCommand, runtimeArgs, {
       shell: false,
       env: {
         ...process.env,
@@ -1827,16 +1857,36 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       windowsHide: true,
     });
     let settled = false;
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
     const finish = (callback) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
       try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) {
+            removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
+            finish(() => reject(createJobCancelledError()));
+          }
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stdout.on('data', (data) => {
@@ -1851,9 +1901,21 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         updateJob(job, { progress: 52, message: 'Whisper 本機轉錄中' }, log);
       }
     });
-    child.on('error', (error) => finish(() => reject(error)));
-    child.on('exit', (code) => {
+    child.on('error', (error) => {
       if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      finish(() => reject(error));
+    });
+    child.on('close', (code) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
         finish(() => reject(createJobCancelledError()));
         return;
       }
@@ -1934,7 +1996,9 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
       cpuThreads,
       forceCpu,
     });
-    const child = spawn(toolPaths.whisperCpp, args, {
+    const runtimeCommand = whisperCppTestRunner ? process.execPath : toolPaths.whisperCpp;
+    const runtimeArgs = whisperCppTestRunner ? [whisperCppTestRunner, ...args] : args;
+    const child = spawn(runtimeCommand, runtimeArgs, {
       shell: false,
       cwd: path.dirname(toolPaths.whisperCpp),
       env: {
@@ -1946,16 +2010,36 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
     let settled = false;
     let stderr = '';
     let lastProgressLogAt = 0;
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
     const finish = (callback, cleanupAudio = true) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
       if (cleanupAudio) try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) {
+            removeWhisperPartialOutputs(workingDir, [outputBase]);
+            finish(() => reject(createJobCancelledError()));
+          }
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stdout.on('data', (data) => {
@@ -1973,9 +2057,21 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
         updateJob(job, { progress: 52, message: 'Whisper.cpp 本機轉錄中' }, log);
       }
     });
-    child.on('error', (error) => finish(() => reject(error)));
-    child.on('exit', (code) => {
+    child.on('error', (error) => {
       if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      finish(() => reject(error));
+    });
+    child.on('close', (code) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
         finish(() => reject(createJobCancelledError()));
         return;
       }
@@ -2048,33 +2144,67 @@ function prepareWhisperAudio(job, videoFile, workingDir, signal) {
   }, '使用 FFmpeg 建立 Whisper 最佳化音訊');
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
       reject(createJobCancelledError());
       return;
     }
-    const child = spawn(toolPaths.ffmpeg, [
+    const ffmpegArgs = [
       '-y', '-i', videoFile,
       '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le',
       audioFile,
-    ], { shell: false, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    ];
+    const runtimeCommand = ffmpegTestRunner ? process.execPath : toolPaths.ffmpeg;
+    const runtimeArgs = ffmpegTestRunner ? [ffmpegTestRunner, ...ffmpegArgs] : ffmpegArgs;
+    const child = spawn(runtimeCommand, runtimeArgs, { shell: false, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
     let settled = false;
-    const finish = (callback) => {
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
+    const finish = (callback, cleanupAudio = false) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
+      if (cleanupAudio) try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) finish(() => reject(createJobCancelledError()), true);
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk.toString('utf8')}`.slice(-2000); });
-    child.on('error', (error) => finish(() => reject(error)));
+    child.on('error', (error) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        finish(() => reject(createJobCancelledError()), true);
+        return;
+      }
+      finish(() => reject(error), true);
+    });
     child.on('close', (code) => {
-      if (signal?.aborted) finish(() => reject(createJobCancelledError()));
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        finish(() => reject(createJobCancelledError()), true);
+      }
       else if (code === 0 && fs.existsSync(audioFile)) finish(() => resolve(audioFile));
-      else finish(() => reject(new Error(`音訊前處理失敗（FFmpeg exit ${code}）：${sanitizeLog(stderr).slice(-300)}`)));
+      else finish(() => reject(new Error(`音訊前處理失敗（FFmpeg exit ${code}）：${sanitizeLog(stderr).slice(-300)}`)), true);
     });
   });
 }

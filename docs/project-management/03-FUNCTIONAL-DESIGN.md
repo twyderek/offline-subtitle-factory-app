@@ -118,6 +118,7 @@ Whisper.cpp 轉錄會要求 `--output-json` 與 `--output-json-full`，由 `lib/
 - 外部 AI 的 408、429、5xx、逾時與網路錯誤可按上限退避重試；永久錯誤立即停止。
 - 媒體／字幕處理失敗不得標記成功；保留原檔與可診斷資訊。
 - 取消、interrupted、failed、completed 狀態必須可區分。
+- ASR 子程序取消時先進入 `cancelling`，等待 FFmpeg／Whisper 子程序關閉後才進入 `cancelled`；Unix 以 SIGTERM 後 grace period／SIGKILL 收尾，Windows 以 taskkill tree 收尾，並清理暫存音訊與部分 SRT／JSON，避免背景程序在任務取消後繼續寫檔。
 
 ## 設計變更要求
 
