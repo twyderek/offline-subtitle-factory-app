@@ -1,5 +1,33 @@
 # 改版與工作紀錄
 
+## 2026-08-26 — Anthropic 連線測試低成本化（DEV-028）
+
+- 狀態：完成
+- 結案判定：round2 通過；Anthropic 連線測試已改用低成本 `/v1/models`，空清單／缺少指定模型不再誤報可用，字幕優化 `/v1/messages` contract 維持不變
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；依 DEV-027 審查指出的外部 API 成本與連線驗收風險，先降低連線測試的副作用
+- 關聯需求／缺陷：`DEV-028`、`DEV-027`、`FR-009`、`NFR-001`、`NFR-002`、`NFR-006`
+- 變更等級：中（Anthropic 連線測試請求路徑與 deterministic provider contract）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@982131f`；0.51.0 DEV-027 round1 有條件通過；工作樹 clean
+- 目標與成功條件：Anthropic 連線測試只使用 `/v1/models` 驗證 API Key／模型可用性與數量，不發送會產生模型輸出的 `/v1/messages` 測試生成；字幕優化仍使用 `/v1/messages`；模型不存在時回報 `modelAvailable:false` 而非誤判或拋錯；測試與文件同步
+- 不在範圍：不使用真實 Anthropic API Key、不改變字幕 optimizer prompt／回應 contract、不處理外部計費或模型品質、不建立公開 Release
+- 預計影響檔案／模組：`lib/ai/anthropic.mjs`、`scripts/test-ai-providers.mjs`、`RELEASE-NOTES-0.51.0.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`00-CURRENT-STATUS.md`、本工作紀錄與獨立審查報告
+- 風險與回復方式：部分相容 proxy 可能未提供 `/v1/models`；若發現回歸，可回復 DEV-027 的 test adapter，但需重新評估連線測試成本與模型可用性誤判風險
+- 驗證計畫：provider deterministic test（GET models／無 POST 生成、modelAvailable true／false、優化仍 POST messages）、完整 `npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查
+- 實際修改：`lib/ai/anthropic.mjs` 的 `testAnthropic` 改為只查詢 `/v1/models`，指定模型必須存在才回報 `modelAvailable:true`；`scripts/test-ai-providers.mjs` 新增無生成 body、缺失模型與空模型清單案例；功能設計、測試稽核、狀態與 0.51.0 Release notes 同步更新。
+- 開發驗證結果：`node scripts/test-ai-providers.mjs`、`node scripts/test-review-ui.mjs`、`node --check lib/ai/anthropic.mjs`、`git diff --check` 與完整 `npm run check` 均通過；完整 core 測試在本輪重新執行成功。
+- 獨立審查是否執行：是（round1 有條件通過後完成修正；round2 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-26-dev-028-anthropic-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**DEV-028 Anthropic Claude provider round1 獨立六面向審查結論為有條件通過：目前 0.51.0 的 provider adapter、認證與內部欄位隔離、設定 UI、文件治理及 deterministic provider／核心／renderer 測試均已通過且未發現新的阻擋缺陷，但因尚未使用真實 Anthropic API key、未驗證外部模型品質／限流／計費／proxy 與跨平台封裝，故本輪僅可視為開發版完成，尚不得宣稱正式發布就緒。**
+- round1 條件是否已被需求方接受：是（僅限 deterministic 開發驗證；空模型清單風險已修正，真實 API／模型品質／跨平台發布仍須另行驗收）
+- round2 審查檔案：`docs/project-management/reviews/2026-08-26-dev-028-anthropic-round2.md`
+- round2 判定（逐字引用審查報告「完整單句結論」）：**DEV-028 round2 已修正空模型清單可用性誤判，並以 focused deterministic 測試證明連線查詢與優化路徑符合需求。**
+- round2 條件是否已被需求方接受：是（本輪依需求方「請繼續」完成低成本連線測試與空清單修正；不擴張為真實外部 API 或公開發布授權）
+- 發布授權：不適用；本輪僅開發，不推送、不打包、不發布
+- 部署／發布結果：不適用；未建立 tag、測試包或 GitHub Release
+- 遺留風險與後續事項：真實 Anthropic API key smoke、錯誤／rate-limit、長字幕模型品質與效能、proxy／TLS 政策、macOS／Windows 封裝與乾淨環境仍需發布前驗收；本輪 deterministic 測試不等同外部模型或跨平台實機驗收。
+
 ## 2026-08-26 — 0.51.0 Anthropic Claude provider adapter（DEV-027）
 
 - 狀態：完成

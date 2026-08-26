@@ -6,9 +6,13 @@ import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from '../
 
 const originalFetch = globalThis.fetch;
 const requests = [];
+let anthropicModelListMode = 'normal';
 const providerMockFetch = async (url, options = {}) => {
   requests.push({ url: String(url), options });
-  const body = String(url).includes('/v1/messages')
+  const isAnthropicModels = String(url).includes('api.anthropic.com/v1/models');
+  const body = isAnthropicModels && anthropicModelListMode === 'empty'
+    ? { data: [] }
+    : String(url).includes('/v1/messages')
     ? { id: 'msg_test', model: 'claude-test', content: [{ type: 'text', text: '{"cues":[]}' }], stop_reason: 'end_turn' }
     : options.method === 'POST'
       ? { choices: [{ message: { content: '{"cues":[]}' } }] }
@@ -208,17 +212,19 @@ try {
   const geminiBody = JSON.parse(geminiOptimizeRequest.options.body);
   assert.ok(Array.isArray(geminiBody.messages));
 
-  const anthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/', apiKey: 'anthropic-key', model: 'claude-test' });
-  assert.equal((await anthropic.test()).ok, true);
+  const anthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/', apiKey: 'anthropic-key', model: 'test-model' });
+  const anthropicConnection = await anthropic.test();
+  assert.equal(anthropicConnection.ok, true);
+  assert.equal(anthropicConnection.modelAvailable, true);
+  assert.equal(anthropicConnection.modelCount, 1);
   const anthropicTestRequest = requests.at(-1);
-  assert.match(anthropicTestRequest.url, /api\.anthropic\.com\/v1\/messages$/);
+  assert.match(anthropicTestRequest.url, /api\.anthropic\.com\/v1\/models$/);
   assert.equal(anthropicTestRequest.url.includes('anthropic-key'), false, 'Anthropic API Key 不得進入 URL');
   assert.equal(anthropicTestRequest.options.headers['x-api-key'], 'anthropic-key');
   assert.equal(anthropicTestRequest.options.headers['anthropic-version'], '2023-06-01');
   assert.equal(anthropicTestRequest.options.headers.Authorization, undefined);
-  const anthropicTestBody = JSON.parse(anthropicTestRequest.options.body);
-  assert.equal(anthropicTestBody.max_tokens, 16);
-  assert.equal(anthropicTestBody.messages[0].role, 'user');
+  assert.equal(anthropicTestRequest.options.method, 'GET');
+  assert.equal(anthropicTestRequest.options.body, undefined, '連線測試不得送出生成 body');
   const anthropicModels = await anthropic.listModels();
   assert.deepEqual(anthropicModels, [{ id: 'test-model' }]);
   const anthropicModelsRequest = requests.at(-1);
@@ -249,6 +255,18 @@ try {
   assert.equal(anthropicBody.output_language, undefined);
   assert.deepEqual(anthropicBody.messages, [{ role: 'user', content: '[{"id":"C1","text":"測試"}]' }]);
   assert.equal(anthropicResult.choices[0].message.content, '{"cues":[]}');
+
+  const unavailableAnthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'anthropic-key', model: 'missing-model' });
+  const unavailableConnection = await unavailableAnthropic.test();
+  assert.equal(unavailableConnection.ok, true);
+  assert.equal(unavailableConnection.modelAvailable, false, '模型清單未包含指定模型時不可誤判可用');
+  anthropicModelListMode = 'empty';
+  const emptyAnthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'anthropic-key', model: 'test-model' });
+  const emptyConnection = await emptyAnthropic.test();
+  assert.equal(emptyConnection.ok, true);
+  assert.equal(emptyConnection.modelAvailable, false, '空模型清單不可把指定模型誤判可用');
+  assert.equal(emptyConnection.modelCount, 0);
+  anthropicModelListMode = 'normal';
 
   const csv = 'source,target,caseSensitive,doNotTranslate,note\nOpen AI,OpenAI,true,false,brand\nWhisper,,false,true,keep';
   const glossary = parseGlossaryCsv(csv);

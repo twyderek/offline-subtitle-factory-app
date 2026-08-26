@@ -3,7 +3,7 @@
 ## 版本重點
 
 - 新增可選的 Anthropic Claude provider；校閱頁可保存 Anthropic Base URL、模型、批次與 API Key。
-- 模型清單使用 Anthropic `/v1/models`，連線測試與字幕優化使用 `/v1/messages`。
+- 模型清單與連線測試使用 Anthropic `/v1/models`，避免為測試連線產生模型輸出；字幕優化使用 `/v1/messages`。
 - 請求使用 `x-api-key` 與 `anthropic-version: 2023-06-01`；system prompt、`max_completion_tokens` 與 Anthropic content blocks 會轉接至既有 AI optimizer contract。
 - OpenAI 專用 `response_format`、`operation`、輸出語言與 cue 數量／ID metadata 不會傳送至 Anthropic；回應仍經 cue ID、數量、順序、文字長度與語言驗證，結果只形成待人工接受的建議。
 - Anthropic profile、runtime key 與磁碟 secret 以 provider ID 隔離；API Key 不寫入一般設定、不回傳到畫面，也不出現在測試訊息與日誌。

@@ -99,7 +99,7 @@
 
 ## 0.51.0 Anthropic Claude provider 開發驗證
 
-- `test-ai-providers.mjs`：驗證 Anthropic provider registry、預設端點、`/v1/messages` 與 `/v1/models` 路徑、`x-api-key`／`anthropic-version` 標頭、system／user 訊息轉換、`max_completion_tokens`→`max_tokens`、OpenAI 專用欄位與內部 cue metadata 清理，以及 Anthropic content blocks 回應正規化。
+- `test-ai-providers.mjs`：驗證 Anthropic provider registry、預設端點、`/v1/messages` 與 `/v1/models` 路徑、`x-api-key`／`anthropic-version` 標頭、連線測試只使用 GET models 且不發送生成 body、modelAvailable true／false（含空清單）、system／user 訊息轉換、`max_completion_tokens`→`max_tokens`、OpenAI 專用欄位與內部 cue metadata 清理，以及 Anthropic content blocks 回應正規化。
 - `test-core.mjs`：驗證 settings API 列出 Anthropic、profile／runtime key 以 provider ID 隔離、API Key 不進一般設定或 API 回應，非法 provider 仍回覆 400。
 - `test-review-ui.mjs`：驗證 Anthropic Claude 選項與既有供應商白名單／連線表單契約。
 - 驗證限制：本輪不使用真實 Claude API Key、不測量外部模型品質／計費、不宣稱跨平台封裝或公開 0.51.0 Release 已完成；需另行進行使用者授權的外部 endpoint smoke 與平台候選驗收。
