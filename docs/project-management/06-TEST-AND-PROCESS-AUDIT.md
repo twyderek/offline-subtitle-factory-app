@@ -97,6 +97,13 @@
 - round2 修正後，`test-review-ui.mjs` 直接執行可注入連線控制器：七類未保存／缺 key 狀態均斷言 request 0 次；已保存未變更狀態 request 1 次；阻擋、成功、HTTP 錯誤與 fetch 例外後按鈕皆恢復，錯誤訊息可診斷。
 - 未覆蓋：未使用真實 Groq／Gemini API Key 呼叫外部服務；Windows／macOS 乾淨實機安裝與啟動仍待 0.45.3。0.45.2 macOS arm64 DMG／ZIP、Windows Setup／Portable 與 updater metadata 已於發布前後核對通過。
 
+## 0.51.0 Anthropic Claude provider 開發驗證
+
+- `test-ai-providers.mjs`：驗證 Anthropic provider registry、預設端點、`/v1/messages` 與 `/v1/models` 路徑、`x-api-key`／`anthropic-version` 標頭、system／user 訊息轉換、`max_completion_tokens`→`max_tokens`、OpenAI 專用欄位與內部 cue metadata 清理，以及 Anthropic content blocks 回應正規化。
+- `test-core.mjs`：驗證 settings API 列出 Anthropic、profile／runtime key 以 provider ID 隔離、API Key 不進一般設定或 API 回應，非法 provider 仍回覆 400。
+- `test-review-ui.mjs`：驗證 Anthropic Claude 選項與既有供應商白名單／連線表單契約。
+- 驗證限制：本輪不使用真實 Claude API Key、不測量外部模型品質／計費、不宣稱跨平台封裝或公開 0.51.0 Release 已完成；需另行進行使用者授權的外部 endpoint smoke 與平台候選驗收。
+
 ## 0.45.3 設定遷移驗證計畫
 
 - BUG-012：`test-core.mjs` 驗證 `openai-compatible` 搭配 Gemini URL／`gemini-*` 模型時，會回復空 Base URL／空模型，且不影響供應商金鑰隔離。

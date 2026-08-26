@@ -8,16 +8,18 @@ const originalFetch = globalThis.fetch;
 const requests = [];
 const providerMockFetch = async (url, options = {}) => {
   requests.push({ url: String(url), options });
-  const body = options.method === 'POST'
-    ? { choices: [{ message: { content: '{"cues":[]}' } }] }
-    : { data: [{ id: 'test-model' }] };
+  const body = String(url).includes('/v1/messages')
+    ? { id: 'msg_test', model: 'claude-test', content: [{ type: 'text', text: '{"cues":[]}' }], stop_reason: 'end_turn' }
+    : options.method === 'POST'
+      ? { choices: [{ message: { content: '{"cues":[]}' } }] }
+      : { data: [{ id: 'test-model' }] };
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 globalThis.fetch = providerMockFetch;
 
 try {
   const definitions = listProviderDefinitions();
-  assert.deepEqual(definitions.map((item) => item.id).sort(), ['azure', 'gemini', 'groq', 'lm-studio', 'ollama', 'openai', 'openai-compatible']);
+  assert.deepEqual(definitions.map((item) => item.id).sort(), ['anthropic', 'azure', 'gemini', 'groq', 'lm-studio', 'ollama', 'openai', 'openai-compatible']);
 
   for (const provider of ['openai', 'openai-compatible', 'groq']) {
     const adapter = createProvider({ provider, baseUrl: 'https://example.test/v1', apiKey: `key-${provider}`, model: 'test-model' });
@@ -205,6 +207,48 @@ try {
   assert.equal(geminiOptimizeRequest.options.headers['x-goog-api-key'], undefined);
   const geminiBody = JSON.parse(geminiOptimizeRequest.options.body);
   assert.ok(Array.isArray(geminiBody.messages));
+
+  const anthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/', apiKey: 'anthropic-key', model: 'claude-test' });
+  assert.equal((await anthropic.test()).ok, true);
+  const anthropicTestRequest = requests.at(-1);
+  assert.match(anthropicTestRequest.url, /api\.anthropic\.com\/v1\/messages$/);
+  assert.equal(anthropicTestRequest.url.includes('anthropic-key'), false, 'Anthropic API Key 不得進入 URL');
+  assert.equal(anthropicTestRequest.options.headers['x-api-key'], 'anthropic-key');
+  assert.equal(anthropicTestRequest.options.headers['anthropic-version'], '2023-06-01');
+  assert.equal(anthropicTestRequest.options.headers.Authorization, undefined);
+  const anthropicTestBody = JSON.parse(anthropicTestRequest.options.body);
+  assert.equal(anthropicTestBody.max_tokens, 16);
+  assert.equal(anthropicTestBody.messages[0].role, 'user');
+  const anthropicModels = await anthropic.listModels();
+  assert.deepEqual(anthropicModels, [{ id: 'test-model' }]);
+  const anthropicModelsRequest = requests.at(-1);
+  assert.match(anthropicModelsRequest.url, /api\.anthropic\.com\/v1\/models$/);
+  assert.equal(anthropicModelsRequest.options.headers['x-api-key'], 'anthropic-key');
+
+  const anthropicResult = await anthropic.optimize({
+    model: 'claude-test',
+    operation: 'proofread',
+    output_language: 'zh-TW',
+    subtitle_cue_count: 1,
+    subtitle_cue_ids: ['C1'],
+    max_completion_tokens: 256,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: 'You are a subtitle editor.' },
+      { role: 'user', content: '[{"id":"C1","text":"測試"}]' },
+    ],
+  });
+  const anthropicRequest = requests.at(-1);
+  assert.match(anthropicRequest.url, /api\.anthropic\.com\/v1\/messages$/);
+  const anthropicBody = JSON.parse(anthropicRequest.options.body);
+  assert.equal(anthropicBody.system, 'You are a subtitle editor.');
+  assert.equal(anthropicBody.max_tokens, 256);
+  assert.equal(anthropicBody.max_completion_tokens, undefined);
+  assert.equal(anthropicBody.response_format, undefined);
+  assert.equal(anthropicBody.operation, undefined);
+  assert.equal(anthropicBody.output_language, undefined);
+  assert.deepEqual(anthropicBody.messages, [{ role: 'user', content: '[{"id":"C1","text":"測試"}]' }]);
+  assert.equal(anthropicResult.choices[0].message.content, '{"cues":[]}');
 
   const csv = 'source,target,caseSensitive,doNotTranslate,note\nOpen AI,OpenAI,true,false,brand\nWhisper,,false,true,keep';
   const glossary = parseGlossaryCsv(csv);

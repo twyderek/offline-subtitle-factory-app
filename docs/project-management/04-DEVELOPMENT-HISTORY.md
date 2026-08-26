@@ -25,6 +25,7 @@
 | 0.49.0／2026-08-13 | Breeze ASR 25 第一版實驗性正式發布 | 由最新 `main` 移植 runtime／模型 probe 與診斷遮罩；PR #11、最終 tag Windows workflow、9 項正式資產與發布後全量下載核對通過；真實 checkpoint／runtime／音訊品質與效能仍是已揭露的 experimental 風險 |
 | 0.49.1／2026-08-18 | Breeze 首次選擇設定協助與 Mac Air 效能依據正式發布 | PR #14、merge `917ae828`、tag workflow `32095872065` 與 13 項公開資產已核對；選擇器移除 experimental 字樣並引導模型／runtime 設定；MacBook Air M3／8 GB 的 1:46 影片約 6 小時列為效能警示，真實 Breeze runtime／品質／跨平台驗收仍未完成 |
 | 0.50.0 開發中／2026-08-20 | Breeze 效能透明化與首次選擇提醒 | 新增固定 `performanceReference` API payload 與獨立 UI 提醒；不改變 Whisper.cpp 預設、不宣稱效能改善；尚未建立公開 tag／Release |
+| 0.51.0 開發中／2026-08-26 | Anthropic Claude provider adapter | 新增 Messages API／models API 轉接、認證標頭、profile／金鑰隔離與 deterministic contract；未使用真實 API Key，尚未打包或發布 |
 
 ## 0.45.1 發布補充
 

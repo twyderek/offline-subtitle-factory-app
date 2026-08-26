@@ -52,6 +52,8 @@ assert.doesNotMatch(js, /aiSuggestion\.reason \|\| '文字優化'/);
 assert.match(js, /state\.aiSuggestions\.clear\(\)[\s\S]{0,120}updateAiSuggestionActions\(\)/);
 assert.match(html, /<option value="groq">Groq<\/option>/);
 assert.match(html, /<option value="gemini">Google Gemini<\/option>/);
+assert.match(html, /<option value="anthropic">Anthropic Claude<\/option>/);
+assert.match(js, /anthropic: 'https:\/\/api\.anthropic\.com'/);
 assert.match(html, /<option value="ollama">Ollama（本機）<\/option>/);
 assert.match(html, /<option value="lm-studio">LM Studio（本機）<\/option>/);
 assert.match(html, /id="discoverLocalAi"/);

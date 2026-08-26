@@ -70,7 +70,7 @@ const ids = [
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 const settingIds = ['fontFamily', 'fontSize', 'fontColor', 'outlineColor', 'outlineWidth', 'subtitlePosition', 'marginV', 'bold'];
 const aiSettingIds = ['aiEnabled', 'aiProvider', 'aiBaseUrl', 'aiModel', 'aiDeployment', 'aiApiVersion', 'aiBatchSize', 'aiApiKey', 'aiLanguage', 'aiCustomLanguage', 'aiTimeoutSeconds', 'aiMaxRetries', 'aiRetryBaseMs', 'aiInstructions'];
-const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gemini', 'ollama', 'lm-studio'];
+const VALID_AI_PROVIDERS = ['openai', 'openai-compatible', 'azure', 'groq', 'gemini', 'anthropic', 'ollama', 'lm-studio'];
 
 document.getElementById('reviewVideoFile').addEventListener('change', handleVideoFile);
 document.getElementById('reviewSrtFile').addEventListener('change', handleSrtFile);
@@ -428,6 +428,7 @@ async function loadAiProviderProfile() {
     openai: 'https://api.openai.com/v1',
     groq: 'https://api.groq.com/openai/v1',
     gemini: 'https://generativelanguage.googleapis.com',
+    anthropic: 'https://api.anthropic.com',
     azure: '',
     'openai-compatible': '',
     ollama: 'http://127.0.0.1:11434/v1',

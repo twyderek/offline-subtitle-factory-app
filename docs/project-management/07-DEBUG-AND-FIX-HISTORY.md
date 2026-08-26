@@ -6,6 +6,16 @@
 
 ## 重要既有缺陷
 
+### DEV-027：Anthropic Messages API 與既有 optimizer contract 不同
+
+- 日期／版本：2026-08-26／0.51.0 開發中。
+- 現象：Anthropic 使用 `/v1/messages`、`x-api-key`、必要的 `max_tokens` 與 content blocks，不能直接沿用 OpenAI `/chat/completions` 的 body／回應格式；直接共用會造成認證失敗、system prompt 被當成 user，或 optimizer 找不到 `choices[].message.content`。
+- 影響：使用者選取 Anthropic 後無法載入模型、測試連線或安全套用字幕建議。
+- 根因：供應商傳輸契約與既有 OpenAI-compatible adapter 不同。
+- 修正：新增 `lib/ai/anthropic.mjs`，正規化 Base URL、移除 `/v1` 重複路徑、將 system／developer prompt 分離、合併連續 user／assistant 訊息、映射 `max_completion_tokens`→`max_tokens`、剔除 OpenAI 專用欄位，並把 Anthropic text content blocks 正規化為既有 choices contract；provider registry、UI、設定 profile 與金鑰隔離同步加入 `anthropic`。
+- 防回歸：`scripts/test-ai-providers.mjs` 驗證 endpoint、headers、body 清理與 response mapping；`scripts/test-core.mjs` 驗證 provider list／profile／runtime key；`scripts/test-review-ui.mjs` 驗證選項與白名單。
+- 剩餘風險：未使用真實 Claude API Key；外部模型品質、計費、速率限制、proxy 相容性與平台封裝仍需另行驗收。
+
 ### BUG-001：portable Python／Whisper 綁定開發機路徑
 
 - 現象：換到其他 Windows 電腦後找不到 Python 或 Whisper。

@@ -1,10 +1,18 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-08-20
-> 現行版本：0.50.0（Breeze 效能透明化與首次選擇提醒開發中）
+> 最後查證日期：2026-08-26
+> 現行版本：0.51.0（Anthropic Claude provider 開發中）
 > 現行公開版本：0.49.1（GitHub Latest）
 > 發布 tag／commit：`v0.49.1` → `917ae82886a0dff195009c66ce9438b78675fcc0`
 > 主分支：`main`
+
+## 0.51.0 Anthropic Claude provider（開發中）
+
+- 開發分支：`codex/0.51-anthropic-claude`，來源為已完成 BUG-026 可靠性修正的 `codex/0.50-whisper-small-long-cues@9c9a5d5`。
+- 新增 Anthropic Claude Messages API adapter：模型清單使用 `/v1/models`，優化使用 `/v1/messages`，以 `x-api-key`／`anthropic-version` 認證，並將 system prompt、`max_tokens` 與 content blocks 轉接至既有 AI optimizer contract。
+- 設定、profile、runtime key 與磁碟 secret 以 `anthropic` provider ID 隔離；字幕內部 cue metadata、OpenAI `response_format` 與 API Key 不會外送或回傳至設定畫面。
+- 已補 deterministic provider／核心 API／review UI 測試與治理文件；不使用真實 Claude API Key，外部 endpoint、模型品質、計費與跨平台封裝仍待另行驗收。
+- 0.51.0 尚未建立 tag、測試包或 GitHub Release；公開 Latest 仍為 `v0.49.1`。
 
 ## 0.50.0 Breeze 效能透明化與首次選擇提醒（開發中）
 

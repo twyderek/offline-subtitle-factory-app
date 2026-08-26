@@ -1,5 +1,30 @@
 # 改版與工作紀錄
 
+## 2026-08-26 — 0.51.0 Anthropic Claude provider adapter（DEV-027）
+
+- 狀態：完成
+- 結案判定：round1 有條件通過；deterministic provider／核心 API／renderer source 驗證完成，真實外部 API 與跨平台發布驗收留待 0.51.0 發布關卡
+- 執行者：Codex
+- 需求來源：需求方要求「幫我繼續開發下一個版本」；依 AI roadmap 將 Anthropic Claude provider 列為 0.51 後續項目
+- 關聯需求／缺陷：`DEV-027`、`FR-009`、`FR-010`、`NFR-001`、`NFR-002`、`NFR-006`
+- 變更等級：高（新增雲端 AI 供應商、認證標頭、訊息格式轉換與設定 UI）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 development／test／review／closeout 路由（是）
+- 來源基準：`codex/0.50-whisper-small-long-cues@9c9a5d5`；0.50.0 工作樹 clean；既有 BUG-026／SYNC-025 工作紀錄與審查報告保留
+- 目標與成功條件：新增 Anthropic provider definition、預設 API base URL、`/v1/messages` adapter、`x-api-key`／`anthropic-version` 認證、system prompt 與 `max_tokens` 映射、模型清單與連線測試；設定／profile／runtime key 隔離；內部字幕欄位不得外送；回應正規化為既有 optimizer contract；測試與文件同步
+- 不在範圍：不使用真實 Claude API key、不修改第三方 SDK／模型、不宣稱外部服務品質或跨平台封裝完成、不建立公開 Release
+- 預計影響檔案／模組：`lib/ai/providers.mjs`、`public/review.html`、`public/review.js`、`scripts/test-ai-providers.mjs`、`scripts/test-core.mjs`、`package.json`、`package-lock.json`、需求／設計／測試／狀態文件、`RELEASE-NOTES-0.51.0.md`、本工作紀錄與獨立審查報告
+- 風險與回復方式：Anthropic Messages API 與 OpenAI-compatible body 不同，若轉換或認證回歸可單獨移除 adapter 並回復 0.50 provider 白名單；外部 API／模型清單與計費仍需使用者自行驗證
+- 驗證計畫：provider deterministic contract、核心 API／key isolation、renderer source smoke、`node --check`、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查
+- 實際修改：新增 `lib/ai/anthropic.mjs`，實作 `/v1/messages`／`/v1/models`、`x-api-key`／`anthropic-version`、system／developer 訊息轉換、連續角色合併、`max_completion_tokens`→`max_tokens` 與 content block response normalization；`lib/ai/providers.mjs`、校閱 UI、renderer provider smoke、核心／provider／UI 測試、package version／lock、README、release notes、需求／設計／測試／狀態／偵錯與發展歷程文件同步更新。
+- 開發驗證結果：`node scripts/test-ai-providers.mjs`、`node scripts/test-review-ui.mjs`、`node --check lib/ai/anthropic.mjs`、`node --check lib/ai/providers.mjs`、`node --check server.mjs`、`node --check public/review.js`、`node --check scripts/verify-electron-renderer.mjs`、`git diff --check` 與受控權限完整 `npm run check` 均通過；core 測試驗證 provider list／profile／runtime key 隔離，provider fixture 驗證 endpoint、headers、body 清理、model list 與回應正規化。`npm run docs:check:final` 已於結案更新後通過。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-26-dev-027-anthropic-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**DEV-027 Anthropic Claude provider round1 獨立六面向審查結論為有條件通過：目前 0.51.0 的 provider adapter、認證與內部欄位隔離、設定 UI、文件治理及 deterministic provider／核心／renderer 測試均已通過且未發現新的阻擋缺陷，但因尚未使用真實 Anthropic API key、未驗證外部模型品質／限流／計費／proxy 與跨平台封裝，故本輪僅可視為開發版完成，尚不得宣稱正式發布就緒。**
+- round1 條件是否已被需求方接受：是（僅限 0.51.0 開發版 deterministic 證據；真實 API／模型品質／跨平台發布仍須另行驗收，不擴張為公開發布授權）
+- 發布授權：不適用；本輪僅開發，不推送、不打包、不發布
+- 部署／發布結果：不適用；未建立 tag、測試包或 GitHub Release
+- 遺留風險與後續事項：真實 Anthropic API key smoke、錯誤／rate-limit、長字幕模型品質與效能、proxy／TLS 政策、macOS／Windows 封裝與乾淨環境仍需發布前驗收；本輪 deterministic 測試不等同外部模型或跨平台實機驗收。既有 BUG-026 的 Windows taskkill、Unix descendant、真實 Whisper／Breeze runtime 風險亦持續列於前一條目。
+
 ## 2026-08-26 — Whisper／FFmpeg 取消後子程序與部分輸出清理（BUG-026）
 
 - 狀態：完成

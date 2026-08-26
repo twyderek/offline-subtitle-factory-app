@@ -1,5 +1,12 @@
 # 離線字幕工廠
 
+## 0.51.0 開發中：Anthropic Claude provider
+
+0.51.0 新增可選的 Anthropic Claude provider。App 以官方 Messages API 傳送字幕文字，使用 `x-api-key` 與固定 API 版本標頭，並把回應轉回既有的 cue 驗證流程；影片與音訊不會送出，API Key 僅作為該供應商的認證標頭，不會寫入一般設定或 API 回應。首次使用需在校閱頁保存 Anthropic Base URL、模型與 API Key，模型清單可由 `/v1/models` 載入。
+
+- 開發說明：[RELEASE-NOTES-0.51.0.md](RELEASE-NOTES-0.51.0.md)
+- 本版尚未建立公開 tag 或 GitHub Release；公開 Latest 仍為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)
+
 ## 0.50.0 開發中：Breeze 效能透明化
 
 0.50.0 在 0.49.1 的首次 Breeze 設定流程上，新增固定效能參考與選取後提醒。需求方提供的 MacBook Air M3／8 GB 觀察為 1 小時 46 分影片約需 6 小時（約 `3.4×`）；這是單機風險訊號，不是跨機型保證或效能改善承諾。Whisper.cpp 仍是預設，速度敏感時可切回內建引擎。

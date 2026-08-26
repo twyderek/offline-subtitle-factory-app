@@ -316,6 +316,7 @@ try {
   const aiSettingsGetResponse = await api('/api/ai/settings');
   const loadedAiSettings = await aiSettingsGetResponse.json();
   assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
+  assert.ok(loadedAiSettings.settings.providers.some((item) => item.id === 'anthropic'), 'AI 設定 API 應列出 Anthropic provider');
   assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
 
   const localAiSettingsResponse = await api('/api/ai/settings', {
@@ -399,6 +400,26 @@ try {
   const persistedAiSecrets = JSON.parse(fs.readFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), 'utf8'));
   assert.equal(persistedAiSecrets.providers['openai-compatible'], 'test-secret-must-not-leak', '既有 provider secret 應維持隔離保存');
   assert.equal(persistedAiSecrets.providers.gemini, 'gemini-test-secret', '遷移不可刪除 Gemini provider secret');
+
+  const anthropicSettingsResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...loadedAiSettings.settings,
+      enabled: false,
+      provider: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-test',
+      apiKey: 'anthropic-secret-must-not-leak',
+    }),
+  });
+  assert.equal(anthropicSettingsResponse.status, 200, 'Anthropic 設定應可保存');
+  const savedAnthropicSettings = await anthropicSettingsResponse.json();
+  assert.equal(savedAnthropicSettings.settings.provider, 'anthropic', 'Anthropic 不可被無聲回退');
+  assert.equal(JSON.stringify(savedAnthropicSettings).includes('anthropic-secret-must-not-leak'), false, 'Anthropic API Key 不可出現在回應');
+  const anthropicProfile = await (await api('/api/ai/profile?provider=anthropic')).json();
+  assert.equal(anthropicProfile.profile.model, 'claude-test', 'Anthropic profile 應依供應商隔離保存');
+  assert.equal(anthropicProfile.hasApiKey, true, 'Anthropic profile 應回報已有專屬金鑰');
 
   const invalidProviderResponse = await api('/api/ai/settings', {
     method: 'POST',
