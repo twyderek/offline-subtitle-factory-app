@@ -8,6 +8,7 @@
 - OpenAI 專用 `response_format`、`operation`、輸出語言與 cue 數量／ID metadata 不會傳送至 Anthropic；回應仍經 cue ID、數量、順序、文字長度與語言驗證，結果只形成待人工接受的建議。
 - Anthropic profile、runtime key 與磁碟 secret 以 provider ID 隔離；API Key 不寫入一般設定、不回傳到畫面，也不出現在測試訊息與日誌。
 - 已建立 `../dist/mac-arm64/` 本機 macOS arm64 directory 測試候選；受控權限 packaged renderer smoke 通過首頁、設定、Breeze 首次選擇 modal、manual SRT 任務完成、trim／AI review 資產與 Anthropic provider marker。候選僅供隔離測試，未公證、未使用真實 API Key。
+- 已建立 `../dist/test-build-0.51.0-macos-88da220/` macOS arm64 DMG／ZIP 測試包；`hdiutil verify`、唯讀掛載、`unzip -t`、ad-hoc deep codesign、`latest-mac.yml` metadata、SHA-256 與 packaged renderer smoke 均通過。未完成 Developer ID／公證、DMG 拖曳安裝與乾淨環境驗收。
 - 已建立 `../dist/win-unpacked/` Windows x64 cross-build directory 測試候選；runtime manifest、x86-64 PE、SHA-256 與 Anthropic marker 靜態核對通過。因建置主機為 macOS 且沒有 Wine，尚未完成 Windows renderer／安裝／解除安裝／實機 smoke。
 - 已建立 `../dist/test-build-0.51.0-91eca2b/` Windows x64 unsigned Setup／Portable 測試包；Setup／Portable／blockmap／`latest.yml`、SHA-256 與 Setup SHA-512／size metadata 已核對。建置主機為 macOS，尚未完成 Windows 實機安裝、Authenticode 或 renderer smoke。
 

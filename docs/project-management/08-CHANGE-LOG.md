@@ -1,5 +1,35 @@
 # 改版與工作紀錄
 
+## 2026-08-27 — 0.51.0 macOS arm64 DMG／ZIP 測試包建置（REL-046）
+
+- 狀態：完成
+- 結案判定：REL-046 round1 有條件通過；0.51.0 macOS arm64 DMG／ZIP 本機隔離測試包可交付，不代表公證、乾淨安裝或公開發布
+- 審查／交付屬性：本機 Apple Silicon ad-hoc 測試包；若建置與完整性核對成功，僅供隔離測試；若工具／簽章環境異常則保留診斷
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；REL-043 已驗證 macOS directory candidate，REL-045 已產生 Windows unsigned installer，下一步補齊 macOS 可分發測試包。
+- 關聯需求／缺陷：`REL-046`、`REL-043`、`REL-045`、`DEV-027`、`DEV-028`、`FR-009`、`FR-010`、`FR-022`、`NFR-006`
+- 變更等級：發布／測試（macOS DMG／ZIP build；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@88da220`；工作樹 clean；REL-043 macOS directory candidate 與 round1 審查已完成
+- 目標與成功條件：執行 `npm run electron:build:mac`；若產生 DMG／ZIP，核對版本、arm64、ad-hoc deep codesign、`hdiutil verify`、`unzip -t`、blockmap／`latest-mac.yml`、SHA-256 與封裝排除；若失敗保留最小可重現原因。
+- 不在範圍：不使用真實 Anthropic API key、不執行外部 provider smoke、不宣稱 DMG 安裝後／Gatekeeper／公證／長音訊／Breeze／Whisper runtime／跨平台完整驗收、不建立 tag／GitHub Release。
+- 預計影響檔案／模組：`../dist/` 本機 DMG／ZIP 候選資產、本工作紀錄與獨立審查報告；不預期修改產品 source。
+- 風險與回復方式：DMG／ZIP 可能受 ad-hoc 簽章、既有 dist 資產與時間欄位影響；若核對失敗，保留既有候選、不刪除歷史版本、不把未驗證資產交付為正式包。
+- 驗證計畫：`npm run electron:build:mac`（必要時受控網路權限）、DMG `hdiutil verify`、ZIP `unzip -t`、deep strict codesign、`latest-mac.yml` SHA-512／size、blockmap／SHA-256／arm64／版本／模型排除核對、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：`npm run electron:build:mac` 產生 DMG／ZIP／blockmap／`latest-mac.yml`；整理至 `../dist/test-build-0.51.0-macos-88da220/`，新增 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SIGNING-STATUS-macos-arm64.txt`、`SHA256SUMS-macos-arm64.txt` 與去敏 `mac-renderer-smoke.json`。未修改產品 source。
+- 開發驗證結果：第一次沙盒建置因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產；受控網路權限重試後同一建置成功。`runtime:manifest:mac`／`runtime:verify:mac` 通過；DMG `hdiutil verify` 為 VALID，唯讀掛載確認包含 `Applications` 與 App 且未含高階模型／憑證檔，ZIP `unzip -t` 無錯；`codesign --verify --deep --strict` 通過，簽章為 ad-hoc、TeamIdentifier 未設定。DMG 242,726,077 bytes、ZIP 249,959,846 bytes；`latest-mac.yml` 兩項 SHA-512／size／version 與實體檔案一致，五項 SHA-256 重放全部 OK。受控權限 packaged renderer smoke exit 0，首頁／設定／Breeze modal／manual SRT 完成／cleaned SRT／trim／AI review／glossary round-trip／provider IDs（含 anthropic）均通過；`npm run check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-27-rel-046-macos-package-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 round1 獨立發布候選審查結論為有條件通過：0.51.0 macOS arm64 DMG／ZIP 候選的來源 commit、版本、SHA-256、`latest-mac.yml` SHA-512／size、DMG `hdiutil verify`、ZIP `unzip -t`、ad-hoc deep codesign 與既有 packaged renderer smoke 證據一致且可部分重放；但本審查環境無法唯讀掛載 DMG，且候選仍未完成乾淨安裝、Developer ID／公證、真實 Anthropic／Breeze runtime、長音訊效能與跨平台實機驗收，因此僅可維持本機隔離測試候選，不得視為正式公開 Release。**
+- round1 條件是否已被需求方接受：是（依需求方「請繼續」；僅接受 macOS arm64 DMG／ZIP 隔離測試包交付與 ad-hoc／未公證、乾淨安裝未驗收限制，不包含公開 0.51.0）
+- 發布授權：
+  - 是否需要：是（僅 macOS arm64 DMG／ZIP 測試包建置與交付，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-27（本輪指示「請繼續」）
+  - 核准範圍：明確核准並同意執行 macOS arm64 DMG／ZIP 打包、建立候選資產並交付／共享作隔離測試；接受 ad-hoc／未公證、未完成乾淨安裝與真實 runtime 限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
+- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-0.51.0-macos-88da220/`；未建立 tag、package release 或 GitHub Release。
+- 遺留風險與後續事項：真實 Anthropic／Breeze／Whisper runtime、長音訊效能、DMG 拖曳安裝、Gatekeeper／公證、Windows／跨平台實機與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
+
 ## 2026-08-27 — 0.51.0 Windows unsigned Setup／Portable 測試包可行性（REL-045）
 
 - 狀態：完成

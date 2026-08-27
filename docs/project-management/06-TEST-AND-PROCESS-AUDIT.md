@@ -174,6 +174,14 @@
 - 簽章與實機限制：候選明確標示 unsigned／Authenticode 未獨立驗證；建置主機為 macOS Apple Silicon，沒有 Wine，未執行 Windows Setup／Portable、renderer、安裝／解除安裝、SmartScreen 或實際轉錄。候選只供複製到 Windows 10／11 x64 進行後續隔離測試。
 - 未覆蓋：Windows 實機安裝／解除安裝／捷徑、Authenticode／SmartScreen、renderer／任務 smoke、離線行為、真實 Anthropic API／模型品質／rate-limit、Breeze／Whisper runtime、長音訊效能、跨平台行為與公開 Release。
 
+## REL-046 0.51.0 macOS arm64 DMG／ZIP 測試包（2026-08-27）
+
+- 建置指令：`npm run electron:build:mac`；第一次沙盒執行因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產，取得受控網路權限後同一指令成功，產生 DMG／ZIP 與各自 blockmap／`latest-mac.yml`。
+- 候選位置：`../dist/test-build-0.51.0-macos-88da220/`，包含 DMG、ZIP、blockmap、`latest-mac.yml`、`TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SIGNING-STATUS-macos-arm64.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`。
+- 封裝驗證：DMG `hdiutil verify` 為 VALID；唯讀掛載確認包含 `Applications` 與 `離線字幕工廠.app` 且沒有 Base／Small／Breeze checkpoint 或憑證檔；ZIP `unzip -t` 無錯；`codesign --verify --deep --strict` 通過，`codesign -dv` 顯示 `Signature=adhoc`、`TeamIdentifier=not set`。
+- Metadata／完整性：DMG `242,726,077` bytes、ZIP `249,959,846` bytes；`latest-mac.yml` 的兩項 SHA-512／size／0.51.0 version 與實體檔案一致，四項 blockmap／DMG／ZIP／metadata SHA-256 重放為 OK。受控權限 packaged renderer smoke 通過首頁／設定／Breeze modal／manual SRT 完成／cleaned SRT／trim／AI review／glossary round-trip 與 provider IDs（含 `anthropic`）。
+- 未覆蓋：Developer ID／公證、DMG 拖曳安裝後 Gatekeeper／乾淨 userData、真實 Anthropic／Breeze／Whisper runtime、1:46 長音訊品質與效能、Windows／跨平台實機與公開 Release。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。
