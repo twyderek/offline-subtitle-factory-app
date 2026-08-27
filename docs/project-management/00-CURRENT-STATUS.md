@@ -13,6 +13,7 @@
 - 設定、profile、runtime key 與磁碟 secret 以 `anthropic` provider ID 隔離；字幕內部 cue metadata、OpenAI `response_format` 與 API Key 不會外送或回傳至設定畫面。
 - 已補 deterministic provider／核心 API／review UI 測試與治理文件；不使用真實 Claude API Key，外部 endpoint、模型品質、計費與跨平台封裝仍待另行驗收。
 - 已建立 macOS arm64 本機隔離 directory 測試候選：`../dist/mac-arm64/`；受控權限 packaged renderer smoke 通過首頁、設定、Breeze 首次選擇 modal、manual SRT 任務完成、trim／AI review 資產與 Anthropic provider marker。候選為 ad-hoc／未公證，未使用真實 Anthropic API Key。
+- 已建立 Windows x64 cross-build directory 測試候選：`../dist/win-unpacked/`；runtime／PE／SHA-256／Anthropic marker 靜態核對通過，但目前 macOS 主機沒有 Wine，尚未做 Windows renderer、安裝／解除安裝或實機轉錄 smoke，候選不代表 Windows 實機驗收。
 - 0.51.0 尚未建立 tag 或 GitHub Release；公開 Latest 仍為 `v0.49.1`。本機候選不代表真實 Anthropic／Breeze／Whisper 品質、長音訊效能、Windows 或乾淨安裝驗收。
 
 ## 0.50.0 Breeze 效能透明化與首次選擇提醒（開發中）

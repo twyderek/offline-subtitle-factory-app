@@ -158,6 +158,14 @@
 - 受控權限 `node scripts/verify-electron-renderer.mjs <app-executable> 9972 60000` 通過：首頁／Electron bridge／安全金鑰 API、設定 modal、Breeze 首次選擇開啟與關閉、manual SRT job `completed`／cleaned SRT、trim／AI review assets、glossary round-trip 與 provider IDs（含 `anthropic`）。沙盒首次 smoke 只因 GUI／DevTools 權限逾時，無產品錯誤輸出；同一候選受控權限重跑成功。
 - 未覆蓋：真實 Anthropic API／模型品質／rate-limit／proxy、真實 Whisper Small／Breeze runtime、1:46 長音訊品質與效能、乾淨帳號安裝、Windows／跨平台實機、正式簽章／公證與公開 Release。
 
+## REL-044 0.51.0 Windows x64 cross-build directory 測試候選（2026-08-27）
+
+- 建置指令：`npm run electron:build:dir`；第一次沙盒執行因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產，取得受控網路權限後同一指令成功；`runtime:manifest`／`runtime:verify` 通過。
+- 候選位置：`../dist/win-unpacked/`，版本 `0.51.0`、`win32-x64`、Electron `43.3.0`、electron-builder `26.15.7`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`。
+- 靜態封裝核對：主程式、FFmpeg、Whisper.cpp 均為 x86-64 PE；packaged `package.json` 為 `0.51.0`，`lib/ai/providers.mjs` 含 Anthropic provider，runtime manifest target 為 `win32-x64`；四項 SHA-256 重放為 OK，未發現 `.pt`、Base／Small／Breeze checkpoint 或憑證檔案。
+- 限制：建置主機為 macOS Apple Silicon，未安裝 Wine，無法在本機啟動 Windows executable；因此未宣稱 Windows renderer、安裝／解除安裝、Authenticode、FFmpeg／Whisper 實機、GPU 或乾淨環境通過。候選僅供複製至 Windows 10／11 x64 進行後續隔離測試。
+- 未覆蓋：Windows 實機 packaged renderer／任務 smoke、安裝／解除安裝與捷徑、Authenticode、真實 Anthropic API／模型品質／rate-limit、真實 Whisper／Breeze runtime、長音訊效能、跨平台行為與公開 Release。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。

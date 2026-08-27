@@ -1,5 +1,35 @@
 # 改版與工作紀錄
 
+## 2026-08-27 — 0.51.0 Windows x64 測試候選建置可行性（REL-044）
+
+- 狀態：完成
+- 結案判定：REL-044 round1 有條件通過；0.51.0 Windows x64 cross-build directory 測試候選可交付至 Windows 10／11 x64 進行後續隔離測試，不代表 Windows 實機或公開發布
+- 審查／交付屬性：本機跨平台建置可行性／測試候選；若建置成功，僅供隔離測試；若缺少 Wine／簽章工具，保留診斷並不宣稱通過
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；REL-043 已完成 macOS arm64 0.51.0 候選，下一步盤點並嘗試 Windows x64 封裝。
+- 關聯需求／缺陷：`REL-044`、`DEV-027`、`DEV-028`、`FR-009`、`FR-010`、`FR-022`、`NFR-006`
+- 變更等級：發布／測試（Windows directory build feasibility；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@e4bc931`；工作樹 clean；REL-043 macOS candidate 與 round1 審查已完成
+- 目標與成功條件：確認 Windows runtime manifest／verify；以目前 source 執行 `npm run electron:build:dir` 或等效受控命令；若產生 candidate，核對版本、x64 runtime、Anthropic marker 與可定位資產；若無法跨建置，記錄最小可重現原因與後續環境需求。
+- 不在範圍：不使用真實 Anthropic API key、不執行外部 provider smoke、不宣稱 Windows 實機安裝／解除安裝／renderer／模型品質／跨平台完整驗收、不建立 tag／GitHub Release。
+- 預計影響檔案／模組：`tools/manifest.json`、`tools/manifests/win32-x64.json`（若 manifest 內容變更）、`../dist/` 本機候選資產、本工作紀錄與獨立審查報告。
+- 風險與回復方式：macOS cross-build 可能缺少 Wine、Windows code-sign／NSIS 工具或 Electron 資產；若失敗，保留錯誤輸出與既有 macOS candidate，不刪除既有 dist 或回退 source；若 manifest 只因建置目標產生差異，僅保留與目前平台驗證一致的內容。
+- 驗證計畫：`npm run runtime:manifest`、`npm run runtime:verify`、`npm run electron:build:dir`（必要時受控網路權限）、候選內容／checksum／PE 架構核對、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：`npm run electron:build:dir` 產生 `../dist/win-unpacked/`；新增候選 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`。未修改產品程式碼；source／候選文件記錄 Windows cross-build 限制。
+- 開發驗證結果：`npm run runtime:manifest`／`npm run runtime:verify` 通過；沙盒首次建置因 `getaddrinfo ENOTFOUND github.com` 失敗，受控網路權限重試後 `npm run electron:build:dir` exit 0。候選 `package.json` 為 0.51.0、manifest target 為 `win32-x64`、主程式／FFmpeg／Whisper.cpp 為 x86-64 PE，Anthropic provider marker 存在；4 項 SHA-256 重放均為 OK，未發現憑證或高階模型檔。macOS 主機沒有 Wine，無法在本機啟動 Windows renderer／實機安裝 smoke；因此僅視為 cross-build directory candidate。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-27-rel-044-windows-test-candidate-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 REL-044 0.51.0 Windows x64 cross-build directory 測試候選獨立審查結論為有條件通過：來源 commit、版本、win32-x64 manifest、FFmpeg／Whisper.cpp／Tiny runtime verify、x86-64 PE 格式、四項 SHA-256、Anthropic provider marker 與候選限制文件均已重新核對通過，可交付至 Windows 10／11 x64 作後續隔離測試；但 macOS 主機沒有 Wine，Windows renderer／安裝／解除安裝／實機任務、Authenticode、真實 Anthropic API／模型品質／rate-limit、Breeze patched runtime、長音訊效能、乾淨環境與跨平台行為均未驗收，因此不得宣稱 Windows 實機通過、0.51.0 公開發布或 Breeze／Anthropic 已完成正式品質驗收。**
+- round1 條件是否已被需求方接受：是（依需求方「請繼續」；僅接受 Windows x64 cross-build directory candidate 交付與未簽章／未實機限制，不包含 Windows 實機通過或公開 0.51.0）
+- 發布授權：
+  - 是否需要：是（僅 Windows x64 建置可行性／本機測試候選，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-27（本輪指示「請繼續」）
+  - 核准範圍：明確核准並同意由 `e4bc931` 執行 Windows x64 cross-build 打包、建立候選資產並交付／共享至 Windows 10／11 x64 作隔離測試；接受未簽章、未實機、未驗收模型／runtime／跨平台限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
+- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`；未建立 tag、package release 或 GitHub Release。
+- 遺留風險與後續事項：Windows cross-build／Wine、Windows renderer／安裝／解除安裝、真實 Anthropic／Breeze／Whisper runtime、長音訊效能、簽章／公證與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
+
 ## 2026-08-27 — 0.51.0 macOS arm64 測試候選建置與封裝驗證（REL-043）
 
 - 狀態：完成
