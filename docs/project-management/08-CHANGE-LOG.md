@@ -1,5 +1,31 @@
 # 改版與工作紀錄
 
+## 2026-08-27 — 0.51.0 Windows CI／發布流程版本對齊（DEV-047）
+
+- 狀態：完成
+- 結案判定：DEV-047 round1 有條件通過；Windows preview workflow 已對齊 0.51.0，保留 signed／unsigned 分流與所有 Windows 實機／簽章 gate；未宣稱 GitHub runner 或公開發布完成
+- 審查／交付屬性：CI／治理設定修正；不觸發 GitHub workflow、不推送、不建立 tag 或 Release
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；目前 0.51.0 source、macOS／Windows 本機候選已完成，但 `.github/workflows/windows-preview.yml` 仍鎖定 0.50.0 分支、tag、artifact 與 Release notes。
+- 關聯需求／缺陷：`DEV-047`、`REL-045`、`REL-046`、`DEV-027`、`DEV-028`、`FR-009`、`FR-010`、`NFR-006`
+- 變更等級：高（CI 觸發條件、artifact 命名與 Windows 發布 gate）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@1c61e59`；工作樹 clean；Windows workflow 仍為 0.50.0 設定
+- 目標與成功條件：workflow 的名稱、push branch、tag、Setup／Portable filter、Release notes、artifact name 與必要 metadata 全部對齊 0.51.0；保留 Node 22、runtime verify、完整 `npm run check`、signed／unsigned 分流、Windows install／renderer／archive／model exclusion gate；YAML／diff 可靜態驗證。
+- 不在範圍：不觸發 workflow、不使用 GitHub token、不推送 branch、不建立 tag／Release、不宣稱 Windows 實機或簽章驗收完成、不修改產品 runtime／UI。
+- 預計影響檔案／模組：`.github/workflows/windows-preview.yml`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`RELEASE-NOTES-0.51.0.md`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：workflow 版本對齊若遺漏任一舊版 marker，可能產生錯誤 artifact 或不觸發；若靜態檢查發現不一致，回復單一 workflow commit 並重新檢查。Windows runner、Secrets、簽章與實機仍需 GitHub 執行時驗收。
+- 驗證計畫：workflow marker／trigger／artifact filter 靜態檢查、YAML 結構基本解析（若本機工具可用）、`git diff --check`、`npm run check`、`npm run docs:check:final` 與獨立六面向審查；不觸發外部 CI。
+- 實際修改：`.github/workflows/windows-preview.yml` 的 workflow name、push branch、tag、Setup／Portable filter、packaged Release notes 與 upload artifact name 從 0.50.0 對齊至 0.51.0；保留 Node 22、runtime verify、完整 `npm run check`、signed／unsigned 分流、Windows install／renderer／archive／model exclusion gate。
+- 開發驗證結果：workflow 不再含 `0.50`／`codex/0.50`／`v0.50` marker；0.51 branch／tag／Setup／Portable／Release notes／artifact marker deterministic checks 全部 PASS；Ruby YAML 基本解析、`git diff --check` 與完整 `npm run check` 通過。未觸發 GitHub Actions，未使用 token／Secrets；Windows runner、Authenticode、Setup／Portable lifecycle、artifact download digest 與實機仍待外部驗收。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-27-dev-047-windows-workflow-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 DEV-047 0.51.0 Windows preview workflow 版本對齊獨立審查結論為有條件通過：workflow 的 name、`codex/0.51-anthropic-claude` branch、`v0.51.0` tag、Setup／Portable filters、0.51.0 Release notes 與 upload artifact name 均已對齊，Node 22、offline runtime、完整 source regression、signed／unsigned 分流、Windows install／renderer、7z archive、SHA／簽章狀態與 Small／Breeze 模型排除 gates 均保留，0.50 marker／Ruby YAML 基本解析／deterministic marker checks／`git diff --check`／完整 `npm run check` 已通過；但 `docs:check:final` 仍因 DEV-047 條目尚未結案而失敗，且本輪未執行 GitHub Windows runner、Secrets／Authenticode、Setup／Portable 實機 lifecycle／renderer、artifact download digest、真實模型／runtime／長音訊或公開 0.51.0 發布，因此必須完成主代理文件結案並取得外部 runner 證據後，才可宣稱 Windows CI 或公開發布完成。**
+- round1 條件是否已被需求方接受：是（依需求方「請繼續」；僅接受 workflow 設定對齊與本機 deterministic 驗證，不包含 GitHub runner、Windows 實機或公開發布通過）
+- 發布授權：不適用；本輪只修改 CI 設定，不執行打包／發布／推送
+- 部署／發布結果：workflow 修改已提交至目前 branch；未觸發外部執行、未建立 tag／GitHub Release，未推送 branch。
+- 遺留風險與後續事項：GitHub Windows runner、真實 Windows Setup／Portable lifecycle、Authenticode／SmartScreen、artifact 下載與 digest、真實模型／runtime／長音訊效能與公開 Release 仍需另行驗收。
+
 ## 2026-08-27 — 0.51.0 macOS arm64 DMG／ZIP 測試包建置（REL-046）
 
 - 狀態：完成

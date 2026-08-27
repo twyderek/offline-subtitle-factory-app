@@ -182,6 +182,12 @@
 - Metadata／完整性：DMG `242,726,077` bytes、ZIP `249,959,846` bytes；`latest-mac.yml` 的兩項 SHA-512／size／0.51.0 version 與實體檔案一致，四項 blockmap／DMG／ZIP／metadata SHA-256 重放為 OK。受控權限 packaged renderer smoke 通過首頁／設定／Breeze modal／manual SRT 完成／cleaned SRT／trim／AI review／glossary round-trip 與 provider IDs（含 `anthropic`）。
 - 未覆蓋：Developer ID／公證、DMG 拖曳安裝後 Gatekeeper／乾淨 userData、真實 Anthropic／Breeze／Whisper runtime、1:46 長音訊品質與效能、Windows／跨平台實機與公開 Release。
 
+## DEV-047 0.51.0 Windows preview workflow 版本對齊（2026-08-27）
+
+- `.github/workflows/windows-preview.yml` 已將 workflow name、push branch、tag、Setup／Portable artifact filter、packaged Release notes 與 artifact name 從 0.50.0 對齊至 0.51.0，保留 Node 22、`npm run check`、runtime verify、signed／unsigned 分流、Windows install／renderer／archive／model exclusion gate。
+- 靜態驗證：workflow 不再含 `0.50`／`codex/0.50`／`v0.50` marker；`ruby -e 'require "yaml"; YAML.load_file(...)'` 基本解析成功；`git diff --check` 通過。未觸發 GitHub workflow，沒有把 YAML 可解析誤稱為 Windows runner 通過。
+- 未覆蓋：GitHub Windows runner、Secrets／Authenticode、Setup／Portable 實機安裝／解除安裝／renderer、artifact 下載／digest、真實模型／runtime／長音訊效能與公開 0.51.0 Release；需另行取得外部 runner 證據。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。

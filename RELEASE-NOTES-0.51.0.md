@@ -11,6 +11,7 @@
 - 已建立 `../dist/test-build-0.51.0-macos-88da220/` macOS arm64 DMG／ZIP 測試包；`hdiutil verify`、唯讀掛載、`unzip -t`、ad-hoc deep codesign、`latest-mac.yml` metadata、SHA-256 與 packaged renderer smoke 均通過。未完成 Developer ID／公證、DMG 拖曳安裝與乾淨環境驗收。
 - 已建立 `../dist/win-unpacked/` Windows x64 cross-build directory 測試候選；runtime manifest、x86-64 PE、SHA-256 與 Anthropic marker 靜態核對通過。因建置主機為 macOS 且沒有 Wine，尚未完成 Windows renderer／安裝／解除安裝／實機 smoke。
 - 已建立 `../dist/test-build-0.51.0-91eca2b/` Windows x64 unsigned Setup／Portable 測試包；Setup／Portable／blockmap／`latest.yml`、SHA-256 與 Setup SHA-512／size metadata 已核對。建置主機為 macOS，尚未完成 Windows 實機安裝、Authenticode 或 renderer smoke。
+- Windows preview workflow 已更新至 0.51.0 branch／tag／artifact 與 packaged Release notes；本輪未觸發 GitHub runner，故不把 workflow 設定視為 Windows 實機或 CI 通過。
 
 ## 隱私、相容性與限制
 

@@ -16,6 +16,7 @@
 - 已建立 macOS arm64 DMG／ZIP 測試包：`../dist/test-build-0.51.0-macos-88da220/`；`hdiutil verify`、唯讀掛載內容、`unzip -t`、ad-hoc deep codesign、renderer smoke、blockmap／`latest-mac.yml` SHA-512／size 與 SHA-256 均通過，仍未公證或完成乾淨安裝驗收。
 - 已建立 Windows x64 cross-build directory 測試候選：`../dist/win-unpacked/`；runtime／PE／SHA-256／Anthropic marker 靜態核對通過，但目前 macOS 主機沒有 Wine，尚未做 Windows renderer、安裝／解除安裝或實機轉錄 smoke，候選不代表 Windows 實機驗收。
 - 已建立 Windows x64 unsigned Setup／Portable 測試包：`../dist/test-build-0.51.0-91eca2b/`；Setup／Portable／blockmap／`latest.yml` 與 SHA-256／SHA-512 metadata 已核對，仍未在 Windows 實機安裝或驗證 Authenticode，僅供隔離測試。
+- `.github/workflows/windows-preview.yml` 已對齊 0.51.0：push branch `codex/0.51-anthropic-claude`、tag `v0.51.0`、Setup／Portable filters、packaged Release notes 與 artifact name 均更新；workflow 尚未觸發，Windows runner／Secrets／實機 gate 仍待外部執行。
 - 0.51.0 尚未建立 tag 或 GitHub Release；公開 Latest 仍為 `v0.49.1`。本機候選不代表真實 Anthropic／Breeze／Whisper 品質、長音訊效能、Windows 或乾淨安裝驗收。
 
 ## 0.50.0 Breeze 效能透明化與首次選擇提醒（開發中）
