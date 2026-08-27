@@ -1,5 +1,35 @@
 # 改版與工作紀錄
 
+## 2026-08-27 — 0.51.0 macOS arm64 測試候選建置與封裝驗證（REL-043）
+
+- 狀態：完成
+- 結案判定：REL-043 round1 有條件通過；0.51.0 macOS arm64 本機隔離 directory 測試候選可交付，不授權或宣稱公開正式發布
+- 審查／交付屬性：本機 Apple Silicon 測試候選；預期 ad-hoc／未公證，僅供開發驗收
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；0.51.0 Anthropic provider 已完成 deterministic 開發驗證，下一步需將目前 source 產生可實際啟動的測試軟體並驗證 packaged renderer。
+- 關聯需求／缺陷：`REL-043`、`DEV-027`、`DEV-028`、`FR-009`、`FR-010`、`FR-022`、`NFR-006`
+- 變更等級：發布／測試（本機封裝與隔離 smoke；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 release／test／review／closeout 路由（是）
+- 來源基準：`codex/0.51-anthropic-claude@97191ec`；工作樹 clean；0.51.0 provider deterministic 與 docs:check:final 已通過
+- 目標與成功條件：以目前 source 建立 macOS arm64 Electron directory candidate；runtime manifest 與 bundled runtime 通過 verify；Electron renderer 能啟動並通過既有 packaged UI／API smoke，且候選資產可定位與重現。
+- 不在範圍：不使用真實 Anthropic API key、不執行外部 provider smoke、不建立公開 tag／GitHub Release、不宣稱公證、跨平台或真實 Breeze／Whisper runtime 完整驗收。
+- 預計影響檔案／模組：`tools/manifest.json`、`tools/manifests/darwin-arm64.json`（若 manifest 內容變更）、`../dist/` 本機候選資產、`RELEASE-NOTES-0.51.0.md`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄與獨立審查報告。
+- 風險與回復方式：electron-builder／runtime manifest 可能受本機工具版本或簽章環境影響；若建置失敗，保留錯誤證據並不宣稱候選可交付，不刪除既有 dist 資產；若只產生未追蹤 manifest 差異，僅保留與本輪版本一致且可重現的內容。
+- 驗證計畫：`npm run electron:build:mac:dir`、`npm run runtime:verify:mac`、`node scripts/verify-electron-renderer.mjs <candidate-executable> <port> <timeout>`、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：`npm run electron:build:mac:dir` 產生 `../dist/mac-arm64/`；新增候選 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與去敏 `mac-renderer-smoke.json`。source／治理文件同步記錄 0.51.0 candidate scope、封裝內容與未驗收風險。
+- 開發驗證結果：第一次沙盒建置因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產；取得受控網路權限後同一建置成功。`runtime:manifest:mac`／`runtime:verify:mac` 通過；packaged `package.json` 為 0.51.0 且 `lib/ai/providers.mjs` 含 Anthropic marker。受控權限 `node scripts/verify-electron-renderer.mjs '../dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠' 9972 60000` exit 0，首頁／bridge／設定、Breeze modal、manual SRT 完成／cleaned SRT、trim／AI review 與 provider IDs（含 anthropic）均通過。`npm run check` 受控權限 exit 0；沙盒內 listener `EPERM` 與 renderer GUI 逾時僅記為環境限制。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-27-rel-043-macos-test-candidate-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 REL-043 0.51.0 macOS arm64 directory 測試候選獨立審查結論為有條件通過：候選來源、版本、arm64 封裝、runtime manifest／FFmpeg／Whisper.cpp／Tiny 驗證、SHA-256、ad-hoc 簽章、Anthropic provider marker 及受控權限 packaged renderer smoke 均已重放通過，可交付本機隔離測試；但 `docs:check:final` 仍因 REL-043 工作紀錄尚未完成而失敗，且首次沙盒 smoke 受 Electron／GUI 權限限制逾時，真實 Anthropic API／模型品質／rate-limit、Whisper Small／Breeze patched runtime、1:46 長音訊品質／效能、乾淨帳號安裝、Windows／跨平台實機、正式簽章／公證與公開 Release 均未驗收，因此不得宣稱 0.51.0 已完成公開正式發布。**
+- round1 條件是否已被需求方接受：是（依需求方「請繼續」；僅接受本機 macOS arm64 隔離測試候選交付與 ad-hoc／未公證、受控權限 smoke 限制，不包含公開 0.51.0）
+- 發布授權：
+  - 是否需要：是（僅本機 macOS arm64 測試候選建置與交付，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-27（本輪指示「請繼續」）
+  - 核准範圍：同意依 `97191ec` 建置並交付 `../dist/mac-arm64/` 作隔離測試；接受 ad-hoc／未公證、真實 Anthropic／Breeze／Whisper runtime、長音訊、乾淨安裝與跨平台尚未驗收；不涵蓋建立或推送 tag、GitHub Release、Windows 資產或公開 0.51.0。此範圍引用常設授權 `AUTH-2026-07-23-01` 對未公證狀態的接受，但不擴張為公開發布授權。
+- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`；未建立 tag、package release 或 GitHub Release。
+- 遺留風險與後續事項：真實 Anthropic API／模型品質／rate-limit／proxy、長字幕效能、Apple Metal／Breeze runtime、Windows 封裝、乾淨環境、正式簽章／公證與公開發布仍需另行驗收；任何待確認項目由後續 release 工作條目追蹤，不影響本輪僅限本機候選的結案範圍。
+
 ## 2026-08-26 — Anthropic 連線測試低成本化（DEV-028）
 
 - 狀態：完成

@@ -150,6 +150,14 @@
 - 封裝驗證：DMG `hdiutil verify` 為 VALID；ZIP `unzip -t` 無錯；`codesign --verify --deep --strict` 通過，簽章為 ad-hoc、TeamIdentifier 未設定；`latest-mac.yml` 的 DMG／ZIP SHA-512 與 size 逐項重算一致。`PROVENANCE.txt`、`SIGNING-STATUS-macos-arm64.txt`、測試候選 README 與去除 API token／暫存路徑的 `mac-renderer-smoke.json` 已附於候選目錄。
 - 未覆蓋：真實 Whisper Small 權重／1:46 長音訊、真實 Breeze runtime／checkpoint、既有真實加密 AI 金鑰跨版本 decrypt、乾淨帳號 Gatekeeper、DMG 拖曳安裝後完整操作、Windows 版本與公開 Release；本候選不得宣稱上述項目通過。
 
+## REL-043 0.51.0 Anthropic provider macOS arm64 directory 測試候選（2026-08-27）
+
+- 建置指令：`npm run electron:build:mac:dir`；第一次沙盒執行因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產，取得受控網路權限後同一指令成功；`runtime:manifest:mac`／`runtime:verify:mac` 通過。
+- 候選位置：`../dist/mac-arm64/`，版本 `0.51.0`、Apple Silicon `darwin-arm64`、Electron `43.3.0`、electron-builder `26.15.7`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`。
+- 封裝內容核對：packaged `package.json` 為 `0.51.0`，`lib/ai/providers.mjs` 含 Anthropic provider，runtime manifest／FFmpeg／Whisper.cpp／Tiny verify 通過；候選為 ad-hoc／未公證，不含 Base／Small／Breeze checkpoint、Python／PyTorch／patched runtime。
+- 受控權限 `node scripts/verify-electron-renderer.mjs <app-executable> 9972 60000` 通過：首頁／Electron bridge／安全金鑰 API、設定 modal、Breeze 首次選擇開啟與關閉、manual SRT job `completed`／cleaned SRT、trim／AI review assets、glossary round-trip 與 provider IDs（含 `anthropic`）。沙盒首次 smoke 只因 GUI／DevTools 權限逾時，無產品錯誤輸出；同一候選受控權限重跑成功。
+- 未覆蓋：真實 Anthropic API／模型品質／rate-limit／proxy、真實 Whisper Small／Breeze runtime、1:46 長音訊品質與效能、乾淨帳號安裝、Windows／跨平台實機、正式簽章／公證與公開 Release。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。
