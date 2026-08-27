@@ -166,6 +166,14 @@
 - 限制：建置主機為 macOS Apple Silicon，未安裝 Wine，無法在本機啟動 Windows executable；因此未宣稱 Windows renderer、安裝／解除安裝、Authenticode、FFmpeg／Whisper 實機、GPU 或乾淨環境通過。候選僅供複製至 Windows 10／11 x64 進行後續隔離測試。
 - 未覆蓋：Windows 實機 packaged renderer／任務 smoke、安裝／解除安裝與捷徑、Authenticode、真實 Anthropic API／模型品質／rate-limit、真實 Whisper／Breeze runtime、長音訊效能、跨平台行為與公開 Release。
 
+## REL-045 0.51.0 Windows unsigned Setup／Portable 測試包（2026-08-27）
+
+- 建置指令：`npm run electron:build:unsigned`；第一次沙盒執行因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產，取得受控網路權限後同一指令成功，產生 NSIS Setup、Portable 與 Setup blockmap／`latest.yml`。
+- 候選位置：`../dist/test-build-0.51.0-91eca2b/`，包含 `offline-subtitle-factory-setup-0.51.0.exe`、`offline-subtitle-factory-portable-0.51.0.exe`、blockmap、`latest.yml`、`TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SIGNING-STATUS-windows-x64.txt` 與 `SHA256SUMS-windows-x64.txt`。
+- 封裝核對：Setup／Portable 版本命名為 `0.51.0`，兩者為 NSIS PE GUI；`latest.yml` 的 Setup SHA-512／size／version 與實體檔案一致；四項 SHA-256（Setup、blockmap、Portable、metadata）重放為 OK。
+- 簽章與實機限制：候選明確標示 unsigned／Authenticode 未獨立驗證；建置主機為 macOS Apple Silicon，沒有 Wine，未執行 Windows Setup／Portable、renderer、安裝／解除安裝、SmartScreen 或實際轉錄。候選只供複製到 Windows 10／11 x64 進行後續隔離測試。
+- 未覆蓋：Windows 實機安裝／解除安裝／捷徑、Authenticode／SmartScreen、renderer／任務 smoke、離線行為、真實 Anthropic API／模型品質／rate-limit、Breeze／Whisper runtime、長音訊效能、跨平台行為與公開 Release。
+
 ## FR-023 Whisper 高階模型首次下載驗證（2026-08-06）
 
 - `scripts/test-whisper-model-download.mjs`：驗證 pinned revision／Base／Small metadata、禁止任意模型名稱、manifest merge、下載成功、進度 100%、SHA-256 不符、大小超限、HTTP 503、AbortController 逾時、Windows 既有損壞檔替換與失敗暫存檔清理。

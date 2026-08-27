@@ -1,5 +1,35 @@
 # 改版與工作紀錄
 
+## 2026-08-27 — 0.51.0 Windows unsigned Setup／Portable 測試包可行性（REL-045）
+
+- 狀態：完成
+- 結案判定：REL-045 round1 有條件通過；0.51.0 Windows x64 unsigned Setup／Portable 測試包可交付至 Windows 10／11 x64 作隔離測試，不代表 Windows 實機或公開發布
+- 審查／交付屬性：本機跨平台封裝可行性／測試安裝包；若建置成功僅供隔離測試，若缺少 Wine／NSIS 工具則保留最小可重現診斷
+- 執行者：Codex
+- 需求來源：需求方要求「請繼續」；REL-044 已完成 Windows x64 directory candidate，下一步嘗試建立可複製的 Setup／Portable 測試包。
+- 關聯需求／缺陷：`REL-045`、`REL-044`、`DEV-027`、`DEV-028`、`FR-009`、`FR-010`、`FR-022`、`NFR-006`
+- 變更等級：發布／測試（Windows unsigned installer build；不公開）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@91eca2b`；工作樹 clean；REL-044 Windows cross-build candidate 與 round1 審查已完成
+- 目標與成功條件：執行 `npm run electron:build:unsigned`；若產生 Setup／Portable，核對版本、x64 PE、runtime manifest、SHA-256、封裝排除與可定位候選資產；若無法跨建置，記錄工具／權限原因與後續 Windows CI 需求。
+- 不在範圍：不使用真實 Anthropic API key、不執行外部 provider smoke、不宣稱 Windows 實機安裝／解除安裝／renderer／SmartScreen／Authenticode／模型品質完成、不建立 tag／GitHub Release。
+- 預計影響檔案／模組：`../dist/` 本機 Setup／Portable 候選資產、本工作紀錄與獨立審查報告；不預期修改產品 source。
+- 風險與回復方式：NSIS／Portable 可能要求 Wine 或 Windows host；若失敗，保留既有 `win-unpacked` 與 macOS candidate，不刪除既有 dist 或回退 source；不把 directory candidate 偽裝成 installer。
+- 驗證計畫：`npm run electron:build:unsigned`（必要時受控網路權限）、Setup／Portable 檔案格式／版本／checksum／封裝內容核對、`npm run check`、`npm run docs:check:final`、`git diff --check` 與獨立六面向審查。
+- 實際修改：`npm run electron:build:unsigned` 產生 Setup／Portable／blockmap／`latest.yml`；整理至 `../dist/test-build-0.51.0-91eca2b/`，新增 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SIGNING-STATUS-windows-x64.txt` 與 `SHA256SUMS-windows-x64.txt`。未修改產品 source。
+- 開發驗證結果：第一次沙盒建置因 `getaddrinfo ENOTFOUND github.com` 無法取得 Electron 資產；受控網路權限重試後同一建置成功。`runtime:manifest`／`runtime:verify` 通過；Setup 244,670,976 bytes、Portable 243,963,613 bytes、blockmap 256,197 bytes，`latest.yml` 的版本／Setup SHA-512／size 與實體檔案一致；四項 SHA-256 重放全部 OK。Setup／Portable 為 NSIS PE GUI wrapper；來源 unpacked payload 的主程式／FFmpeg／Whisper.cpp 為 x86-64 PE。macOS 主機沒有 Wine／Windows PowerShell，未執行 Windows 安裝、renderer、SmartScreen 或 Authenticode 實機驗收；`npm run check` 與 `git diff --check` 通過。
+- 獨立審查是否執行：是（round1 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-08-27-rel-045-windows-installer-round1.md`
+- round1 判定（逐字引用審查報告「完整單句結論」）：**本輪 REL-045 0.51.0 Windows x64 unsigned Setup／Portable 測試包獨立審查結論為有條件通過：候選來源、版本、NSIS Setup／Portable 產物、win32-x64 runtime manifest、FFmpeg／Whisper.cpp／Tiny 靜態驗證、SHA-256、Setup SHA-512／size、latest.yml、封裝 provider／模型排除與 unsigned 限制文件均已可重放核對通過，可交付 Windows 10／11 x64 作隔離測試；但本輪僅是 macOS Apple Silicon cross-build，未完成 Windows 實機安裝／啟動／renderer／解除安裝／任務、Authenticode／SmartScreen、離線行為、真實 Anthropic／Breeze／Whisper runtime、長音訊效能、乾淨環境或公開 0.51.0 Release 驗收，因此不得宣稱 Windows 實機通過、可信任簽章或公開發布就緒。**
+- round1 條件是否已被需求方接受：是（依需求方「請繼續」；僅接受 unsigned Windows x64 測試包交付與未實機／未簽章限制，不包含 Windows 實機通過或公開 0.51.0）
+- 發布授權：
+  - 是否需要：是（僅 Windows x64 unsigned Setup／Portable 測試包建置與交付，不含公開發布）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-08-27（本輪指示「請繼續」）
+  - 核准範圍：明確核准並同意執行 Windows x64 unsigned installer 打包、建立候選資產並交付／共享作隔離測試；接受未簽章、未實機、未驗收模型／runtime／跨平台限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
+- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-0.51.0-91eca2b/`；未建立 tag、package release 或 GitHub Release。
+- 遺留風險與後續事項：Windows host／Wine、NSIS／Portable、Authenticode、SmartScreen、實機 renderer／安裝／解除安裝、真實 Anthropic／Breeze／Whisper runtime、長音訊效能與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
+
 ## 2026-08-27 — 0.51.0 Windows x64 測試候選建置可行性（REL-044）
 
 - 狀態：完成
