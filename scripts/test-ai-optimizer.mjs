@@ -33,12 +33,110 @@ assert.equal(progress.at(-1).processedCues, 2);
 assert.equal(requestBodies[0].temperature, undefined, '請求不可固定 temperature，以相容 GPT-5');
 assert.match(requestBodies[0].messages[0].content, /繁體中文（BCP 47：zh-TW）/);
 
-const wrappedJson = await optimizeSubtitleCues({
+const parserCue = { id: 1, text: '介紹 AI API。', reason: 'parser regression' };
+const parserPayload = { cues: [parserCue] };
+const parserResult = (content) => ({ choices: [{ message: { content } }] });
+const fencedParserPayload = (payload, prefix = '', suffix = '') => `${prefix}\`\`\`json\n${JSON.stringify(payload)}\n\`\`\`${suffix}`;
+
+const rootArrayJson = await optimizeSubtitleCues({
   cues: source.slice(0, 1),
   config: { model: 'test', batchSize: 1 },
-  complete: async () => ({ choices: [{ message: { content: `以下是 JSON：\n${JSON.stringify({ cues: [{ id: 1, text: '介紹 AI API。', reason: 'wrapper' }] })}\n以上。` } }] }),
+  complete: async () => parserResult(JSON.stringify([parserCue])),
 });
-assert.equal(wrappedJson.suggestions[0].text, '介紹 AI API。', 'JSON 外層說明文字應可安全剝離後再做 strict validation');
+assert.equal(rootArrayJson.suggestions[0].text, parserCue.text, '根 JSON array 應可作為字幕 cues');
+
+const fencedJson = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult(fencedParserPayload(parserPayload)),
+});
+assert.equal(fencedJson.suggestions[0].text, parserCue.text, 'plain Markdown fenced JSON 應可解析');
+
+const fencedWithProse = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult(fencedParserPayload(parserPayload, '以下是結果：\n', '\n以上。')),
+});
+assert.equal(fencedWithProse.suggestions[0].text, parserCue.text, '含周邊說明文字的 fenced JSON 應可解析');
+
+const textPartArray = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult([
+    { type: 'text', text: '以下是結果：' },
+    { type: 'text', text: fencedParserPayload(parserPayload) },
+  ]),
+});
+assert.equal(textPartArray.suggestions[0].text, parserCue.text, 'text-part array 的字串應使用相同 JSON candidate extraction');
+
+const nestedResponseObject = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult({ response: parserPayload }),
+});
+assert.equal(nestedResponseObject.suggestions[0].text, parserCue.text, 'nested response object 應解析明確 cues');
+
+const nestedResponseString = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult({ response: JSON.stringify(parserPayload) }),
+});
+assert.equal(nestedResponseString.suggestions[0].text, parserCue.text, 'nested response string 應解析 JSON candidate');
+
+const nestedResponseFencedString = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { model: 'test', batchSize: 1 },
+  complete: async () => parserResult({ response: fencedParserPayload(parserPayload, '結果如下：\n', '\n處理完成。') }),
+});
+assert.equal(nestedResponseFencedString.suggestions[0].text, parserCue.text, 'nested response string 內的 fenced JSON 與 top-level 使用同一 extractor');
+
+const schemaBodies = [];
+await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'lm-studio', model: 'test', batchSize: 1, capabilities: { jsonSchema: true, structuredOutput: 'json-schema' } },
+  complete: async (body) => {
+    schemaBodies.push(body);
+    return parserResult(JSON.stringify(parserPayload));
+  },
+});
+assert.equal(schemaBodies[0].response_format.type, 'json_schema', 'LM Studio JSON Schema response_format 應保留 schema mode');
+assert.equal(schemaBodies[0].response_format.json_schema.name, 'subtitle_optimization');
+
+const schemaRepairBodies = [];
+let schemaRepairCalls = 0;
+await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'lm-studio', model: 'test', batchSize: 1, capabilities: { jsonSchema: true, structuredOutput: 'json-schema' } },
+  complete: async (body) => {
+    schemaRepairBodies.push(body);
+    schemaRepairCalls += 1;
+    return parserResult(schemaRepairCalls === 1 ? JSON.stringify({ answer: 'missing cues' }) : JSON.stringify(parserPayload));
+  },
+});
+assert.equal(schemaRepairCalls, 2);
+assert.deepEqual(schemaRepairBodies[1].response_format, schemaRepairBodies[0].response_format, 'LM Studio JSON Schema repair request 不得降級為 json_object');
+
+const jsonObjectBodies = [];
+await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'lm-studio', model: 'test', batchSize: 1, capabilities: { jsonSchema: true } },
+  complete: async (body) => {
+    jsonObjectBodies.push(body);
+    return parserResult(JSON.stringify(parserPayload));
+  },
+});
+assert.deepEqual(jsonObjectBodies[0].response_format, { type: 'json_object' }, '一般 JSON mode 應使用 json_object');
+
+const disabledResponseFormatBodies = [];
+await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'lm-studio', model: 'test', batchSize: 1, capabilities: { jsonSchema: false } },
+  complete: async (body) => {
+    disabledResponseFormatBodies.push(body);
+    return parserResult(JSON.stringify(parserPayload));
+  },
+});
+assert.equal(Object.hasOwn(disabledResponseFormatBodies[0], 'response_format'), false, '停用 JSON schema 時不可注入 response_format');
 
 const multilingualBodies = [];
 const multilingualComplete = async (body) => {
@@ -280,7 +378,9 @@ const reordered = async () => ({ choices: [{ message: { content: JSON.stringify(
 await assert.rejects(() => optimizeSubtitleCues({ cues: source, config: { model: 'test', batchSize: 2 }, complete: reordered }), /cue 順序不符/);
 
 let localJsonRepairCalls = 0;
+const localJsonRepairBodies = [];
 const localJsonRepair = async (body) => {
+  localJsonRepairBodies.push(body);
   localJsonRepairCalls += 1;
   if (localJsonRepairCalls === 1) {
     return { choices: [{ message: { content: JSON.stringify({ answer: '模型回傳了合法 JSON，但沒有 cues 欄位。' }) } }] };
@@ -296,7 +396,88 @@ const repairedLocalJson = await optimizeSubtitleCues({
   complete: localJsonRepair,
 });
 assert.equal(localJsonRepairCalls, 2, '本機模型缺少 cues 時應自動要求一次格式修正');
+assert.match(localJsonRepairBodies[1].messages[0].content, /未符合必要的 JSON 結構/);
 assert.equal(repairedLocalJson.totalCues, 1);
+
+for (const provider of ['ollama', 'lm-studio']) {
+  let missingCuesCalls = 0;
+  const repaired = await optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider, model: 'test', batchSize: 1 },
+    complete: async () => {
+      missingCuesCalls += 1;
+      return parserResult(missingCuesCalls === 1
+        ? JSON.stringify({ data: [{ status: 'ok' }] })
+        : JSON.stringify(parserPayload));
+    },
+  });
+  assert.equal(missingCuesCalls, 2, `${provider} 的 unrelated nested array 不得直接當 cues，且缺少 cues 時只能 repair 一次`);
+  assert.equal(repaired.suggestions[0].text, parserCue.text);
+}
+
+for (const provider of ['ollama', 'lm-studio']) {
+  let nestedRootArrayCalls = 0;
+  const repaired = await optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider, model: 'test', batchSize: 1 },
+    complete: async () => {
+      nestedRootArrayCalls += 1;
+      return parserResult(nestedRootArrayCalls === 1
+        ? JSON.stringify({ response: JSON.stringify([parserCue]) })
+        : JSON.stringify(parserPayload));
+    },
+  });
+  assert.equal(nestedRootArrayCalls, 2, `${provider} 不得把 response 字串中的 root array 當成 cues`);
+  assert.equal(repaired.suggestions[0].text, parserCue.text);
+}
+
+let fencedNestedRootArrayCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'openai-compatible', model: 'test', batchSize: 1 },
+    complete: async () => {
+      fencedNestedRootArrayCalls += 1;
+      return parserResult(JSON.stringify({ data: fencedParserPayload([parserCue], '結果如下：\n', '\n以上。') }));
+    },
+  }),
+  /AI 回傳缺少 cues 陣列/,
+  '非本機 provider 不得把 data 字串中的 fenced root array 當成 cues',
+);
+assert.equal(fencedNestedRootArrayCalls, 1);
+
+let nonLocalMissingCuesCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'openai-compatible', model: 'test', batchSize: 1 },
+    complete: async () => {
+      nonLocalMissingCuesCalls += 1;
+      return parserResult(JSON.stringify({ response: [{ status: 'ok' }] }));
+    },
+  }),
+  /AI 回傳缺少 cues 陣列/,
+  '非本機 provider 缺少 cues 時應維持 strict failure，不得自動 repair',
+);
+assert.equal(nonLocalMissingCuesCalls, 1);
+
+let failedJsonRepairCalls = 0;
+let failedJsonRepairCheckpoint = null;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'lm-studio', model: 'test', batchSize: 1 },
+    complete: async () => {
+      failedJsonRepairCalls += 1;
+      return parserResult(JSON.stringify({ answer: '仍然沒有 cues' }));
+    },
+    onCheckpoint: async (checkpoint) => { failedJsonRepairCheckpoint = checkpoint; },
+  }),
+  /AI 回傳缺少 cues 陣列/,
+  '第二次 response 仍缺少 cues 時應失敗',
+);
+assert.equal(failedJsonRepairCalls, 2, '缺少 cues 的 repair 最多只能送出兩次 response');
+assert.equal(failedJsonRepairCheckpoint, null, 'failed JSON repair 不得寫入完成 checkpoint');
 
 let retryCalls = 0;
 let rateRetryOptions;

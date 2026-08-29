@@ -66,6 +66,8 @@ Breeze ASR 25 是獨立的 ASR 引擎選項，不加入 Whisper.cpp `tiny`／`ba
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。
 
+AI 回應解析共用同一套 JSON candidate extraction，支援根 JSON array、明確 `cues` array、text-part array、wrapper 物件與含 Markdown fence／周邊說明文字的巢狀字串；`data`、`response`、`content`、`message` 等 wrapper 下的非 `cues` 陣列不得直接視為字幕。解析成功但缺少 `cues` 時，Ollama 與 LM Studio 各只進行一次格式修復，第二次仍失敗即拒絕；非本機 provider 維持 strict failure。若 provider 宣告 JSON Schema response format，請求必須保留 schema，不得覆寫為 `json_object`。
+
 供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑，保留 optimizer 預期的 `choices[].message.content` 回應契約。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
 
 Azure OpenAI 使用 deployment URL、`api-version` query 與 `api-key` header；送出 chat completion 前移除 optimizer 內部的 `operation`、`output_language`、cue count／ID 與 model 欄位，避免將內部控制資料當成 Azure 請求 schema。模型能力探測使用 `max_completion_tokens`，不使用舊的 `max_tokens` 參數。

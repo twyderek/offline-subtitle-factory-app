@@ -13,6 +13,34 @@
 
 ---
 
+## 2026-08-29 — AI 回應缺少 cues 的 JSON candidate parser 修正（PR #10）
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：需求方要求在既有 `codex/ai-cues-response-repair` 分支繼續修正 PR #10 `fix: repair AI responses missing cues`，不建立新分支／PR、不合併，並保留 Draft 狀態。
+- 關聯需求／缺陷：`FR-008`、`FR-010`、`FR-021`、PR #10
+- 變更等級：一般（AI 回應解析、修復流程與自動測試；不發布、不打包）
+- 執行前已讀：`AGENTS.md`、`docs/project-management/README.md`、`00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、開發／測試／獨立審查／結案流程文件及本文件範本／最新條目（是）
+- 基準證據：開始時遠端 `origin/codex/ai-cues-response-repair` 與 PR #10 head 均為 `d0aeddbee42f3d38e39c52ecf5d4febf748ed63d`；開始時工作樹 clean，後續只保留本條目預期的程式、測試、設計與 review 報告修改。
+- 目標與成功條件：共用 JSON candidate extraction 支援頂層／巢狀文字、fenced JSON 與前後說明；只有根陣列或明確 `cues` 陣列可成為 cue list；Ollama／LM Studio 缺少 cues 時恰好 repair 一次；非本機 provider 維持 strict failure；JSON Schema response format 不被 `json_object` 覆寫；獨立回歸與完整驗證通過。
+- 不在範圍：不修改無關產品模組；不建立新分支／PR；不合併 PR；不發布或修改 Release／tag；不下載不明 binary。
+- 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`scripts/test-ai-optimizer.mjs`、必要的測試／治理紀錄；不修改 provider、server 或封裝流程，除非驗證證明必要。
+- 風險與回復方式：候選抽取若過度寬鬆可能誤認 wrapper 陣列；以 explicit `cues`／root-array 規則、非本機 strict regression、local repair 上限與 checkpoint 失敗案例防護；若驗證失敗保留原始回應並停止提交。
+- 驗證計畫：`node --check lib/ai/subtitle-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs`、`git diff --check`、可行時 `npm run check`；完成後獨立六面向審查與 `npm run docs:check:final`。
+- 實際修改：`lib/ai/subtitle-optimizer.mjs` 新增共用 JSON candidate extraction、root／explicit `cues` 邊界、nested wrapper 防誤認、local JSON repair error code 與單一 response format 決策；`scripts/test-ai-optimizer.mjs` 新增 parser、wrapper、text-part、local repair、strict failure、checkpoint 與 JSON Schema 回歸；`docs/project-management/03-FUNCTIONAL-DESIGN.md` 補充 AI 回應契約；新增 `docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round1.md` 與 `round2.md` 獨立審查報告。
+- 開發驗證結果：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs`、`npm run project:preflight -- --type=development`、`npm run docs:check`、`npm run docs:check:final` 與 `git diff --check` 通過；`npm run check` 的 docs／syntax／AI／Whisper／UI 測試通過，最後 `scripts/test-core.mjs` 僅因環境缺少 Breeze ASR 所需 FFmpeg 而以 `needs-action` 對 `completed` 失敗；`npm ci` 已依 lockfile 補齊測試依賴且未修改 package manifest。
+- 獨立審查是否執行：是（round1、round2）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round1.md`
+  - 判定（逐字引用 round1）：**本輪獨立審查結論為不通過，因巢狀 wrapper 字串中的根 JSON array 仍可能被誤認為 cues，違反明確的回應契約。**
+  - 審查檔案：`docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round2.md`
+  - 判定（逐字引用 round2）：**The round-one P1 boundary fix is effective, the complete requested response contract is satisfied, the requested regressions pass, and no unintended scope or likely regression was found.**
+- 發布授權：不適用（本次不發布、不打包、不修改 Release）
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：`npm run check` 的 Breeze ASR／FFmpeg mock runtime 缺失仍需具備該 runtime 的環境補驗；本輪未呼叫真實 LM Studio／Ollama endpoint，真實模型品質與服務可用性仍需外部 acceptance；PR #10 維持 Draft、不合併，推送後的遠端 head 與 PR 狀態另以 GitHub 遠端證據核對。
+
+---
+
 ## 2026-08-11 — 0.48.1 PR 合併、tag 重指向與 GitHub Release（REL-029）
 
 - 狀態：完成
