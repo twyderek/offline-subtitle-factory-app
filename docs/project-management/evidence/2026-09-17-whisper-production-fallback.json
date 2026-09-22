@@ -1,0 +1,65 @@
+{
+  "schema": "offline-subtitle-factory.whisper-production-fallback.v1",
+  "startedAt": "2026-09-17T03:16:37.709Z",
+  "completedAt": "2026-09-17T03:16:39.451Z",
+  "elapsedMs": 1741,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "controlledRuntime": {
+    "type": "deterministic-whisper-cpp-wrapper",
+    "fixturePath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/scripts/fixtures/mock-whisper-cpp-runtime.mjs",
+    "bundledRuntimeUsed": false,
+    "bundledModelPath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
+    "bundledModelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+    "wrapperCreatesMetalExit139": true
+  },
+  "input": {
+    "kind": "generated-silence-wav",
+    "sampleRate": 16000,
+    "channels": 1,
+    "durationSeconds": 1,
+    "userMediaRead": false
+  },
+  "server": {
+    "mode": "production",
+    "loopbackOnly": true,
+    "testRunnersDisabled": true,
+    "requestedPort": 24849,
+    "actualPort": 24849
+  },
+  "job": {
+    "created": true,
+    "started": true,
+    "status": "completed",
+    "stage": "ready-review",
+    "metrics": {
+      "asrEngine": "whisper.cpp",
+      "whisperDevice": "cpu",
+      "modelName": "tiny"
+    },
+    "logMarkers": {
+      "metalExit139": true,
+      "cpuFallback": true,
+      "firstCrashMarker": true,
+      "fullLogsStored": false
+    },
+    "outputs": {
+      "draftSrt": true,
+      "whisperCppSrt": true,
+      "whisperCppJson": true,
+      "stalePartialOutput": false,
+      "stalePartialArtifacts": [],
+      "whisperInputCleaned": true
+    },
+    "fallbackObserved": true
+  },
+  "scope": {
+    "externalNetwork": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "userSubtitleModified": false
+  },
+  "status": "pass"
+}

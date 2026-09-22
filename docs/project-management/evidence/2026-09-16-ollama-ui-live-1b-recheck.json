@@ -1,0 +1,60 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v1",
+  "startedAt": "2026-09-16T04:35:58.632Z",
+  "completedAt": "2026-09-16T04:36:09.357Z",
+  "elapsedMs": 10723,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "error": {
+    "message": "Ollama UI AI 任務未完成：AI 回傳缺少 cues 陣列",
+    "code": "",
+    "childLogTail": "\nDevTools listening on ws://127.0.0.1:9993/devtools/browser/ef0b5301-66ca-4c6f-8695-d2a20f435736\n[main] Starting server...\n[main] appDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app\n[main] serverPath: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app/server.mjs\n[main] toolsDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/tools\n[main] nodeCommand: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠\n[main] Expected port: 8791\nOffline Subtitle Factory running at http://127.0.0.1:8791\n[api] GET /api/health\n[main] Server ready on port 8791\n[api] GET /api/bootstrap\n[api] GET /api/settings\n[api] GET /api/whisper-models\n[api] GET /api/jobs\n[api] GET /api/health\n[api] GET /api/health\n[api] POST /api/jobs\n[api] Job created: 20260916043602-596241\n[api] POST /api/jobs/20260916043602-596241/start\n[api] GET /api/jobs/20260916043602-596241/status\n[api] GET /api/jobs/20260916043602-596241/review-data\n[api] GET /api/jobs/20260916043602-596241/review-data\n[api] GET /api/ai/settings\n[api] GET /api/jobs/20260916043602-596241/ai-project-settings\n[api] GET /api/jobs/20260916043602-596241/waveform\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/ai/profile\n[api] POST /api/jobs/20260916043602-596241/ai-project-settings\n[api] POST /api/ai/settings\n[api] POST /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n[api] GET /api/jobs/20260916043602-596241/ai-optimize\n"
+  },
+  "ui": {
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "status": "設定已儲存；API Key 不會回傳到畫面",
+      "provider": "ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.2:1b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "failed",
+      "error": "AI 回傳缺少 cues 陣列",
+      "sessionId": "0d25b8a2-4a38-4356-8eb0-81f9873add30",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "progress": {
+        "completedBatches": 0,
+        "totalBatches": 2,
+        "processedCues": 0,
+        "totalCues": 2,
+        "totalRetries": 0
+      },
+      "aiStatusText": "AI 優化失敗：AI 回傳缺少 cues 陣列",
+      "suggestionActionsHidden": true,
+      "toolbarExpanded": true
+    }
+  }
+}

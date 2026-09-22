@@ -1,10 +1,145 @@
 # 偵錯與修改歷程
 
+### FR-020／NFR-006：bundled Whisper 長音訊來源 SRT hash 完整性補強（2026-09-21）
+
+- 缺口：長音訊 evidence 原先以 `originalSrtModified=false` 宣告來源 SRT 未修改，但沒有保存 before／after hash，無法提供完整的檔案完整性比對。
+- 最小修正：`verify-whisper-long-media.mjs` 接受明確來源 SRT 路徑，未提供時只在相鄰 `.edited.srt` 存在時採用；schema 升為 v3，保存來源 SRT basename／大小／before／after SHA-256 與檢查旗標，hash 不一致或檔案消失時回報 `SOURCE_SRT_MODIFIED`。
+- 實測：短音訊與完整 `/Users/nycu/Downloads/20260909.mp4` replay 均 exit 0；完整 evidence 記錄來源 SRT before／after 均為 `4d5f5a53bb4eea7f5de5b428caefb38871771655166b12fccc613f3600f16482`、`sourceSrtHashChecked=true`、`originalSrtModified=false`，2,509 segments、非空 SRT／JSON、temp cleanup 通過。
+- 剩餘風險：hash 完整性不代表字幕語意品質或 Whisper 與來源 SRT 的正確性；中文音訊品質、人工校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows、乾淨安裝與發布仍未驗收。
+
+### FR-020／BUG-WHISPER-METAL-139：bundled Whisper 長音訊 probe 摘要與隱私修正（2026-09-21）
+
+- 現象：首版長音訊 probe 將 bundled Whisper JSON 假設為 `segments` 陣列，實際輸出使用 `transcription`，導致完整成功 replay 被誤判為沒有 segment；同版 evidence 也保存了 stdout 最後一段字幕文字，超出「只保存非敏感摘要」的設計範圍。
+- 根因：probe 摘要器未兼容 bundled Whisper.cpp 的 JSON 形狀，且把為診斷保留的 stdout tail 原樣寫入 evidence。
+- 最小修正：摘要器同時支援 `segments`／`transcription`，以 offsets／tokens 計算 segment、文字 code point、時間範圍與 token probability 統計；evidence schema 升為 v2，stdout 改保存 line count、timestamped transcript line count 與 `contentStored=false`，不保存字幕文字。
+- 重播與驗證：`2026-09-21-whisper-long-media-small-redacted.json` 在 macOS arm64 受控權限完整跑完 5,416.349667 秒影片，exit 0、2,509 segments、非空 SRT／JSON、temp cleanup 通過；原 v1 含字幕尾端的中間 evidence 已移除。Node syntax、14 項 evidence assertions、完整 `npm run check`、`git diff --check`、獨立 round1 審查與 `npm run docs:check:final` 均完成。
+- 剩餘風險：這是 runtime／輸出完整性基線，不代表中文品質、人工影音校閱、長音訊效能、confidence／no-speech metadata、真實 Metal crash→CPU fallback、Windows、乾淨安裝或發布驗收；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：production probe 啟動失敗診斷可觀測性（2026-09-21）
+
+- 症狀：前輪預設 sandbox 的 bundled production server 在 ready 前 exit 0，原 probe 因 `stdio: ignore` 只留下 exit code，無法從 evidence 判斷 loopback 權限或其他啟動原因。
+- 根因／範圍：問題位於 acceptance probe 的子程序輸出收集，不是產品 server fallback；本輪不修改 `server.mjs`、fallback policy、bundled runtime／模型。
+- 最小修正：`verify-whisper-real-fallback.mjs` 改收集 child stdout／stderr，保存 PID、ready phase、exit code／signal 與固定長度遮罩尾端；API key／token／secret／Authorization／Bearer／Basic 與使用者／暫存路徑均先遮罩，schema 升為 v2。
+- 重播結果：round2 預設 sandbox evidence `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-default.json` 明確記錄 `listen EPERM`、ready=false、job 未建立；受控本機權限 evidence `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-escalated.json` 仍完成 `ready-review`、Metal、無 fallback，且 token／credential／`/tmp/` leakage assertions 通過。round1 evidence 保留作為修正前對照。
+- 防回歸／剩餘風險：Node syntax、兩側 replay、evidence assertions 與完整回歸需持續通過；診斷摘要仍不是完整 log，也不會產生真實 bundled Metal crash→CPU fallback 證據。中文品質、長音訊、Windows、乾淨安裝與發布仍未驗收；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：bundled production server Metal failure 邊界重播（2026-09-21）
+
+- 現象：需確認前輪受控 wrapper→bundled CPU 取消之外，真實 bundled `whisper-cli` 在同一次 production server 中是否能重現 Metal failure 並自動 fallback。
+- 重播條件：同一 macOS arm64 bundled `whisper-cli`／Tiny、同一 1 秒 16 kHz mono 合成 WAV、同一 `scripts/verify-whisper-real-fallback.mjs`；分別以預設 sandbox 與受控本機權限啟動 production server。
+- 結果：預設 sandbox server 在 ready 前 exit 0，未建立 job，證據為 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-default.json`；受控本機權限完成 `ready-review`、`whisperDevice=metal`、`fallbackObserved=false`，證據為 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-escalated.json`。
+- 根因／邊界判定：本次只能確認預設執行環境的 server loopback 啟動邊界與受控權限下 bundled Metal 正常路徑，沒有觀察到真實 bundled Metal exit／signal，因此不能宣稱 crash→CPU fallback；不修改產品程式。
+- 剩餘風險：仍需在能穩定重現 bundled Metal crash 的同一 production server 環境取得 CPU fallback evidence；長音訊、中文品質、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139／BUG-026：production-mode bundled CPU retry 取消補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗缺口：deterministic child 已覆蓋 retry 期間取消，上一輪 hybrid 則只驗證真實 bundled CPU 正常完成；尚缺真實 CPU child 已啟動後經產品 API 取消與清理的證據。
+- 探針設計：新增 `--cancel-bundled-cpu` 模式，使用 60 秒本機合成 WAV；CPU wrapper 在真實 child spawn 後寫 ready marker，API 取消時轉送 SIGTERM 並記錄 child close／forcedKill。probe 明確注入固定 partial SRT／JSON、quality metadata 與 edit plan 哨兵，以精確檔案不存在／保留斷言驗證清理；未修改 `server.mjs` 或 bundled CLI。
+- round1 審查發現：正常取消雖通過，但取消 API 不可用時 probe 只停 server 並刪 temp，未確認 wrapper／CPU child close；這是驗收工具的失敗收尾缺陷，不是已觀察到的產品取消失敗。修正為獨立 process group 有界終止／確認消失後才清 temp；`kill(-pgid, 0)` 受權限邊界回 EPERM 時，以 `/bin/ps` 只讀核對該 PGID，無法確認則保留診斷 temp 並回報 failure。故障注入 `--simulate-cancel-api-loss` 在 CPU spawn 後跳過 API，記錄 `expectedFaultSafelyHandled`。
+- 實測與防回歸：正常取消在最新 probe 下仍 `cancelled`，取消中先維持 `running/cancelling`，CPU child `signal=SIGTERM` 且無 forced kill，invocation 僅 `metal`／`cpu`，ASR 哨兵與暫存 WAV 清理、edit plan 保留；新 evidence 為 `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-final.json`。API loss 注入預期 exit 1，但 wrapper／CPU close、groupGone 與 tempRootRemoved 均為 true，evidence 為 `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-api-loss-final.json`。前輪 hybrid 完成與舊 controlled probe 在收尾改動後仍通過。
+- 剩餘風險：Metal failure 仍由 wrapper 注入，partial 哨兵非真實 CLI 輸出，server 透過 wrapper 而非直接向 CLI 發訊號；真實 bundled Metal crash、長音訊品質／效能、中文語音、Windows、乾淨安裝與發布未驗收。round2 獨立複審通過；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：production-mode 受控 Metal failure 後 bundled CPU retry 補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗缺口：既有同次 production server fallback 由 deterministic fixture 提供 CPU 輸出；另一 bundled server probe 只觀察到 Metal 正常完成，尚未驗證控制流交給真實 bundled CPU 時是否完成。
+- 最小探針：在既有隔離 production acceptance 增加 `--bundled-cpu` 模式；wrapper 只注入首次 Metal exit 139／partial outputs，CPU 分支記錄 invocation、檢查 stale partial、直接 spawn 固定 bundled binary 並記錄其退出結果。沒有修改產品 `server.mjs` 或 bundled CLI。
+- 實測：macOS arm64 受控權限 hybrid probe exit 0；同次任務 `metal`／`cpu` 兩次 invocation、CPU binary exit 0、`completed/ready-review`、`whisperDevice=cpu`、draft／SRT／JSON 齊全且無暫存 WAV／stale partial。round1 審查指出原始 evidence 缺少工作紀錄要求的重播命令；保留原檔後重新產生 `docs/project-management/evidence/2026-09-18-whisper-hybrid-fallback-replay.json`，包含 command、working directory 與環境前提。舊 controlled probe 與完整 `npm run check` 亦通過。
+- 剩餘風險：首次 failure 並非 bundled Metal 真實崩潰，故同次真實 crash→CPU 門檻仍未完成；短靜音不驗證中文品質、長音訊、取消真實 CPU child、Windows、乾淨安裝或發布。LM Studio 依需求方決策未執行。
+
 ## 紀錄格式
 
 每個缺陷記錄：`BUG-ID`、日期／版本、現象、影響、重現、根因、修正、驗證、防回歸、剩餘風險。
 
 ## 重要既有缺陷
+
+### BUG-WHISPER-METAL-139：CPU fallback 再失敗殘留 partial outputs
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 現象／影響：macOS arm64 首次 Metal failure 進入 `--no-gpu` CPU retry 後，若 CPU child 也非零退出且曾寫入 partial SRT／JSON，任務會正確標記 failed，但固定輸出仍留在 working 目錄；後續診斷或重跑可能誤把失敗產物視為可用輸出。
+- 修正前重現：deterministic fixture 依序執行 Metal exit 139、CPU exit 7，兩次都寫入 partial outputs；核心測試確認只有兩次 invocation 且任務已 failed，但 `whisper-cpp-output.srt` 實際仍存在，於清理斷言 exit 1。
+- 根因：`runWhisperCpp` 的 Metal→CPU fallback 與取消分支會清理固定輸出，不再 retry 的 process failure 分支直接 reject，沒有套用相同清理契約。
+- 修正：fallback 前與終止性 process failure 前共用 `removeWhisperPartialOutputs(workingDir, [outputBase])`；CPU retry 仍只執行一次，失敗 reason 原樣傳至 job message／log，清理只限固定 SRT／JSON 與 quality metadata。
+- 驗證／防回歸：核心 child fixture 斷言 final status／stage 為 failed、metrics 為 CPU、message 含 exit 7、Metal fallback marker 保留、invocation 僅 `metal`／`cpu`，且 stale marker、partial SRT／JSON、draft 均不存在；focused core 與完整 `npm run check` 通過。證據為 `docs/project-management/evidence/2026-09-18-whisper-cpu-retry-failure.json`。
+- 剩餘風險：尚未以真實 bundled runtime 重現 Metal crash 後 CPU 也失敗；取消與 retry 交界、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139／BUG-026：Metal→CPU retry 取消交界補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗風險：既有 BUG-026 已驗證一般 Whisper.cpp child 取消，Metal→CPU retry 後仍缺少 child 已執行時的取消整合證據；可能出現提早標記 cancelled、漏清 partial 輸出或取消後再啟動 child。
+- 基準重播：fixture 首次 Metal exit 139，第二次 CPU child 寫 partial SRT／JSON 並安裝 SIGTERM handler 後寫 ready marker；測試等 marker 才透過 API 取消。現有產品程式三次核心重播均通過，未重現上述缺陷，故未修改 `server.mjs`。
+- 驗證／防回歸：`scripts/test-core.mjs` 斷言 `running/cancelling`→child close→`cancelled`，精確兩次 invocation、CPU metrics、Metal fallback marker、SIGTERM／close marker、暫存音訊／partial／quality metadata 清理、無 draft 與非 ASR `edit-plan.json` 保留；完整 `npm run check` 通過。證據：`docs/project-management/evidence/2026-09-18-whisper-retry-cancellation.json`。
+- 剩餘風險：本輪只補 deterministic CPU child 就緒後取消；真實 bundled runtime、Metal close callback 內不可插入窗口、Windows taskkill、長音訊、中文品質、乾淨安裝與發布未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-031：歷史 AI profile 秘密仍殘留一般設定檔
+
+- 日期／版本：2026-09-16／0.51.0 開發中。
+- 現象：BUG-029 已讓新保存路徑以 allowlist 排除 profile 秘密，但啟動載入只在 runtime 正規化；若既有 `settings.json` 已含 AI 根層 `apiKey`／Authorization／token／secret 或 profile 內秘密／未知 provider，磁碟明文不會被清除。
+- 影響：API 與 runtime 雖不回傳這些欄位，歷史秘密仍可能留在一般設定檔、備份或支援診斷資料中，違反 NFR-002 的秘密隔離邊界。
+- 重現：核心啟動 fixture 預置 AI 根層與 Anthropic profile 秘密；修正前在受控權限執行 `node scripts/test-core.mjs`，於「啟動遷移必須從一般設定檔移除 AI 根層歷史秘密」斷言失敗，實際磁碟字串仍存在。
+- 根因：`loadSettings()` 只回傳 `normalizeSettings()` 結果，沒有把已正規化的 profile 或根層秘密清理結果持久化回原設定檔。
+- 修正：啟動時建立窄範圍持久化遷移，刪除 AI 根層固定 secret-shaped 鍵名，以既有 profile allowlist 取代歷史 profiles 並移除未知 provider；只在內容改變時以同目錄 sanitized 暫存檔原子置換。非敏感未知 AI 根層欄位、合法 profile 與獨立 `ai-secrets.json` 保留，歷史明文不自動匯入 secrets；寫入失敗只記錄不含秘密內容的權限警告，runtime 仍採正規化值。
+- 驗證：核心 fixture 驗證根層多種大小寫／分隔形式秘密、profile 秘密與未知 provider 從磁碟消失，合法 Base URL／model／batch／timeout、非敏感未知根層欄位及既有獨立 secrets 保留，且無 migration temp 殘留；Node 語法、核心整合、provider contract、差異格式與完整 `npm run check` 均通過。round1 因未完成獨立讀取而有條件通過，新的 round2 獨立上下文完成六面向靜態核對後判定通過，無阻擋問題。
+- 防回歸：啟動 fixture 直接讀回遷移後 `settings.json` 與 `ai-secrets.json`，不只檢查 API 回應；後續新增合法 profile 欄位時必須同步 allowlist、遷移與測試。
+- 剩餘風險：無法寫入一般設定檔時磁碟明文仍會保留，需依不含秘密值的警告修正檔案／目錄權限後重啟；本輪不掃描歷史備份、log、其他使用者目錄或 OS 安全儲存，也不驗證 Windows 真實檔案鎖定情境。
+
+### BUG-WHISPER-METAL-139：SIGSEGV signal fallback 可觀測性缺口
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 現象／影響：Node child process 若被 `SIGSEGV` 終止，`close` callback 會收到 `code=null`、`signal=SIGSEGV`；既有 server 只把 code 寫成 `Metal exit null`，真實 acceptance probe 又只辨識 `Metal exit 139`，可能讓實際已發生並成功完成的 signal fallback 被 evidence 誤記為未觀察到。
+- 根因：fallback policy 以 `exitCode !== 0` 隱含接受 null／字串等值，server 沒有接收 `close` 的 signal 參數，probe 將產品策略過度收窄成單一 139 marker；policy、日誌與 acceptance 判定不是同一份明確契約。
+- 修正：抽出型別嚴格的 process failure contract；明確非零整數 exit 或非空 signal 才算失敗。macOS arm64 首次 Metal 嘗試會清理 partial outputs 並 CPU retry 一次，log 分別寫 `Metal exit <code>` 或 `Metal signal <name>`；exit 0、null 且無 signal、非數字 exit、已在 CPU retry 與其他平台／架構不 fallback。真實 probe 共用 parser，接受任一明確 Metal failure marker＋CPU fallback。
+- 驗證：policy／log marker 矩陣 exit 0；核心整合以真實自我 `SIGSEGV` child 取得 `Metal signal SIGSEGV`，清理 partial SRT／JSON 後以 CPU 完成 `ready-review`，既有 exit 139 案例亦通過。production controlled exit 139 replay 與 bundled Metal normal-path replay 均 exit 0；證據為 `docs/project-management/evidence/2026-09-18-whisper-signal-aware-fallback.json`。
+- 防回歸：`scripts/test-whisper-fallback-policy.mjs` 固定 exit／signal／invalid value／平台矩陣與 parser 假陽性；`scripts/test-core.mjs` 同時覆蓋 exit 139 與 signal SIGSEGV 的 partial 清理、CPU metrics、可觀測 logs 與最終 draft。
+- 剩餘風險：本輪沒有在真實 bundled production server run 重現 crash→CPU fallback，deterministic signal／exit 案例仍不代表 runtime 實機；取消中的 retry、CPU retry 失敗、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：child-process exit 139 fallback 整合回歸
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：既有策略單元測試只驗證 fallback 判斷矩陣，未直接覆蓋 `runWhisperCpp` 的 child 非零退出、partial 輸出清理與 CPU retry，容易讓控制流回歸未被核心 API 測試捕捉。
+- 修正：新增 macOS arm64 專用 deterministic runner marker；首次非 `--no-gpu` 執行回傳 exit 139 並寫入 partial SRT／JSON，第二次 `--no-gpu` 執行成功；若 server 未先清理 partial output，fixture 會留下明確 stale marker 使測試失敗。未改真實 Whisper.cpp CLI 或 production fallback 策略。
+- 驗證／防回歸：`scripts/test-core.mjs` 建立 fallback 任務並斷言 `ready-review`、`metrics.whisperDevice=cpu`、首次 139 marker、無 stale partial marker 與最終 draft SRT；macOS arm64 受控核心回歸已通過，既有 fallback policy／quality focused 測試亦通過。
+- 剩餘風險：fixture 不代表 bundled Whisper.cpp 真實 Metal／CPU 行為；長音訊、取消中的 retry、Windows／其他 macOS 架構、乾淨安裝與模型品質仍未驗收。
+
+### BUG-WHISPER-METAL-139：產品 server 真實 bundled path probe
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：直接 bundled CLI 對照可在目前 macOS arm64 收到 Metal allocation failure／`SIGSEGV`，但需要確認 production-mode server 的 child-process 控制流、輸出清理與正常完成狀態。
+- 重現／探針：`npm run acceptance:whisper:fallback -- docs/project-management/evidence/2026-09-17-whisper-real-server-fallback.json`；probe 使用隔離 localhost server、非測試環境、本機生成 WAV 與 bundled Tiny，不使用使用者媒體或外部 endpoint。
+- 實際結果：server 任務完成 `ready-review`，metrics 為 `whisperDevice=metal`，產生 draft／SRT／JSON 並清除暫存 WAV；status logs 沒有 `Metal exit 139`／`CPU fallback`，故本次沒有重現 crash→CPU fallback。
+- 修正／防回歸：新增 production-mode acceptance probe；若當次 status logs 同時出現 `Metal exit 139` 與 `CPU fallback`，probe 會強制斷言最終 `whisperDevice=cpu`、輸出完整與暫存清理，否則只記錄正常 Metal path，不放寬為 fallback 通過。
+- 剩餘風險：真正 server 內的 bundled Metal crash→CPU fallback 尚未在同一次實機 run 重現；deterministic fixture 仍是 fallback 控制流的主要回歸證據，長音訊、取消中的 retry、跨平台與乾淨安裝仍待驗收。
+
+### BUG-WHISPER-METAL-139：production-mode controlled fallback acceptance
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：真實 bundled server run 未重現 Metal crash，但仍需確認 production-mode（非 `NODE_ENV=test`）不會因 test runner 關閉而跳過 child-process fallback 控制流。
+- 重現／探針：`npm run acceptance:whisper:production-fallback -- docs/project-management/evidence/2026-09-17-whisper-production-fallback.json`；隔離 tools tree 的 wrapper 首次注入 exit 139／partial SRT／JSON，第二次只在 `--no-gpu` 下呼叫既有 deterministic fixture，底層 model 使用 bundled Tiny symlink。
+- 實際結果：production-mode server status logs 記錄 `Metal exit 139`／`CPU fallback`，最終 metrics 為 `whisperDevice=cpu`，任務完成 `ready-review`，輸出完整、stale partial 清單為空、暫存 WAV 清理；evidence 明確標示 `bundledRuntimeUsed=false`。
+- 修正／防回歸：新增獨立 production-mode controlled acceptance，不改 `server.mjs` fallback 策略；若 test runner gating、partial 清理、CPU retry 或輸出驗證回歸，probe 會失敗。既有 `scripts/test-core.mjs` 維持 deterministic server fixture 回歸。
+- 剩餘風險：這是 production-mode 控制流證據，不是 bundled `whisper-cli` 實機 Metal crash→CPU fallback；仍需在同一次真實 bundled server run 重現 crash 才能關閉該實機門檻，並另行驗收長音訊、取消中的 retry、CPU retry 失敗、跨平台與乾淨安裝。
+
+### BUG-WHISPER-METAL-139：Metal 139 執行權限邊界釐清
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／疑點：前一輪 default sandbox direct bundled CLI 對 FFmpeg 正規化短 WAV 收到 Metal `SIGSEGV`，但 production server bundled path 以 Metal 完成，需區分 runtime 問題與驗證環境限制。
+- 重播條件：使用同一 `whisper-cli`／Tiny、同一 1 秒 16 kHz mono silence WAV、同一產品 flags；分別在 default sandbox 與 `require_escalated` local process 執行 direct Metal，並以 `npm run acceptance:whisper:fallback -- /private/tmp/20260917-whisper-real-server-fallback-replay.json` 重播 `NODE_ENV=production` server。
+- 根因／環境因素判定：升級權限 direct replay exit `0` 並產生 SRT／JSON，production server replay 亦 exit `0`、`whisperDevice=metal`；因此先前 139 已確認為 sandbox 執行邊界差異，不能歸因為 bundled runtime 在本機正常權限下必然失敗。完整對照保存於 `docs/project-management/evidence/2026-09-17-whisper-metal-permission-boundary.json`。
+- 修正／防回歸：不修改產品 fallback 策略；後續 direct runtime／server acceptance 必須記錄執行權限邊界，sandbox crash 只能作環境限制證據，不能要求產品因未在同一權限邊界失敗而觸發 fallback。production-mode deterministic wrapper 與 child-process fixture 仍覆蓋真正 fallback 控制流。
+- 本次判定：真實 bundled server crash→CPU fallback 仍未觀察到，故不關閉該實機驗收門檻；已解除「sandbox direct 139 與正常 server Metal success」的診斷矛盾。中文品質、長音訊、取消中的 retry、CPU retry 失敗、跨平台與乾淨安裝仍待驗收，LM Studio 依需求方決策未執行。
+
+### BUG-030：Ollama 合法 JSON 未包裝 cues 陣列
+
+- 日期／版本：2026-09-15／0.51.0 開發中。
+- 現象：Ollama `llama3.2:1b` 的 provider raw response 可回傳合法 JSON，但形狀是單一 `{id,text,reason}` cue object，而不是既有 optimizer 要求的 `{"cues":[...]}`；產品流程因此回報「AI 回傳缺少 cues 陣列」。
+- 影響：本機小模型即使已產生一個可辨識的字幕建議，仍會在 strict cue validation 前直接失敗，無法完成翻譯／校對批次。
+- 重現：`OSF_ACCEPT_EXTERNAL=1 OSF_PROVIDER=ollama OSF_BASE_URL=http://127.0.0.1:11434/v1 OSF_MODEL=llama3.2:1b node scripts/probe-provider-live.mjs --output docs/project-management/evidence/2026-09-15-ollama-llama3.2-1b-provider-recheck.json` 保存 raw provider contract 失敗；以同一本機設定直接呼叫 `optimizeSubtitleCues()`，修正前同樣回報 `AI 回傳缺少 cues 陣列`。
+- 根因：`parseCompletionContent()` 對合法 object 會回傳 `parsed.cues`，而 `canRepairOllamaJson()` 只辨識 malformed JSON，沒有把「缺少 wrapper」視為可安全一次修復的本機模型格式偏差。
+- 修正：僅對 `provider=ollama` 且錯誤為無效 JSON／缺少 `cues` 陣列時送出一次明確 wrapper repair prompt；修復回應仍必須通過原有 ID、數量、順序、文字長度、語系與內容驗證，非 Ollama provider 不改變。
+- 驗證：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node --check scripts/probe-ollama-live.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs` 均 exit 0；實際 Ollama `llama3.2:1b` probe 亦通過 capability、native single-cue 與 optimizer product path，證據為 `docs/project-management/evidence/2026-09-15-ollama-llama3.2-1b-optimizer-recheck.json`。
+- 防回歸：新增 deterministic 測試確認未包裝 cue object 只觸發一次 repair，第二次 wrapper response 才可通過；live probe 記錄 `cue-object`→`cues-array` 回應形狀與固定 `LIVE-OPT-1` cue contract。
+- 剩餘風險：模型可能在 repair 後仍產生語意、標點或語系品質不足，流程會安全拒絕但不保證生成成功；目前只驗證一個 Ollama 模型，LM Studio、真正斷網、取消／人工接受、跨平台與多批次真實模型仍待另行驗收。
 
 ### DEV-027：Anthropic Messages API 與既有 optimizer contract 不同
 
@@ -15,6 +150,41 @@
 - 修正：新增 `lib/ai/anthropic.mjs`，正規化 Base URL、移除 `/v1` 重複路徑、將 system／developer prompt 分離、合併連續 user／assistant 訊息、映射 `max_completion_tokens`→`max_tokens`、剔除 OpenAI 專用欄位，並把 Anthropic text content blocks 正規化為既有 choices contract；provider registry、UI、設定 profile 與金鑰隔離同步加入 `anthropic`。
 - 防回歸：`scripts/test-ai-providers.mjs` 驗證 endpoint、headers、body 清理與 response mapping；`scripts/test-core.mjs` 驗證 provider list／profile／runtime key；`scripts/test-review-ui.mjs` 驗證選項與白名單。
 - 剩餘風險：未使用真實 Claude API Key；外部模型品質、計費、速率限制、proxy 相容性與平台封裝仍需另行驗收。
+
+### BUG-027：Anthropic 新模型拒絕非預設取樣參數
+
+- 日期／版本：2026-09-14／0.51.0 開發中。
+- 現象：共用 optimizer body 可包含 `temperature`、`top_p`、`top_k`，Anthropic adapter 會原樣轉成 `/v1/messages` body；真實 provider probe 亦固定帶入 `temperature: 0`。Anthropic 官方已說明 Claude Opus 4.7 之後對非預設取樣參數回覆 HTTP 400。
+- 影響：使用者可成功載入模型清單，但在最新 Claude 模型開始字幕優化時直接遭遇 400；既有 mock 因未模擬參數拒絕而可能假綠。
+- 根因：初版 adapter 依舊版 Messages API 支援範圍轉送通用取樣欄位，未把供應商模型相容性變更納入 request allowlist。
+- 修正：`lib/ai/anthropic.mjs` 的明確 body allowlist 移除 `temperature`／`top_p`／`top_k`；共用 `scripts/probe-provider-live.mjs` 維持既有 `temperature: 0`，由 Anthropic adapter 局部過濾。model、`max_tokens`、system、messages 與 stop sequences 維持原契約，其他 provider 不變。
+- 驗證：新增三個負向 contract assertion；修正前 focused 測試因實際 `temperature: 0` 外送而 exit 1，修正後 `node scripts/test-ai-providers.mjs` 與完整 `npm run check` 均 exit 0。
+- 防回歸：即使上游共用 optimizer body 再次帶入任一取樣欄位，Anthropic adapter 測試仍要求最終 request body 的三欄皆為 `undefined`；另斷言 `stop_sequences` 保留及共用 live probe 仍提供 `temperature: 0`，不得依易過時的模型名稱白名單決定是否轉送。
+- 剩餘風險：本輪不使用付費 API Key，無法證明特定 Claude 模型、proxy、計費或速率限制的真實端點結果。
+
+### BUG-028：Anthropic 後頁模型被誤判為不可用
+
+- 日期／版本：2026-09-14／0.51.0 開發中。
+- 現象：Anthropic Models API 回應 `has_more=true` 且設定模型位於第二頁以後時，連線測試只檢查第一頁，回傳 `modelAvailable=false` 與不完整 `modelCount`。
+- 影響：擁有超過單頁數量模型或使用分頁 proxy 的使用者可能無法通過指定模型檢查，即使該模型實際可用。
+- 重現：deterministic mock 第一頁只含 `newer-model` 並回傳 `last_id`，第二頁才含 `test-model`；修正前 provider contract 測試實際得到 `false`，未發出第二頁 GET。
+- 根因：初版 `listAnthropicModels()` 只取一次 `result.data`，未實作官方 Models API 的 `has_more`／`last_id`／`after_id` cursor pagination。
+- 修正：每頁以 `limit=1000` 請求，`has_more=true` 時將 opaque `last_id` 原始字串經 `URLSearchParams` 安全編碼為下一頁 `after_id`，依序合併資料；trim 僅用來拒絕全空白游標，不修改傳遞與去重值；缺失 pagination flag、空白／重複游標或超過 100 頁時明確失敗。
+- 驗證：修正前 focused test exit 1；修正後 Node 語法、provider contract、`git diff --check` 與完整 `npm run check` 均 exit 0，涵蓋兩頁成功、游標編碼、空清單、缺模型、異常游標與頁數上限。
+- 防回歸：連線測試與 `listModels()` 共用同一分頁函式；不得以第一頁缺少指定 ID 判定不可用，也不得在無法前進的 cursor response 上重複請求。
+- 剩餘風險：未以真實 API Key 或超過 20 筆的 Anthropic 帳號模型清單驗證；自訂 proxy、外部速率限制、網路中斷與跨平台封裝後行為仍待外部驗收。
+
+### BUG-029：provider profile 可夾帶秘密欄位寫入一般設定
+
+- 日期／版本：2026-09-15／0.51.0 開發中。
+- 現象：`/api/ai/settings` 保存流程原樣合併 payload 的 `profiles`；巢狀 profile 若包含 `apiKey`、`authorization`、`secret` 或其他未知欄位，會被寫入一般 `settings.json`，雖然頂層 API Key 已另存 secrets。
+- 影響：provider 金鑰或自訂秘密可能落入一般設定檔，違反 API Key 與秘密不得進入一般設定的安全契約；profile API 也可能回傳不應保存的欄位。
+- 重現：核心測試送出 `profiles.anthropic.apiKey`、`authorization` 與 `secret`，修正前 `scripts/test-core.mjs` 以一般設定檔包含秘密字串而失敗。
+- 根因：`normalizeAiSettings()` 的 profile 欄位直接保留原物件，`/api/ai/settings` 又以未正規化的 `payload.profiles` 合併保存；初版 allowlist 另因常數宣告晚於模組啟動時的 `loadSettings()`，使含非空 profile 的既有設定觸發 TDZ 後靜默回退預設值。
+- 修正：新增 provider profile allowlist，只保存 `baseUrl`、`model`、`deployment`、`apiVersion`、`batchSize` 與 `timeoutSeconds`；只接受支援的 provider 物件，字串與數值欄位各自正規化，保存流程改用正規化後的 profiles；並將 allowlist 常數移至 `loadSettings()` 首次執行前。
+- 驗證：核心 API 測試確認巢狀秘密不在 `settings.json`、`/api/ai/profile` 回應或合法 profile，啟動時預置的非空 profile 可保留且未知欄位不進 runtime；`node --check server.mjs`、`node --check scripts/test-core.mjs`、`node scripts/test-core.mjs`、provider contract、review UI 與 `git diff --check` 通過。
+- 防回歸：測試持續送出巢狀 API Key、Authorization、secret 及合法模型欄位；allowlist 以 provider ID 過濾未知 profile，避免未來直接合併原始 payload 再次繞過正規化。
+- 剩餘風險：本輪未改變既有 secrets 加密／OS 金鑰儲存機制；已存在於使用者設定檔的歷史秘密需由後續設定載入／遷移流程另行清理或驗收，本輪只保證新保存路徑不再寫入。
 
 ### BUG-001：portable Python／Whisper 綁定開發機路徑
 
@@ -108,6 +278,8 @@
 - 修正狀態：0.48.x 穩定化已在 `runWhisperCpp` 加入 Metal 非零退出後的 `--no-gpu` CPU retry；CPU 仍失敗時維持 failed，不把 crash 當成功。
 - 防回歸／後續：完整回歸與 CPU 對照證據通過；需在 macOS 實機長音訊與乾淨安裝環境持續驗證 retry 耗時、取消與 quality metadata 清理。
 - 剩餘風險：未在乾淨 macOS 使用者環境、Windows 或長音訊驗證；目前產品路徑仍可能在 Metal crash 時失敗。
+- 2026-09-17 重驗：目前 bundled `whisper-cli`／Tiny／生成 1 秒靜音 WAV 的預設 Metal 路徑實際 exit 139，stderr 出現 `ggml_metal_buffer_init` allocation failure 且沒有 SRT／JSON；同一輸入加 `--no-gpu` exit 0 並產生 SRT／JSON。CPU JSON 的 transcription segment 只有 offsets／timestamps／tokens，仍沒有 segment-level confidence／no-speech，證據保存於 `docs/project-management/evidence/2026-09-17-whisper-bundled-runtime-recheck.json`。
+- 本次判定：已重新確認目前主機 bundled runtime 的 crash／CPU workaround 與 quality metadata 缺失，並未宣稱產品 server 已以真實 CLI 完成自動 fallback；產品 fallback 由前一輪 deterministic child-process fixture 覆蓋，真實長音訊、取消中的 retry 與跨平台實機仍待驗收。
 # BUG-012 — OpenAI-compatible 顯示 Gemini 舊設定
 
 - 發現版本：0.45.2（2026-07-22）

@@ -1,0 +1,28 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v1",
+  "startedAt": "2026-09-16T03:56:25.112Z",
+  "completedAt": "2026-09-16T03:56:42.904Z",
+  "elapsedMs": 17790,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "error": {
+    "message": "Ollama UI AI 任務未完成：AI 回傳缺少 cues 陣列",
+    "code": "",
+    "childLogTail": "\nDevTools listening on ws://127.0.0.1:9990/devtools/browser/ce6d361f-481e-438f-9f28-1a7b3f6bbc0e\n[main] Starting server...\n[main] appDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app\n[main] serverPath: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app/server.mjs\n[main] toolsDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/tools\n[main] nodeCommand: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠\n[main] Expected port: 8791\nOffline Subtitle Factory running at http://127.0.0.1:8791\n[api] GET /api/health\n[main] Server ready on port 8791\n[api] GET /api/bootstrap\n[api] GET /api/settings\n[api] GET /api/whisper-models\n[api] GET /api/jobs\n[api] GET /api/health\n[api] GET /api/health\n[api] POST /api/jobs\n[api] Job created: 20260916035629-e76586\n[api] POST /api/jobs/20260916035629-e76586/start\n[api] GET /api/jobs/20260916035629-e76586/status\n[api] GET /api/jobs/20260916035629-e76586/review-data\n[api] GET /api/jobs/20260916035629-e76586/review-data\n[api] GET /api/ai/settings\n[api] GET /api/jobs/20260916035629-e76586/ai-project-settings\n[api] GET /api/jobs/20260916035629-e76586/waveform\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/ai/profile\n[api] POST /api/jobs/20260916035629-e76586/ai-project-settings\n[api] POST /api/ai/settings\n[api] POST /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n[api] GET /api/jobs/20260916035629-e76586/ai-optimize\n"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "schema": "offline-subtitle-factory.electron-renderer-acceptance.v1",
+  "observedAt": "2026-09-16T10:53:39+08:00",
+  "candidatePath": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v22.22.3",
+    "permission": "controlled"
+  },
+  "command": "node scripts/verify-electron-renderer.mjs '../dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠' 9987 60000",
+  "status": "pass",
+  "scope": {
+    "isolatedUserData": true,
+    "externalApiKey": false,
+    "ollamaLiveUiFlow": false,
+    "systemNetworkDisabled": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "release": false
+  },
+  "app": {
+    "title": "本機離線字幕工廠｜字幕生成任務",
+    "homeDashboard": true,
+    "homeDashboardVisible": true,
+    "homeNavigation": true,
+    "newProjectButton": true,
+    "createAndTrimButton": true,
+    "electronBridge": true,
+    "selectFolderApi": true,
+    "openArbitraryFolderApi": true,
+    "safeAiKeyApi": true,
+    "pageSettingsButton": false,
+    "workflowSettingsStep": false
+  },
+  "settingsFlow": {
+    "openedFromRendererEvent": true
+  },
+  "breezeSelectionFlow": {
+    "selectPresent": true,
+    "opened": true,
+    "closed": true,
+    "status": "Breeze ASR 25 尚未安裝（約 2.88 GB）；可開始官方下載。"
+  },
+  "uploadFlow": {
+    "healthOk": true,
+    "settingsOk": true,
+    "createStatus": 201,
+    "startStatus": 202,
+    "jobId": "20260916025249-be9618",
+    "finalStatus": "completed",
+    "hasCleanedSrt": true
+  },
+  "trimAssets": {
+    "pageOk": true,
+    "scriptOk": true,
+    "hasWorkspace": true,
+    "hasStartJob": true
+  },
+  "aiReviewAssets": {
+    "pageOk": true,
+    "saveStatus": 200,
+    "hasSelectionUi": true,
+    "hasSessionUi": true,
+    "hasSecureKeyUi": true,
+    "hasCollapsibleAiUi": true,
+    "glossaryRoundTrip": true,
+    "providerIds": ["openai", "openai-compatible", "azure", "groq", "gemini", "anthropic", "ollama", "lm-studio"]
+  },
+  "folderIconFlow": {
+    "hasButton": true,
+    "requestedPath": "C:\\Temp\\offline-subtitle-folder-open-test",
+    "openResult": "skipped"
+  },
+  "limitations": [
+    "本輪驗證共用 packaged renderer 與校閱 UI 資產，不執行 Ollama live AI 優化操作。",
+    "本輪未關閉系統網路，不能作為真正斷網證據。",
+    "LM Studio 依需求方已刪除例外未執行。",
+    "未進行正式發布或跨平台 Windows 實機驗收。"
+  ]
+}

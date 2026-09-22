@@ -50,6 +50,14 @@ Electron 主行程
 
 三個模型共用既有 whisper.cpp CLI、SRT／JSON 輸出、quality metadata 容錯解析、取消與 Metal→CPU fallback。正式安裝包只內建 tiny；Base／Small 缺失時，UI 在首次選擇或提交任務前提供官方固定來源下載確認，也保留手動匯入／下載說明。下載來源使用 pinned revision、固定檔名、預期大小與 SHA-256，寫入 Electron `userData` 下的可寫入模型快取，不覆寫安裝包內建檔案；下載先寫暫存檔，校驗成功後原子置換，取消或失敗清理暫存檔。模型狀態由 server API 回報 `missing`／`downloading`／`cancelled`／`installed`／`failed`；缺失或驗證失敗不得建立或啟動 ASR 任務。測試使用 deterministic mock runner 模擬三模型輸出，並以本機 HTTP fixture 驗證下載成功／取消／失敗／校驗與狀態契約，不把 mock 結果宣稱為實際模型品質或跨平台實機驗收。
 
+macOS arm64 的第一次 Whisper.cpp 執行預設使用 Metal；child process 若回報明確的非零整數 exit code，或由 `SIGSEGV` 等非空 termination signal 結束，server 會記錄 `Metal exit <code>` 或 `Metal signal <name>`、刪除該次 partial SRT／JSON，並只以 `--no-gpu` 進行一次 CPU retry。exit 0、缺少有效 exit／signal 資訊、已在 CPU retry、其他平台或架構不進入此 fallback；CPU retry 再失敗時不會遞迴第三次，會先刪除固定 `whisper-cpp-output.srt`／`.json` 與該次 quality metadata，再讓任務維持 failed 並保存 CPU exit／signal reason。acceptance probe 同時辨識非零 exit 與 termination signal marker，不把正常 Metal 完成或只有單一 marker 的執行誤判為 fallback。
+
+CPU retry child 已啟動時收到取消，沿用 Whisper.cpp 的取消生命週期：先進入 `running/cancelling`，等待 child 關閉後清除暫存音訊、固定 partial SRT／JSON 與 quality metadata，最後進入 `cancelled`；非 ASR 工作檔保留，不啟動第三個 child。Metal 失敗 callback 內清理與 CPU 啟動是同一事件迴圈中的同步路徑，外部 API 無法插入該 callback 內的毫秒窗口；目前 deterministic 整合證據只覆蓋 CPU child 已就緒後的取消。
+
+production-mode hybrid acceptance 使用只對首次 Metal 嘗試注入 exit 139／partial outputs 的隔離工具 wrapper，CPU retry 則以產品原有 `--no-gpu` flags 委派真實 bundled `whisper-cli`／Tiny；透過兩次 invocation、CPU child exit、輸出與清理確認非測試模式 server 控制流和實際 CPU runtime 可銜接。驗收 evidence 同時記錄可重播命令及 macOS arm64／本機子程序與 loopback 權限前提（`docs/project-management/evidence/2026-09-18-whisper-hybrid-fallback-replay.json`）。此工具只用於本機驗收，不放入產品 runtime，也不代表 bundled Metal 自身曾在同次 run 崩潰；真實 Metal failure→CPU 門檻維持未完成。
+
+hybrid bundled CPU 取消探針沿用上述 production server 與隔離 wrapper，但輸入改為本機合成 60 秒 WAV；wrapper 在真實 bundled CPU child 的 spawn 事件寫 ready marker，探針確認任務仍 running／CPU 後才注入固定 partial SRT／JSON、quality metadata 與非 ASR edit plan 哨兵並呼叫取消 API。wrapper 轉送 SIGTERM，記錄真實 child 的 close signal，短暫延後自身 exit 以觀察 `running/cancelling`；server 在 wrapper close 後才轉 `cancelled` 並清理 ASR 哨兵，保留 edit plan。探針 server 另以獨立 process group 啟動：取消 API／等待失敗時先嘗試 API 取消，再以 SIGTERM、有界等待、必要時 SIGKILL 回收整組程序；確認 group 消失後才刪隔離暫存，若無法確認則保留暫存並將 cleanup failure 寫入 evidence。`--simulate-cancel-api-loss` 會在 CPU spawn 後故意跳過 API，驗證失敗收尾，預期 probe 本身 exit 1、但 `expectedFaultSafelyHandled=true`。此驗收只證明 wrapper 轉送訊號路徑中的 bundled CPU 取消；probe 注入的 partial 檔不是 CLI 自行產生，也不證明 server 直接向 bundled CLI 發訊號或 bundled Metal 自身 crash。正常與故障注入證據分別為 `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-final.json`、`docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-api-loss-final.json`；round2 獨立複審通過。
+
 Small 過長 cue 正規化（BUG-024）：Small 的 Whisper SRT 在寫入 `draft.srt` 前使用同一個 sanitizer 將超過 20 字元的行換成最多兩行；完整 cue 超過 40 字元時，優先依標點／空白拆成多個連續 cue，再依各片段字數比例分配原始時間區間。文字不截斷、不摘要，跨行／跨 cue 的英文分隔空白保留為格式分隔；每個新 cue 必須維持嚴格遞增時間碼。若原始時間不足以安全分配，保留單一 cue、最多兩行並留下可追蹤計數，不製造零長度字幕；此極端情況允許第二行超過 20 字元，以避免拆斷英文單字。Tiny／Base 與既有呼叫預設不啟用此政策。拆分來源 cue 不附原始 JSON segment 的不精確對應，但未拆分 cue 仍保留可取得的 engine metadata；拆分 cue 由校閱頁既有 rule-score 重新判讀。
 
 ### Whisper 高階模型下載資料流（FR-023）
@@ -78,7 +86,7 @@ runtime 探測與首頁健康狀態（BUG-022）
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。
 
-供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`anthropic`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑。Anthropic 使用 `/v1/models` 與 `/v1/messages`，以 `x-api-key` 及固定 `anthropic-version` 標頭認證；連線測試只讀 `/v1/models`，避免為驗證產生模型輸出，並依清單回報指定模型是否存在，空清單或缺少指定 ID 均回報不可用。正式 optimizer 的 system message 移到 Anthropic `system` 欄位，連續 user／assistant 訊息合併，`max_completion_tokens` 映射為必要的 `max_tokens`，移除 OpenAI 專用 `response_format` 與內部 cue metadata，回應再正規化為 `choices[].message.content`。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
+供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`anthropic`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離；profile 只保存 `baseUrl`、`model`、`deployment`、`apiVersion`、`batchSize` 與 `timeoutSeconds` allowlist 欄位，巢狀 API Key、Authorization、token、secret 或未知欄位不得寫入一般設定。既有 `settings.json` 載入時，AI 根層的 legacy secret-shaped 欄位與 profile 非 allowlist／未知 provider 會以同目錄暫存檔原子置換清除；合法 profile、非敏感未知 AI 根層欄位與獨立 secrets 保留，歷史明文不會自動匯入 secrets。若一般設定檔無法寫入，runtime 仍只使用正規化後資料並輸出不含秘密值的權限警告。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑。Anthropic 使用 `/v1/models` 與 `/v1/messages`，以 `x-api-key` 及固定 `anthropic-version` 標頭認證；連線測試只讀 `/v1/models`，避免為驗證產生模型輸出，並依清單回報指定模型是否存在，空清單或缺少指定 ID 均回報不可用。Models API 每頁要求官方最大合法 `limit=1000`；`has_more=true` 時以 opaque `last_id` 作下一頁 `after_id` 並保留順序，缺失／重複游標或超過 100 頁時明確失敗，避免回傳不完整清單或無限請求。正式 optimizer 的 system message 移到 Anthropic `system` 欄位，連續 user／assistant 訊息合併，`max_completion_tokens` 映射為必要的 `max_tokens`，移除 OpenAI 專用 `response_format`、內部 cue metadata，以及共用 optimizer 可能附帶的 `temperature`／`top_p`／`top_k`；後三者依 Anthropic 最新相容性要求由 prompt 與 cue contract 取代，不依模型 ID 分支，避免新模型收到非預設值時回覆 HTTP 400。回應再正規化為 `choices[].message.content`。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
 
 Azure OpenAI 使用 deployment URL、`api-version` query 與 `api-key` header；送出 chat completion 前移除 optimizer 內部的 `operation`、`output_language`、cue count／ID 與 model 欄位，避免將內部控制資料當成 Azure 請求 schema。模型能力探測使用 `max_completion_tokens`，不使用舊的 `max_tokens` 參數。
 
@@ -88,7 +96,9 @@ Provider registry 新增 `ollama` 與 `lm-studio`，兩者均使用 OpenAI-compa
 
 本機服務探測只請求固定候選端點，採短逾時並只回傳可連線服務及模型 ID，不掃描任意連接埠。Ollama 預設 `http://127.0.0.1:11434/v1`，LM Studio 預設 `http://127.0.0.1:1234/v1`。使用者仍可保存其他 loopback port；非 loopback URL 一律視為雲端／遠端服務。
 
-loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼叫；HTTP client 會完全省略 Authorization header。非 loopback 端點維持既有 API Key 與資料傳送同意門檻。本機 provider 預設較小批次，仍沿用 optimizer 的嚴格 cue ID、數量、順序與時間碼保護，所有結果只形成待人工接受的建議。不自動下載、啟動、停止或刪除模型。
+loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼叫；HTTP client 會完全省略 Authorization header。非 loopback 端點維持既有 API Key 與資料傳送同意門檻。本機 provider 預設較小批次，仍沿用 optimizer 的嚴格 cue ID、數量、順序與時間碼保護，所有結果只形成待人工接受的建議。Ollama 若回傳合法但缺少 `cues` wrapper 的單一 cue object，僅可觸發一次結構修復，修復後仍須通過完整 strict validation；其他 provider 不放寬此契約。不自動下載、啟動、停止或刪除模型。
+
+2026-09-15 驗收範圍例外：需求方已刪除本機 LM Studio，因此本輪不做 LM Studio 實機、UI、取消／續跑或斷網驗收；`lm-studio` provider 的產品支援與 deterministic tests 保留，日後若恢復服務仍須依 FR-021 重新取得實機證據。
 
 ### 多語言 LLM 流程
 

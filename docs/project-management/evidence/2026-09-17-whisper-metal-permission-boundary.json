@@ -1,0 +1,79 @@
+{
+  "schema": "offline-subtitle-factory.whisper-metal-permission-boundary.v1",
+  "generatedAt": "2026-09-17T07:18:17.300Z",
+  "workItem": "BUG-WHISPER-METAL-139",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "networkCalls": false,
+    "input": "FFmpeg-normalized generated 1-second 16 kHz mono silence WAV"
+  },
+  "assets": {
+    "whisperCli": "tools/whisper-cpp/whisper-cli",
+    "whisperCliSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+    "model": "tools/whisper-models/ggml-tiny.bin",
+    "modelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+    "sharedFlags": ["-m", "-f", "-l", "zh", "-osrt", "-oj", "-ojf", "-of", "-t", "2"]
+  },
+  "comparison": {
+    "sandboxDirectMetal": {
+      "command": "bundled whisper-cli with sharedFlags; no --no-gpu",
+      "executionBoundary": "default sandbox",
+      "exitCode": null,
+      "signal": "SIGSEGV",
+      "srtProduced": false,
+      "jsonProduced": false,
+      "stderrSummary": "ggml_metal_buffer_init: error: failed to allocate buffer, size = 2.20 MiB"
+    },
+    "escalatedDirectMetal": {
+      "command": "bundled whisper-cli with sharedFlags; no --no-gpu",
+      "executionBoundary": "require_escalated local process",
+      "exitCode": 0,
+      "signal": null,
+      "srtProduced": true,
+      "jsonProduced": true,
+      "stderrSummary": "whisper_print_timings completed; ggml_metal_free: deallocating"
+    }
+  },
+  "productionServerReplay": {
+    "command": "npm run acceptance:whisper:fallback -- /private/tmp/20260917-whisper-real-server-fallback-replay.json",
+    "executionBoundary": "require_escalated local production-mode server",
+    "probeExitCode": 0,
+    "serverMode": "production",
+    "testRunnersDisabled": true,
+    "jobStatus": "completed",
+    "jobStage": "ready-review",
+    "asrEngine": "whisper.cpp",
+    "whisperDevice": "metal",
+    "fallbackObserved": false,
+    "outputs": {
+      "draftSrt": true,
+      "whisperCppSrt": true,
+      "whisperCppJson": true,
+      "temporaryWavCleaned": true,
+      "stalePartialArtifacts": []
+    }
+  },
+  "conclusion": {
+    "sandbox139IsProductRuntimeFailure": false,
+    "bundledMetalWorksOutsideSandbox": true,
+    "realBundledServerCrashToCpuFallbackObserved": false,
+    "interpretation": "The earlier direct Metal SIGSEGV is an execution-boundary artifact of the sandboxed replay. With the same bundled runtime, normalized input, and product flags outside the sandbox, Metal completed successfully; the production server replay also completed on Metal. This evidence does not close the real bundled crash-to-CPU fallback acceptance gate."
+  },
+  "scope": {
+    "userMediaRead": false,
+    "userSubtitleModified": false,
+    "lmStudioExecuted": false,
+    "notValidated": [
+      "Chinese speech recognition quality",
+      "long audio",
+      "cancellation during retry",
+      "CPU retry failure",
+      "other macOS architectures",
+      "Windows",
+      "clean installation"
+    ]
+  },
+  "temporaryArtifactsRemoved": true
+}

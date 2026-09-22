@@ -11,8 +11,45 @@ const appDir = process.env.OFFLINE_SUBTITLE_TEST_APP_DIR
   ? path.resolve(process.env.OFFLINE_SUBTITLE_TEST_APP_DIR)
   : sourceAppDir;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-test-'));
+const legacyAiRootSecret = 'legacy-ai-root-secret-must-be-removed';
+const legacyAiProfileSecret = 'legacy-ai-profile-secret-must-be-removed';
+const existingSeparatedAiSecret = 'existing-separated-ai-secret-must-remain';
 fs.mkdirSync(path.join(dataDir, 'config'), { recursive: true });
-fs.writeFileSync(path.join(dataDir, 'config', 'settings.json'), JSON.stringify({ appLanguage: 'zh-CN', ai: { language: 'invalid legacy value' } }));
+fs.writeFileSync(path.join(dataDir, 'config', 'settings.json'), JSON.stringify({
+  appLanguage: 'zh-CN',
+  ai: {
+    language: 'invalid legacy value',
+    apiKey: legacyAiRootSecret,
+    authorization: `Bearer ${legacyAiRootSecret}`,
+    access_token: legacyAiRootSecret,
+    clientSecret: legacyAiRootSecret,
+    credential: legacyAiRootSecret,
+    password: legacyAiRootSecret,
+    private_key: legacyAiRootSecret,
+    token: legacyAiRootSecret,
+    secret: legacyAiRootSecret,
+    futureNonSensitiveSetting: 'preserve-me',
+    profiles: {
+      anthropic: {
+        baseUrl: 'https://api.anthropic.com',
+        model: 'startup-claude-model',
+        deployment: 'ignored-deployment',
+        apiVersion: '2023-06-01',
+        batchSize: 4,
+        timeoutSeconds: 45,
+        unknownStartupField: 'ignored-startup-field',
+        apiKey: legacyAiProfileSecret,
+        authorization: `Bearer ${legacyAiProfileSecret}`,
+        token: legacyAiProfileSecret,
+        secret: legacyAiProfileSecret,
+      },
+      'unknown-provider': { model: 'unknown-model', apiKey: legacyAiProfileSecret },
+    },
+  },
+}));
+fs.writeFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), JSON.stringify({
+  providers: { 'openai-compatible': existingSeparatedAiSecret },
+}));
 fs.mkdirSync(path.join(dataDir, 'config', 'breeze-asr'), { recursive: true });
 fs.writeFileSync(path.join(dataDir, 'config', 'breeze-asr', 'breeze-asr-25.pt'), 'deterministic Breeze mock checkpoint');
 const port = 19000 + Math.floor(Math.random() * 1000);
@@ -146,13 +183,15 @@ async function waitForServer() {
 
 async function waitForJob(jobId, expectedStatuses, timeoutMs = 10000) {
   const deadline = Date.now() + timeoutMs;
+  let lastStatus = null;
   while (Date.now() < deadline) {
     const response = await api(`/api/jobs/${encodeURIComponent(jobId)}/status`);
     const status = await response.json();
+    lastStatus = status;
     if (expectedStatuses.includes(status.status)) return status;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}`);
+  throw new Error(`任務 ${jobId} 未進入預期狀態：${expectedStatuses.join(', ')}；最後狀態=${JSON.stringify(lastStatus)}；server=${output.slice(-2000)}`);
 }
 
 async function waitForJobStage(jobId, expectedStage, timeoutMs = 10000) {
@@ -231,6 +270,27 @@ function createTestWav() {
 
 try {
   await waitForServer();
+
+  const startupSettingsPath = path.join(dataDir, 'config', 'settings.json');
+  const migratedStartupSettingsText = fs.readFileSync(startupSettingsPath, 'utf8');
+  const migratedStartupSettings = JSON.parse(migratedStartupSettingsText);
+  assert.equal(migratedStartupSettingsText.includes(legacyAiRootSecret), false, '啟動遷移必須從一般設定檔移除 AI 根層歷史秘密');
+  assert.equal(migratedStartupSettingsText.includes(legacyAiProfileSecret), false, '啟動遷移必須從一般設定檔移除 provider profile 歷史秘密');
+  assert.equal(migratedStartupSettings.ai.futureNonSensitiveSetting, 'preserve-me', '啟動遷移不得刪除非敏感的未知 AI 根層欄位');
+  assert.deepEqual(Object.keys(migratedStartupSettings.ai.profiles), ['anthropic'], '啟動遷移必須移除不支援 provider 的歷史 profile');
+  assert.equal(migratedStartupSettings.ai.profiles.anthropic.model, 'startup-claude-model', '啟動遷移必須保留合法 profile 模型');
+  const startupAiSecretsText = fs.readFileSync(path.join(dataDir, 'config', 'ai-secrets.json'), 'utf8');
+  assert.equal(startupAiSecretsText.includes(existingSeparatedAiSecret), true, '啟動遷移不得改寫既有獨立 secrets');
+  assert.equal(startupAiSecretsText.includes(legacyAiRootSecret), false, '啟動遷移不得把 AI 根層歷史明文搬入 secrets');
+  assert.equal(startupAiSecretsText.includes(legacyAiProfileSecret), false, '啟動遷移不得把 profile 歷史明文搬入 secrets');
+  assert.equal(fs.readdirSync(path.join(dataDir, 'config')).some((name) => /^settings\.json\..+\.tmp$/.test(name)), false, '啟動遷移完成後不得殘留暫存設定檔');
+
+  const startupProfile = await (await api('/api/ai/profile?provider=anthropic')).json();
+  assert.equal(startupProfile.profile.baseUrl, 'https://api.anthropic.com', '啟動載入時應保留既有 profile Base URL');
+  assert.equal(startupProfile.profile.model, 'startup-claude-model', '啟動載入時應保留既有 profile 模型');
+  assert.equal(startupProfile.profile.batchSize, 4, '啟動載入時應保留既有 profile 批次');
+  assert.equal(startupProfile.profile.timeoutSeconds, 45, '啟動載入時應保留既有 profile 逾時');
+  assert.equal(startupProfile.profile.unknownStartupField, undefined, '啟動載入時未知 profile 欄位不得進入 runtime');
 
   const unauthorized = await fetch(`${baseUrl}/api/jobs`);
   assert.equal(unauthorized.status, 401, '缺少 API token 應被拒絕');
@@ -318,6 +378,31 @@ try {
   assert.equal(loadedAiSettings.settings.apiKey, undefined, '讀取 AI 設定不可回傳 API Key 欄位');
   assert.ok(loadedAiSettings.settings.providers.some((item) => item.id === 'anthropic'), 'AI 設定 API 應列出 Anthropic provider');
   assert.equal(fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8').includes('test-secret-must-not-leak'), false, '一般設定檔不可包含 API Key');
+
+  const nestedProfileSecret = 'nested-profile-secret-must-not-leak';
+  const nestedProfileResponse = await api('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...loadedAiSettings.settings,
+      profiles: {
+        anthropic: {
+          baseUrl: 'https://api.anthropic.com',
+          model: 'claude-test',
+          apiKey: nestedProfileSecret,
+          authorization: `Bearer ${nestedProfileSecret}`,
+          secret: nestedProfileSecret,
+        },
+      },
+    }),
+  });
+  assert.equal(nestedProfileResponse.status, 200, '含未知 profile 欄位的設定仍應可安全保存');
+  const persistedNestedProfileSettings = fs.readFileSync(path.join(dataDir, 'config', 'settings.json'), 'utf8');
+  assert.equal(persistedNestedProfileSettings.includes(nestedProfileSecret), false, '巢狀 provider profile 不得把秘密寫入一般設定檔');
+  const nestedProfile = await (await api('/api/ai/profile?provider=anthropic')).json();
+  assert.equal(nestedProfile.profile.apiKey, undefined, 'provider profile API 不得回傳巢狀 API Key');
+  assert.equal(nestedProfile.profile.authorization, undefined, 'provider profile API 不得回傳 Authorization');
+  assert.equal(nestedProfile.profile.model, 'claude-test', 'provider profile 應保留合法模型欄位');
 
   const localAiSettingsResponse = await api('/api/ai/settings', {
     method: 'POST',
@@ -557,6 +642,116 @@ try {
   assert.equal(whisperCppCompleted.status, 'completed', `Whisper.cpp mock 轉錄失敗：${whisperCppCompleted.message}`);
   assert.equal(whisperCppCompleted.metrics?.asrEngine, 'whisper.cpp');
   assert.match(fs.readFileSync(path.join(dataDir, whisperCppRunJob.jobId, 'working', 'draft.srt'), 'utf8'), /Whisper\.cpp mock 字幕/);
+
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    const whisperCppFallbackForm = new FormData();
+    whisperCppFallbackForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-metal-fallback.wav');
+    whisperCppFallbackForm.set('asrEngine', 'whisper-cpp');
+    whisperCppFallbackForm.set('modelName', 'tiny');
+    whisperCppFallbackForm.set('language', 'zh-TW');
+    const whisperCppFallbackResponse = await api('/api/jobs', { method: 'POST', body: whisperCppFallbackForm });
+    assert.equal(whisperCppFallbackResponse.status, 201, 'Whisper.cpp Metal fallback mock 任務應可建立');
+    const whisperCppFallbackJob = await whisperCppFallbackResponse.json();
+    const whisperCppFallbackWorking = path.join(dataDir, whisperCppFallbackJob.jobId, 'working');
+    fs.writeFileSync(path.join(whisperCppFallbackWorking, 'whisper-cpp-mock-metal-139'), 'yes');
+    assert.equal((await api(`/api/jobs/${whisperCppFallbackJob.jobId}/start`, { method: 'POST' })).status, 202, 'Whisper.cpp Metal fallback mock 任務應可啟動');
+    const whisperCppFallbackCompleted = await waitForJob(whisperCppFallbackJob.jobId, ['completed', 'failed', 'needs-action'], 15000);
+    assert.equal(whisperCppFallbackCompleted.status, 'completed', `Whisper.cpp Metal exit 139 fallback 失敗：${whisperCppFallbackCompleted.message}`);
+    assert.equal(whisperCppFallbackCompleted.stage, 'ready-review');
+    assert.equal(whisperCppFallbackCompleted.metrics?.asrEngine, 'whisper.cpp');
+    assert.equal(whisperCppFallbackCompleted.metrics?.whisperDevice, 'cpu', 'Metal exit 139 後應以 CPU 完成 retry');
+    assert.equal(fs.existsSync(path.join(whisperCppFallbackWorking, 'whisper-cpp-metal-139')), true, 'fixture 應記錄首次 Metal exit 139');
+    assert.equal(fs.existsSync(path.join(whisperCppFallbackWorking, 'whisper-cpp-stale-partial-output')), false, 'CPU retry 前不得看到 Metal partial SRT／JSON');
+    assert.match((whisperCppFallbackCompleted.logs || []).join('\n'), /Metal exit 139.*CPU fallback/s, 'exit 139 fallback 應保留可觀測 log marker');
+    assert.match(fs.readFileSync(path.join(whisperCppFallbackWorking, 'draft.srt'), 'utf8'), /Whisper\.cpp mock 字幕/);
+
+    const whisperCppSignalFallbackForm = new FormData();
+    whisperCppSignalFallbackForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-metal-signal-fallback.wav');
+    whisperCppSignalFallbackForm.set('asrEngine', 'whisper-cpp');
+    whisperCppSignalFallbackForm.set('modelName', 'tiny');
+    whisperCppSignalFallbackForm.set('language', 'zh-TW');
+    const whisperCppSignalFallbackResponse = await api('/api/jobs', { method: 'POST', body: whisperCppSignalFallbackForm });
+    assert.equal(whisperCppSignalFallbackResponse.status, 201, 'Whisper.cpp Metal signal fallback mock 任務應可建立');
+    const whisperCppSignalFallbackJob = await whisperCppSignalFallbackResponse.json();
+    const whisperCppSignalFallbackWorking = path.join(dataDir, whisperCppSignalFallbackJob.jobId, 'working');
+    fs.writeFileSync(path.join(whisperCppSignalFallbackWorking, 'whisper-cpp-mock-metal-sigsegv'), 'yes');
+    assert.equal((await api(`/api/jobs/${whisperCppSignalFallbackJob.jobId}/start`, { method: 'POST' })).status, 202, 'Whisper.cpp Metal signal fallback mock 任務應可啟動');
+    const whisperCppSignalFallbackCompleted = await waitForJob(whisperCppSignalFallbackJob.jobId, ['completed', 'failed', 'needs-action'], 15000);
+    assert.equal(whisperCppSignalFallbackCompleted.status, 'completed', `Whisper.cpp Metal SIGSEGV fallback 失敗：${whisperCppSignalFallbackCompleted.message}`);
+    assert.equal(whisperCppSignalFallbackCompleted.stage, 'ready-review');
+    assert.equal(whisperCppSignalFallbackCompleted.metrics?.asrEngine, 'whisper.cpp');
+    assert.equal(whisperCppSignalFallbackCompleted.metrics?.whisperDevice, 'cpu', 'Metal SIGSEGV signal 後應以 CPU 完成 retry');
+    assert.equal(fs.existsSync(path.join(whisperCppSignalFallbackWorking, 'whisper-cpp-metal-sigsegv')), true, 'fixture 應記錄首次 Metal SIGSEGV signal');
+    assert.equal(fs.existsSync(path.join(whisperCppSignalFallbackWorking, 'whisper-cpp-stale-partial-output')), false, 'signal fallback 的 CPU retry 前不得看到 Metal partial SRT／JSON');
+    assert.match((whisperCppSignalFallbackCompleted.logs || []).join('\n'), /Metal signal SIGSEGV.*CPU fallback/s, 'SIGSEGV signal fallback 應保留可觀測 log marker');
+    assert.match(fs.readFileSync(path.join(whisperCppSignalFallbackWorking, 'draft.srt'), 'utf8'), /Whisper\.cpp mock 字幕/);
+
+    const whisperCppCpuFailureForm = new FormData();
+    whisperCppCpuFailureForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-cpu-retry-failure.wav');
+    whisperCppCpuFailureForm.set('asrEngine', 'whisper-cpp');
+    whisperCppCpuFailureForm.set('modelName', 'tiny');
+    whisperCppCpuFailureForm.set('language', 'zh-TW');
+    const whisperCppCpuFailureResponse = await api('/api/jobs', { method: 'POST', body: whisperCppCpuFailureForm });
+    assert.equal(whisperCppCpuFailureResponse.status, 201, 'Whisper.cpp CPU retry failure mock 任務應可建立');
+    const whisperCppCpuFailureJob = await whisperCppCpuFailureResponse.json();
+    const whisperCppCpuFailureWorking = path.join(dataDir, whisperCppCpuFailureJob.jobId, 'working');
+    fs.writeFileSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-mock-cpu-retry-failure'), 'yes');
+    assert.equal((await api(`/api/jobs/${whisperCppCpuFailureJob.jobId}/start`, { method: 'POST' })).status, 202, 'Whisper.cpp CPU retry failure mock 任務應可啟動');
+    const whisperCppCpuFailureCompleted = await waitForJob(whisperCppCpuFailureJob.jobId, ['failed'], 15000);
+    assert.equal(whisperCppCpuFailureCompleted.stage, 'failed');
+    assert.equal(whisperCppCpuFailureCompleted.metrics?.asrEngine, 'whisper.cpp');
+    assert.equal(whisperCppCpuFailureCompleted.metrics?.whisperDevice, 'cpu', 'CPU retry 失敗時應保留最後執行裝置');
+    assert.match(whisperCppCpuFailureCompleted.message || '', /Whisper\.cpp exit 7.*CPU retry failure/s, '失敗狀態應保留 CPU exit reason');
+    assert.match((whisperCppCpuFailureCompleted.logs || []).join('\n'), /Metal exit 139.*CPU fallback/s, 'CPU retry 失敗前應保留 Metal fallback marker');
+    assert.deepEqual(
+      fs.readFileSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-invocations.log'), 'utf8').trim().split('\n'),
+      ['metal', 'cpu'],
+      'Metal 失敗後只允許一次 CPU retry，不得第三次遞迴',
+    );
+    assert.equal(fs.existsSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-cpu-retry-failed')), true, 'fixture 應記錄 CPU retry failure');
+    assert.equal(fs.existsSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-stale-partial-output')), false, 'CPU retry 前不得看到 Metal partial SRT／JSON');
+    assert.equal(fs.existsSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-output.srt')), false, 'CPU retry 失敗後不得殘留 partial SRT');
+    assert.equal(fs.existsSync(path.join(whisperCppCpuFailureWorking, 'whisper-cpp-output.json')), false, 'CPU retry 失敗後不得殘留 partial JSON');
+    assert.equal(fs.existsSync(path.join(whisperCppCpuFailureWorking, 'draft.srt')), false, 'CPU retry 失敗不得產生 draft SRT');
+
+    const whisperCppRetryCancelForm = new FormData();
+    whisperCppRetryCancelForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-cpp-retry-cancel.wav');
+    whisperCppRetryCancelForm.set('asrEngine', 'whisper-cpp');
+    whisperCppRetryCancelForm.set('modelName', 'tiny');
+    whisperCppRetryCancelForm.set('language', 'zh-TW');
+    const whisperCppRetryCancelResponse = await api('/api/jobs', { method: 'POST', body: whisperCppRetryCancelForm });
+    assert.equal(whisperCppRetryCancelResponse.status, 201, 'Whisper.cpp CPU retry 取消任務應可建立');
+    const whisperCppRetryCancelJob = await whisperCppRetryCancelResponse.json();
+    const whisperCppRetryCancelWorking = path.join(dataDir, whisperCppRetryCancelJob.jobId, 'working');
+    fs.writeFileSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-mock-metal-139'), 'yes');
+    fs.writeFileSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-mock-delay'), 'yes');
+    assert.equal((await api(`/api/jobs/${whisperCppRetryCancelJob.jobId}/start`, { method: 'POST' })).status, 202, 'Whisper.cpp CPU retry 取消任務應可啟動');
+    await waitForFile(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-cpu-retry-ready'), 15000);
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-output.srt')), true, 'CPU retry ready 時應已有 partial SRT');
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-output.json')), true, 'CPU retry ready 時應已有 partial JSON');
+    fs.writeFileSync(path.join(whisperCppRetryCancelWorking, 'quality-metadata.json'), '{}');
+    fs.writeFileSync(path.join(whisperCppRetryCancelWorking, 'edit-plan.json'), '{}');
+    assert.equal((await api(`/api/jobs/${whisperCppRetryCancelJob.jobId}/cancel`, { method: 'POST' })).status, 202, 'CPU retry 期間取消 API 應接受請求');
+    const whisperCppRetryCancelling = await (await api(`/api/jobs/${whisperCppRetryCancelJob.jobId}/status`)).json();
+    assert.equal(whisperCppRetryCancelling.status, 'running', 'CPU child close 前不得提前標記 cancelled');
+    assert.equal(whisperCppRetryCancelling.stage, 'cancelling', 'CPU child close 前應維持 cancelling');
+    const whisperCppRetryCancelled = await waitForJob(whisperCppRetryCancelJob.jobId, ['cancelled'], 10000);
+    assert.equal(whisperCppRetryCancelled.stage, 'cancelled', 'CPU retry 取消後應維持 cancelled，不得變成 failed／completed');
+    assert.equal(whisperCppRetryCancelled.metrics?.whisperDevice, 'cpu', '取消狀態應保留最後執行裝置為 CPU');
+    assert.match((whisperCppRetryCancelled.logs || []).join('\n'), /Metal exit 139.*CPU fallback/s, '取消前應保留 Metal fallback marker');
+    assert.deepEqual(
+      fs.readFileSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-invocations.log'), 'utf8').trim().split('\n'),
+      ['metal', 'cpu'],
+      '取消後不得再次啟動 Whisper.cpp child',
+    );
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-sigterm-received')), true, 'CPU retry child 應收到 SIGTERM');
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-child-closed')), true, 'CPU retry child close 後才能進入 cancelled');
+    for (const file of ['whisper-input.wav', 'whisper-cpp-output.srt', 'whisper-cpp-output.json', 'quality-metadata.json', 'draft.srt']) {
+      assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, file)), false, `CPU retry 取消後不得殘留 ${file}`);
+    }
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'whisper-cpp-stale-partial-output')), false, 'CPU retry 前不得看到 Metal partial output');
+    assert.equal(fs.existsSync(path.join(whisperCppRetryCancelWorking, 'edit-plan.json')), true, 'CPU retry 取消不得刪除非 ASR 工作檔');
+  }
 
   const whisperPythonRunForm = new FormData();
   whisperPythonRunForm.set('video', new Blob([createTestWav()], { type: 'audio/wav' }), 'whisper-python-run.wav');

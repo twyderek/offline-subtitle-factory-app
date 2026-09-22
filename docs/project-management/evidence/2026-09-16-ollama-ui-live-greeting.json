@@ -1,0 +1,75 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v1",
+  "startedAt": "2026-09-16T04:41:58.034Z",
+  "completedAt": "2026-09-16T04:42:28.308Z",
+  "elapsedMs": 30271,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "error": {
+    "message": "Ollama UI AI 任務未完成：cue 1 的翻譯語言與輸出語言 en 不一致，已安全拒絕",
+    "code": "",
+    "childLogTail": "\nDevTools listening on ws://127.0.0.1:9997/devtools/browser/ec5b44bd-c1a2-489a-86a5-849b726e9e64\n[main] Starting server...\n[main] appDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app\n[main] serverPath: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app/server.mjs\n[main] toolsDir: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/tools\n[main] nodeCommand: /Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠\n[main] Expected port: 8791\nOffline Subtitle Factory running at http://127.0.0.1:8791\n[api] GET /api/health\n[main] Server ready on port 8791\n[api] GET /api/bootstrap\n[api] GET /api/settings\n[api] GET /api/whisper-models\n[api] GET /api/jobs\n[api] GET /api/health\n[api] GET /api/health\n[api] POST /api/jobs\n[api] Job created: 20260916044210-c8039f\n[api] POST /api/jobs/20260916044210-c8039f/start\n[api] GET /api/jobs/20260916044210-c8039f/status\n[api] GET /api/jobs/20260916044210-c8039f/review-data\n[api] GET /api/jobs/20260916044210-c8039f/review-data\n[api] GET /api/ai/settings\n[api] GET /api/jobs/20260916044210-c8039f/ai-project-settings\n[api] GET /api/jobs/20260916044210-c8039f/waveform\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/ai/profile\n[api] POST /api/jobs/20260916044210-c8039f/ai-project-settings\n[api] POST /api/ai/settings\n[api] POST /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n[api] GET /api/jobs/20260916044210-c8039f/ai-optimize\n"
+  },
+  "ui": {
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "status": "設定已儲存；API Key 不會回傳到畫面",
+      "provider": "ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.2:1b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "failed",
+      "error": "cue 1 的翻譯語言與輸出語言 en 不一致，已安全拒絕",
+      "sessionId": "b2aef499-6631-4bac-86ba-e11723f8fcaa",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "progress": {
+        "completedBatches": 0,
+        "totalBatches": 2,
+        "processedCues": 0,
+        "totalCues": 2,
+        "totalRetries": 0
+      },
+      "requestSummary": {
+        "mode": "translate",
+        "language": "en",
+        "preserveTiming": true,
+        "cueCount": 2,
+        "cueIds": [
+          1,
+          2
+        ],
+        "cueTextLengths": [
+          3,
+          3
+        ],
+        "instructionsLength": 111
+      },
+      "aiStatusText": "AI 優化失敗：cue 1 的翻譯語言與輸出語言 en 不一致，已安全拒絕",
+      "suggestionActionsHidden": true,
+      "toolbarExpanded": true
+    }
+  }
+}

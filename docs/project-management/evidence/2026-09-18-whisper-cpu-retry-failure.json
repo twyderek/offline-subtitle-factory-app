@@ -1,0 +1,90 @@
+{
+  "schema": "offline-subtitle-factory.whisper-cpu-retry-failure.v1",
+  "date": "2026-09-18",
+  "workItem": "BUG-WHISPER-METAL-139",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "externalNetwork": false,
+    "userMediaRead": false,
+    "userSubtitleModified": false,
+    "lmStudioExecuted": false
+  },
+  "controlledScenario": {
+    "runtime": "deterministic child-process fixture",
+    "metalAttempt": {
+      "exitCode": 139,
+      "partialSrtWritten": true,
+      "partialJsonWritten": true
+    },
+    "cpuRetry": {
+      "flag": "--no-gpu",
+      "exitCode": 7,
+      "partialSrtWritten": true,
+      "partialJsonWritten": true
+    },
+    "expectedInvocationSequence": [
+      "metal",
+      "cpu"
+    ]
+  },
+  "baseline": {
+    "command": "node scripts/test-core.mjs",
+    "exitCode": 1,
+    "failedAssertion": "CPU retry 失敗後不得殘留 partial SRT",
+    "actualPartialSrtExists": true,
+    "rootCause": "terminal Whisper.cpp process failure rejected without fixed-output cleanup"
+  },
+  "implementation": {
+    "cleanupHelper": "removeWhisperPartialOutputs(workingDir, [outputBase])",
+    "cleanupTargets": [
+      "whisper-cpp-output.srt",
+      "whisper-cpp-output.json",
+      "quality-metadata.json"
+    ],
+    "retryPolicyChanged": false,
+    "retryLimit": "one CPU attempt"
+  },
+  "verification": {
+    "syntax": {
+      "command": "node --check server.mjs && node --check scripts/fixtures/mock-whisper-cpp-runtime.mjs && node --check scripts/test-core.mjs",
+      "exitCode": 0
+    },
+    "coreIntegration": {
+      "command": "node scripts/test-core.mjs",
+      "exitCode": 0,
+      "finalStatus": "failed",
+      "finalStage": "failed",
+      "finalWhisperDevice": "cpu",
+      "failureReasonIncludes": "Whisper.cpp exit 7",
+      "metalFallbackMarkerPreserved": true,
+      "invocationSequence": [
+        "metal",
+        "cpu"
+      ],
+      "thirdRetryObserved": false,
+      "staleMetalPartialObservedByCpu": false,
+      "partialSrtPresentAfterFailure": false,
+      "partialJsonPresentAfterFailure": false,
+      "draftPresentAfterFailure": false
+    },
+    "fullRegression": {
+      "command": "npm run check",
+      "exitCode": 0
+    }
+  },
+  "scope": {
+    "bundledRuntimeUsed": false,
+    "realBundledMetalAndCpuFailureObserved": false,
+    "notValidated": [
+      "cancellation at the Metal-to-CPU retry boundary",
+      "Chinese speech recognition quality",
+      "long audio",
+      "other macOS architectures",
+      "Windows",
+      "clean installation",
+      "release"
+    ]
+  }
+}

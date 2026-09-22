@@ -157,6 +157,23 @@ assert.equal(malformedProofreadCalls, 2, 'Ollama proofread malformed JSON 應只
 assert.match(malformedProofreadBodies[1].messages[0].content, /只能輸出一個 JSON object/);
 assert.equal(proofreadProgress.some((item) => item.validationRepair === true), true, 'malformed JSON 應顯示 repair telemetry');
 assert.equal(repairedProofread.suggestions[0].text, '介紹 AI API。');
+const unwrappedProofreadBodies = [];
+let unwrappedProofreadCalls = 0;
+const unwrappedProofread = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'llama3.2:1b', batchSize: 1 },
+  complete: async (body) => {
+    unwrappedProofreadBodies.push(body);
+    unwrappedProofreadCalls += 1;
+    const content = unwrappedProofreadCalls === 1
+      ? JSON.stringify({ id: 1, text: '介紹 AI API。', reason: 'single cue object' })
+      : JSON.stringify({ cues: [{ id: 1, text: '介紹 AI API。', reason: 'wrapped repair' }] });
+    return { choices: [{ message: { content } }] };
+  },
+});
+assert.equal(unwrappedProofreadCalls, 2, 'Ollama 未包 cues 的合法 JSON 應只觸發一次 repair');
+assert.match(unwrappedProofreadBodies[1].messages[0].content, /cues/);
+assert.equal(unwrappedProofread.suggestions[0].text, '介紹 AI API。');
 let failedProofreadRepairCalls = 0;
 await assert.rejects(
   () => optimizeSubtitleCues({

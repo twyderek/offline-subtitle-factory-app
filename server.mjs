@@ -10,7 +10,7 @@ import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPat
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { attachWhisperQuality, parseWhisperQualityJson } from './lib/whisper-quality.mjs';
 import { sanitizeWhisperSrt } from './lib/whisper-srt.mjs';
-import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
+import { describeWhisperProcessFailure, isWhisperProcessFailure, shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
 import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
 import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
 import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_PERFORMANCE_REFERENCE, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
@@ -112,6 +112,20 @@ let whisperModelInspectionCache = null;
 let whisperModelInspectionAt = 0;
 const ASS_PLAY_RES_X = 1920;
 const ASS_PLAY_RES_Y = 1080;
+const AI_PROFILE_STRING_FIELDS = Object.freeze(['baseUrl', 'model', 'deployment', 'apiVersion']);
+const AI_PROFILE_NUMBER_FIELDS = Object.freeze(['batchSize', 'timeoutSeconds']);
+const LEGACY_AI_SECRET_FIELD_NAMES = new Set([
+  'apikey',
+  'authorization',
+  'accesstoken',
+  'bearertoken',
+  'clientsecret',
+  'credential',
+  'password',
+  'privatekey',
+  'secret',
+  'token',
+]);
 
 const defaultSettings = {
   appLanguage: 'zh-TW',
@@ -265,6 +279,21 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function writeJsonAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  let existingMode;
+  try {
+    existingMode = fs.statSync(filePath).mode & 0o777;
+  } catch {}
+  try {
+    fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    if (existingMode !== undefined) fs.chmodSync(temporaryPath, existingMode);
+    fs.renameSync(temporaryPath, filePath);
+  } finally {
+    if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+  }
+}
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
 }
@@ -397,10 +426,52 @@ function normalizeFolder(value) {
 function loadSettings() {
   try {
     if (!fs.existsSync(settingsPath)) return { ...defaultSettings };
-    return normalizeSettings(readJson(settingsPath));
+    const persisted = readJson(settingsPath);
+    const settingsSource = persisted && typeof persisted === 'object' && !Array.isArray(persisted) ? persisted : {};
+    const normalized = normalizeSettings(settingsSource);
+    const migration = sanitizePersistedAiSettings(persisted, normalized);
+    if (migration.changed) {
+      try {
+        writeJsonAtomic(settingsPath, migration.value);
+      } catch {
+        console.warn('[settings] 無法清理歷史 AI 秘密欄位；請確認一般設定檔的寫入權限。');
+      }
+    }
+    return normalized;
   } catch {
     return { ...defaultSettings };
   }
+}
+
+function normalizedSecretFieldName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function sanitizePersistedAiSettings(persisted, normalizedSettingsValue) {
+  if (!persisted || typeof persisted !== 'object' || Array.isArray(persisted)) {
+    return { changed: true, value: normalizedSettingsValue };
+  }
+  const normalizedAi = normalizedSettingsValue.ai;
+  const rawAi = persisted.ai;
+  if (!rawAi || typeof rawAi !== 'object' || Array.isArray(rawAi)) {
+    return { changed: true, value: { ...persisted, ai: normalizedAi } };
+  }
+  let changed = false;
+  const sanitizedAi = { ...rawAi };
+  for (const field of Object.keys(sanitizedAi)) {
+    if (!LEGACY_AI_SECRET_FIELD_NAMES.has(normalizedSecretFieldName(field))) continue;
+    delete sanitizedAi[field];
+    changed = true;
+  }
+  const normalizedProfiles = normalizedAi.profiles || {};
+  if (JSON.stringify(rawAi.profiles) !== JSON.stringify(normalizedProfiles)) {
+    sanitizedAi.profiles = normalizedProfiles;
+    changed = true;
+  }
+  return {
+    changed,
+    value: changed ? { ...persisted, ai: sanitizedAi } : persisted,
+  };
 }
 
 function normalizeSettings(value = {}) {
@@ -411,6 +482,31 @@ function normalizeSettings(value = {}) {
     exportFolder: normalizeFolder(value.exportFolder),
     ai: normalizeAiSettings(value.ai),
   };
+}
+
+function normalizeAiProfiles(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const profiles = {};
+  for (const [provider, profile] of Object.entries(value)) {
+    if (!isSupportedProvider(provider) || !profile || typeof profile !== 'object' || Array.isArray(profile)) continue;
+    const normalized = {};
+    for (const field of AI_PROFILE_STRING_FIELDS) {
+      if (!Object.hasOwn(profile, field) || typeof profile[field] !== 'string') continue;
+      const text = profile[field].trim();
+      normalized[field] = field === 'baseUrl' ? text.replace(/\/+$/, '') : text;
+    }
+    for (const field of AI_PROFILE_NUMBER_FIELDS) {
+      if (!Object.hasOwn(profile, field)) continue;
+      const raw = profile[field];
+      if (!['number', 'string'].includes(typeof raw) || (typeof raw === 'string' && !raw.trim())) continue;
+      const min = field === 'batchSize' ? 1 : 10;
+      const max = field === 'batchSize' ? (isLocalAiProvider(provider) ? 20 : 100) : 300;
+      const normalizedNumber = clampNumber(raw, min, max, undefined);
+      if (normalizedNumber !== undefined) normalized[field] = normalizedNumber;
+    }
+    profiles[provider] = normalized;
+  }
+  return profiles;
 }
 
 function normalizeAiSettings(value = {}) {
@@ -437,7 +533,7 @@ function normalizeAiSettings(value = {}) {
     deployment: String(value.deployment || '').trim(),
     apiVersion: String(value.apiVersion || defaultSettings.ai.apiVersion).trim(),
     consentGrantedAt: String(value.consentGrantedAt || '').trim(),
-    profiles: value.profiles && typeof value.profiles === 'object' ? value.profiles : {},
+    profiles: normalizeAiProfiles(value.profiles),
     instructions: String(value.instructions || defaultSettings.ai.instructions).trim(),
   };
 }
@@ -2067,7 +2163,7 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
       }
       finish(() => reject(error));
     });
-    child.on('close', (code) => {
+    child.on('close', (code, signalName) => {
       if (signal?.aborted) {
         cancelledChildClosed = true;
         if (windowsTreeKillPending) return;
@@ -2075,16 +2171,16 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
         finish(() => reject(createJobCancelledError()));
         return;
       }
-      if (code !== 0) {
-        if (shouldRetryWhisperOnCpu({ platform: process.platform, arch: process.arch, forceCpu, exitCode: code })) {
-          for (const suffix of ['.srt', '.json']) {
-            try { fs.unlinkSync(`${outputBase}${suffix}`); } catch {}
-          }
-          updateJob(job, { progress: 52, message: 'Apple Metal 失敗，改用 CPU 重試 Whisper.cpp' }, `Metal exit ${code}，開始 CPU fallback：${sanitizeLog(stderr).slice(-500)}`);
+      if (isWhisperProcessFailure({ exitCode: code, signal: signalName })) {
+        const failureReason = describeWhisperProcessFailure({ exitCode: code, signal: signalName });
+        if (shouldRetryWhisperOnCpu({ platform: process.platform, arch: process.arch, forceCpu, exitCode: code, signal: signalName })) {
+          removeWhisperPartialOutputs(workingDir, [outputBase]);
+          updateJob(job, { progress: 52, message: 'Apple Metal 失敗，改用 CPU 重試 Whisper.cpp' }, `Metal ${failureReason}，開始 CPU fallback：${sanitizeLog(stderr).slice(-500)}`);
           finish(() => runWhisperCpp(job, audioFile, workingDir, signal, true).then(resolve, reject), false);
           return;
         }
-        finish(() => reject(new Error(`Whisper.cpp exit code ${code}: ${sanitizeLog(stderr).slice(-500)}`)));
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
+        finish(() => reject(new Error(`Whisper.cpp ${failureReason}: ${sanitizeLog(stderr).slice(-500)}`)));
         return;
       }
       if (!fs.existsSync(outputSrt)) {
@@ -3955,7 +4051,7 @@ async function handleApi(req, res) {
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
       if (nextAi.enabled && nextAi.provider === 'azure' && !nextAi.deployment) throw new Error('啟用 Azure OpenAI 前必須填寫 Azure Deployment');
       if (nextAi.baseUrl) new URL(nextAi.baseUrl);
-      const profiles = { ...(appSettings.ai.profiles || {}), ...(payload.profiles || {}) };
+      const profiles = { ...(appSettings.ai.profiles || {}), ...(nextAi.profiles || {}) };
       profiles[nextAi.provider] = {
         baseUrl: nextAi.baseUrl, model: nextAi.model, deployment: nextAi.deployment,
         apiVersion: nextAi.apiVersion, batchSize: nextAi.batchSize, timeoutSeconds: nextAi.timeoutSeconds,

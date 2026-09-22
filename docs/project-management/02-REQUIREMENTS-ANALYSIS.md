@@ -39,7 +39,15 @@
 | FR-023 | Whisper 高階模型取得 | Base／Small 缺失時，首次選擇或提交任務前提供明確下載確認；只允許官方 pinned revision、固定檔名、預期大小與 SHA-256；下載至可寫入的使用者模型快取，顯示進度並以暫存檔／原子置換保護；取消須中止背景請求並清除未完成檔案；失敗不得建立或啟動缺模型任務，並保留手動下載 URL 與說明 |
 | FR-024 | Breeze ASR 25 實驗性本機轉錄 | 可選用 MediaTek Research Breeze ASR 25 處理台灣華語與中英混用字幕；只從固定官方 revision 下載 3,087,008,569 bytes checkpoint 並驗證 SHA-256；執行前必須確認外部 Python runtime 的 `whisper.available_models()` 真正包含 `breeze-asr-25`，缺少 runtime 或有效模型時不得啟動或假成功；沿用既有音訊前處理、SRT 時間碼清理、取消與人工校閱流程；Whisper.cpp 維持預設且本輪不宣稱已隨安裝包提供 Breeze runtime |
 | FR-025 | Breeze 效能透明化與首次選擇提醒 | `/api/breeze-asr` 提供固定、可追溯且標示單機觀察範圍的效能參考；選擇 Breeze 後在產品名稱外顯示低資源裝置可能較慢、MacBook Air 參考值與 Whisper.cpp 回退建議；不把參考值宣稱為跨機型保證或真實模型驗收 |
-| FR-026 | Anthropic Claude provider | 設定介面可選 Anthropic；後端使用 Messages API `/v1/messages` 與 `/v1/models`，`x-api-key`、`anthropic-version` 與 `max_tokens` 契約正確；system／user／assistant 訊息與回應正規化為既有 optimizer contract；profile／runtime key 隔離，內部 cue metadata 不外送，非法 provider 仍明確拒絕 |
+| FR-026 | Anthropic Claude provider | 設定介面可選 Anthropic；後端使用 Messages API `/v1/messages` 與 `/v1/models`，`x-api-key`、`anthropic-version` 與 `max_tokens` 契約正確；Models API 必須依 `has_more`／`last_id`／`after_id` 讀完分頁，後頁指定模型不可誤判為不可用，異常或無法前進的游標須明確失敗；system／user／assistant 訊息與回應正規化為既有 optimizer contract；profile／runtime key 隔離，內部 cue metadata 不外送；不得將共用 optimizer 的 `temperature`／`top_p`／`top_k` 傳給 Anthropic，以相容會拒絕非預設取樣參數的新模型；非法 provider 仍明確拒絕 |
+
+### FR-021 驗收範圍例外（2026-09-15）
+
+需求方已明確告知 LM Studio 已刪除，本輪不執行 LM Studio 實機模型、UI、取消／續跑或真正斷網驗收。這是針對目前驗收環境的範圍例外，不移除 `lm-studio` provider 的產品支援、deterministic tests 或原始 FR-021 要求；若日後恢復驗收，仍須重新依 FR-021 建立實機證據。本輪已完成可執行的 Ollama loopback 產品流程，但未取得真正網路隔離證據前不得宣稱 FR-021 整體完成。
+
+### FR-021-032 Ollama 本機產品級流程結果（2026-09-15）
+
+以暫存資料目錄及測試 server 透過 `127.0.0.1:11434/v1` 執行 `llama3.2:1b` 產品級流程：建立含 2 cue 的手動字幕任務、完成英文翻譯、建立 AI session、接受 2 筆建議、undo／redo 各 2 筆，並保存雙語校閱結果。最終 artifact `docs/project-management/evidence/2026-09-15-ollama-product-live-recheck-5.json` 顯示時間碼未變、原始 SRT 保存前後 SHA-256 相同、endpoint privacy 為 `local`；探針另已驗證遠端 URL 與既有 evidence 在建立暫存資料／啟動 server 前拒絕，並以 exclusive create 防止 evidence 競態覆寫。本證據只證明 loopback 產品流程，不證明系統真正斷網；`scope.systemNetworkDisabled=false`，因此 FR-021 整體仍待真正網路隔離及 LM Studio 例外之外的完整條件收斂。
 
 ## 非功能需求
 

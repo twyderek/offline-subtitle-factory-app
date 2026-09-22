@@ -25,7 +25,7 @@
 | 0.49.0／2026-08-13 | Breeze ASR 25 第一版實驗性正式發布 | 由最新 `main` 移植 runtime／模型 probe 與診斷遮罩；PR #11、最終 tag Windows workflow、9 項正式資產與發布後全量下載核對通過；真實 checkpoint／runtime／音訊品質與效能仍是已揭露的 experimental 風險 |
 | 0.49.1／2026-08-18 | Breeze 首次選擇設定協助與 Mac Air 效能依據正式發布 | PR #14、merge `917ae828`、tag workflow `32095872065` 與 13 項公開資產已核對；選擇器移除 experimental 字樣並引導模型／runtime 設定；MacBook Air M3／8 GB 的 1:46 影片約 6 小時列為效能警示，真實 Breeze runtime／品質／跨平台驗收仍未完成 |
 | 0.50.0 開發中／2026-08-20 | Breeze 效能透明化與首次選擇提醒 | 新增固定 `performanceReference` API payload 與獨立 UI 提醒；不改變 Whisper.cpp 預設、不宣稱效能改善；尚未建立公開 tag／Release |
-| 0.51.0 開發中／2026-08-26 | Anthropic Claude provider adapter | 新增 Messages API／models API 轉接、認證標頭、profile／金鑰隔離與 deterministic contract；未使用真實 API Key，尚未打包或發布 |
+| 0.51.0 開發中／2026-08-26–2026-09-18 | Anthropic Claude provider adapter 與 Ollama 本機模型重驗 | 新增 Messages API／Models API 轉接、認證標頭、profile／金鑰隔離與 deterministic contract；BUG-027 依官方新模型要求省略已淘汰取樣參數，BUG-028 補齊 Models API cursor pagination、BUG-029 封鎖巢狀 profile 秘密欄位，BUG-031 清理既有一般設定檔的 AI root／profile 歷史秘密且保留獨立 secrets，BUG-030 補上 Ollama 未包裝 cue object 的一次性 repair 並以 0.34.0／`llama3.2:1b` 完成本機 optimizer path 驗證；FR-021-032／033 再完成 Ollama loopback 產品級任務與 packaged UI 的 session／人工接受／undo／redo／雙語保存及時間碼／原始 SRT 保護驗收；REL-047 補充 macOS DMG 唯讀掛載／ZIP 隔離解壓後 packaged app 啟動 smoke；BUG-WHISPER-METAL-139 補上 macOS arm64 child-process exit 139／SIGSEGV signal→`--no-gpu` CPU retry 整合回歸、bundled runtime Metal／CPU 對照、production-mode server 正常 Metal path、deterministic production-mode fallback control-flow acceptance，並釐清 sandbox 139 與升級權限 Metal success 的執行邊界；未使用真實 API Key，server 真實 crash fallback／中文品質／長音訊／取消、LM Studio／真正斷網／跨平台實機與正式發布仍未完成 |
 
 ## 0.45.1 發布補充
 

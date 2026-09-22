@@ -1,0 +1,104 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v1",
+  "startedAt": "2026-09-16T04:46:01.947Z",
+  "completedAt": "2026-09-16T04:46:14.882Z",
+  "elapsedMs": 12932,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "pass",
+  "home": {
+    "href": "http://127.0.0.1:8791/",
+    "title": "本機離線字幕工廠｜字幕生成任務",
+    "hasHomeDashboard": true
+  },
+  "job": {
+    "createStatus": 201,
+    "startStatus": 202,
+    "finalStatus": "completed",
+    "cueCount": 2
+  },
+  "ui": {
+    "reviewLoaded": {
+      "ready": true,
+      "href": "http://127.0.0.1:8791/review/20260916044610-eac343",
+      "title": "字幕校對｜離線字幕工廠"
+    },
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "status": "設定已儲存；API Key 不會回傳到畫面",
+      "provider": "ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.2:1b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "completed",
+      "sessionIdPresent": true,
+      "suggestionCount": 2,
+      "totalRetries": 0,
+      "progress": {
+        "completedBatches": 1,
+        "totalBatches": 1,
+        "processedCues": 2,
+        "totalCues": 2,
+        "totalRetries": 0
+      },
+      "toolbarExpanded": true
+    },
+    "accept": {
+      "accepted": 2,
+      "actionsHidden": true,
+      "changedCount": "2"
+    },
+    "history": {
+      "undo": true,
+      "redo": true,
+      "undoText": "本次紀錄：8bee15d9；可查看決策、撤銷或重新套用",
+      "redoText": "本次紀錄：8bee15d9；可查看決策、撤銷或重新套用",
+      "undoEnabled": true,
+      "redoEnabled": true
+    },
+    "save": {
+      "saved": true,
+      "subtitleFileName": "reviewed.srt",
+      "cueCount": 2,
+      "timecodesUnchanged": true,
+      "hasEnglishTranslation": true,
+      "reviewSha256": "791516f6d3182c141248de4033553291eb646c1f432c37a72f4448a80d516fdb"
+    }
+  },
+  "source": {
+    "cueCount": 2,
+    "timecodes": [
+      [
+        0,
+        2.5
+      ],
+      [
+        2.5,
+        5
+      ]
+    ],
+    "sourceSubtitleSha256": "5ac453f8d5c6db911a9e92ae5b702a5b2012b2da615a6cdc5f90ca4f1d5154d5",
+    "originalSubtitleFileName": "rule-cleaned.srt"
+  }
+}

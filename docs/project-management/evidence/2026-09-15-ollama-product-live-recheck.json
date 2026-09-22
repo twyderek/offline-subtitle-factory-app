@@ -1,0 +1,25 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-live-acceptance.v1",
+  "startedAt": "2026-09-15T07:13:22.453Z",
+  "completedAt": "2026-09-15T07:13:37.119Z",
+  "elapsedMs": 14667,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "error": {
+    "message": "Ollama AI 任務未完成：cue 1 的翻譯語言與輸出語言 en 不一致，已安全拒絕",
+    "code": ""
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "schema": "offline-subtitle-factory.whisper-bundled-cpu-cancel.v1",
+  "startedAt": "2026-09-18T06:18:05.776Z",
+  "completedAt": "2026-09-18T06:18:07.947Z",
+  "elapsedMs": 2170,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "controlledRuntime": {
+    "type": "controlled-metal-bundled-cpu-cancel-wrapper",
+    "fixturePath": null,
+    "bundledRuntimeUsed": true,
+    "bundledRuntimeUsedForCpu": true,
+    "bundledRuntimePath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-cpp/whisper-cli",
+    "bundledRuntimeSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+    "bundledModelPath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
+    "bundledModelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+    "wrapperCreatesMetalExit139": true,
+    "bundledMetalCrashObserved": false
+  },
+  "input": {
+    "kind": "generated-silence-wav",
+    "sampleRate": 16000,
+    "channels": 1,
+    "durationSeconds": 60,
+    "userMediaRead": false
+  },
+  "scenario": "normal",
+  "replay": {
+    "workingDirectory": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app",
+    "command": "npm run acceptance:whisper:bundled-cpu-cancel -- \"/private/tmp/osf-whisper-cpu-cancel-$(uuidgen).json\"",
+    "prerequisites": [
+      "macOS arm64",
+      "bundled whisper-cli, Tiny model, and FFmpeg available locally",
+      "permission to run local child processes and bind a 127.0.0.1 server"
+    ],
+    "outputPolicy": "Use a fresh evidence path; the probe refuses to overwrite existing files."
+  },
+  "server": {
+    "mode": "production",
+    "loopbackOnly": true,
+    "testRunnersDisabled": true,
+    "requestedPort": 24934,
+    "actualPort": 24934
+  },
+  "job": {
+    "created": true,
+    "started": true,
+    "status": "cancelled",
+    "stage": "cancelled",
+    "metrics": {
+      "asrEngine": "whisper.cpp",
+      "whisperDevice": "cpu",
+      "modelName": "tiny"
+    },
+    "logMarkers": {
+      "metalExit139": true,
+      "cpuFallback": true,
+      "firstCrashMarker": true,
+      "fullLogsStored": false
+    },
+    "outputs": {
+      "draftSrt": false,
+      "whisperCppSrt": false,
+      "whisperCppJson": false,
+      "stalePartialOutput": false,
+      "stalePartialArtifacts": [],
+      "whisperInputCleaned": true,
+      "draftAbsent": true,
+      "whisperCppSrtAbsent": true,
+      "whisperCppJsonAbsent": true,
+      "qualityMetadataCleaned": true,
+      "editPlanPreserved": true
+    },
+    "fallbackObserved": true,
+    "cancelLifecycle": {
+      "cpuSpawnMarker": true,
+      "before": {
+        "status": "running",
+        "stage": "transcribing"
+      },
+      "partialArtifactsSource": "probe-injected-after-bundled-cpu-spawn",
+      "cancelHttpStatus": 202,
+      "afterRequest": {
+        "status": "running",
+        "stage": "cancelling"
+      },
+      "wrapperSigtermMarker": true,
+      "bundledCpuClosedMarker": true
+    },
+    "invocations": [
+      "metal",
+      "cpu"
+    ],
+    "bundledCpuResult": {
+      "exitCode": null,
+      "signal": "SIGTERM",
+      "errorCode": null,
+      "cancelRequested": true,
+      "forcedKill": false
+    }
+  },
+  "scope": {
+    "externalNetwork": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "userSubtitleModified": false
+  },
+  "status": "pass",
+  "cleanup": {
+    "groupId": 10330,
+    "termSent": true,
+    "killSent": false,
+    "groupGone": true,
+    "errorCode": null,
+    "fallbackApiCleanup": {
+      "attempted": false,
+      "outcome": null
+    },
+    "wrapperSigtermMarker": true,
+    "bundledCpuClosedMarker": true,
+    "bundledCpuResult": {
+      "exitCode": null,
+      "signal": "SIGTERM",
+      "errorCode": null,
+      "cancelRequested": true,
+      "forcedKill": false
+    },
+    "tempRootRemoved": true
+  }
+}

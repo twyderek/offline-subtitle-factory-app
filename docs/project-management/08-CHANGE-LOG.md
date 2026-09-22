@@ -1,5 +1,882 @@
 # 改版與工作紀錄
 
+## 2026-09-22 — 0.51.0 GitHub Release 準備與發布（macOS；Windows 暫緩）
+
+- 狀態：進行中
+- 結案判定：尚待依需求方明確要求完成 0.51.0 GitHub Release；目前先盤點 dirty worktree 與發布資產，完成必要驗證、commit／push、tag、GitHub Release 建立與發布後資產核對。Windows 依先前需求仍暫緩，不將未驗收的 Windows 資產宣稱為本輪完成。
+- 執行者：Codex
+- 需求來源：需求方明確要求「請完成到發佈至github」；此前已明確要求 macOS 實機驗收、Windows 部分暫時略過。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：發布（涉及整理 release source、commit／push、建立 `v0.51.0` tag 與 GitHub Release；僅在完成驗證與發布後核對後結案，不修改既有公開 Release）
+- 來源基準：目前分支 `codex/0.51-anthropic-claude`、HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`；需先辨識 124 個 dirty worktree 路徑，避免遺失既有工作或將未驗證內容誤納入發布。
+- 目標與成功條件：確認 0.51.0 發布來源、版本與 release notes，完成必要 `npm run check`／封裝與發布 gate，將明確核准的 release commit 推送至 GitHub，建立 tag／Release，附上已核對的 macOS 資產與 metadata／SHA，完成 GitHub API／下載 URL／digest／資產大小的發布後反向核對。
+- 不在範圍：Windows 實機／安裝／renderer 驗收；Developer ID／notarization 取得；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；修改或覆蓋既有公開 Release；任何未經核對的資產上傳。
+- 風險與回復方式：發布前保存 worktree／commit／資產清單，先以 dry-run／API readback 核對；若驗證失敗不建立 Release。若 push／tag／Release 已成功，保留 URL／digest／資產核對 evidence，避免重複建立或覆蓋既有 tag／Release。
+- 驗證計畫：盤點 dirty worktree 與 release scope、`npm run check`、macOS artifact／metadata／SHA／DMG／ZIP integrity、GitHub auth／remote／tag collision、commit／push／tag、GitHub Release 建立、發布後 API／下載／digest／資產核對、evidence assertions、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：release commit 所包含的既有產品／治理文件變更、`00-CURRENT-STATUS.md`、本文件、新的發布 evidence／獨立審查報告，以及 GitHub branch／tag／Release；不修改 Windows 資產內容。
+- 發布授權：需求方已明確授權本輪完成 GitHub 發布；發布範圍仍限於完成驗證的 macOS 0.51.0 資產與必要 metadata，Windows 暫緩及未完成風險須在 Release／文件揭露。
+
+## 2026-09-22 — 0.51.0 macOS clean-HEAD updater metadata 補齊與核對（Windows 暫緩）
+
+- 狀態：完成
+- 結案判定：本輪 macOS clean-HEAD updater metadata 核對有條件通過；本機 `latest-mac.yml` 與既有 DMG／ZIP 的 URL／path／size／SHA-512、SHA256 與 archive integrity 均一致，`releaseReady=false` 維持，Windows 依需求方要求暫緩，不將其解讀為已上傳或公開 updater metadata。
+- 執行者：Codex
+- 需求來源：需求方要求繼續處理；上一輪獨立審查指出 `publish=never` 未產生 `latest-mac.yml`，形成 updater metadata 缺口。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：中（只在既有 clean-HEAD candidate 的 repo 外輸出目錄補寫本機 QA metadata 與去敏 evidence；不修改產品 runtime、不覆寫 DMG／ZIP、不發布、不執行 Windows）
+- 來源基準：既有候選 `../dist/test-build-0.51.0-head-17df978-packaged/`，來源 commit `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`；dirty worktree 未提交變更不納入。
+- 目標與成功條件：產生與實際 DMG／ZIP 檔名一致的 `latest-mac.yml`，其 version／URL／path／size／SHA-512 全部由實體檔案獨立重算一致，保留 local-only／not-a-release／ad-hoc／Windows 暫緩界線。
+- 不在範圍：重新建置 DMG／ZIP；Developer ID／notarization；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；Windows；公開 Release、上傳、推送、tag 或使用者資料修改。
+- 風險與回復方式：只新增候選目錄 metadata、SHA／evidence 與治理文件；不改動主程式與既有 archive。若核對失敗，保留 failure 診斷且不宣稱 metadata 缺口已解除。
+- 驗證計畫：以 Node crypto／stat 核對 DMG／ZIP URL、path、size、SHA-512，驗證 YAML 結構與檔案存在，重放 SHA256／DMG／ZIP integrity，執行 evidence assertions、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、候選目錄 `latest-mac.yml`／metadata 說明與新的非敏感 evidence／獨立審查報告；不修改產品 runtime 或 Windows 資產。
+- 實際修改：於既有 `../dist/test-build-0.51.0-head-17df978-packaged/` 新增本機 QA `latest-mac.yml`，更新候選 `PROVENANCE.txt`／`TEST-CANDIDATE-README.md`，新增 `docs/project-management/evidence/2026-09-22-macos-clean-head-updater-metadata.json`、`00-CURRENT-STATUS.md`／`06-TEST-AND-PROCESS-AUDIT.md` 條目與獨立審查報告；未重建 DMG／ZIP、未修改產品 runtime、未發布。
+- 開發驗證結果：ZIP `249959684` bytes／SHA-512 `9cpksJ2PdeZAIJ90HuaPvT059uhuDsKMRwfNlRqJtP2TEra7AiEPf6z0HjmVwJQ37eKpcHICO4tgjSxZdT3tjA==`、DMG `242720449` bytes／SHA-512 `xY4+XKG39LvbvHNHt/DXEXzbbCwhHtrKTNXspdf0mKTexfeWWzkcgtL/cuQzQJldvzVO8U5KPA2/kOc4yVE4VQ==` 與 metadata 完全一致；top-level path／hash、四項 SHA256、DMG `hdiutil verify`、ZIP `unzip -t`、evidence assertions、`npm run check`、`git diff --check` 均通過。
+- 候選判定：metadata 已在 local candidate 層級補齊，但因 `publish=never`，它不是公開或已上傳 updater metadata；來源為 clean HEAD `17df978`，dirty worktree 未提交變更未納入，`releaseReady=false` 維持。
+- 獨立審查是否執行：是（round1；有條件通過，限定 clean-HEAD local updater metadata 與 archive 一致性，不代表 release 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-macos-clean-head-updater-metadata-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 macOS clean-HEAD updater metadata 核對有條件通過：publish=never 下的本機 QA latest-mac.yml 已與實際 DMG／ZIP 的 URL/path、size、SHA-512 及 SHA256 清單一致，來源為 clean HEAD 17df978 且排除 dirty worktree；但 metadata 並非公開或已上傳 updater metadata，Windows、Developer ID／公證、正式安裝、真正斷網、真實 AI 品質與公開 Release 未覆蓋，因此 releaseReady=false。**
+- 條件是否已被需求方接受：是（依需求方要求繼續處理；接受本輪限定為 local QA metadata 補齊與一致性核對，不將其解讀為公開 updater metadata 或 release 通過）
+- 條件關閉：已掛上獨立 round1 審查、回填逐字完整結論、保留 `publish=never`／非公開 metadata 限制，並完成 `npm run docs:check:final`；Windows、Developer ID／公證、正式安裝／乾淨帳號、真正斷網、真實 AI／模型品質與公開 Release 限制維持有效。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag。
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：若要取得可對外使用的 updater metadata，仍需在正式發布流程產生／上傳並做發布後下載核對；Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質與 Windows 實機仍未完成。候選只代表 clean HEAD `17df978`，不包含 dirty worktree 變更；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-22 — 0.51.0 macOS clean-HEAD DMG／ZIP 封裝與實機驗收（Windows 暫緩）
+
+- 狀態：完成
+- 結案判定：本輪 clean HEAD macOS arm64 DMG／ZIP 的來源追溯、封裝完整性與兩條隔離實機 renderer／字幕／trim smoke 有條件通過；`releaseReady=false` 維持，Windows 依需求方要求暫緩，不將本輪誤標為正式 release 通過。
+- 執行者：Codex
+- 需求來源：需求方要求繼續處理 macOS 實機驗收；Windows 部分依要求暫緩。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：高（從目前 HEAD 的隔離 clean worktree 封裝 macOS arm64 DMG／ZIP 並驗收；不修改目前 dirty worktree 產品檔案、不覆寫既有候選、不發布、不推送、不建立 tag、不執行 Windows 驗收）
+- 來源基準：目前 HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`；目前 dirty worktree 未提交變更不納入候選，並需在 provenance／evidence 明確揭露。
+- 目標與成功條件：在唯一新輸出目錄建立 macOS arm64 DMG／ZIP，通過 builder／runtime／archive integrity／version／checksum／metadata／deep strict codesign 核對，於實機完成 DMG 與 ZIP 隔離安裝路徑 renderer／手動字幕／real trim／post-trim／AI asset smoke，保存去敏 evidence。
+- 不在範圍：Windows；Developer ID／notarization 取得；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；公開 Release、上傳、推送、tag 或使用者資料修改。
+- 風險與回復方式：只使用隔離 detached worktree、唯一 dist 輸出與暫存驗收路徑；不覆寫舊候選；若失敗保留非敏感診斷，不宣稱可交付，完成後移除暫存 worktree／目錄。
+- 驗證計畫：執行 clean worktree runtime manifest／verify、`electron-builder --mac --arm64 --publish never`、DMG／ZIP integrity、latest metadata／hash、packaged runtime／codesign／spctl 狀態、DMG／ZIP renderer smoke、evidence assertions、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、新的 dist candidate metadata／evidence 與獨立審查報告；不修改產品 runtime 或 Windows 資產。
+- 實際修改：於隔離 clean detached worktree 以目前 HEAD 建立 `../dist/test-build-0.51.0-head-17df978-packaged/`，產生 macOS arm64 DMG／ZIP／gzip blockmaps 與 provenance／簽章／SHA256／README；新增 `docs/project-management/evidence/2026-09-22-macos-clean-head-packaged-acceptance.json`、`00-CURRENT-STATUS.md`／`06-TEST-AND-PROCESS-AUDIT.md` 條目與獨立審查報告；未覆寫舊候選、未修改產品 runtime、未發布。
+- 開發驗證結果：runtime manifest／verify、electron-builder、packaged version 0.51.0、DMG `hdiutil verify`、ZIP `unzip -t`、gzip blockmap schema v2、SHA256 清單、packaged runtime verify、deep strict codesign、DMG readonly attach／detach、ZIP 解壓／隔離安裝／cleanup、兩條 renderer／manual subtitle／real trim（2.021333 秒）／post-trim／AI review／glossary／8 provider smoke、evidence assertions、`npm run check` 與 `git diff --check` 均通過；兩條路徑 `spctl` exit 3／rejected，符合 ad-hoc／未 Developer ID／未公證限制。
+- 候選判定：source commit `17df9788abf2cf964d52df10b74f9a8fcd7a45d6` 與目前 HEAD 一致，dirty worktree 未提交變更未納入；DMG／ZIP 可作為本機 QA candidate，但 `releaseReady=false`。`publish=never` 未產生 `latest-mac.yml`，故 updater latest metadata 不在本輪完整 release packaging gate 內。
+- 獨立審查是否執行：是（round1；有條件通過，限定 clean HEAD macOS arm64 DMG／ZIP 封裝與兩條隔離實機 smoke，不代表 release 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-macos-clean-head-packaged-acceptance-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 clean HEAD macOS arm64 DMG／ZIP 的來源追溯、封裝完整性與兩條隔離實機 renderer／字幕／trim smoke 有條件通過：source commit 17df978 與目前 HEAD 一致，dirty worktree 未提交變更未納入；DMG／ZIP integrity、runtime、deep strict codesign、手動字幕、real trim、post-trim、AI asset、glossary 與 8 provider smoke 均有通過證據；spctl rejected 是 ad-hoc／未 Developer ID／未公證限制，且 latest-mac.yml 未因 publish=never 產生；正式簽章／公證、乾淨帳號、真正斷網、真實 AI 品質、Windows 與公開 Release 未覆蓋，因此不是 release 通過。**
+- 條件是否已被需求方接受：是（依需求方要求繼續處理 macOS、Windows 暫緩；接受本輪限定為 clean HEAD DMG／ZIP QA 與實機 smoke，不將其解讀為 release 通過）
+- 條件關閉：已掛上獨立 round1 審查、回填逐字完整結論、保留 `latest-mac.yml` 未產生的 metadata 限制，並完成 `npm run docs:check:final`；dirty worktree 排除、ad-hoc／公證、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Windows 與公開 Release 限制維持有效。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag。
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：需另於具備發布 metadata 的流程核對或產生 `latest-mac.yml`；Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質與 Windows 實機仍未完成。候選只代表 clean HEAD `17df978`，不包含 dirty worktree 變更；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-22 — 0.51.0 macOS clean-HEAD 候選重建與 smoke（Windows 暫緩）
+
+- 狀態：完成
+- 結案判定：本輪 clean-HEAD macOS arm64 directory candidate 的來源追溯／runtime／packaged renderer smoke 有條件通過；source provenance 已對齊目前 HEAD，但 dirty worktree 未提交變更刻意排除，ad-hoc／未公證與其他 release gate 維持有效；Windows 依需求方要求暫緩。
+- 執行者：Codex
+- 需求來源：需求方要求繼續處理；既有 macOS DMG／ZIP 實機路徑通過，但 provenance 落後目前 HEAD，故先補建可追溯的 macOS clean-HEAD 候選，Windows 維持暫緩。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：高（於隔離 detached worktree 以目前 HEAD 建置 macOS arm64 目錄候選並執行 runtime／renderer smoke；不修改目前 dirty worktree 的產品檔案、不覆寫既有候選、不發布、不推送、不建立 tag、不執行 Windows 驗收）
+- 來源基準：目前 HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`；未提交 dirty worktree 變更不納入本候選，並於 evidence 明確揭露。
+- 目標與成功條件：在乾淨 detached worktree 準備 runtime manifest，建立唯一輸出目錄的 macOS arm64 directory candidate，核對 packaged version／runtime／deep strict ad-hoc codesign，執行 renderer／real trim smoke，保存 source commit、候選 SHA 與去敏 evidence。
+- 不在範圍：Windows；目前 dirty worktree 未提交變更；Developer ID／notarization；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；公開 Release、上傳、推送、tag 或使用者資料修改。
+- 風險與回復方式：只建立隔離 detached worktree、唯一 dist 輸出與非敏感 evidence；既有工作樹／候選不覆寫。若建置或 smoke 失敗，保留診斷並不宣稱新候選可交付；完成後移除隔離 worktree 與暫存目錄。
+- 驗證計畫：執行 clean worktree runtime manifest／verify、`electron-builder --mac --arm64 --dir`、候選檔案／version／codesign／SHA、renderer／real trim smoke、evidence assertions、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、新的 dist candidate metadata／evidence 與獨立審查報告；不修改產品 runtime 或 Windows 資產。
+- 實際修改：於隔離 detached worktree 建立新目錄候選 `../dist/test-build-0.51.0-head-17df978/`，新增其 provenance／簽章狀態／README；新增非敏感 evidence `docs/project-management/evidence/2026-09-22-macos-clean-head-candidate.json`；同步 `00-CURRENT-STATUS.md` 與 `06-TEST-AND-PROCESS-AUDIT.md`；未覆寫既有候選、未修改目前 dirty worktree 產品檔案。
+- 開發驗證結果：`npm run runtime:manifest:mac`、`npm run runtime:verify:mac`、electron-builder clean-HEAD build、packaged runtime verify、packaged version 0.51.0、runtime hashes、deep strict ad-hoc codesign、renderer／manual subtitle／real trim／post-trim／AI review smoke 與 evidence assertions 均通過；`spctl` rejected，符合 ad-hoc／未 Developer ID／未公證限制；`npm run check` 與 `git diff --check` 均通過。
+- 候選判定：新候選來源 commit `17df978` 與目前 HEAD 一致，但不包含 dirty worktree 未提交變更；`releaseReady=false` 仍維持，因尚未完成 Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Windows 與公開 Release。
+- 獨立審查是否執行：是（round1；有條件通過，限定 clean HEAD macOS arm64 directory candidate 的來源追溯／runtime／packaged renderer smoke，不代表 release 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-macos-clean-head-candidate-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 clean HEAD macOS arm64 directory candidate 的來源追溯／runtime／packaged renderer smoke 為有條件通過：source commit 17df978 與目前 HEAD 一致，dirty worktree 未提交變更刻意排除；runtime manifest／verify、electron-builder、packaged version 0.51.0、runtime hashes、deep strict codesign、renderer／manual subtitle／real trim／post-trim／AI review 均通過；spctl rejected 是 ad-hoc／未 Developer ID／未公證限制；Windows 暫緩；正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Windows 與公開 Release 未覆蓋，因此不是 release 通過。**
+- 條件是否已被需求方接受：是（依需求方要求繼續；接受 clean HEAD 候選來源追溯與限定 smoke 結案，不接受將其解讀為 release 通過）
+- 條件關閉：已掛上 round1 審查報告，回填逐字結論，並完成 `npm run docs:check:final`；dirty worktree 排除、ad-hoc／公證、正式 Applications／乾淨帳號、真實 AI／斷網、Windows 與公開 Release 限制維持有效。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：若要驗收目前未提交變更，需另建立明確乾淨來源並重建候選；目前 clean-HEAD candidate 只能代表 `17df978`。Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Windows 與公開 Release 仍待另行處理；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-22 — 0.51.0 macOS ZIP／隔離安裝路徑補驗（Windows 暫緩）
+
+- 狀態：完成
+- 結案判定：本輪 macOS ZIP 候選隔離安裝路徑補驗有條件通過；ZIP integrity／解壓／renderer／字幕／real trim／cleanup 均通過，ad-hoc／未公證、provenance 與未覆蓋的正式發布 gate 維持有效；Windows 依需求方要求暫緩。
+- 執行者：Codex
+- 需求來源：需求方要求繼續處理 macOS 實機驗收；Windows 部分維持暫緩。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：高（使用既有 0.51.0 macOS arm64 ZIP 候選補驗隔離解壓／安裝、renderer／字幕／real trim smoke、codesign／Gatekeeper 狀態與清理；不修改產品程式、不發布、不推送、不建立 tag、不執行 Windows 驗收）
+- 來源基準：`../dist/test-build-0.51.0-macos-88da220/`；provenance `88da220` 落後目前 HEAD `17df978`，本輪只補候選實機路徑，不解除目前 release blocker。
+- 目標與成功條件：從 ZIP 解壓至隔離暫存，複製至隔離 Applications-like 路徑，完成 deep strict codesign、spctl 狀態、packaged renderer、手動字幕、real trim／post-trim、AI review asset 與 cleanup，保存去敏 evidence。
+- 不在範圍：Windows；Developer ID／notarization 取得；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；公開 Release、上傳、推送、tag 或使用者資料修改。
+- 風險與回復方式：只讀既有 ZIP，所有解壓／安裝／userData 均在隔離暫存路徑，完成後由 finally／明確暫存清理；失敗則保留非敏感 evidence，不覆寫候選或既有 evidence。
+- 驗證計畫：執行 ZIP integrity／解壓、隔離安裝與 renderer／real trim smoke，核對 codesign／spctl／xattr／清理，再執行 evidence assertions、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、新的非敏感 macOS evidence 與獨立審查報告；不修改產品 runtime 或 Windows 資產。
+- 實際修改：新增非敏感 evidence `docs/project-management/evidence/2026-09-22-macos-zip-acceptance-rel-047.json`；同步 `00-CURRENT-STATUS.md` 與 `06-TEST-AND-PROCESS-AUDIT.md`；未修改產品 runtime、候選資產、使用者資料或 Windows 資產。
+- 開發驗證結果：ZIP integrity／解壓／隔離 Applications-like copy／deep strict codesign／renderer smoke／manual subtitle／real trim／post-trim／AI review／glossary／8 provider／xattr／cleanup 均通過；`spctl` exit 3／rejected，符合 ad-hoc／未 Developer ID／未公證候選限制；evidence assertions、`npm run check` 與 `git diff --check` 均通過。
+- 驗收判定：本輪 macOS ZIP 候選隔離路徑補驗通過，但 `releaseReady=false`；候選 provenance `88da220` 落後目前 HEAD `17df978`，不是目前 dirty worktree 重建資產。Windows、正式 Applications／乾淨帳號、Developer ID／公證、真正斷網、真實 AI／模型品質與公開 Release 不在本輪完成範圍。
+- 獨立審查是否執行：是（round1；有條件通過，限定 macOS ZIP 候選 Apple Silicon 實機補驗，不代表 release 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-macos-zip-acceptance-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 macOS ZIP 候選在 Apple Silicon 實機的 ZIP integrity／解壓／隔離安裝／renderer／real trim／清理補驗有條件通過：ZIP integrity、解壓、deep strict codesign、renderer smoke、手動字幕、real trim、post-trim、AI review、cleanup 均通過；spctl rejected 是 ad-hoc／未 Developer ID／未公證限制；xattr 未發現 com.apple.quarantine 但有 com.apple.provenance；候選 provenance 88da220 落後目前 HEAD 17df978、不是目前 dirty worktree 重建資產；Windows 暫緩；真正斷網、真實 AI／模型品質、正式 Applications／乾淨帳號與公開 Release 未覆蓋，因此本結論不是 release 通過。**
+- 條件是否已被需求方接受：是（依需求方要求繼續處理 macOS、Windows 暫緩；接受本輪限定為 ZIP 候選實機補驗，不將其解讀為 release 通過）
+- 條件關閉：已掛上 round1 審查報告，回填逐字結論，並完成 `npm run docs:check:final`；provenance、ad-hoc／公證、正式 Applications／乾淨帳號、真實 AI／斷網、Windows 與公開 Release 限制維持有效。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：需另從明確且乾淨來源重建候選，才可解除 provenance blocker；正式 Developer ID／公證與 Gatekeeper 通過仍未取得。Windows 實機依需求方要求暫緩；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-22 — 0.51.0 macOS 實機驗收（Windows 暫緩）
+
+- 狀態：完成
+- 結案判定：本輪 macOS arm64 候選實機驗收有條件通過；DMG／隔離安裝／renderer／字幕／real trim／清理均通過，Gatekeeper／簽章與 release provenance 限制維持有效；Windows 依需求方要求暫緩。
+- 執行者：Codex
+- 需求來源：需求方要求先進行 macOS 實機驗收，Windows 部分暫時略過；承接 TypeSafe evaluate 的 `release_qa` 建議。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
+- 變更等級：高（使用既有 0.51.0 macOS arm64 DMG 候選進行本機安裝、啟動、renderer／trim smoke、卸載與安全狀態核對；不修改產品程式、不發布、不推送、不建立 tag、不執行 Windows 驗收）
+- 來源基準：`../dist/test-build-0.51.0-macos-88da220/`；已知 provenance 為 `88da220`，目前 HEAD 為 `17df978`，候選與目前 dirty worktree 不同，故本輪結果不得直接視為目前工作樹的發布驗收。
+- 目標與成功條件：在目前 macOS Apple Silicon 實機上唯讀驗證 DMG、解壓／隔離安裝 app、`codesign`／Gatekeeper 狀態、Electron packaged renderer、手動字幕任務、trim／post-trim、AI review asset、清理與卸載；保存不含秘密或完整字幕的非敏感 evidence。
+- 不在範圍：Windows；Developer ID／notarization 取得；真實 Anthropic API／Ollama／LM Studio；真正斷網；中文模型品質；公開 Release、上傳、推送、tag 或使用者資料修改。
+- 風險與回復方式：只讀既有候選，掛載／複製／安裝至隔離暫存路徑；以獨立 userData 執行並在 finally 清理。若啟動、renderer、卸載或 Gatekeeper 核對失敗，保留非敏感失敗 evidence，不覆寫候選與既有證據。
+- 驗證計畫：核對候選 provenance／SHA／DMG，執行唯讀掛載與隔離 Applications-like install，重播 packaged renderer／real trim smoke，記錄 codesign／spctl／清理結果，再執行必要 `npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、新的非敏感 macOS evidence 與獨立審查報告；不修改產品 runtime 或 Windows 資產。
+- 實際修改：新增非敏感 evidence `docs/project-management/evidence/2026-09-22-macos-real-machine-acceptance-rel-047.json`；同步 `00-CURRENT-STATUS.md` 與 `06-TEST-AND-PROCESS-AUDIT.md`；未修改產品 runtime、候選資產、使用者資料或 Windows 資產。
+- 開發驗證結果：DMG readonly attach／隔離 Applications-like copy／deep strict codesign／renderer smoke／manual subtitle／real trim／post-trim／AI review／glossary／8 provider／cleanup／force detach 均通過；`spctl` exit 3／rejected，符合 ad-hoc／未 Developer ID／未公證候選的預期限制；evidence assertions、`npm run check` 與 `git diff --check` 均通過。
+- 驗收判定：本輪 macOS 候選實機流程通過，但 `releaseReady=false`；候選 provenance `88da220` 落後目前 HEAD `17df978`，不是目前 dirty worktree 重建資產。Windows、正式 Applications／乾淨帳號、Gatekeeper 通過、Developer ID／公證、真正斷網、真實 AI／模型品質與公開 Release 不在本輪完成範圍。
+- 獨立審查是否執行：是（round1；有條件通過，限定 macOS 候選實機驗收，不代表 release 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-macos-real-machine-acceptance-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 macOS 候選在目前 Apple Silicon 實機的掛載／隔離安裝／renderer／real trim／清理驗收為有條件通過：DMG attach／detach、deep strict codesign、renderer smoke、手動字幕、real trim、post-trim、AI review、cleanup 已通過；spctl rejected 是 ad-hoc／未 Developer ID／未公證的預期限制；候選 provenance 88da220 落後目前 HEAD 17df978，不是目前 dirty worktree 重建資產；Windows 本輪暫緩；真正斷網、真實 AI／模型品質、正式 Applications／乾淨帳號與公開 Release 未覆蓋，因此本結論不是 release 通過。**
+- 條件是否已被需求方接受：是（依需求方要求先執行 macOS 實機驗收、Windows 暫緩；接受本輪限定為候選實機驗收，不將其解讀為 release 通過）
+- 條件關閉：已掛上 round1 審查報告，回填逐字結論，並完成 `npm run docs:check:final`；未驗收的簽章／公證、provenance、乾淨帳號、真實 AI／斷網、Windows 與公開 Release 限制維持有效。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：需另從明確且乾淨來源重建候選，才可解除 provenance blocker；ad-hoc／未公證狀態使 `spctl` rejected，正式 Developer ID／公證與 Gatekeeper 通過仍未取得。Windows 實機依需求方要求暫緩；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-22 — 0.51.0 release-readiness 本機候選核對（release_qa）
+
+- 狀態：完成
+- 結案判定：本輪本機 release-readiness audit 已完成；獨立審查判定候選不可發布，該發布阻擋維持有效，不將本輪誤標為 release 通過。
+- 執行者：Codex
+- 需求來源：TypeSafe evaluate 對目前專案判定 urgency Noul 0.84、team Choice 偏向 `release_qa`（0.54；`whisper_reliability` 0.42）、severity Score 2.99／4；需求方要求依建議執行任務。
+- 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`BUG-WHISPER-METAL-139`、`NFR-005`、`NFR-006`
+- 變更等級：中（本機 release-readiness audit 與治理文件同步；不發布、不推送、不建立 tag、不呼叫外部服務、不修改既有產品行為）
+- 目標與成功條件：核對 0.51.0 macOS DMG／ZIP、Windows Setup／Portable／unpacked 候選的版本、檔名、runtime manifest、封裝內容、checksum、blockmap／latest metadata、簽章狀態與可在本機完成的 smoke／archive 檢查；明確區分已核對與必須外部驗收的 gate。
+- 不在範圍：不執行 GitHub upload／Release、tag／push、Windows 真機安裝或 renderer smoke、Developer ID／公證、真實外部 API、LM Studio、真正斷網或任何使用者資料修改。
+- 預計影響檔案／模組：本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、必要時 `RELEASE-NOTES-0.51.0.md`、新的非敏感 audit evidence 與獨立審查報告。
+- 風險與回復方式：只讀既有候選或建立新隔離 audit evidence；不覆寫候選與既有 evidence。若 checksum／檔名／manifest／內容不一致，停止 release 判定並保留失敗診斷。
+- 驗證計畫：執行 release preflight 後，核對 macOS／Windows 候選資產與 metadata、runtime／封裝內容與 checksum；再執行必要 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增非敏感 audit evidence `docs/project-management/evidence/2026-09-22-release-readiness-audit.json`；未修改候選資產、產品程式、使用者資料或發布服務。
+- 開發驗證結果：`npm run runtime:verify:mac` 與 `npm run runtime:verify` 均通過；macOS 候選 SHA-256 manifest、ZIP `unzip -t`、DMG `hdiutil verify`、latest metadata size／SHA-512、解壓後 packaged app version 0.51.0、deep strict ad-hoc codesign、credential／>1 GiB 排除均通過；Windows 候選 SHA-256／latest metadata、unpacked PE32+ x86-64 與 version 0.51.0 通過。Windows 7z container test 因主機未安裝 7z 未執行。
+- Release gate 判定：不可發布。macOS／Windows 候選 provenance 分別為 `88da220`／`91eca2b`，目前 HEAD 為 `17df978`，且工作樹有 111 個變更路徑；候選不是目前工作樹的可發布資產。Windows 真機、macOS 乾淨安裝／Gatekeeper／Developer ID／公證、CI artifact 交叉核對與 GitHub upload 後核對均未完成。
+- 獨立審查是否執行：是（round1；不通過，靜態候選核對通過但 release gate 未滿足）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-release-readiness-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 0.51.0 release-readiness 本機候選核對獨立審查結論為不通過：macOS／Windows 候選的靜態 checksum、封裝／metadata 核對及本機 runtime assertions 通過，但候選 provenance 分別落後目前 HEAD `17df978`（macOS `88da220` 落後 2 commits；Windows `91eca2b` 落後 3 commits），且工作樹非乾淨；因此候選不代表目前工作樹，不得作為可發布資產，亦未完成 Windows／macOS 真機與安裝驗收、正式簽章／公證、CI artifact 交叉核對或正式發布。**
+- 條件是否已被需求方接受：是（依需求方要求依 TypeSafe 建議執行；接受本輪限定為本機 release-readiness audit，release blockers 維持有效）
+- round1 條件處理：round1 的「不通過」原始結論保留為 release candidate blocker；因治理 final gate 不允許以不通過作為最新結案審查，已由獨立 round2 針對 audit 文件結案範圍複審，未改寫 round1 報告或解除其 release blocker。
+- round2 審查檔案：`docs/project-management/reviews/2026-09-22-release-readiness-round2.md`
+- round2 判定（逐字引用「綜合判定」完整結論句）：**本輪 0.51.0 release-readiness audit 文件結案獨立複審結論為有條件通過：本輪 audit 證據與文件已完成，且不發布範圍已被保留；但 round1 已確認的 stale provenance/worktree blocker 仍未解除，`releaseReady` 必須維持 `false`，0.51.0 release candidate 不可發布，跨平台／簽章／CI gate 尚未完成；候選必須從明確且乾淨來源重建並補齊外部 gate 後，才可另行審查發布資格。**
+- round2 條件是否已被需求方接受：是（依需求方要求依 TypeSafe 建議執行；接受本輪只完成本機 audit 文件結案，不接受將其解讀為 release 通過）
+- 條件關閉：已掛上 round1／round2 獨立審查報告，回填 round2 逐字結論，並完成 `npm run docs:check:final`；此結案只代表 audit 文件與證據鏈完成，不改變 `releaseReady=false` 或任何未驗收 gate。
+- 發布授權：不適用；本輪只做本機 release-readiness audit，不發布、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：需先從明確且乾淨的來源 commit／工作樹重建 0.51.0 候選，再補 Windows 真機、macOS 乾淨安裝／Gatekeeper／Developer ID／公證、CI artifact 交叉核對與正式發布授權；本輪不把既有候選包視為可發布。Windows 7z container test 因主機未安裝 7z 未執行；本輪未上傳、推送、建立 tag 或發布。
+
+## 2026-09-21 — bundled Whisper 長音訊來源 SRT 完整性證據補強（FR-020／NFR-006）
+
+- 狀態：完成
+- 結案判定：round1 獨立審查有條件通過；來源 SRT before／after hash、probe 邏輯、輸出與清理均完成核對，審查當時的文件結案阻擋已由本條目回填並重跑 final docs gate 關閉；hash mismatch／檔案消失 fault injection 與影片 before／after hash 仍列為未驗收限制。
+- 執行者：Codex
+- 需求來源：上一輪獨立審查指出，長音訊 evidence 的 `originalSrtModified=false` 仍是範圍宣告，缺少來源 SRT 前後 hash；需求方持續要求繼續，故補強可回溯的原始字幕完整性證據。
+- 關聯需求／缺陷：`FR-020`、`NFR-006`
+- 變更等級：中（只修改隔離 acceptance probe 與治理 evidence；讀取來源 SRT 計算 hash，不保存字幕文字、不修改產品 server、不修改字幕交付檔、不呼叫外部服務、不執行 LM Studio、不發布）
+- 目標與成功條件：長音訊 probe 以明確來源 SRT 路徑保存 basename／大小／before SHA-256／after SHA-256；兩次 hash 相同時才將來源 SRT 未修改判定為真，並保留既有不保存 transcript、輸出 hash／統計與暫存清理契約。
+- 不在範圍：不以來源 SRT 比對 Whisper 辨識正確率；不修改、校正、覆寫或輸出任何字幕；不宣稱中文品質、confidence／no-speech、Metal crash→CPU fallback、跨平台、乾淨安裝或發布完成。
+- 預計影響檔案／模組：`scripts/verify-whisper-long-media.mjs`、本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、新 evidence 與獨立審查報告。
+- 風險與回復方式：來源 SRT 僅以唯讀 hash 方式處理，probe 輸出仍寫入隔離暫存目錄並於 finally 清理；若 before／after 無法取得或不一致，probe 失敗並保留非敏感 failure evidence，不覆寫任何既有 evidence。
+- 驗證計畫：先執行 Node syntax、短音訊／來源 SRT hash assertions，再以需求方影片完整重播；核對來源 SRT before／after hash、FFmpeg／Whisper exit、非空輸出與清理，執行 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：`scripts/verify-whisper-long-media.mjs` 新增可選來源 SRT 路徑（未提供時自動採用相鄰 `.edited.srt`），保存來源 SRT basename／大小／before／after SHA-256 與 `sourceSrtHashChecked`；schema 升為 v3。hash 不一致或檔案消失時 probe 以 `SOURCE_SRT_MODIFIED` 失敗，不保存字幕文字、不修改來源檔。
+- 開發驗證結果：短音訊 hash replay 與完整影片 replay 均通過；完整 evidence `docs/project-management/evidence/2026-09-21-whisper-long-media-small-srt-integrity.json` 記錄 5,416.349667 秒、Whisper exit 0／signal null、2,509 segments、非空 SRT／JSON、temp root 清理；來源 SRT 115,598 bytes，before／after SHA-256 均為 `4d5f5a53bb4eea7f5de5b428caefb38871771655166b12fccc613f3600f16482`，`sourceSrtHashChecked=true`、`originalSrtModified=false`。
+- 獨立審查是否執行：是（round1；有條件通過，程式、v3 evidence、來源 SRT hash、輸出清理與完整回歸未發現本輪阻擋；保留報告列出的 fault injection／影片 hash 限制）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-long-media-srt-integrity-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪「bundled Whisper 長音訊來源 SRT 完整性證據補強」在 macOS arm64 受控本機 replay／既有 evidence v3 範圍內有條件通過：來源 SRT before／after SHA-256 相同、sourceSrtHashChecked=true、originalSrtModified=false，Whisper／FFmpeg exit code 與 signal、非空 SRT／JSON、segment 統計與 temp cleanup 均有 evidence 且唯讀 assertions／受控權限 npm run check 通過；但 npm run docs:check:final 仍因最新 08-CHANGE-LOG.md 條目為進行中／待執行且尚未填入獨立審查欄位而失敗，且本輪不代表字幕語意品質或 Whisper 正確率、confidence／no-speech、真實 Metal crash→CPU fallback、Windows、乾淨安裝、外部網路、LM Studio 或發布已完成。**
+- 條件是否已被需求方接受：是（依需求方持續要求繼續；接受本輪限定為來源 SRT hash 完整性與長音訊 runtime／輸出基線，不將其擴大為字幕品質或發布驗收）
+- 條件關閉：已將本輪狀態改為完成、掛上 round1 報告與逐字結論，並完成 `npm run docs:check:final`；報告列出的 fault injection、影片 before／after hash、品質、Metal fallback、跨平台與發布限制維持有效。
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 開發驗證與審查結論：`node --check scripts/verify-whisper-long-media.mjs`、短音訊 hash replay、完整影片 v3 replay、evidence assertions、`npm run check`、`git diff --check` 與 `npm run docs:check:final` 均通過；round1 審查有條件通過，文件結案條件已關閉。
+- 遺留風險與後續事項：即使 hash 完整性證據通過，仍不等於字幕內容品質、人工影音校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows、乾淨安裝、真正斷網或發布驗收。
+
+## 2026-09-21 — bundled Whisper 長音訊實機品質基線（BUG-WHISPER-METAL-139／FR-020）
+
+- 狀態：完成
+- 結案判定：round1 獨立審查有條件通過；條件限於本輪只將結果定義為完整長音訊 runtime／非空 SRT／JSON 輸出基線，已完成報告掛載、逐字結論回填與 final docs gate。中文音訊品質、confidence／no-speech、真實 bundled Metal crash→CPU fallback、跨平台與發布仍不在本輪完成範圍。
+- 執行者：Codex
+- 需求來源：需求方要求繼續；目前最大可本機驗證缺口是實際長中文音訊、bundled Whisper runtime 的執行時間與輸出完整性，不能只依 1 秒靜音或 deterministic fixture 推論。
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中（新增隔離 acceptance probe 並讀取需求方已提供的本機影片；不修改產品 server、fallback policy、原始影片、原始 SRT、字幕交付檔，不呼叫外部服務、不執行 LM Studio、不發布）
+- 目標與成功條件：以 `/Users/nycu/Downloads/20260909.mp4` 作為明確本機輸入，使用 bundled FFmpeg 與 Whisper.cpp Small，保存輸入／runtime／model hash、音訊 duration、CLI exit／signal、輸出存在性、cue／segment／文字長度與清理結果；若 runtime 失敗，保存可診斷但不含完整字幕內容的 evidence，不能把失敗誤標為品質通過。
+- 不在範圍：不以既有 SRT 當成語音品質 ground truth；不自動修改或覆寫字幕；不宣稱中文翻譯／辨識品質、Metal crash→CPU fallback、跨平台、長音訊效能門檻或正式發布已完成。
+- 預計影響檔案／模組：`scripts/verify-whisper-long-media.mjs`、本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、新 evidence 與獨立審查報告。
+- 風險與回復方式：影片只在本機讀取；輸出與抽取音訊放入隔離暫存目錄並於 finally 清理；evidence 使用新檔 exclusive create，只保存摘要／hash／統計，不保存完整轉錄內容。若耗時、磁碟或 runtime 邊界無法安全完成，停止並保留失敗 evidence，不修改既有交付檔。
+- 驗證計畫：先執行 probe Node syntax 與短時間／完整 bundled runtime replay，核對 FFmpeg／Whisper exit、輸出統計與暫存清理；再跑 focused／完整 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增 `scripts/verify-whisper-long-media.mjs`；先修正 probe 對 bundled Whisper JSON `transcription` 欄位的摘要解析，再將 evidence schema 升為 v2，標準輸出改只保存行數／字幕行數統計，不保存字幕文字。移除先前 v1 evidence 中意外保存的 stdout 字幕尾端，未修改產品 server、fallback policy、原始影片或原始 SRT。
+- 開發驗證結果：完整本機重播 `docs/project-management/evidence/2026-09-21-whisper-long-media-small-redacted.json` 通過（macOS arm64、bundled Small、影片 5,416.349667 秒；Whisper exit 0／無 signal；2,509 segments、23,697 code points、最後 segment 5,407.58 秒；SRT 161,545 bytes、JSON 5,666,118 bytes；temp root 已清理）。evidence v2 的 `stdoutSummary.contentStored=false`、`fullTranscriptStored=false`，未保存 legacy `stdoutTail`；外部網路與 LM Studio 均未使用，原始影片／SRT 均未修改。
+- 獨立審查是否執行：是（round1；有條件通過，未發現本輪程式、evidence 隱私、輸出清理或回歸阻擋；文件結案條件已由本條目回填並通過 final docs gate）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-long-media-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 bundled Whisper Small 長音訊 runtime／非空輸出基線在 macOS arm64 受控本機 replay 範圍內有條件通過；它證明完整長音訊執行、非空 SRT／JSON、輸出統計與暫存清理，不代表中文音訊品質通過，且本輪未取得 confidence／no-speech 欄位、真實 bundled Metal crash→CPU fallback、外部網路／LM Studio、Windows、乾淨安裝或發布證據；因 08-CHANGE-LOG 最新條目仍為進行中且 `npm run docs:check:final` 失敗，文件結案仍待主要代理完成。**
+- 條件是否已被需求方接受：是（依需求方持續要求繼續；接受本輪限定為本機 runtime／輸出完整性基線，不將其擴大為音訊品質、Metal fallback、跨平台或發布驗收）
+- 條件關閉：已將本輪狀態改為完成、掛上 round1 報告與逐字結論，並完成 `npm run docs:check:final`；報告中的品質、Metal fallback、跨平台與發布限制維持有效。
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 開發驗證與審查結論：`node --check scripts/verify-whisper-long-media.mjs`、14 項 evidence assertions、`npm run check`、`git diff --check` 與 `npm run docs:check:final` 均通過；round1 審查有條件通過，條件已依上列範圍與文件結案欄位關閉。
+- 遺留風險與後續事項：本輪只建立長音訊 runtime／輸出完整性基線，不等於人工影音品質、confidence／no-speech 欄位、真正 Metal crash→CPU fallback、Windows、乾淨安裝、真正斷網或正式發布驗收；`deviceObserved=null`，未宣稱本輪取得 Metal failure 或 CPU fallback 證據。
+
+## 2026-09-21 — 最新治理文件欄位一致性修正
+
+- 狀態：完成
+- 結案判定：移除上一筆工作紀錄重複的結案判定行，保留 round1／round2 審查與範圍聲明；不改產品程式、測試、evidence 或驗收結論。
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；上一筆工作完成後的文件檢查發現同一條目重複列出結案判定，且目前狀態查證日期落後於最新 evidence。
+- 關聯需求／缺陷：`NFR-006`、`BUG-WHISPER-METAL-139`
+- 變更等級：低（純治理文件一致性修正，不改產品行為或證據內容）
+- 目標與成功條件：最新工作紀錄只保留一個結案判定；目前狀態查證日期與最新工作紀錄一致；`docs:check:final` 與 `git diff --check` 通過。
+- 不在範圍：不重新執行 Whisper、LM Studio、Windows、長音訊或發布驗收；不修改任何產品程式、evidence、獨立審查報告或既有範圍結論。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/08-CHANGE-LOG.md`。
+- 風險與回復方式：只刪除確認重複的文件行並同步查證日期；若發現內容不一致，保留原始 evidence 並停止擴大修改。
+- 驗證計畫：核對最新條目與目前狀態，執行 `npm run docs:check:final`、`git diff --check`；低風險純文件修正不另建獨立審查報告。
+- 實際修改：移除上一筆 `Whisper production probe 啟動失敗診斷可觀測性` 重複的 `結案判定` 行，並將 `00-CURRENT-STATUS.md` 最後查證日期更新為 2026-09-21。
+- 開發驗證結果：`npm run docs:check:final` 與 `git diff --check` 通過；最新工作紀錄只保留一個結案判定，`00-CURRENT-STATUS.md` 查證日期已同步為 2026-09-21。
+- 獨立審查是否執行：否（低風險文件一致性修正；原因：只刪除重複欄位並同步查證日期，不改產品、測試、evidence 或審查結論；需求方同意記錄：本次明確要求「繼續」並授權延續中的文件整理。）
+- 獨立審查結論：不適用（以治理 validator 與差異檢查替代）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：真實 bundled Metal crash→CPU fallback、長音訊／中文品質、Windows、乾淨安裝、真正斷網與 LM Studio 仍需外部環境或另行明確授權；本輪不把文件修正視為上述驗收完成。
+
+## 2026-09-21 — Whisper production probe 啟動失敗診斷可觀測性（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：round1 發現的診斷遮罩與治理缺口已修正；round2 default／elevated replay、負向 sanitizer assertions、完整回歸與獨立複審完成。受控權限 bundled Metal 正常路徑維持通過，未新增或宣稱真實 Metal crash→CPU fallback
+- 執行者：Codex
+- 需求來源：前輪 bundled production server Metal 邊界重播指出，預設 sandbox 下 server 在 ready 前 exit 0 時，probe 只保存 exit code，未保留可診斷的 stdout／stderr 摘要。
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`NFR-005`、`NFR-006`
+- 變更等級：中（只改善隔離 acceptance probe 的非敏感啟動診斷與 deterministic assertions；不修改產品 server、fallback policy、bundled runtime／模型，不讀使用者媒體、不呼叫外部服務、不執行 LM Studio、不發布）
+- 目標與成功條件：server 未 ready 即離開時，evidence 記錄 exit code／signal、stdout／stderr 的遮罩尾端摘要與 ready phase；正常受控 replay 仍完成既有 job，診斷欄位不洩漏 API key、token、絕對使用者媒體內容或完整 log。
+- 不在範圍：不把診斷欄位當成 Metal crash／CPU fallback 證據；不修改 `server.mjs` 或真實 bundled CLI；不涵蓋中文品質、長音訊、Windows、乾淨安裝、發布或 LM Studio。
+- 預計影響檔案／模組：`scripts/verify-whisper-real-fallback.mjs`、`scripts/test-whisper-fallback-policy.mjs`（若需 source contract）、`docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件、新 evidence 與獨立審查報告。
+- 風險與回復方式：只保存固定長度、遮罩後的 child output；若遮罩或 evidence assertion 失敗立即停止，保留新 evidence 供診斷，不覆寫前輪 evidence。probe 仍使用隔離資料目錄與 finally cleanup。
+- 驗證計畫：先保存修正前啟動失敗 evidence 作基準；修改 probe 後重跑預設 sandbox 與受控權限 bundled server replay，檢查診斷摘要、正常 Metal path、敏感值遮罩與清理；再跑 Node syntax、focused／完整 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：`scripts/verify-whisper-real-fallback.mjs` 改以 pipe 收集 production server stdout／stderr，新增 v2 process diagnostics（PID、readyAt、exit code／signal、pre-ready exit、遮罩後固定尾端摘要）；遮罩邏輯抽至 `lib/whisper-probe-diagnostics.mjs`，補 API key／token／secret／Authorization／Bearer／Basic、quoted／含空白 credential、`/tmp/` 與 probe token guard；`scripts/test-whisper-fallback-policy.mjs` 新增 deterministic 負向測試。不修改產品 server 或既有 fallback 行為。
+- 開發驗證結果：round2 預設 sandbox 重播 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-default.json` exit 1／server exit 0，但 stderr 尾端明確為 `listen EPERM`、ready=false、job 未建立；受控權限重播 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-escalated.json` exit 0、任務 `completed/ready-review`、`whisperDevice=metal`、`fallbackObserved=false`，輸出與 stale partial 清理通過。兩側只讀 assertions 確認 evidence v2 欄位完整、probe token／credential／`/tmp/` 未外洩。
+- round1 審查發現：`docs/project-management/reviews/2026-09-21-whisper-probe-diagnostics-round1.md` 判定不通過；quoted／含空白 credential 可能留下尾段，`/tmp/` 未遮罩，且缺少 sanitizer 負向測試、probe token guard 與本輪文件結案欄位回填。
+- 修正結果：已將 sanitizer 抽至可測試模組，對 quoted／escaped／含空白 credential 採保守整行遮罩，補 `/tmp/` 路徑與 probe token 斷言／負向測試；round2 default／elevated evidence、focused assertions 與完整回歸均通過。
+- 獨立審查是否執行：是（round1／round2；round1 阻擋已由主要代理修正，round2 有條件通過，條件於本條目完成回填並執行 final docs check 後關閉）
+- round1 審查結論（逐字引用「綜合判定」完整結論句）：**本輪 BUG-WHISPER-METAL-139 是 probe-only observability：預設 sandbox 的 stderr 已可見 `listen EPERM`，受控重播已完成 `completed/ready-review`、`whisperDevice=metal`、`fallbackObserved=false`，且沒有真實 Metal crash→CPU fallback 證據；但目前 sanitizer 對含空白／引號 credential 與 `/tmp/` 路徑的遮罩不完整，缺少相應負向自動測試，且 08-CHANGE-LOG 尚未完成審查結案欄位，因此在修正安全遮罩、補足測試並完成文件結案前，本輪診斷可觀測性不得判定為通過。**
+- round1 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-probe-diagnostics-round1.md`
+- round2 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-probe-diagnostics-round2.md`
+- round2 判定（逐字引用「綜合判定」完整結論句）：**本輪 BUG-WHISPER-METAL-139 round2 獨立複審在 probe-only observability 範圍內有條件通過：quoted／escaped／含空白 credential、Bearer／Basic、`/tmp/` 遮罩與 generated probe token guard／負向測試已由可測試 sanitizer 與 deterministic assertions 補齊；default stderr 可見 `listen EPERM` 且 job 未建立，elevated replay 完成 `completed/ready-review`、`whisperDevice=metal`、無 fallback；本輪沒有真實 bundled Metal crash→CPU fallback 證據。唯一未完成條件是 `08-CHANGE-LOG.md` 仍為進行中，主要代理須掛上本報告、填妥 round2 結案欄位並執行 `npm run docs:check:final`。**
+- 條件是否已被需求方接受：是（依需求方持續要求繼續；僅接受本輪 probe-only 診斷可觀測性、遮罩、證據與文件結案，真實 bundled Metal crash→CPU fallback 及其他未驗收風險不視為完成）
+- 條件關閉：本條目已掛上 round2 報告、填入逐字結論並完成 final docs check；條件僅涉及治理文件結案，不改變本輪「沒有真實 bundled Metal crash→CPU fallback 證據」的範圍判定。
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：本輪仍不宣稱真實 bundled Metal crash→CPU fallback；中文品質、長音訊、取消中的 retry、CPU retry 再失敗、其他 macOS 架構、Windows、乾淨安裝、正式發布與 LM Studio 仍未驗收。round2 報告的有條件通過條件已由本條目回填與 `npm run docs:check:final` 關閉。
+
+## 2026-09-21 — bundled Whisper production server Metal failure 邊界重播（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：已完成預設 sandbox 與受控本機權限的同一 bundled production server 重播；預設環境受 loopback 啟動限制，受控權限下正常完成 Metal，未觀察真實 bundled Metal crash→CPU fallback，該實機門檻仍保留
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；前輪已完成受控 wrapper→真實 bundled CPU 取消，但同一次 production server 中 bundled Metal 自身 crash→CPU fallback 仍未取得實機證據。
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（重播現有真實 bundled server probe 並保存執行邊界證據；不修改產品 fallback 策略、不讀使用者媒體、不呼叫外部服務、不執行 LM Studio、不發布）
+- 目標與成功條件：以同一 bundled `whisper-cli`／Tiny、同一 1 秒 16 kHz mono 合成 WAV、同一 production server 路徑，分別在目前預設執行環境與受控本機權限重播；記錄 server 是否觀察到 Metal exit／signal、CPU fallback、輸出與清理，明確區分真實 bundled crash、正常 Metal 完成與環境限制。
+- 不在範圍：不以 sandbox crash 自動宣稱產品 fallback；不修改 `server.mjs` 或 bundled runtime／模型；不涵蓋中文品質、長音訊、Windows、乾淨安裝、發布或 LM Studio。
+- 預計影響檔案／模組：`docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-*.json`、本文件；只有在重播揭露可重現產品缺陷時才修改產品程式與相關測試。
+- 風險與回復方式：probe 只使用新建隔離資料目錄與本機合成音訊，evidence 使用新檔 exclusive create；所有 server／暫存資料於 finally 清理。若執行權限造成不同結果，保留兩側 evidence 並將差異限縮為環境邊界，不回復或覆蓋既有證據。
+- 驗證計畫：先重播既有 real bundled server probe，分別保存預設與受控本機權限結果；再執行 evidence assertions、Node syntax、必要 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：未修改產品程式、bundled runtime 或模型；新增預設 sandbox 與受控本機權限的 production server replay evidence，明確記錄 server ready、Metal／CPU fallback marker、job 輸出與暫存清理結果。
+- 開發驗證結果：預設 sandbox 重播產生 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-default.json`，server 在 ready 前 exit 0、job 未建立；受控本機權限重播產生 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-escalated.json`，exit 0、任務 `completed/ready-review`、`whisperDevice=metal`、`fallbackObserved=false`，SRT／JSON／draft 存在且 stale partial／暫存 WAV 清理。兩份 evidence 的 runtime／model hash 與 scope 均保留；本輪沒有真實 bundled Metal failure 或 CPU fallback 可宣稱。
+- 獨立審查是否執行：是（round1／round2；有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-production-metal-boundary-round1.md`
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 BUG-WHISPER-METAL-139 bundled Whisper production server Metal failure 邊界重播 round1 獨立審查有條件通過：預設 sandbox evidence 的 server 在 ready 前 exit 0 且未建立 job，不得解讀為 Metal crash；同一 macOS arm64 bundled whisper-cli／Tiny、同一 1 秒合成 WAV 與同一 production server 在受控本機權限下完成 ready-review、whisperDevice=metal、fallbackObserved=false、輸出與暫存清理，證明正常 bundled Metal path，但本輪沒有同一次真實 bundled Metal crash→CPU fallback 證據，該實機門檻仍未完成。**
+- round2 審查檔案：`docs/project-management/reviews/2026-09-21-whisper-production-metal-boundary-round2.md`
+- round2 判定（逐字引用「綜合判定」完整結論句）：**本輪 BUG-WHISPER-METAL-139 bundled Whisper production server Metal failure 邊界重播 round2 格式與文件結案複審有條件通過：預設 sandbox server 在 ready 前 exit 0 且未建立 job，不是 Metal crash；受控本機權限下同一 bundled runtime 正常完成 Metal、`ready-review`、`whisperDevice=metal` 且 `fallbackObserved=false`；本輪沒有真實 bundled Metal crash→CPU fallback 證據；round2 只處理 round1 治理格式缺口與文件結案條件，未產生新 evidence、未修改程式、evidence 或 round1。**
+- 條件是否已被需求方接受：是（依需求方持續要求繼續；僅接受本輪執行邊界重播與文件結案，真實 crash→CPU fallback 及其他未驗收風險不視為完成）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：真實 bundled production server 的 Metal failure→CPU fallback 尚未觀察；1 秒靜音不代表中文品質、長音訊、效能、取消交界、CPU retry 再失敗、其他 macOS 架構、Windows、乾淨安裝或正式發布驗收。deterministic fallback fixture、direct CLI 對照與本輪正常 Metal smoke 均不可替代該門檻。LM Studio 依需求方決策未執行。
+
+## 2026-09-18 — production-mode Whisper bundled CPU retry 取消補驗（BUG-WHISPER-METAL-139／BUG-026）
+
+- 狀態：完成
+- 結案判定：production-mode 真實 bundled CPU child 取消、API-loss 安全收尾、相鄰回歸與獨立 round2 複審均通過；本輪仍不宣稱 bundled Metal 自身 crash、真實 CLI partial、長音訊／中文品質、跨平台、乾淨安裝或發布已驗收
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；前輪已驗證受控 Metal exit 139 後真實 bundled CPU 可完成，但真實 CPU 子程序執行中取消仍是明列遺留風險。
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`BUG-026`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（補強 macOS arm64 非測試模式實機 CPU 子程序取消驗收；優先只修改隔離 probe、測試與治理證據，若揭露產品缺陷才做最小產品修正；不讀使用者媒體、不呼叫外部服務、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由文件（是）
+- 目標與成功條件：在 `NODE_ENV=production` server 中以 wrapper 控制首次 Metal exit 139，CPU retry 真正啟動 bundled `whisper-cli --no-gpu`；等真實 CPU child 已 spawn 後透過 API 取消，先觀察 `running/cancelling`，待 child／wrapper close 後成為 `cancelled`，精確兩次 invocation、CPU 裝置與 fallback logs 保留，暫存 WAV、partial SRT／JSON、quality metadata／draft 清除，非 ASR 工作檔保留；證據記錄實際 signal／child close 與重播條件。
+- 不在範圍：不宣稱 bundled Metal 自身在同次 run 崩潰；不把 probe 注入的 partial 檔冒充真實 CLI 產物；不涵蓋長音訊轉錄品質、中文語音、Windows、乾淨安裝或發布；不改使用者字幕。
+- 預計影響檔案／模組：`scripts/verify-whisper-production-fallback.mjs`、`package.json`、`docs/project-management/00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件、新 evidence 與獨立審查報告；必要時 `server.mjs`。
+- 風險與回復方式：短輸入可能在 API 取消前已完成，使用只含本機合成音訊的較長 WAV 並等待 child spawn marker；取消前注入固定 partial／quality 哨兵，明確標記其來源。probe 中斷時先要求 server 取消並等待 child 關閉，再停止隔離 server；新 evidence 使用 exclusive create，不覆寫前輪證據。若真實 CPU 無法安全終止或回歸失敗即停止並保存失敗證據，不將結果宣稱通過。
+- 驗證計畫：先在隔離資料目錄重播本輪 cancellation acceptance，檢查 CPU spawn、SIGTERM／child close、API 中間與最終狀態、清理、保留、無第三次 invocation；再重跑前輪 hybrid 完成與舊 controlled probe、Node 語法、完整 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：既有 production acceptance 新增 `--cancel-bundled-cpu` 模式與 npm alias；wrapper 仍只注入首次 Metal exit 139，CPU 分支實際 spawn bundled binary，新增 spawn／SIGTERM／close marker 與 bounded force-kill safeguard。probe 於真實 CPU child spawn 後注入固定 ASR partial／quality 及非 ASR edit-plan 哨兵，再透過 API 取消並斷言中間／最終狀態、精確兩次 invocation、signal 與檔案完全不存在／保留。round1 指出取消 API 不可用時收尾無法保證子孫程序關閉；已將 probe server 設為獨立 process group，故障時有界 SIGTERM／必要時 SIGKILL 並確認 group 消失後才刪 temp，無法確認則保留診斷資料並回報失敗；增加 API loss 可重播故障注入與完整 cleanup evidence。未修改產品 `server.mjs` 或 bundled CLI；同步目前狀態、設計、測試與偵錯文件，舊 evidence 保留未覆寫。
+- 開發驗證結果：macOS arm64 受控權限 `npm run acceptance:whisper:bundled-cpu-cancel -- docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-final.json` exit 0，見 CPU child spawn、`running/cancelling`→`cancelled`、SIGTERM／child close、無 forced kill、精確兩次 invocation、ASR 哨兵與暫存 WAV 清除及 edit plan 保留。`--simulate-cancel-api-loss` 以新 evidence `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-api-loss-final.json` 預期 exit 1／`PROBE_CANCEL_API_LOSS`，但 `expectedFaultSafelyHandled=true`、groupGone／child close／tempRootRemoved=true。前輪 hybrid 完成與舊 controlled probe 在 group 收尾改動後均 exit 0；最終腳本 Node 語法、evidence JSON assertions、`git diff --check` 與完整 `npm run check` 均 exit 0。Metal failure 與 partial 檔來源由 probe 控制，不宣稱真實 Metal crash／CLI partial 輸出。
+- round1 獨立審查：`docs/project-management/reviews/2026-09-18-whisper-bundled-cpu-cancel-round1.md` 判定不通過；問題由主要代理修正，不修改原報告，將請 round2 複審。
+- 獨立審查是否執行：是（round1 不通過；round2 通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-bundled-cpu-cancel-round1.md`
+- round2 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-bundled-cpu-cancel-round2.md`
+- 判定（逐字引用 round2「綜合判定」完整結論句）：**本輪「2026-09-18 — production-mode Whisper bundled CPU retry 取消補驗（BUG-WHISPER-METAL-139／BUG-026）」round2 獨立複審結論為通過：round1 指出的取消 API 失敗收尾缺口已由獨立 process group、有界 SIGTERM／必要 SIGKILL、group 消失確認後刪除暫存與 cleanup evidence 修正；正常 bundled CPU 取消已獨立重播通過 running/cancelling→cancelled、精確兩次 metal/cpu invocation、真實 child SIGTERM／close、ASR partial／quality／WAV 清理與非 ASR edit plan 保留，API-loss 故障注入則按預期以 PROBE_CANCEL_API_LOSS fail 結束但已證實 wrapper／CPU child 關閉、process group 消失與暫存安全移除，另兩個舊 fallback 模式及完整 npm run check 均通過；本結論仍限於 macOS arm64、本機合成 60 秒音訊與 wrapper 控制的 acceptance 範圍，不代表 bundled Metal 自身 crash、真實 CLI partial、中文品質、長音訊、Windows、乾淨安裝或發布已驗收。**
+- 條件是否已被需求方接受：不適用（round2 結論通過；受控 acceptance 範圍與未驗收風險已如實保留）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：首次 Metal exit 139 與 partial 檔案仍由 wrapper 控制，probe partial 不是 bundled CLI 自行產物；仍未驗證 bundled Metal 自身 crash→CPU、server 直接對 bundled CLI 發訊號、長音訊／中文品質、Windows process tree、乾淨安裝與發布。LM Studio 依需求方決策未執行。
+
+## 2026-09-18 — production-mode Whisper 受控 Metal 失敗與 bundled CPU retry 整合（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：macOS arm64 production-mode 受控 Metal exit 139 後的真實 bundled CPU retry 整合與獨立 round3 合規複審通過；round2 格式失敗報告保留，真實 bundled Metal 自身 crash→CPU 的實機門檻仍未完成
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；既有驗收分別只涵蓋 production-mode deterministic CPU 與正常 bundled Metal，尚缺受控失敗後真實 bundled CPU 的同次 server 整合。
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（新增隔離驗收探針與證據，不改產品 fallback 策略或 bundled runtime，不讀使用者媒體、不呼叫外部服務、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由文件（是）
+- 目標與成功條件：在 `NODE_ENV=production` server 中只控制首次 Metal child 以 exit 139 和 partial SRT／JSON 失敗；server 清理 partial 後只以 `--no-gpu` retry 一次，CPU child 實際委派 bundled `whisper-cli`／Tiny 產生有效輸出，任務達 `completed/ready-review`、CPU metrics 與暫存清理。evidence 須區分受控 Metal 與真實 bundled CPU，記錄 runtime／model hash 與可重播命令。
+- 不在範圍：不宣稱 bundled Metal 自身在同次 server run 崩潰；不涵蓋中文語音品質、長音訊、Windows、乾淨安裝或公開發布；LM Studio 依需求方決策不執行。
+- 預計影響檔案／模組：`scripts/verify-whisper-production-fallback.mjs`、`package.json`、`docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件、本輪 evidence 與獨立審查報告；若探針揭露產品缺陷，才修改 `server.mjs`。
+- 風險與回復方式：wrapper 若未確實轉交 CPU 或在殘留 partial 上成功，可能誤判；以 CPU 子程序結果 marker、runtime hash、只兩次 invocation、stale artifact 斷言與全新隔離 tools／data 目錄降低風險。失敗可移除本輪探針／文件變更，使用者媒體與既有 evidence 不受影響。
+- 驗證計畫：先執行新 hybrid probe 並保存非敏感 evidence；核對首次注入、CPU 實際子程序結果、任務狀態／logs／metrics／輸出與清理；再執行既有 production controlled probe、Node 語法、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 實際修改：既有 production controlled acceptance 增加 `--bundled-cpu` 模式及 npm alias；hybrid wrapper 只注入首次 Metal exit 139／partial outputs，CPU 分支直接 spawn bundled `whisper-cli`、記錄退出結果與兩次 invocation，並檢查 stale partial。round1 指出 evidence 缺少可重播命令後，在探針新增 hybrid 專屬 replay command、working directory、環境前提與 fresh-path policy，另以新檔保存修正後 evidence，原始檔不覆寫。同步目前狀態、功能設計、測試稽核與偵錯歷程。產品 `server.mjs` 與 bundled runtime 未修改。
+- 開發驗證結果：macOS arm64 受控權限 `npm run acceptance:whisper:hybrid-fallback -- docs/project-management/evidence/2026-09-18-whisper-hybrid-fallback-replay.json` exit 0，CPU bundled child exit 0，任務 `completed/ready-review`，metrics CPU，精確 `metal`／`cpu` 兩次 invocation，draft／SRT／JSON 存在且無 stale partial／暫存 WAV；新 evidence 包含可重播命令及環境前提，原始 evidence 保留未覆寫。舊 production controlled probe exit 0，`node --check scripts/verify-whisper-production-fallback.mjs`、JSON assertions、`git diff --check` 與修正後完整 `npm run check` exit 0；獨立 round2 亦重跑 hybrid／舊模式／完整回歸通過。首次 Metal failure 為受控注入，不是 bundled Metal 真實 crash。
+- 獨立審查是否執行：是（round1 有條件通過；round2 內容通過但治理格式不合；round3 合規通過）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-hybrid-bundled-cpu-round1.md`
+  - round2 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-hybrid-bundled-cpu-round2.md`（保留未修改；格式不符 validator）
+  - round3 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-hybrid-bundled-cpu-round3.md`
+  - 判定（逐字引用 round3「綜合判定」完整結論句）：**本輪「2026-09-18 — production-mode Whisper 受控 Metal 失敗與 bundled CPU retry 整合（BUG-WHISPER-METAL-139）」round3 獨立審查結論為通過：新 evidence 的可重播命令、工作目錄、執行前提與新檔名政策已補齊 round1 缺口，原始 evidence 保留，00／03／06／07／08 與目前證據一致，先前獨立 hybrid／舊模式實測及本輪治理與語法檢查通過；此判定只涵蓋 wrapper 注入 Metal exit 139 後由真實 bundled CPU 在同次 production server 任務完成，不代表 bundled Metal 自身 crash→CPU、中文品質、長音訊、真實 CPU child 取消、Windows、乾淨安裝或發布已驗收。**
+- 條件是否已被需求方接受：不適用（round1 的證據條件已修正；round3 結論通過）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：尚無同次真實 bundled Metal 自身 crash→CPU 的實機證據；短靜音不驗證中文語音品質或長音訊，真實 bundled CPU child 取消、Windows、乾淨安裝與發布未驗收。預設 sandbox 下 server 啟動失敗時 stderr 被丟棄，探針診斷有限，屬後續觀測性改進；LM Studio 依需求方決策未執行。round2 報告格式缺口已由獨立 round3 新報告補正，舊報告保留未覆寫。
+
+## 2026-09-18 — Whisper Metal→CPU retry 取消交界整合驗證（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：deterministic macOS arm64 CPU child 就緒後的 API 取消整合、完整回歸及獨立六面向審查均完成；本輪不關閉真實 bundled runtime 或 callback 內不可外部插入窗口等較廣驗收門檻
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；上一輪 CPU retry failure 審查列出取消與 retry 交界仍未驗收
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`BUG-026`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（補強 macOS arm64 Whisper.cpp Metal→CPU retry 期間的取消整合驗證；必要時才修正產品程式，不修改 bundled runtime／模型、使用者字幕，不呼叫外部服務、不使用 API Key、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由文件（是）
+- 目標與成功條件：Metal 首次 exit 139 後只啟動一次 `--no-gpu` CPU child；待該 child 已寫出 partial SRT／JSON 並安裝取消 handler，再由 API 發出取消。任務須先維持 `running/cancelling`，child close 後轉為 `cancelled`，不得落入 failed／completed 或第三次 retry；暫存 WAV、partial SRT／JSON、quality metadata 與 draft 不得殘留，非 ASR 工作檔保留。
+- 不在範圍：不新增產品測試 hook，不宣稱外部 API 能插入同一事件迴圈 callback 中的不可觀測毫秒窗口，不更改 Metal fallback 條件或 CPU retry 次數；不宣稱真實 bundled crash→CPU retry 取消、長音訊、中文品質、Windows、乾淨安裝或發布完成；LM Studio 依需求方決策不執行。
+- 預計影響檔案／模組：`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/test-core.mjs`、若測試失敗則 `server.mjs`；`docs/project-management/00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件、本輪 evidence 與獨立審查報告。
+- 風險與回復方式：取消測試若在 CPU child 安裝 SIGTERM handler 前觸發會產生時序假失敗；fixture 只在 handler 已安裝後寫入 ready marker，測試等待該 marker。測試資料限定隔離 job working 目錄，失敗可回復本輪 fixture／測試／文件變更，不觸及使用者媒體。
+- 驗證計畫：新增可區分 Metal／CPU invocation 與 CPU-ready marker 的 fixture，先在現有產品程式上執行受控權限 `node scripts/test-core.mjs` 取得基準；若失敗，保存現象並做最小修正。通過後執行 Node 語法、完整 `npm run check`、evidence assertions、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：fixture 僅在 Metal 139＋CPU delayed 組合下記錄 `metal`／`cpu` invocation，並於 CPU child 安裝 SIGTERM handler 後寫 ready marker；核心測試新增 CPU retry 已就緒後的 API 取消、`cancelling`／`cancelled` 生命週期、child 關閉、兩次 invocation、partial／quality／音訊清理與非 ASR 工作檔保留斷言。現有 `server.mjs` 無需修改；新增非敏感 evidence 並同步目前狀態、功能設計、測試稽核及偵錯歷程。
+- 開發驗證結果：fixture／core Node 語法 exit 0；受控權限 `node scripts/test-core.mjs` 連續三次 exit 0，完整 `npm run check` exit 0，`git diff --check` 與 evidence JSON assertions exit 0。結果限於 deterministic macOS arm64 CPU child 已就緒後取消；evidence 為 `docs/project-management/evidence/2026-09-18-whisper-retry-cancellation.json`。獨立審查另以受控權限重跑 focused core 與完整 `npm run check` 均 exit 0；預設 sandbox `listen EPERM` 未進入產品案例。
+- 獨立審查是否執行：是（round1；限定範圍通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-retry-cancellation-round1.md`
+- 判定（逐字引用審查報告「綜合判定」完整結論句）：**本輪「2026-09-18 — Whisper Metal→CPU retry 取消交界整合驗證（BUG-WHISPER-METAL-139）」round1 獨立審查結論為通過：在 macOS arm64 deterministic CPU child 已寫出 partial SRT／JSON 並安裝 SIGTERM handler 後的 API 取消範圍內，首次 Metal exit 139、單次 `--no-gpu` CPU retry、`running/cancelling` 至 child close 後 `cancelled`、僅兩次 invocation、CPU metrics 與 Metal fallback marker 保留、暫存音訊及 partial／quality／draft 清理和非 ASR edit plan 保留，均由現行控制流、核心斷言與獨立受控回歸支持；本結論不代表真實 bundled runtime、同一 Metal close callback 內不可外部插入的窗口、Windows、長音訊、中文品質、乾淨安裝或發布已驗收，LM Studio 實機未執行且不在範圍。**
+- 條件是否已被需求方接受：不適用（round1 在明確限定範圍內通過）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：缺少同次真實 bundled server crash→CPU retry 取消與同一 Metal close callback 內窗口證據；Windows taskkill、長音訊、中文品質、乾淨安裝及發布仍未驗收。evidence 為非敏感摘要而非逐事件原始時間序列；quality metadata 與 edit plan 以測試哨兵驗證清理／保留。LM Studio 依需求方決策未執行。
+
+## 2026-09-18 — Whisper CPU fallback 再失敗終止與清理整合（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：已完成修正前重現、CPU retry failure 終止／清理契約、核心整合回歸與獨立六面向審查；限定 deterministic macOS arm64 child-process 範圍，不關閉真實 bundled runtime 或取消競態等較廣驗收門檻
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；前一輪 signal-aware fallback 審查明列 CPU retry failure 尚無 child-process integration
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（補強 Whisper.cpp CPU fallback 再失敗的終止、partial output 清理與可觀測性；不修改 runtime／模型、使用者字幕，不呼叫外部服務、不使用 API Key、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由文件（是）
+- 目標與成功條件：在 macOS arm64 deterministic child-process integration 中，首次 Metal 明確失敗後只啟動一次 `--no-gpu` CPU retry；CPU retry 再以非零 exit 失敗時，任務必須終止為 `failed`、不得第三次遞迴、不得產生 `draft.srt`，並清除 CPU retry 留下的 partial SRT／JSON、保留可診斷的 CPU failure reason 與既有 Metal→CPU marker
+- 不在範圍：不修改 Metal fallback 平台／架構條件，不增加第二次 CPU retry，不以 stderr 猜測錯誤類型，不修改 bundled Whisper.cpp／模型，不宣稱真實 bundled server crash→CPU failure、取消競態、長音訊、中文品質、Windows、乾淨安裝或正式發布完成；LM Studio 依需求方決策不執行
+- 預計影響檔案／模組：`server.mjs`、`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/test-core.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件、本輪 evidence 與獨立審查報告
+- 風險與回復方式：若失敗清理範圍過寬，可能刪除非本次 Whisper 輸出；修正只允許刪除固定 `whisper-cpp-output.srt`／`.json`，不得碰輸入、使用者字幕或其他工作檔。若測試顯示現有語意不符，回復本輪固定輸出清理與 fixture／測試變更
+- 驗證計畫：先以新 fixture 重現 CPU retry 非零退出時的實際狀態與 partial artifact；再完成最小清理修正與核心斷言，執行相關 Node 語法、受控權限核心整合、完整 `npm run check`、evidence assertions、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`
+- 修正前重現：新增 deterministic fixture 後以受控權限執行 `node scripts/test-core.mjs`，任務已正確終止且只有 Metal／CPU 兩次 child invocation，但測試於 `CPU retry 失敗後不得殘留 partial SRT` 斷言 exit 1（actual `true`）；確認 CPU retry 非零退出分支會保留 child 寫入的 partial SRT／JSON
+- 根因與最小修正：`runWhisperCpp` 只有 Metal→CPU fallback 與取消分支會移除固定輸出，CPU retry 的終止性 process failure 直接 reject。改為 fallback 前及不再 retry 的 process failure 前共用既有 `removeWhisperPartialOutputs(workingDir, [outputBase])`，清理範圍仍限固定 Whisper.cpp SRT／JSON 與該次品質 metadata
+- 實際修改：fixture 新增 Metal exit 139→CPU exit 7、兩階段 partial outputs 與 invocation log；核心測試新增 failed 狀態、CPU metrics、exit reason、既有 fallback marker、精確兩次 invocation、無第三次 retry、無 stale／partial／draft 的整合斷言。`server.mjs` 在 fallback 前與終止性 process failure 前共用固定輸出清理 helper；新增非敏感 evidence 並同步目前狀態、功能設計、測試稽核與偵錯歷程。
+- 開發驗證結果：三個受影響 Node 檔案語法 exit 0；修正前受控權限核心測試於 partial SRT 清理斷言 exit 1，修正後 `node scripts/test-core.mjs` exit 0。受控權限完整 `npm run check` exit 0，涵蓋文件、語法、全部 deterministic module／UI／core 回歸；evidence 為 `docs/project-management/evidence/2026-09-18-whisper-cpu-retry-failure.json`。獨立審查代理另以受控權限重跑 focused core 與完整 `npm run check`，均 exit 0；主要代理在報告建立後重跑 `npm run docs:check`、Node 語法與 `git diff --check`，均 exit 0。
+- 獨立審查是否執行：是（round1；通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-cpu-retry-failure-round1.md`
+- 判定（逐字引用審查報告「綜合判定」完整結論句）：**本輪「2026-09-18 — Whisper CPU fallback 再失敗終止與清理整合（BUG-WHISPER-METAL-139）」round1 獨立審查結論為通過：在 macOS arm64 deterministic child-process 限定範圍內，Metal exit 139 後僅一次 `--no-gpu` CPU retry、CPU exit 7 後 failed 終止、診斷與既有 fallback marker 保留，以及固定 SRT／JSON／quality metadata 清理均由現行程式、fixture、核心斷言與獨立回歸支持；本判定不代表 bundled runtime、取消競態、長音訊、跨平台、乾淨安裝或發布驗收，LM Studio 未執行且不在本輪範圍。**
+- 審查後門檻執行歸屬：審查代理在建立並簽署報告後因工作區額度不足中止，報告原文保留「報告後門檻結果：待執行」；`npm run docs:check`、`git diff --check` 與最終 `npm run docs:check:final` 由主要代理執行，不冒稱由審查代理完成。
+- 條件是否已被需求方接受：不適用（round1 判定通過；報告中的未覆蓋邊界持續保留）
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：修正前核心失敗的原始 console log 未另存，報告以 evidence、fixture 與差異交叉核對；CPU failure fixture 未直接預置並斷言 `quality-metadata.json` 清除，該項由 helper 靜態範圍支持。真實 bundled server 的 Metal crash→CPU failure、取消與 retry 交界、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝及發布仍未驗收；LM Studio 依需求方決策未執行。
+
+## 2026-09-18 — Whisper SIGSEGV signal fallback 可觀測性修正（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：已完成 signal-aware fallback 判定、日誌／acceptance probe 修正、exit 139／真實 SIGSEGV 整合回歸及獨立六面向審查；本輪修正已完成，但不宣稱真實 bundled server crash→CPU fallback 等較廣驗收門檻已關閉
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；前一輪獨立審查指出現有 policy 對任何非零退出 fallback，但文件與 acceptance marker 過度聚焦 exit 139，需釐清 signal 與一般非零退出邊界
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（修正 macOS arm64 Whisper child process signal／exit 判定與可觀測性，更新 deterministic tests／probe；不修改 runtime／模型、使用者字幕，不呼叫外部服務、不使用 API Key、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 任務路由文件（是）
+- 目標與成功條件：macOS arm64 首次 Metal 子程序只有在明確非零整數 exit code 或終止 signal 時才 CPU fallback；正常 exit 0、缺少有效失敗資訊、已在 CPU retry、非 macOS arm64 不 fallback。server 日誌須區分 `exit 139` 與 `signal SIGSEGV`；真實 bundled probe 必須接受任一明確 Metal failure marker 搭配 CPU fallback，不能只辨識 exit 139
+- 不在範圍：不把 fallback 限縮成只有 139，不解析 stderr 猜測 Metal 錯誤，不修改 Whisper.cpp binary／模型，不宣稱真實 bundled server crash→CPU fallback、中文品質、長音訊、取消中的 retry、Windows、乾淨安裝或正式發布完成；LM Studio 依需求方決策不執行
+- 預計影響檔案／模組：`lib/whisper-fallback-policy.mjs`、`server.mjs`、`scripts/test-whisper-fallback-policy.mjs`、`scripts/test-core.mjs`、`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/verify-whisper-real-fallback.mjs`、`docs/project-management/03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：過寬判定可能對非 Metal 問題多做一次 CPU retry，過窄則漏掉 Node 以 `code=null`／`signal=SIGSEGV` 回報的真實 crash；以型別嚴格的 exit／signal contract、原有平台／架構／forceCpu gate 及 child-process integration 防回歸。必要時可回復本輪 policy／log／probe 變更，不影響使用者資料
+- 驗證計畫：先補 policy 的 exit 1、exit 139、signal SIGSEGV、null／字串／零值與平台矩陣；再補 server child signal integration 與 probe source contract，執行 focused tests、production controlled fallback、`npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`
+- 實際修改：`lib/whisper-fallback-policy.mjs` 新增型別嚴格的 process failure／failure reason／fallback log marker helpers；`server.mjs` 接收 child `close(code, signal)`，以 `Metal exit <code>`／`Metal signal <name>` 記錄原因並沿用一次 CPU retry；`scripts/verify-whisper-real-fallback.mjs` 共用 parser，接受非零 exit 或 termination signal＋CPU marker。fixture／policy／核心測試新增真實自我 `SIGSEGV`、exit 1／139、invalid value、partial 清理、CPU metrics、log marker 與假陽性覆蓋；核心 wait timeout 另補最後狀態與 server 尾端輸出。新增 `docs/project-management/evidence/2026-09-18-whisper-signal-aware-fallback.json` 並同步目前狀態、功能設計、發展歷程、測試稽核與偵錯歷程。
+- 開發中修正紀錄：第一次核心重播因 callback patch 誤命中較早的 GPU／Python Whisper `close` handler，真正 Whisper.cpp handler 引用未定義 `signalName`，一般 mock 任務停在 running；第二次確認同點可重現。補上 timeout 診斷後精確回復非目標 handler、只修改 `runWhisperCpp` callback，後續 focused core 與完整回歸均通過，未保留錯位修改。
+- 開發驗證結果：Node 語法與 `node scripts/test-whisper-fallback-policy.mjs` exit 0；升級權限 `node scripts/test-core.mjs` exit 0，exit 139 與真實 `SIGSEGV` signal 兩案均清理 partial SRT／JSON、CPU retry 至 `completed`／`ready-review`、`whisperDevice=cpu`。`npm run acceptance:whisper:production-fallback -- /private/tmp/20260918-whisper-production-signal-aware.json` exit 0，controlled exit 139 fallback 維持通過；`npm run acceptance:whisper:fallback -- /private/tmp/20260918-whisper-real-signal-aware.json` exit 0，bundled run 正常走 Metal、`metalFailure=false`／`fallbackObserved=false`。Evidence assertions、`npm run docs:check`、`git diff --check` 與升級權限完整 `npm run check` 均通過。
+- 獨立審查是否執行：是（round1；通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-18-whisper-signal-fallback-round1.md`
+- 審查結論：macOS arm64 首次 Metal 嘗試的非零 exit／termination signal 判定、原因 marker、partial 清理、單次 CPU retry、exit 139／真實 SIGSEGV 整合與 parser 假陽性防護均通過；controlled wrapper 與 bundled runtime 證據已正確分離。
+- 判定（逐字引用審查報告完整結論句）：**本輪「2026-09-18 — Whisper SIGSEGV signal fallback 可觀測性修正（BUG-WHISPER-METAL-139）」round1 獨立審查通過：macOS arm64 首次 Metal 嘗試的非零整數 exit／非空 termination signal 契約、`Metal exit <code>`／`Metal signal <name>` 可觀測 marker、partial SRT／JSON 清理與單次 `--no-gpu` CPU retry、exit 139／真實自我 SIGSEGV 核心整合、parser 假陽性防護及完整回歸均經獨立核對通過；controlled wrapper 與 bundled runtime 證據已正確分離，bundled replay 本次正常走 Metal且 `fallbackObserved=false`，故本結論不宣稱真實 bundled server crash→CPU fallback、CPU retry failure、取消競態、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝或發布已完成，LM Studio 亦依需求方決策未執行。**
+- 條件是否已被需求方接受：不適用（round1 無條件通過；仍依需求方持續要求繼續保留較廣未驗收門檻）
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：真實 bundled production server 尚未在同一次 run 觀察 crash→CPU fallback；CPU retry failure 與 retry 交界取消尚無 child-process integration；長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝與發布仍未驗收。歷史錯位 patch 的兩次 running 卡住已如實保留在本條目，但沒有獨立 raw console artifact；LM Studio 依需求方決策未執行。
+
+## 2026-09-17 — Whisper Metal 139 執行權限邊界釐清（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：已完成權限邊界 evidence、治理文件同步、完整回歸與獨立審查；先前 direct CLI 的 Metal `SIGSEGV` 只在 sandbox 執行環境重現，同一 bundled runtime 在升級權限下可正常完成 Metal，產品 server replay 亦未觸發 fallback。本輪釐清工作完成，但不關閉真實 bundled server crash→CPU fallback 驗收門檻
+- 執行者：Codex
+- 需求來源：需求方持續要求繼續；上一輪需釐清 direct bundled CLI crash 與 production server 未觸發 fallback 的差異
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：高（新增本機 runtime 執行權限邊界 evidence／治理紀錄；不修改產品 fallback 策略、Whisper runtime／模型、使用者字幕，不呼叫外部服務、不使用 API Key、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：以同一 bundled `whisper-cli`／Tiny、同一 FFmpeg 正規化 1 秒 16 kHz 單聲道靜音 WAV 與產品 flags，分別比較 sandbox／升級權限 direct Metal 結果，並重播 production server probe；證據須明確區分環境限制與產品 fallback，不得以 sandbox crash 宣稱真實 server fallback
+- 不在範圍：不修改 `server.mjs` 或 fallback policy；不把升級權限 Metal success 當成 crash→CPU fallback；不驗證中文語音品質、長音訊、取消中的 retry、其他 macOS 架構、Windows、乾淨安裝或正式發布；LM Studio 依需求方決策不執行
+- 預計影響檔案／模組：`docs/project-management/evidence/2026-09-17-whisper-metal-permission-boundary.json`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/04-DEVELOPMENT-HISTORY.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：只新增非敏感執行證據與治理說明，輸入／輸出均置於明確暫存目錄並清理；不改動使用者資料或 runtime。若審查發現結論越界，修正文件與 evidence 敘述，不回寫既有歷史證據
+- 驗證計畫：完成 sandbox／升級權限 direct Metal 對照與 production server replay；保存 runtime／model SHA-256、exit／signal、輸出與 stderr 摘要；執行 `node --check`、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查
+- 實際修改：新增非敏感 evidence `docs/project-management/evidence/2026-09-17-whisper-metal-permission-boundary.json`；同步 `00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md` 與本條目。未修改 `server.mjs`、fallback policy、Whisper runtime／模型、使用者字幕或發布資產。
+- 開發驗證結果：同一 bundled CLI／Tiny、FFmpeg 正規化輸入與產品 flags 在 default sandbox direct replay 為 SIGSEGV／無輸出；在 `require_escalated` local process 為 exit 0／Metal SRT／JSON 完整。`npm run acceptance:whisper:fallback -- /private/tmp/20260917-whisper-real-server-fallback-replay.json` 以 production server 重播 exit 0，任務 `completed`／`ready-review`、`whisperDevice=metal`、`fallbackObserved=false`、輸出完整且暫存清理；這解釋執行邊界差異，但不關閉真實 bundled crash→CPU fallback 門檻。Evidence JSON、`npm run docs:check`、`git diff --check` 與升級權限完整 `npm run check` 均通過。
+- 獨立審查是否執行：是（round1；有條件通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-metal-permission-boundary-round1.md`
+- 審查結論：獨立審查確認 sandbox 139 已正確限縮為執行邊界差異，未將真實 bundled server crash→CPU fallback 宣稱為完成；條件為保留未驗收門檻並完成本條目文件收尾。
+- 判定（逐字引用審查報告完整結論句）：**本輪 BUG-WHISPER-METAL-139 Whisper Metal 139 執行權限邊界釐清 round1 獨立審查有條件通過：同一 macOS arm64 bundled whisper-cli／Tiny、同一 1 秒 16 kHz mono silence WAV 與產品 flags 在 default sandbox direct replay 實際 SIGSEGV／exit 139 且無 SRT／JSON，在 `require_escalated` local process 實際 exit 0 且 Metal 產生 SRT／JSON；production-mode bundled server replay 亦完成 `ready-review`、`whisperDevice=metal`、輸出與暫存清理，但 `fallbackObserved=false`，所以 sandbox 139 已正確限縮為執行邊界差異，真實 bundled server crash→CPU fallback 尚未完成，deterministic wrapper／fixture 不得冒充該實機驗收。**
+- 條件是否已被需求方接受：是（依需求方持續要求繼續；接受本輪只結案執行邊界釐清，並保留真實 bundled server crash→CPU fallback、品質、長音訊、取消與跨平台等未驗收項目）
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：真實 bundled server crash→CPU fallback 仍需在同一次 production server run 重現才能關閉門檻；deterministic wrapper／fixture 只能作控制流回歸。另應保留現有 policy 對 macOS arm64 任意非零 exit 的 fallback 行為，後續若要限縮為特定 Metal／139 類型需另立工作項目與測試；中文品質、長音訊、取消中的 retry、CPU retry 失敗、其他 macOS 架構、Windows、乾淨安裝、真正斷網與 FR-021 完整條件仍未驗收，LM Studio 依需求方決策未執行。
+
+## 2026-09-17 — production-mode Whisper child-process fallback 控制流驗收（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：已以 `NODE_ENV=production`、明確 deterministic crash wrapper 與隔離 bundled model／FFmpeg 完成不依賴 test runner 的 server fallback acceptance；production path 確實清理 partial SRT／JSON、以 `--no-gpu` 重試並完成 `ready-review`，但此證據不代表 bundled `whisper-cli` 實機 Metal fallback
+- 執行者：Codex
+- 需求來源：需求方要求繼續；上一輪實際 bundled server smoke 未重現 Metal crash，真實 runtime 與 production fallback 控制流仍需分層補證
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：高（新增隔離的本機 production-mode acceptance probe 與非敏感 evidence／治理紀錄；wrapper 僅用於控制流驗收，不修改產品 fallback 策略、不呼叫外部服務、不使用 API Key、不讀取使用者媒體、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：server 必須在 `NODE_ENV=production` 且沒有 test runner 時，接收生成短靜音 WAV；受控 wrapper 首次非 `--no-gpu` 返回 139 並留下 partial SRT／JSON，server 必須記錄 Metal／CPU fallback、清理 partial、第二次帶 `--no-gpu` 完成，最終 `ready-review`／`whisperDevice=cpu` 且無 stale marker
+- 不在範圍：不把 deterministic wrapper 當成 bundled `whisper-cli` 實機結果；不驗證 bundled Metal allocation、中文語音品質、長音訊、取消中的 retry、其他 macOS 架構、Windows、乾淨安裝或正式發布；LM Studio 依需求方決策不執行
+- 預計影響檔案／模組：`scripts/verify-whisper-production-fallback.mjs`、`package.json`、`docs/project-management/evidence/2026-09-17-whisper-production-fallback.json`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：wrapper／model symlink／server data 均建立於明確 `/private/tmp` 暫存目錄，使用 exclusive evidence 寫入並於 nested finally 清理；evidence 明確標示 controlled fixture、不保存完整 logs／字幕／音訊，若任何 production fallback marker 缺失則失敗
+- 驗證計畫：新增 production-mode controlled fallback probe 與 npm script；執行 Node 語法、probe、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查
+- 實際修改：新增 `scripts/verify-whisper-production-fallback.mjs` 與 `npm run acceptance:whisper:production-fallback`；新增非敏感 evidence `docs/project-management/evidence/2026-09-17-whisper-production-fallback.json`；同步目前狀態、發展歷程、測試稽核與偵錯歷程。未修改 `server.mjs`、Whisper runtime／模型、使用者字幕或發布資產。
+- 開發驗證結果：production-mode controlled probe exit 0；wrapper 首次 exit 139／partial outputs，server logs 含 `Metal exit 139`／`CPU fallback`，最終 `completed`／`ready-review`、`whisperDevice=cpu`，draft／SRT／JSON 完整，`stalePartialArtifacts=[]`，暫存 WAV 清理。Evidence 明確為 `deterministic-whisper-cpp-wrapper` 且 `bundledRuntimeUsed=false`。`node --check`、`npm run docs:check`、`npm run check` 與 `git diff --check` 已通過；`npm run docs:check:final` 已於本次結案同步後執行。
+- 獨立審查是否執行：是（round1 有條件通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-production-fallback-round1.md`
+- 獨立審查結論：production-mode controlled fallback 的受控條件通過；完整 bundled `whisper-cli` 實機 crash→CPU fallback 仍未完成，審查已明確區分兩者。
+- 判定（逐字引用審查報告完整結論句）：**本輪 production-mode Whisper child-process fallback 控制流 round1 獨立審查有條件通過：在 `NODE_ENV=production` 且 test runner 關閉的限定 deterministic wrapper 驗收中，首次受控 exit 139／partial SRT／JSON、Metal／CPU fallback logs、partial 清理、`--no-gpu` CPU retry、`whisperDevice=cpu`、`ready-review`、SRT／JSON 與暫存 WAV 清理均有 evidence 支持；但此結論不代表 bundled `whisper-cli` 真實 crash→CPU fallback 已完成，該實機門檻仍未驗收。**
+- 條件是否已被需求方接受：是（依需求方要求繼續；接受 production-mode controlled fallback 證據及 bundled runtime 實機門檻仍未完成的揭露，不代表 bundled runtime、品質或跨平台通過）
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：本輪已補上 production-mode server 的受控 child-process fallback 證據，但不等同於 bundled `whisper-cli` 在同一次 server run 真實 Metal crash→CPU fallback；仍需在能重現該 runtime crash 的環境取得 bundled server evidence，另有中文語音品質、長音訊、取消中的 retry、CPU retry 失敗、其他 macOS 架構、Windows、乾淨安裝與正式發布風險；LM Studio 依需求方決策不執行。
+
+## 2026-09-17 — 產品 server 真實 Whisper Metal→CPU fallback 驗收（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：本輪完成非測試模式產品 server 的 bundled Whisper.cpp 正常 Metal path acceptance 與可重播的 fallback probe；本次實機 run 完成 `ready-review`、輸出與暫存清理，但未在 server 內重現 Metal exit 139，因此不宣稱真實 bundled crash→CPU fallback 已完成
+- 執行者：Codex
+- 需求來源：需求方要求繼續；前一輪已完成 bundled runtime 直接 Metal／CPU 對照，但產品 server 真實自動 fallback 尚未驗收
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：高（新增可重播的本機 server acceptance probe 與非敏感 evidence／治理紀錄；不呼叫外部服務、不使用 API Key、不讀取使用者媒體、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：非測試模式 server 接收短靜音 WAV、建立並啟動 `whisper-cpp` 任務；正常 Metal path 必須完成至 `ready-review` 並產出 SRT／JSON；若當次 logs 觀察到 Metal exit 139／CPU fallback，probe 必須追加斷言最終 `whisperDevice=cpu`、輸出完整與暫存清理
+- 不在範圍：不修改 Whisper runtime／模型／fallback 策略，不使用真實使用者音訊，不宣稱中文語音品質、長音訊、取消中的 retry、其他 macOS 架構、Windows、乾淨安裝或正式發布驗收；LM Studio 依需求方決策不執行
+- 預計影響檔案／模組：`scripts/verify-whisper-real-fallback.mjs`、`package.json`、`docs/project-management/evidence/2026-09-17-whisper-real-server-fallback.json`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：probe 僅使用明確建立的 `/private/tmp` 暫存目錄與 localhost port，finally 清理子程序／暫存資料；evidence 不保存原始音訊、完整字幕或完整 stderr，若 bundled runtime 不可用則明確失敗，不把 fixture 結果冒充實機結果。正常 Metal 成功與 crash→CPU fallback 是兩個不同結果，分開記錄。
+- 驗證計畫：新增可重播 probe 與 npm script；執行 `node --check`、實際 server acceptance、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查
+- 實際修改：新增 `scripts/verify-whisper-real-fallback.mjs` 與 `npm run acceptance:whisper:fallback`；新增非敏感 evidence `docs/project-management/evidence/2026-09-17-whisper-real-server-fallback.json`；同步目前狀態、發展歷程、測試稽核與偵錯歷程。未修改 Whisper runtime／模型／fallback 策略、使用者字幕或發布資產。
+- 開發驗證結果：production-mode localhost server probe exit 0；任務 `completed`／`ready-review`，`asrEngine=whisper.cpp`、`whisperDevice=metal`，draft／Whisper.cpp SRT／JSON 產生，`quality-metadata.json` 未產生，暫存 WAV 清理；本次 `fallbackObserved=false`。直接 CLI 的 `SIGSEGV` 對照仍未在同一次 server run 重現。修正後 `node --check`、`npm run docs:check`、`git diff --check` 與完整 `npm run check` 均通過；final docs check 於本次結案同步後執行。
+- 獨立審查是否執行：是（round1 有條件通過；依審查要求修正 probe 後 round2 有條件通過）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-real-server-fallback-round1.md`
+- round1 審查結論：指出實際 port 未跟隨 server 回報、stale partial 欄位為固定值、evidence 寫入失敗可能跳過暫存清理；已依要求修正，未覆寫 round1 報告。
+- round2 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-real-server-fallback-round2.md`
+- round2 判定（逐字引用審查報告完整結論句）：**本輪產品 server 真實 bundled Whisper.cpp 驗收有條件通過：production-mode server 的 bundled Metal path smoke 已在 macOS arm64 以生成 1 秒靜音 WAV 完成至 `ready-review` 並產出 SRT／JSON、清理 Whisper 暫存 WAV；round1 指出的三項 probe 修正均已解除——probe 已從其明確綁定的 `$TMP/offline-subtitle-port.tmp` 讀取 server 實際 port、stale partial output 已由工作目錄實際掃描結果產生、evidence 寫入失敗時仍由 nested `finally` 清理暫存；但本次 evidence 的 `fallbackObserved=false`，所以真實 Metal crash→CPU fallback 仍未驗收完成；deterministic fixture 與 direct CLI 對照不可冒充實機 server fallback。**
+- round2 條件是否已被需求方接受：是（依需求方連續要求繼續；接受 production-mode Metal smoke、probe 修正與未重現真實 fallback 的明確揭露，不代表真實 crash→CPU fallback、品質或跨平台通過）
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：本輪未證明產品 server 內真實 bundled Metal crash→CPU fallback；deterministic fixture 仍是 fallback 控制流的主要回歸證據。需在能於同一 server run 重現 Metal 非零退出的環境補做 CPU fallback 實機驗收，另有中文語音品質、長音訊、取消中的 retry、其他 macOS 架構、Windows、乾淨安裝與正式發布風險；LM Studio 依需求方決策不執行。三項 probe 修正已由 round2 複審確認，無新增程式修正要求。
+
+## 2026-09-17 — Whisper bundled runtime Metal／CPU 對照重驗（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：本輪已完成目前 macOS arm64 bundled `whisper-cli`／Tiny 與短靜音 WAV 的 Metal／CPU 對照；預設 Metal 實際 exit 139 且沒有 SRT／JSON，同一輸入加 `--no-gpu` exit 0 並產生 SRT／JSON；不把靜音 smoke 推廣為中文語音品質或所有 macOS 的結論
+- 執行者：Codex
+- 需求來源：需求方要求繼續；前一輪已完成 deterministic child-process fallback 整合，但目前狀態仍將 bundled runtime 的 Metal／CPU 實際行為列為未驗收
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：高（執行既有本機 bundled runtime 並新增非敏感 evidence／治理紀錄；不呼叫外部服務、不使用 API Key、不修改使用者字幕、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：使用相同 1 秒 16 kHz 單聲道靜音 WAV 與 Tiny 模型分別執行預設 Metal 及 `--no-gpu` CPU；保存兩邊 exit code、SRT／JSON 是否產出、非敏感 stderr 摘要、runtime／model SHA-256 與暫存清理狀態
+- 不在範圍：不修改 Whisper runtime／模型、不使用真實使用者音訊、不宣稱長音訊、中文辨識品質、取消、跨平台、乾淨安裝或正式發布驗收
+- 預計影響檔案／模組：`docs/project-management/evidence/2026-09-17-whisper-bundled-runtime-recheck.json`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：只執行既有本機 binary，輸入與輸出置於明確 `/private/tmp` 暫存目錄並於結束清理；evidence 不保存原始音訊／完整字幕／完整 stderr，若結果為 crash 只記錄可診斷摘要，不把失敗當成成功
+- 驗證計畫：先執行 `npm run runtime:verify:mac`，再用相同 WAV 重跑 Metal／CPU，檢查輸出與 SHA；執行 focused parser／fallback 測試、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查
+- 實際修改：新增非敏感 evidence `docs/project-management/evidence/2026-09-17-whisper-bundled-runtime-recheck.json`，記錄 runtime／Tiny SHA-256、相同產品 flags 的 Metal／CPU exit code、SRT／JSON 產出、stderr allocation failure、CPU JSON 欄位與暫存清理；同步目前狀態、發展歷程、測試稽核與偵錯歷程，未修改 runtime／模型／使用者資料。
+- 開發驗證結果：`npm run runtime:verify:mac` 通過；生成的 1 秒 16 kHz 單聲道靜音 WAV 以產品同等 `-osrt -oj -ojf` flags 執行，Metal exit `139`、無 SRT／JSON，CPU 加 `--no-gpu` exit `0`、SRT／JSON 均產生。CPU JSON 的 1 個 transcription segment 僅含 offsets／timestamps／tokens，沒有 segment-level confidence／no-speech probability。`npm run check`、`git diff --check` 均 exit 0，暫存 input／output 已清理。
+- 獨立審查是否執行：是（round1；有條件通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-bundled-runtime-round1.md`
+- 獨立審查結論：獨立上下文依六面向核對，無阻擋問題；條件為結論只限目前 macOS arm64 bundled runtime 的短靜音 Metal／CPU 對照，未擴張為中文品質、長音訊、產品 server 真實 fallback 或跨平台驗收。
+- 判定（逐字引用 round1 審查報告完整結論句）：**本輪 BUG-WHISPER-METAL-139 bundled runtime Metal／CPU 對照重驗有條件通過：目前 macOS arm64 bundled whisper-cli／Tiny 對 1 秒靜音 WAV 實際呈現 Metal exit 139 且無 SRT／JSON、CPU `--no-gpu` exit 0 且產生 SRT／JSON，CPU JSON 缺少 segment-level confidence／no-speech 的記錄與 runtime 資產、程式邊界及測試證據一致；本結論不代表中文語音品質、長音訊、產品 server 真實 fallback、取消中的 retry、其他 macOS 架構、Windows、乾淨安裝或跨平台驗收。**
+- 條件是否已被需求方接受：是（依需求方本輪明確要求繼續；接受限定為目前 macOS arm64 短靜音 runtime 對照及完整未驗收項目揭露，不代表真實品質／fallback／跨平台通過）
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：本輪只證明目前這組 macOS arm64 bundled runtime 的短靜音 Metal crash 與 CPU workaround；尚未證明產品 server 以真實 CLI 自動 fallback、中文語音品質、長音訊、取消中的 retry、其他 macOS 架構、Windows 或乾淨安裝。CPU JSON 仍沒有 segment-level engine quality，品質頁維持 rule-score fallback；LM Studio 依需求方決策未執行，本輪不發布、不打包、不推送、不建立 tag。
+
+## 2026-09-17 — Whisper Metal exit 139 child-process fallback 整合回歸補強（BUG-WHISPER-METAL-139）
+
+- 狀態：完成
+- 結案判定：本輪已完成限定的 macOS arm64 child-process fallback 整合回歸；受控 runner 模擬 Metal exit 139 後，server 清理 partial SRT／JSON、以 `--no-gpu` CPU 重試並完成字幕；不把 deterministic fixture 當成 bundled runtime、長音訊或跨平台實機驗收
+- 執行者：Codex
+- 需求來源：需求方要求繼續；目前狀態指出 fallback 策略矩陣已完成，但 child-process 失敗與 retry 整合仍未由核心流程覆蓋
+- 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-003`、`FR-020`、`FR-022`、`NFR-005`、`NFR-006`
+- 變更等級：中（只新增測試 fixture／核心回歸與治理紀錄，不呼叫外部服務、不讀取真實 API Key、不修改使用者字幕與發布資產）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：在本機 macOS arm64 核心測試中，受控 runner 首次以非零 exit 139 模擬 Metal crash 並留下 partial outputs；server 必須觸發 CPU fallback、第二次帶 `--no-gpu` 成功、清理失敗產物且完成 `ready-review`，最終 metrics 顯示 `whisperDevice=cpu`
+- 不在範圍：不修改真實 Whisper.cpp CLI、Metal runtime、模型權重或 fallback 產品策略；不宣稱真實 bundled runtime、長音訊、取消中的 retry、Windows／其他 macOS 架構或乾淨安裝已驗收；不執行 LM Studio
+- 預計影響檔案／模組：`scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`scripts/test-core.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與本輪獨立審查報告
+- 風險與回復方式：fixture 若錯誤放寬成功條件可能掩蓋 fallback 回歸；以明確 marker、exit 139、`--no-gpu` 參數與核心最終 metrics 斷言限制範圍，必要時可回復本輪測試／文件變更，不觸碰產品資料
+- 驗證計畫：先執行 focused fallback／quality 測試，加入 runner fixture 與核心案例後執行 `node --check`、`node scripts/test-core.mjs`、完整 `npm run check`、`git diff --check`、`npm run docs:check:final`，再由獨立上下文依六面向審查
+- 實際修改：`scripts/fixtures/mock-whisper-cpp-runtime.mjs` 新增明確 marker 驅動的首次 exit 139／partial SRT／JSON 與 CPU `--no-gpu` 成功輸出；`scripts/test-core.mjs` 新增 macOS arm64 fallback 任務斷言，確認 `ready-review`、`whisperDevice=cpu`、首次 139 marker 及無 stale partial marker；同步目前狀態、發展歷程、測試稽核與偵錯歷程。
+- 開發驗證結果：focused `node --check scripts/fixtures/mock-whisper-cpp-runtime.mjs`、`node --check scripts/test-core.mjs`、`node scripts/test-whisper-fallback-policy.mjs`、`node scripts/test-whisper-quality.mjs` 均 exit 0；受控權限 `node scripts/test-core.mjs` 與完整 `npm run check` 均 exit 0。完整回歸包含治理文件、Node 語法、Whisper／Breeze／Electron／媒體／雙語／品質／AI／review UI／核心 API 測試；`git diff --check` 通過。
+- 獨立審查是否執行：是（round1；通過）
+- 審查檔案：`docs/project-management/reviews/2026-09-17-whisper-metal-fallback-round1.md`
+- 獨立審查結論：獨立上下文依六面向核對，無阻擋問題，並確認範圍聲明未把 deterministic fixture 擴大為真實 runtime／跨平台驗收。
+- 判定（逐字引用 round1 審查報告完整結論句）：**本輪 BUG-WHISPER-METAL-139 child-process fallback 整合回歸審查通過（限定 macOS arm64 deterministic fixture 範圍）：六面向均無阻擋問題，核心測試實際證明首次 exit 139 後清除 partial SRT／JSON、以 --no-gpu 完成 CPU retry 並進入 ready-review；本結論不代表真實 bundled Whisper.cpp、長音訊、取消競態、Windows／其他架構或模型品質驗收。**
+- 發布授權：不適用；本輪不發布、不打包、不推送、不建立 tag
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：真實 bundled Metal／CPU runtime、長音訊效能與品質、取消中的 retry 時序、Windows／其他 macOS 架構、乾淨安裝與模型品質仍需另行驗收；LM Studio 依需求方決策未執行。本輪不發布、不打包、不推送、不建立 tag。
+
+## 2026-09-16 — 0.51.0 macOS DMG／ZIP 分發檔啟動驗收（REL-047）
+
+- 狀態：完成
+- 結案判定：REL-047 限定的 macOS arm64 DMG 唯讀掛載與 ZIP 隔離解壓後 packaged app 啟動 smoke、來源完整性核對與 round1 獨立審查均完成；本結論不擴張為 Applications／乾淨安裝、Gatekeeper／公證、Windows、真正斷網、真實 AI 或 FR-021 整體驗收
+- 執行者：Codex
+- 需求來源：需求方要求繼續；目前狀態已完成 macOS directory candidate 與 DMG／ZIP 靜態驗證，但仍記錄分發檔掛載／解壓後的 packaged app 啟動驗收缺口。
+- 關聯需求／缺陷：`REL-047`、`REL-043`、`REL-046`、`FR-009`、`FR-010`、`FR-021`、`NFR-006`
+- 變更等級：高（使用既有 0.51.0 macOS arm64 測試包執行隔離 packaged app smoke；不修改產品程式、不使用真實 API Key、不呼叫雲端、不執行 LM Studio、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：對既有 0.51.0 macOS arm64 DMG 以唯讀方式掛載、對既有 ZIP 解壓至暫存目錄，分別從分發檔內的 app executable 啟動既有 renderer smoke；兩條路徑均須使用隔離 userData，通過首頁／Electron bridge／設定、Breeze 選擇取消、手動 SRT 任務、trim／AI review asset 與 provider marker 檢查，完成後卸載／清理暫存資料。
+- 不在範圍：不重建封裝、不修改 DMG／ZIP、不安裝至使用者 Applications、不使用真實 Anthropic／Ollama API、不關閉系統網路、不執行 LM Studio、不驗證 Windows、不建立 tag 或公開 Release。
+- 風險與回復方式：只讀掛載既有測試包並使用暫存 userData／解壓目錄；若啟動或卸載失敗，停止並保留非敏感錯誤摘要，不覆寫既有資產。驗收不改產品資料；可移除本輪新 evidence 與治理條目而回復。
+- 驗證計畫：先核對 DMG／ZIP 路徑與 checksum／封裝結構，再分別執行 DMG mount path 與 ZIP extracted path 的 packaged renderer smoke；記錄分發來源、app path、sandbox／隔離條件、結果與清理狀態，最後執行 `npm run check`、`npm run docs:check:final`、`git diff --check` 並由獨立上下文依六面向審查。
+- 實際修改：未修改產品 runtime；新增非敏感 evidence `docs/project-management/evidence/2026-09-16-macos-distribution-live-rel-047.json`，記錄既有 DMG 唯讀掛載路徑與 ZIP 隔離解壓路徑的實際 packaged app smoke 結果、來源 checksum、掛載／暫存清理與範圍限制。
+- 開發驗證結果：既有 DMG／ZIP 的 SHA-256 與 manifest 相符；`hdiutil verify` 回報 `VALID`；`unzip -t` 回報 compressed data 無錯誤。DMG 唯讀掛載後 executable smoke exit 0，ZIP 解壓暫存後 executable smoke exit 0；兩條路徑均通過首頁／Electron bridge／設定、Breeze 選擇取消、手動 SRT 任務、trim／post-trim 字幕重算、AI review asset、glossary round-trip、8 provider marker 與隔離資料清理。DMG 已成功 detach，ZIP 暫存目錄由 trap 清理；未安裝至 Applications。
+- 獨立審查是否執行：是（round1；有條件通過）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-16-macos-distribution-rel-047-round1.md`；六面向核對無產品或資產阻擋，判定有條件通過，條件為審查代理未重播 GUI／完整測試，改以主要代理保存的原始 evidence、verifier source contract 與 checksum 靜態核對；要求保留 Applications／乾淨安裝、Gatekeeper／公證、Windows、真正斷網、真實 AI、模型品質與 FR-021 整體未驗收聲明。
+- 判定（逐字引用 round1 審查報告完整結論句）：**本輪 REL-047 macOS arm64 0.51.0 DMG 唯讀掛載與 ZIP 隔離解壓後的 packaged app 啟動驗收有條件通過：原始 evidence 與 verifier 驗收條件一致，兩條路徑均記錄 renderer／手動字幕／real trim／post-trim／AI review／8 provider marker 通過，DMG 已 detach、ZIP 暫存已清理，且 DMG／ZIP checksum、`hdiutil verify` 與 `unzip -t` 結果一致；本結論僅證明既有 macOS arm64 分發檔在既有環境可啟動並完成限定 smoke，不代表 Applications／乾淨安裝、Gatekeeper、Developer ID／公證、Windows、真正斷網、真實 AI、模型品質或 FR-021 整體驗收。**
+- round1 條件是否已被需求方接受：是（依需求方連續要求「繼續」；僅接受 REL-047 限定的 macOS arm64 分發檔隔離 smoke 結案與未重播／未安裝／未驗收項目揭露，不代表正式發布授權或 FR-021 整體通過）
+- 發布授權：不適用；本輪不發布。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：本輪只驗證分發檔內 app 在既有 macOS arm64 環境的啟動與限定 smoke；未驗收 Applications／乾淨帳號／Gatekeeper／Developer ID 公證、Windows、真正斷網、真實 Anthropic／Ollama、模型品質、長音訊或公開 Release。獨立審查未重播 GUI／完整測試，動態結果以原始 evidence 為依據；LM Studio 依需求方決策不執行。
+
+## 2026-09-16 — 歷史 AI profile 秘密欄位啟動清理（BUG-031）
+
+- 狀態：完成
+- 結案判定：BUG-031 啟動清理、紅轉綠核心驗證、完整回歸與 round2 獨立複審均通過；round1 因未完成獨立讀取而有條件通過的限制已由 round2 完整靜態核對解除
+- 執行者：Codex
+- 需求來源：需求方要求繼續；目前狀態與 BUG-029 均明列新保存路徑已封鎖秘密，但既有 `settings.json` 可能仍殘留歷史 provider profile 秘密欄位。
+- 關聯需求／缺陷：`BUG-029`、`BUG-031`、`FR-009`、`FR-021`、`FR-026`、`NFR-002`、`NFR-005`、`NFR-006`
+- 變更等級：高（啟動時會清理一般設定檔中的歷史秘密欄位；涉及持久化資料與金鑰邊界，但不讀取或搬移真實 API Key、不呼叫外部服務、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 任務路由文件（是）
+- 目標與成功條件：載入既有 `settings.json` 時，從 AI profile 移除不在 allowlist 的欄位，並清除 AI 設定根層的 legacy secret-shaped 欄位；保留合法 provider profile、其他非敏感設定與既有獨立 secrets，不把清除值搬移到一般設定或 API 回應；遷移後磁碟檔案與 runtime 均不含被清除秘密。
+- 不在範圍：不解密或改寫 OS 安全儲存、不把歷史明文自動匯入 secrets、不掃描使用者其他檔案、不修改 provider API 契約、不使用外部 AI Key、不打包或發布。
+- 預計影響檔案／模組：`server.mjs`、`scripts/test-core.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本工作紀錄與本輪獨立審查報告。
+- 風險與回復方式：遷移過寬可能刪除合法設定，過窄則留下秘密；採 AI 根層秘密鍵名清單與既有 profile allowlist，只在內容實際改變時覆寫，保留非敏感未知根層欄位。若寫入失敗，runtime 仍使用已正規化值並輸出不含秘密內容的警告；可回復本輪遷移函式與測試，不回寫已清除的明文秘密。
+- 驗證計畫：先建立含 legacy AI root／profile 秘密、未知 provider、合法欄位與非敏感未知根層欄位的啟動 fixture；確認修正前磁碟仍殘留，再實作最小遷移；執行 Node 語法、核心整合、provider contract、完整 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：`server.mjs` 在 `loadSettings()` 啟動載入後執行窄範圍持久化清理：移除 AI 根層固定 secret-shaped 鍵名，以既有 provider profile allowlist 取代歷史 profiles、移除未知 provider，並用同目錄 sanitized 暫存檔原子置換；寫入失敗只輸出不含值的警告，runtime 仍採正規化設定。`scripts/test-core.mjs` 新增 legacy root／profile 秘密、未知 provider、合法 profile、非敏感未知根層欄位、既有獨立 secret 與暫存檔清理 fixture；同步目前狀態、功能設計、發展歷程、測試稽核與缺陷歷程。
+- 開發驗證結果：修正前受控權限 `node scripts/test-core.mjs` 於「啟動遷移必須從一般設定檔移除 AI 根層歷史秘密」斷言 exit 1；修正後 `node --check server.mjs`、`node --check scripts/test-core.mjs`、`node scripts/test-core.mjs`、`node scripts/test-ai-providers.mjs`、`git diff --check` 與完整 `npm run check` 均 exit 0。核心 fixture 直接讀回遷移後兩個設定檔，確認 legacy marker 與未知 provider 消失，合法 profile、非敏感未知根層欄位、既有獨立 secret 保留，未搬移明文且無 migration temp 殘留。
+- 獨立審查是否執行：是（round1 有條件通過；round2 通過）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-16-historical-ai-profile-cleanup-round1.md`；因審查遭提前停止、未完成程式與文件讀取而判定有條件通過，未提出程式阻擋。round2 審查檔案：`docs/project-management/reviews/2026-09-16-historical-ai-profile-cleanup-round2.md`；新的獨立上下文已完整核對程式、測試與 BUG-031 文件，六面向均通過，無阻擋問題，解除 round1 限制。
+- 判定（逐字引用 round2 審查報告完整結論句）：**BUG-031 round2 獨立複審判定通過：AI 根層固定 secret-shaped 鍵清理符合文件限定範圍，provider profile 以 provider／欄位雙重 allowlist 移除未知 provider 與秘密並保留合法欄位，非法根物件、寫入失敗、原子暫存清理、非敏感未知 AI 根層欄位及既有 ai-secrets 的處理均合理；核心 fixture 確實在實際 server 啟動後直接讀回 settings.json 與 ai-secrets.json 並搭配 profile API 斷言，round1 因未完成讀取而保留的條件已解除，未發現阻擋問題。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：設定檔或目錄不可寫時，runtime 雖使用正規化資料，但磁碟明文仍須修正權限後重啟才會清除；未動態注入 rename／暫存刪除失敗、Windows 真實檔案鎖定或合法 JSON 非物件根層，`deployment`／`apiVersion` 亦未逐欄 assertion。固定鍵名清單不保證未列出的歷史秘密別名，損壞而無法解析的 JSON 仍沿用既有預設 fallback；本輪不掃描備份／log／其他使用者目錄／OS 安全儲存，未使用外部 AI、真實 API Key、跨平台或發布驗收。
+
+## 2026-09-16 — Ollama packaged 校閱頁 live UI 流程驗收（FR-021-033）
+
+- 狀態：完成
+- 結案判定：FR-021-033 限定的 macOS arm64 packaged Electron／校閱頁 Ollama loopback live UI flow 已取得通過 evidence 並完成 round1 六面向獨立複審；本輪只處理 loopback UI path，不宣稱真正斷網、LM Studio 或 FR-021 整體完成
+- 執行者：Codex
+- 需求來源：需求方要求繼續；前一工作項目已補共用 renderer／校閱 UI 與 real trim 證據，但仍未執行 Ollama live UI AI 操作
+- 關聯需求／缺陷：`FR-021`、`FR-010`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：高（新增 Electron／AI live acceptance probe，會實際呼叫本機 Ollama 並寫入隔離測試資料；不使用 API Key、不呼叫雲端、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：既有 0.51.0 macOS arm64 packaged candidate、`scripts/verify-electron-renderer.mjs` 的 DevTools 控制模式、前一輪 `llama3.2:1b` loopback API product evidence
+- 目標與成功條件：在隔離 userData 啟動 packaged app，於 renderer 透過 UI 設定 Ollama loopback 與英文輸出，建立 2 cue 手動字幕任務，從校閱頁按下 AI 優化，等待 live model suggestions，操作全部接受、undo／redo 並保存校閱結果；artifact 必須記錄實際 UI／HTTP 狀態、cue／session 數量、時間碼保護與範圍限制
+- 不在範圍：不關閉系統網路、不執行 LM Studio、不下載／啟停／刪除模型、不使用外部 API Key、不修改使用者資料、不發布 0.51.0
+- 風險與回復方式：只使用 loopback Ollama、短自然字幕、repo 既有假影片與 verifier 隔離 userData；probe 結束關閉 Electron 並清理暫存資料，artifact 不保存完整字幕、token 或 secret；失敗保存非敏感失敗摘要並停止，不改產品 runtime
+- 驗證計畫：新增 probe 與 focused source contract，先跑 Node 語法／focused tests，再執行 Ollama live UI probe、完整 `npm run check`、`npm run docs:check:final`、`git diff --check`，最後由獨立上下文依六面向審查
+- 實際修改：新增 `scripts/verify-electron-ollama-ui.mjs` 與 `acceptance:ollama:ui` npm script；`scripts/test-ai-providers.mjs` 新增 probe source contract。未修改產品 runtime、使用者字幕、模型檔或發布資產。
+- 開發驗證結果：`node scripts/verify-electron-ollama-ui.mjs '../dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠' 10000 30000 'docs/project-management/evidence/2026-09-16-ollama-ui-live-final-2.json' 'llama3.2:1b'` exit 0；`2026-09-16-ollama-ui-live-final-2.json` 記錄 UI 設定 Ollama／英文、HTTP 201／202 任務完成、2 cue、2 suggestions、全部接受、undo／redo、`reviewed.srt` 保存、時間碼未變與英文內容。`node --check scripts/verify-electron-ollama-ui.mjs`、`node scripts/test-ai-providers.mjs`、獨立審查執行的 `npm run check` 均 exit 0，失敗重播 evidence 保留。
+- 品質與重播邊界：最終 probe 的 2 cue fixture 為中英混合短句，目的是讓 1B 既有模型完成可重放 UI chain；純中文 1B 的 JSON／語言輸出不穩定與 3B 的慢／timeout 失敗均保留，strict language validation 未放寬，故不把此 fixture 視為模型翻譯品質保證。
+- 範圍判定：artifact 僅支持 `http://127.0.0.1:11434/v1` local endpoint、無 API Key／雲端、隔離 userData 與 UI 流程；`systemNetworkDisabled=false`，未取得真正斷網證據。LM Studio 依需求方已刪除例外未執行，Windows／乾淨安裝／發布未涵蓋，FR-021 整體仍未結案。
+- 獨立審查是否執行：是（round1；`docs/project-management/reviews/2026-09-16-ollama-ui-live-round1.md`）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-16-ollama-ui-live-round1.md`；六面向審查通過、無阻擋問題；報告格式 validator 通過，確認 probe 的 UI 操作、邊界 guard、非敏感 evidence、focused／完整回歸與範圍限制可追溯。
+- 判定（逐字引用 round1 審查報告完整結論句）：**本輪 FR-021-033 獨立審查通過限定的 macOS arm64 packaged Ollama loopback 校閱頁 live UI 流程：保存證據顯示 UI 設定英文輸出、2 cue 任務完成、2 筆 AI 建議、全部接受、undo／redo、reviewed.srt 保存及時間碼未變；本結論不代表真正斷網、LM Studio、Windows／乾淨安裝、模型翻譯品質或 FR-021 整體完成。**
+- 發布授權：不適用；本輪不修改版本、不建立 tag、不打包新資產、不推送、不發布。
+- 部署／發布結果：不適用；只使用既有 0.51.0 macOS arm64 packaged candidate 與隔離 userData，未對外發布。
+- 遺留風險與後續事項：真正斷網需另取得可授權的系統網路隔離方法；1B 純中文輸出品質與 3B latency 仍待模型／環境改善；目前僅覆蓋 macOS arm64 既有候選，Windows、乾淨安裝、簽章／公證、完整逐句翻譯品質與 FR-021 其他條件仍未完成。LM Studio 依需求方決策不驗收，若恢復服務須另立工作條目。
+
+## 2026-09-16 — 0.51.0 macOS packaged renderer smoke 重驗（FR-021 UI 範圍補證）
+
+- 狀態：完成
+- 結案判定：本輪共用 Electron／瀏覽器 renderer、校閱 UI 與 packaged real trim 補證完成；round1 有條件通過指出的 renderer timeout 與 real trim 證據缺口已由 recheck-2 處理，round3 格式合規獨立複審通過（round2 原文保留但格式不完整，不作最新審查依據）；不宣稱 Ollama UI live flow、真正斷網、LM Studio 或 FR-021 整體完成
+- 執行者：Codex
+- 需求來源：需求方要求繼續；前一工作項目已完成 Ollama loopback API product path，但獨立複審明列 Electron／瀏覽器 UI 未覆蓋
+- 關聯需求／缺陷：`FR-021`、`FR-010`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：中（既有 macOS packaged renderer smoke 的實機驗收與 evidence／治理追溯；不修改產品 runtime、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`../dist/mac-arm64/離線字幕工廠.app` 0.51.0 macOS arm64 目錄版；使用既有 `scripts/verify-electron-renderer.mjs`，隔離 userData，不使用真實 API Key
+- 目標與成功條件：以實際 packaged Electron renderer 驗證首頁／bridge／設定、Breeze 首次選擇取消、手動 SRT 任務、校閱 AI 控制資產、provider registry 與資料夾按鈕流程，保存不含秘密的 JSON artifact
+- 不在範圍：不修改程式、不連線 Ollama 做 live UI AI 優化、不關閉系統網路、不執行 LM Studio、不發布 0.51.0
+- 風險與回復方式：只使用既有測試候選與隔離 userData；renderer smoke 結束後清理暫存資料，失敗不改動產品資料；artifact 只保存狀態與 provider ID，不保存字幕全文或秘密
+- 驗證計畫：執行既有 packaged renderer smoke，檢查 artifact contract、`npm run docs:check:final` 與 `git diff --check`，再由獨立上下文依六面向審查
+- 實際修改：新增 `docs/project-management/evidence/2026-09-16-macos-renderer-smoke-fr-021.json`，保存既有 0.51.0 macOS arm64 packaged renderer smoke 的受控實機結果；未修改產品程式、測試或封裝候選。
+- 開發驗證結果：`node scripts/verify-electron-renderer.mjs '../dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠' 9987 60000` 在受控權限下 exit 0；首頁／Electron bridge／設定 modal、Breeze 首次選擇開啟與取消、手動字幕任務 `completed`、校閱 AI 資產、術語 round-trip、8 個 provider ID 與資料夾按鈕流程均通過。Artifact 明確記錄 `isolatedUserData=true`、`externalApiKey=false`、`systemNetworkDisabled=false`、Ollama live UI 未執行及 LM Studio 範圍例外。
+- 範圍判定：本輪補足共用 Electron／瀏覽器 renderer 與校閱 UI 的實機證據，但不等同 Ollama live AI UI flow、真正斷網、LM Studio 或 FR-021 整體完成；待獨立複審後結案。
+- round1 獨立審查：`docs/project-management/reviews/2026-09-16-macos-renderer-smoke-fr-021-round1.md` 判定有條件通過；指出獨立重播曾於 port 9988 發生 renderer target timeout，且原指令未啟用 real trim branch。報告原文保留，未覆寫。
+- round1 判定（逐字引用「綜合判定」完整結論句）：**本輪 0.51.0 macOS packaged renderer smoke 的限定 UI／Electron 補證為有條件通過：已保存的 macOS arm64 隔離 renderer artifact 與 `npm run check` 支持首頁、bridge、設定、Breeze 首次選擇取消、手動 SRT 任務、校閱 AI 資產、glossary round-trip 與 provider registry 的受控結果，但本審查重放同一候選未取得 renderer target 而於 `verify-electron-renderer.mjs:74` timeout，且實際指令未啟用 real trim branch；因此必須維持「不證明 Ollama live UI AI、真正斷網、LM Studio 或 FR-021 整體完成」的範圍聲明，並在結案前重放成功或保存可解釋的 renderer 啟動環境差異證據。**
+- round1 後重驗：同一 packaged candidate 以 port 9988 重播 exit 0；再以 repo 內 `electron/assets/offline-subtitle-splash.mp4` 啟用 real trim branch、port 9989 重播 exit 0。`2026-09-16-macos-renderer-smoke-fr-021-recheck-2.json` 記錄 `packagedTrimFlow.trimStatus=completed`、`trimDuration=2.021333`、`usesTrimmedVideo=true`、`shiftedSubtitle=true`；round1 timeout 原始結果保留，未以成功重播覆寫。
+- round2 原始複審：`docs/project-management/reviews/2026-09-16-macos-renderer-smoke-fr-021-round2.md` 原文判定通過（僅限 macOS arm64 packaged renderer／校閱 UI／real trim 補證），但格式未滿足治理 validator；原文保留，未作最新結案依據。
+- round2 判定（逐字引用「綜合判定」完整結論句）：**本輪 round2 獨立複審通過：round1 指出的 renderer target timeout 已以同一 packaged candidate 在 port 9988 重播 exit 0，未再形成未解阻擋；recheck-2 另以 real trim media 在 port 9989 執行 exit 0，且 `trimStatus=completed`、`trimDuration=2.021333`、`usesTrimmedVideo=true`、`shiftedSubtitle=true`，故本工作項目的限定 macOS renderer／校閱 UI／real trim 補證成立；本結論不宣稱 Ollama live UI、真正斷網、LM Studio 或 FR-021 整體完成。**
+- round3 格式合規獨立複審：`docs/project-management/reviews/2026-09-16-macos-renderer-smoke-fr-021-round3.md` 判定通過（僅限 macOS arm64 packaged renderer／校閱 UI／real trim 補證），六面向、具體證據、逐字結論句、阻擋問題欄位與審查代理聲明均符合 validator 要求；round2 原文保留未修改。
+- round3 判定（逐字引用「綜合判定」完整結論句）：**本輪 round3 複審通過限定的 macOS arm64 packaged renderer／校閱 UI／real trim 補證：port 9988 renderer exit 0，port 9989 real trim exit 0 且 trimStatus=completed、trimDuration=2.021333、usesTrimmedVideo=true、shiftedSubtitle=true；本結論不宣稱 Ollama live UI AI、真正斷網、LM Studio 或 FR-021 整體完成。**
+- 獨立審查是否執行：是（round1 有條件通過；round2 原文格式不完整；round3 通過）
+- 獨立審查結論：最新 round3 審查檔案：`docs/project-management/reviews/2026-09-16-macos-renderer-smoke-fr-021-round3.md`；六面向限定複審通過，無阻擋問題。round1／round2 原文與 timeout 證據均保留。
+- 判定（逐字引用 round3 審查報告完整結論句）：**本輪 round3 複審通過限定的 macOS arm64 packaged renderer／校閱 UI／real trim 補證：port 9988 renderer exit 0，port 9989 real trim exit 0 且 trimStatus=completed、trimDuration=2.021333、usesTrimmedVideo=true、shiftedSubtitle=true；本結論不宣稱 Ollama live UI AI、真正斷網、LM Studio 或 FR-021 整體完成。**
+- 發布授權：不適用；本輪不修改版本、不建立 tag、不打包新資產、不推送、不發布。
+- 部署／發布結果：不適用；只使用既有 0.51.0 macOS arm64 目錄版做隔離 renderer／real trim smoke，未對外發布。
+- 遺留風險與後續事項：`systemNetworkDisabled=false`；未執行 Ollama live UI AI 優化、LM Studio 依需求方例外未執行、資料夾流程仍為 skipped native-open marker；Windows／乾淨安裝／簽章／公證與 FR-021 整體仍未完成。若要補真正斷網，須另取得明確網路隔離授權，不得由本輪證據推論完成。
+
+## 2026-09-15 — Ollama 本機產品級人工流程驗收（FR-021-032）
+
+- 狀態：完成
+- 結案判定：FR-021-032 的 Ollama loopback API product path 驗收、round1／round2 修正與 round3／round4 獨立複審均完成；真正斷網、Electron／瀏覽器 UI、LM Studio 實機與 FR-021 整體仍維持未完成
+- 執行者：Codex
+- 需求來源：需求方要求繼續；LM Studio 已依前一工作條目取消本輪實機驗收，下一個可執行缺口是 Ollama product path 的任務、session、人工接受與撤銷／重做驗證。
+- 關聯需求／缺陷：`FR-021`、`FR-010`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：中（新增本機實機流程 evidence probe；只連線 loopback、不呼叫雲端、不修改使用者資料、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：BUG-030 已完成 Ollama optimizer 單句驗收；目前缺少從本機字幕工廠 API 建立任務至 AI session／人工接受／undo／redo 的可重放 real-model artifact。
+- 目標與成功條件：在暫存資料目錄啟動測試 server，設定 loopback Ollama，建立含雙 cue 的手動字幕任務，完成實際 Ollama AI 優化；驗證 session 建立、接受決策、undo／redo response、save-review 時間碼零變更與原始資料未覆蓋。
+- 不在範圍：不關閉系統網路、不宣稱真正斷網、不執行 LM Studio、不修改使用者設定／工作目錄、不下載／刪除／啟停模型、不呼叫雲端、不發布 0.51.0。
+- 風險與回復方式：只使用暫存 `OFFLINE_SUBTITLE_DATA_DIR`、短字幕與假影片檔；probe 結束會關閉自建 server，artifact 只保存非敏感的狀態／contract 摘要，不保存 API Key 或完整字幕內容。若流程失敗，保留失敗 artifact 並不改動產品資料。
+- 驗證計畫：先新增可重放的 local product probe 與 evidence schema，再執行 `node --check`、probe、artifact contract、`npm run check`、`npm run docs:check:final`、`git diff --check`，最後由獨立上下文依六面向審查。
+- 實際修改：新增 `scripts/probe-ollama-product-live.mjs` 與 `acceptance:ollama:product` script；探針使用暫存 server／資料目錄、loopback Ollama、自然字幕 fixture，驗證任務建立、AI session、接受決策、undo／redo、雙語 save-review、時間碼保護及原始 SRT 保留；`scripts/test-ai-providers.mjs` 新增探針安全邊界與 npm script source contract。修正探針將 SRT 時碼字串送入數值秒數 API 的 fixture 格式錯誤；未修改產品 runtime 或放寬模型輸出驗證。
+- 開發驗證結果：初次 probe 以抽象測試句重現 `llama3.2:1b` 產生中文而被嚴格英文語系檢查安全拒絕，證據保留於 `docs/project-management/evidence/2026-09-15-ollama-product-live-recheck.json`；自然字幕重跑先因探針時碼格式錯誤於 `recheck-2` 安全失敗，修正後 `recheck-3` 通過。round1 審查後補上 loopback／既有 evidence 的啟動前拒絕、保存前後 SRT hash 與 finally 清理，再以 `recheck-4` exit 0 重跑；round2 再發現 evidence exists-then-write 競態與子 server 環境過寬，已改用 exclusive `flag: 'wx'` 建檔及最小暫存／無 AI key child env，再以 `OLLAMA_MODEL=llama3.2:1b npm run acceptance:ollama:product -- docs/project-management/evidence/2026-09-15-ollama-product-live-recheck-5.json` exit 0 重跑。最終 artifact 記錄 `endpointPrivacy=local`、`systemNetworkDisabled=false`、AI `completed`、2 suggestions、accepted／undo／redo 各 2、review cue 2、`timecodesUnchanged=true`、`sourceSrtPreserved=true`，且 `sourceSrtBeforeSha256` 與 `sourceSrtAfterSha256` 相同；全程未使用 API Key、未呼叫雲端、未啟停／下載／刪除模型。
+- 範圍判定：Ollama loopback 的產品級人工流程已取得可重放通過證據；本輪未關閉系統網路，故真正斷網閉環仍未完成，LM Studio 依 FR-021-031 需求方例外未執行，FR-021 整體維持未結案。
+- round1 獨立審查：`docs/project-management/reviews/2026-09-15-ollama-product-live-round1.md` 判定不通過，阻擋項為遠端 URL 未在執行時拒絕、原始 SRT 缺保存前 hash、既有 evidence 拒絕過晚且可能跳過暫存清理；已逐項修正，未覆寫 round1 報告。
+- round2 獨立複審：`docs/project-management/reviews/2026-09-15-ollama-product-live-round2.md` 判定不通過；round1 三項均已解除，但指出 exists-then-write 競態可能截斷既有 evidence，另揭露 child env 最小權限改善項；已改用 `flag: 'wx'` exclusive create 與最小 server env，未覆寫 round2 報告。
+- round3 獨立複審：`docs/project-management/reviews/2026-09-15-ollama-product-live-round3.md` 判定通過，無新增阻擋問題；確認 round1／round2 阻擋均已解除，並保留 API product path 非 UI、非真正斷網及 LM Studio 範圍例外限制。
+- round4 獨立複審：`docs/project-management/reviews/2026-09-15-ollama-product-live-round4.md` 判定通過；round4 依專案 validator 格式完成六面向複審，確認 round1／round2 阻擋均已解除，並保留 API product path 非 UI、非真正斷網及 LM Studio 範圍例外限制。
+- 獨立審查是否執行：是（round1／round2 不通過；round3／round4 通過）
+- 獨立審查結論：round4 審查檔案：`docs/project-management/reviews/2026-09-15-ollama-product-live-round4.md`；六面向審查通過，無阻擋問題，且 `validateReviewReport` 格式檢查通過。
+- 判定（逐字引用 round4 審查報告完整結論句）：**FR-021-032 Ollama loopback API product path round4 複審通過，但本輪只驗證 loopback API product path；systemNetworkDisabled=false 未完成真正斷網、未做 Electron／瀏覽器 UI、LM Studio 依需求方已刪除例外未執行，故不得宣稱 FR-021 整體完成。**
+- 發布授權：不適用；本輪只完成驗收探針、證據與治理文件，不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用；未發布 0.51.0，公開 Latest 維持 `v0.49.1`。
+- 遺留風險與後續事項：真正斷網需另取得可授權的系統網路隔離證據；本輪未執行 Electron／瀏覽器 UI 驅動驗收，LM Studio 依需求方已刪除例外未執行，若日後恢復服務須另立工作條目；`llama3.2:1b` 輸出品質仍須逐段人工確認。
+
+## 2026-09-15 — LM Studio 實機驗收範圍例外（FR-021-031）
+
+- 狀態：完成
+- 結案判定：FR-021-031 範圍例外已完成記錄；LM Studio 實機驗收依需求方決策取消，產品支援與 deterministic tests 保留，FR-021 原始整體完成條件未被誤標為通過
+- 執行者：Codex
+- 需求來源：需求方明確告知 LM Studio 已刪除，本輪不需要執行 LM Studio 實機驗收；要求繼續處理目前仍可完成的項目。
+- 關聯需求／缺陷：`FR-021`、`NFR-005`、`NFR-006`
+- 變更等級：低至中（驗收範圍與治理文件更新；不刪除產品程式支援、不呼叫外部服務、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：目前工作樹已完成 BUG-030；其既有 Ollama 0.34.0／`llama3.2:1b` 本機 evidence、測試與獨立審查均保留，不覆蓋。
+- 範圍決策：本輪不執行 LM Studio 模型、UI、取消／續跑或斷網實機驗收；這是需求方針對已刪除本機服務的驗收例外，不等同移除 `lm-studio` provider 功能或宣稱 FR-021 整體完成。
+- 目標與成功條件：把例外與影響同步至需求、目前狀態、路線圖／設計、測試稽核與 0.51 Release notes；保留 Ollama 已通過的本機證據，明確列出下一個仍需完成的 Ollama 斷網閉環與人工流程風險。
+- 不在範圍：不安裝、啟動、下載或恢復 LM Studio；不修改 provider registry、UI 選項或既有 LM Studio deterministic tests；不執行雲端 API、不發布、不把模擬斷網測試冒充真正斷網驗收。
+- 風險與回復方式：若需求方日後恢復 LM Studio 驗收，可依原 FR-021 驗收條件重新建立工作條目；本輪只新增範圍註記，回復時刪除該註記不會影響產品程式或既有測試。
+- 驗證計畫：更新需求追溯與狀態文件後執行 `npm run docs:check:final`、`git diff --check`；不改產品程式，因此不重跑實機模型。下一輪另以明確授權與可取得的網路隔離方法處理 Ollama 真正斷網閉環。
+- 實際修改：同步更新 `docs/project-management/02-REQUIREMENTS-ANALYSIS.md`、`00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`AI-ROADMAP-0.50.md` 與 `RELEASE-NOTES-0.51.0.md`；僅新增驗收範圍例外與剩餘風險，未刪除 `lm-studio` provider、UI 或 deterministic tests。
+- 開發驗證結果：`npm run docs:check`、`git diff --check` 均 exit 0；既有 `npm run check`、BUG-030 Ollama evidence 與 round1 審查保持有效。本輪未啟動／恢復／安裝 LM Studio、未呼叫雲端 API、未改產品程式。
+- 獨立審查是否執行：是（round1 通過）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-15-lm-studio-scope-exception-round1.md`；確認 LM Studio provider、UI 與 deterministic registry／批次／重試／取消／checkpoint／續跑測試均保留，文件未誤標 FR-021 整體完成，無產品阻擋問題。
+- 判定（逐字引用 round1 審查報告完整結論句）：**FR-021-031 LM Studio 實機驗收範圍例外獨立審查通過：本輪依需求方已刪除 LM Studio 的明確決策，只取消該服務的本輪實機驗收，未刪除 `lm-studio` provider、UI 或 deterministic registry／批次／重試／取消／checkpoint 續跑測試；需求、設計、狀態、測試稽核、路線圖、Release notes 與既有 BUG-030 evidence／round1 引用一致保留原始 FR-021 要求，且真正斷網與 Ollama 完整人工流程仍明確列為未完成，因此不得據此宣稱 FR-021 整體完成。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：LM Studio 實機驗收依需求方決策取消；若日後恢復服務須另立工作條目。Ollama 真正斷網、人工接受／取消／續跑、跨平台實機與模型品質仍未完成。
+
+## 2026-09-15 — Ollama 本機模型 single-cue 契約重驗（FR-021-030）
+
+- 狀態：完成
+- 結案判定：BUG-030 開發修正、本機 Ollama 單模型 optimizer 驗收與 round1 獨立審查均通過；FR-021 整體仍因 LM Studio／真正斷網／完整人工流程未完成而維持未結案
+- 執行者：Codex
+- 需求來源：需求方要求繼續；依目前狀態盤點，Ollama loopback 可連線但既有證據仍記錄 single-cue strict JSON／cue contract 未通過，需重新驗證本機服務與既有 adapter。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`
+- 變更等級：中（本機模型驗收與 evidence 產生；不呼叫雲端、不使用 API Key、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@17df978`；工作樹已有 SUB-001、BUG-027、BUG-028、BUG-029 的文件、程式及獨立審查報告變更，本輪保留且不覆蓋。
+- 問題證據：`docs/project-management/00-CURRENT-STATUS.md` 仍記錄 2026-07-30 Ollama capability 通過但 single-cue 未符合 strict JSON／cue contract；本次重新查詢 `http://127.0.0.1:11434/api/tags` 可取得已安裝模型，LM Studio `127.0.0.1:1234` 目前未啟動。
+- 目標與成功條件：以既有 `scripts/probe-ollama-live.mjs` 對 loopback Ollama 執行版本、模型列表、能力檢查與 single-cue strict JSON／`id`／`text`／`reason` 驗證；成功才更新本機 evidence 與 FR-021 狀態，失敗則保留可重現結果並定位是否需修改 adapter；全程不傳送字幕至外部服務。
+- 不在範圍：不啟動／下載／刪除模型、不修改使用者 Ollama 設定、不呼叫雲端 provider、不宣稱 LM Studio 或跨平台驗收完成、不發布 0.51.0。
+- 風險與回復方式：模型推論可能耗時並產生本機 Ollama cache／運算負載；只寫入新的 evidence 檔，不覆蓋既有證據。若 probe 失敗，保留失敗輸出與服務狀態，不把 deterministic mock 結果當成真實模型通過。
+- 驗證計畫：先以 loopback GET 確認服務與模型，再執行 probe；若發現產品 adapter 缺口才新增 focused failing test 與最小修正；執行 evidence schema／cue contract 核對、`git diff --check`、`npm run docs:check:final`，必要時由獨立上下文審查本輪結論。
+- 實際修改：`lib/ai/subtitle-optimizer.mjs` 將 Ollama 合法 JSON 但缺少 `cues` 陣列的結構錯誤納入一次性 JSON repair；嚴格保留 cue ID、數量、順序、文字長度與翻譯語系驗證。`scripts/test-ai-optimizer.mjs` 新增未包裝 cue object→wrapper repair 回歸；`scripts/probe-ollama-live.mjs` 新增實際 optimizer product path 驗收與回應形狀紀錄；`scripts/test-ai-providers.mjs` 新增 probe source contract。同步 BUG-030、功能設計、目前狀態、測試稽核、發展歷程與 0.51 Release notes。
+- 開發驗證結果：既有 raw provider probe 先以 `llama3.2:1b` 重現合法未包裝 cue object 被拒絕；修正前實際 optimizer 回報 `AI 回傳缺少 cues 陣列`。修正後 `node --check`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs` 均 exit 0；`2026-09-15-ollama-llama3.2-1b-optimizer-recheck.json` 記錄 Ollama 0.34.0、2 個模型、capability／native single-cue 通過，optimizer 一 cue 通過、0 retries、`cue-object` 後修復為 `cues-array`。全程僅 loopback、無雲端、無 API Key；LM Studio 未啟動。
+- 獨立審查是否執行：是（round1 通過）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-15-ollama-single-cue-round1.md`；六面向均判定通過，無產品阻擋問題；`npm run docs:check:final` 僅待本欄位完成後執行。
+- 判定（逐字引用 round1 審查報告完整結論句）：**本輪 BUG-030／FR-021 Ollama 單句契約重驗獨立審查結論為通過：Ollama `llama3.2:1b` 的合法未包裝 cue object 只會觸發一次明確 wrapper repair，修復結果仍須通過既有 cue ID、數量、順序、文字長度與翻譯語系的嚴格驗證；新增 deterministic 回歸、完整 `npm run check`、差異格式檢查與本機 Ollama 0.34.0 實機 artifact 均通過，且未放寬其他 provider、未使用 API Key 或雲端服務；LM Studio、真正斷網、多批次、取消、人工接受與跨平台模型品質驗收仍是已揭露的後續風險，不得據此宣稱 FR-021 整體完成。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：Ollama 單一模型的本機 optimizer path 已通過，但 `llama3.2:1b` 翻譯品質仍需逐段人工確認；LM Studio 真實模型、真正斷網閉環、取消／人工接受及跨平台實機驗收仍未完成，因此不宣稱 `FR-021` 整體完成。
+
+## 2026-09-15 — AI provider profile 秘密欄位隔離（BUG-029）
+
+- 狀態：完成
+- 結案判定：BUG-029 round2 獨立複審通過；provider profile allowlist、啟動載入相容性與巢狀秘密隔離均完成 deterministic 驗收
+- 執行者：Codex
+- 需求來源：需求方要求繼續開發；依目前路線圖與本機安全稽核選定下一個可本機驗證的高優先缺口。
+- 關聯需求／缺陷：`BUG-029`、`NFR-002`、`FR-009`、`FR-021`、`FR-026`
+- 變更等級：中（修正 AI provider 設定資料邊界；不執行外部 API 請求、不發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@17df978`；工作樹已有 SUB-001、BUG-027 與 BUG-028 的文件、程式及獨立審查報告變更，本輪保留且不覆蓋。
+- 問題證據：`/api/ai/settings` 的 `normalizeAiSettings()` 與保存流程目前原樣保留 `profiles` 物件；若請求 payload 在任一 provider profile 內夾帶 `apiKey` 或其他秘密欄位，資料可能被寫入一般 `settings.json`。既有測試只覆蓋頂層 `apiKey`，未覆蓋巢狀 profile。
+- 目標與成功條件：provider profiles 僅保存明確允許的非秘密設定欄位；巢狀 `apiKey`、token、secret、Authorization 等欄位不得落入一般設定、API 回應或 provider runtime config；既有 provider profile 的合法欄位與金鑰隔離行為不回歸。
+- 不在範圍：不更換金鑰儲存機制、不修改外部 provider request contract、不執行真實付費請求、不發布或打包 0.51.0。
+- 風險與回復方式：未知的 profile 欄位會依既有 profile 契約被忽略；保留既有合法連線設定。若發現相容性問題，可回復 profile 正規化局部修改，不影響 secrets 檔案與產品字幕流程。
+- 驗證計畫：先新增巢狀秘密欄位會被保存的 deterministic 故障測試，再以 allowlist 修正；執行語法、核心 API、AI provider focused、完整 `npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查。
+- 實際修改：`server.mjs` 新增 provider profile allowlist 與字串／數值正規化，保存流程改用正規化後的 profiles；allowlist 常數移至 `loadSettings()` 首次執行前，避免既有非空 profile 啟動時因 TDZ 被靜默回退。`scripts/test-core.mjs` 新增巢狀秘密落盤防護與含既有非空 profile 的啟動／重啟回歸；同步功能設計、目前狀態、發展歷程、測試稽核、缺陷歷程與 0.51 Release notes。
+- 開發驗證結果：初版 allowlist focused 核心測試先重現巢狀秘密寫入而 exit 1；修正後先通過秘密隔離測試。round1 審查再發現啟動初始化順序缺陷，已移動常數並補初始非空 profile 測試；修正後 `node --check server.mjs`、`node --check scripts/test-core.mjs`、`node scripts/test-core.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-review-ui.mjs` 均 exit 0，核心測試實際驗證啟動後合法 profile 保留且未知欄位不進 runtime。
+- 獨立審查是否執行：是（round1 不通過；修正後 round2 通過）
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-15-ai-profile-secret-isolation-round1.md`；判定不通過，阻擋項為 allowlist 常數晚於 `loadSettings()` 初始化，導致含既有非空 profile 的設定啟動時靜默回退；已移動常數並補重啟回歸，未覆寫 round1 報告。round2 審查檔案：`docs/project-management/reviews/2026-09-15-ai-profile-secret-isolation-round2.md`；判定通過，無阻擋問題。
+- 判定（逐字引用 round2 審查報告完整結論句）：**BUG-029 round2 獨立複審判定通過：allowlist 常數已移至 `loadSettings()` 前，非空 Anthropic profile 的啟動保留與未知欄位隔離已有回歸證據，巢狀秘密不落盤且不由 profile API 回應，既有 provider 行為未見回歸，無阻擋問題；本輪未使用外部 API／未做發布驗收且核心 listener 受 sandbox `EPERM` 限制，該部分採主要代理既有完整回歸證據。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：歷史 `settings.json` 中若已存在秘密欄位，本輪只在載入 runtime 時隔離，未主動改寫清理；`deployment`／`apiVersion` 的啟動保留未各自增加獨立 assertion。未使用外部 AI API、真實 API Key 或 proxy，外部服務與跨平台發布仍待另行驗收。
+
+## 2026-09-14 — Anthropic 模型清單分頁完整性（BUG-028）
+
+- 狀態：完成
+- 結案判定：BUG-028 round2 獨立複審通過；模型清單分頁、opaque cursor、異常游標與安全上限均完成 deterministic 驗收
+- 執行者：Codex
+- 需求來源：需求方要求繼續開發；在 BUG-027 完成後，依真實服務失敗風險盤點 Anthropic provider 的下一個可本機驗證缺口。
+- 關聯需求／缺陷：`BUG-028`、`FR-026`、`NFR-005`、`NFR-006`
+- 變更等級：中（修改雲端 AI provider 模型清單讀取契約；不執行真實付費請求或發布）
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心與 debug 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@17df978`；工作樹已有 SUB-001 與 BUG-027 的文件、程式及獨立審查報告變更，本輪保留且不覆蓋。
+- 問題證據：2026-09-14 查核 Anthropic 官方 Models API 文件，`GET /v1/models` 預設只回傳 20 筆，`has_more=true` 時必須把 `last_id` 作為下一次 `after_id`；目前 `listAnthropicModels()` 只讀第一頁，指定模型位於後頁時會被連線測試誤判為不可用。
+- 目標與成功條件：Anthropic 模型清單以官方 `after_id` 契約讀完所有頁面並維持回傳順序；每次要求最大合法 `limit=1000`；指定模型位於後頁時 `modelAvailable=true` 且 `modelCount` 為完整數量；`has_more` 缺少、空白或重複 `last_id` 時明確失敗，不進入無限請求；認證、無生成 body 與其他 provider 行為不變。
+- 不在範圍：不變更模型排序或預設模型、不新增任意 endpoint 掃描、不加入真實 API Key、不執行付費請求、不發布或打包 0.51.0。
+- 風險與回復方式：多頁帳號會增加 models GET 次數；異常 proxy 若宣告有後頁但不提供可前進游標將改為明確失敗，而不是回傳不完整清單。可回復 Anthropic adapter 的局部清單修改；不影響 Messages API 與既有人工接受流程。
+- 驗證計畫：先新增第二頁模型與異常游標的 deterministic contract，保存修正前失敗；再修改 adapter，執行 Node 語法、focused provider 測試、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文依六面向審查。
+- 實際修改：`lib/ai/anthropic.mjs` 的 `listAnthropicModels()` 改以 `limit=1000` 起始，`has_more=true` 時把 opaque `last_id` 安全編碼成下一頁 `after_id` 並依序合併；加入缺失 `has_more`、空白／重複 `last_id` 與最多 100 頁防護。`scripts/test-ai-providers.mjs` 新增兩頁成功、cursor 編碼、異常 pagination 與安全上限 contract。round1 指出初版以 `.trim()` 後字串作 cursor 會改寫前後空白；主要代理已改為只用 trim 判斷全空白，傳遞與去重均保留原始字串，並把正式測試 cursor 擴充為含前後空白及特殊字元。同步 FR-026、功能設計、目前狀態、發展歷程、測試稽核、缺陷歷程與 0.51 Release notes。
+- 開發驗證結果：原缺陷修正前 `node scripts/test-ai-providers.mjs` exit 1，第二頁含指定模型時實際 `modelAvailable=false`；初版修正後 focused 與完整 `npm run check` exit 0。round1 的 opaque cursor 案例加入正式測試後，修正前再現「游標重複」錯誤；分離驗證與原值傳遞後，2026-09-15 08:53（Asia/Taipei）Node 語法、focused provider contract、opaque cursor exact-forwarding、完整 `npm run check` 與 `git diff --check` 均 exit 0。
+- 獨立審查是否執行：是（round1 不通過；修正後 round2 通過）。
+- 獨立審查結論：round1 審查檔案：`docs/project-management/reviews/2026-09-14-anthropic-model-pagination-round1.md`；判定不通過，阻擋項為初版 `.trim()` 改寫 opaque cursor 原值，主要代理已修正並補測。round2 審查檔案：`docs/project-management/reviews/2026-09-14-anthropic-model-pagination-round2.md`；判定通過，無阻擋問題。
+- 判定（逐字引用 round2 審查報告完整結論句）：**BUG-028 round2 獨立複審判定通過：round1 的 opaque cursor 原值傳遞阻擋項已修正，limit=1000、has_more/last_id/after_id 分頁、後頁模型判定、異常游標、100 頁上限、Anthropic 既有契約與完整回歸均實測通過，無阻擋問題。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：尚未使用真實 Anthropic API Key、超過 20 筆的真實模型清單或自訂 proxy；外部 endpoint、計費、速率限制與跨平台封裝後行為仍需另行驗收。
+
+## 2026-09-14 — Anthropic 新模型取樣參數相容性（BUG-027）
+
+- 狀態：完成
+- 結案判定：BUG-027 deterministic request contract 修正完成；round2 獨立複審通過，無阻擋問題
+- 執行者：Codex
+- 需求來源：需求方要求分析目前最需要完成的項目後直接進行；盤點後選定 0.51.0 Anthropic provider 的最新模型相容性缺口。
+- 關聯需求／缺陷：`BUG-027`、`FR-026`、`NFR-005`、`NFR-006`
+- 變更等級：中（修改雲端 AI provider request contract；不執行真實付費請求或發布）
+- 執行前已讀：`npm run project:preflight -- --type=full` 列出的固定核心與 full 路由文件（是）
+- 來源基準：`codex/0.51-anthropic-claude@17df978`；工作樹已有 SUB-001 的 `08-CHANGE-LOG.md` 與三份 review 報告變更，本輪保留且不覆蓋。
+- 問題證據：2026-09-14 查核 Anthropic 官方 model deprecations 文件，Claude Opus 4.7 之後對非預設 `temperature`、`top_p`、`top_k` 回覆 HTTP 400，官方建議省略並以 prompt 控制；目前 `lib/ai/anthropic.mjs` 仍會轉送這三個欄位，`scripts/probe-provider-live.mjs` 亦固定帶入 `temperature: 0`。
+- 目標與成功條件：Anthropic `/v1/messages` request body 不得傳送 `temperature`、`top_p` 或 `top_k`，即使共用 optimizer body 含有這些欄位；`max_tokens`、system／messages、stop sequences 與內部 metadata 過濾維持正確；其他 provider 行為不變。
+- 不在範圍：不變更 Claude model 預設值、不加入付費 API Key、不執行真實 Anthropic 請求、不發布 0.51.0、不修改其他 provider 的取樣參數。
+- 風險與回復方式：舊 Claude 模型將改用供應商預設取樣行為，輸出隨機性只能由 prompt 與既有 cue contract 約束；可回復本輪 adapter 局部修改，且現有 AI 結果仍只形成待人工接受建議。
+- 驗證計畫：先建立會重現三個欄位外送的失敗測試，再修改 adapter；執行 `node --check`、`node scripts/test-ai-providers.mjs`、live probe source assertion、`npm run check`、`git diff --check`、`npm run docs:check:final`，最後由獨立上下文進行六面向審查。
+- 實際修改：更新 `lib/ai/anthropic.mjs`，從 Anthropic request allowlist 移除 `temperature`／`top_p`／`top_k`；`scripts/test-ai-providers.mjs` 新增三欄不得外送、`stop_sequences` 必須保留及共用 live probe 仍帶 `temperature: 0` 的 contract assertion；依 round1 審查恢復 `scripts/probe-provider-live.mjs` 的既有共用取樣輸入，確保其他 provider 行為不變；同步 FR-026、功能設計、目前狀態、發展歷程、測試稽核、缺陷歷程與 0.51 Release notes。
+- 開發驗證結果：修正前 `node scripts/test-ai-providers.mjs` exit 1，明確顯示 `temperature` 實際外送為 `0`；修正後 focused Node 語法、provider contract、共用 probe 與 HEAD 零差異、`stop_sequences` 保留及 `git diff --check` 均 exit 0。完整 `npm run check` 於 round1 修正前後各執行一次且皆 exit 0，最終版本包含全部現有自動回歸；round2 通過後 `npm run docs:check:final` 亦 exit 0。
+- 獨立審查是否執行：是（round1 不通過；依要求修正後 round2 通過）
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-09-14-anthropic-sampling-compat-round1.md`
+  - round1 判定：不通過；共用 live probe 不應改變其他 provider 的既有 `temperature: 0` 輸入。
+  - round2 審查檔案：`docs/project-management/reviews/2026-09-14-anthropic-sampling-compat-round2.md`
+  - round2 判定（逐字引用審查檔案結論句）：**BUG-027 round2 獨立複審判定通過：round1 的共用 live probe 回歸已關閉，Anthropic 最終請求會省略 temperature、top_p、top_k 並保留 stop_sequences 與既有契約，六種非 Anthropic provider 行為及完整回歸均實測通過，無阻擋問題。**
+- 發布授權：不適用；本輪不打包、不推送、不建立 tag 或 Release。
+- 部署／發布結果：不適用。
+- 遺留風險與後續事項：未使用真實 Anthropic API Key 或 Claude Opus 4.7+；外部 endpoint、proxy、模型品質、計費、速率限制及跨平台封裝後行為仍需需求方另行提供 API Key 並授權驗收，本輪不宣稱真實服務已通過。
+
+## 2026-09-10 — 20260909 字幕錯字修正與中英字幕輸出（SUB-001）
+
+- 狀態：完成
+- 結案判定：SUB-001 round3 最終獨立治理複審通過（限結構驗收範圍）；三份字幕可交付，並保留未對照原影片語音／畫面的風險揭露
+- 執行者：Codex
+- 需求來源：需求方要求修正附件字幕錯別字，參考附件專名詞，並產生中英合併版與獨立英文版。
+- 關聯需求／缺陷：`SUB-001`
+- 變更等級：中（1,129 段字幕的文字修正、翻譯與輸出；不修改影片與原始附件）
+- 執行前已讀：`npm run project:preflight -- --type=general` 列出的固定核心與 general 路由文件（是）
+- 來源基準：`/Users/nycu/Downloads/20260909.mp4.edited.srt`；專名詞參考為 `/Users/nycu/Downloads/rule.txt`
+- 目標與成功條件：保留原字幕 1,129 段的序號與時間碼；只修正字幕中的明顯錯別字／ASR 誤植，採用附件列出的專名詞標準，產生中文修正版、中文／英文合併版與獨立英文版。
+- 不在範圍：不依附件中未被本次需求明確要求的口語刪除、標點重排或其他內容改寫；不覆寫原始 SRT；不修改影片。
+- 風險與回復方式：ASR 文字存在語意不完整與疑似專名誤聽；保留原文來源與時間碼，所有交付檔另存於專案輸出目錄，可刪除交付副本而不影響原始附件。
+- 驗證計畫：逐段核對序號／時間碼／字幕數量，檢查 SRT 空白行與編碼，核對中英合併版與英文版的 cue 對齊，執行 `git diff --check` 與 `npm run docs:check:final`，再由獨立只讀審查上下文依六面向檢查。
+- 實際修改：在 `/Users/nycu/Documents/離線字幕工廠/subtitle-outputs/` 產生 `20260909.mp4.edited.corrected.zh-TW.srt`、`20260909.mp4.edited.bilingual.zh-en.srt` 與 `20260909.mp4.edited.en.srt`；以 `subtitle-work/generate-20260909-subtitles.mjs` 與四份英文 cue 資料重現產出；原始 `/Users/nycu/Downloads/20260909.mp4.edited.srt` 未覆寫。
+- 開發驗證結果：`node subtitle-work/generate-20260909-subtitles.mjs`、`node --check subtitle-work/generate-20260909-subtitles.mjs`、獨立 SRT 解析／數量／ID／時間碼／中英對齊檢查均通過（1,129 cue、`issues: []`）；`node scripts/test-bilingual-subtitles.mjs` 通過；`git diff --check` 通過；四份 TSV 與英文輸出逐 cue 一致。最終 SHA-256：中文修正版 `996ebdcc5559ff9f77a78c425e4a7b5523bce54ff1ff9ea94e1a63e8c742ac7c`、中英合併版 `ab21f4a36de50b9c8131641003b6c948c07b6104ae0c53aef725d44036c6eb86`、英文版 `e3b0f810ac77c74bf02e7ddd1841147c2a1fe55635f0aa3b9fcbc3597974e5f3`。
+- 獨立審查是否執行：是（round1 有條件通過；主代理同步修正 TSV 專名大小寫；round2 針對性複審通過；round3 最終獨立治理複審通過）
+- 獨立審查結論：round1 六面向審查無阻擋問題，指出 TSV 的 15 個 `Evercam`／最終輸出 `EVERCAM` 大小寫差異及未做影音品質驗收；round2 確認 TSV 與英文 SRT 逐 cue 差異為 0、三份 SRT 時間碼零差異對齊；round3 確認無阻擋問題、結構驗收通過，並明確保留未做播放器／原影片影音品質複核的限制。
+- 審查檔案：`docs/project-management/reviews/2026-09-10-sub-001-round1.md`
+- 審查檔案：`docs/project-management/reviews/2026-09-10-sub-001-round2.md`
+- 審查檔案：`docs/project-management/reviews/2026-09-10-sub-001-round3.md`
+- 判定（逐字引用審查報告「完整單句結論」）：**SUB-001 round3 最終獨立治理複審判定：無阻擋問題，1,129 cue、三份 SRT 時間碼零差異、四份 TSV 與英文 SRT 逐 cue 差異 0，中文僅做已核對的明顯修正與專名正規化，結構驗收通過；但本輪未做播放器／原影片影音品質複核，因此不宣稱完成最終影音品質驗收。**
+- 發布授權：不適用；本輪只產生本機字幕檔，不發布產品或外部資產。
+- 部署／發布結果：不適用產品發布；三份本機交付檔已定位於 `/Users/nycu/Documents/離線字幕工廠/subtitle-outputs/`。
+- 遺留風險與後續事項：未使用播放器或原影片語音／畫面逐段複核，因此個別 ASR 不完整片段、英文閱讀速度與翻譯細節仍可能需要人工影音確認。
+
+## 2026-09-02 — GitHub 遠端資料再次同步至本機（SYNC-027）
+
+- 狀態：完成
+- 結案判定：SYNC-027 通過；GitHub refs 已重新 fetch，本輪沒有新的 branch／tag 更新；`origin/main` 與本機 `main` 一致，目前 topic branch 仍不做猜測性合併
+- 執行者：Codex
+- 需求來源：需求方要求「請再次同步 github資料 到本機」。
+- 關聯需求／缺陷：`SYNC-027`、`NFR-006`、`NFR-008`
+- 變更等級：低（Git fetch 與分支／tag 狀態同步；不預期修改產品程式碼）
+- 執行前已讀：`npm run project:preflight -- --type=general` 列出的固定核心與 general 路由文件（是）
+- 來源基準：本機 `codex/0.51-anthropic-claude@17df978`；執行前已有 `SYNC-026` 工作紀錄未提交；遠端 `origin` 為 `https://github.com/twyderek/offline-subtitle-factory-app.git`
+- 目標與成功條件：取得 GitHub `origin` 最新 refs；確認目前分支是否有可安全快轉的同名遠端分支；若無則不猜測合併目標，核對 `origin/main`、本機 `main`、目前 topic branch 與 tags 的差異。
+- 不在範圍：不將 `origin/main` 或其他 topic branch 猜測性合併進目前分支；不建立或推送 commit／tag；不修改或刪除 GitHub 資料；不覆蓋既有本機工作樹變更。
+- 風險與回復方式：目前 topic branch 沒有 upstream／同名遠端分支，將其他分支合併進來會改變開發分支內容；本輪只 fetch refs，不做未授權合併。
+- 驗證計畫：`git fetch origin`、`git fetch origin --tags`、remote branch／tag 核對、`git rev-list` 分歧計數、`git status`、`git diff --check`、`npm run docs:check:final`。
+- 實際修改：`git fetch origin` 與 `git fetch origin --tags` 均成功；GitHub 沒有新的 branch／tag 更新，未修改產品程式碼，未合併、rebase、push、prune 或刪除任何 branch／tag；僅更新本工作紀錄。
+- 開發驗證結果：兩個 fetch 均 exit 0。`origin/main` 與本機 `main` 均為 `7829876862bca5dff72098aa6831b61fc266d594`，`git rev-list --left-right --count origin/main...main` 為 `0 0`；目前工作分支為 `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`，沒有同名 `origin/codex/0.51-anthropic-claude`；既有 `origin/codex/ai-cues-response-repair` 仍為 `3f8df972746890ec52f955198df413abf9054265`。工作樹除既有及本輪 `08-CHANGE-LOG.md` 紀錄外沒有其他變更；未執行產品測試，因本輪沒有產品程式碼變更。
+- 獨立審查是否執行：否（低風險 Git refs 同步；原因：只更新／確認本機 remote-tracking refs，不涉及產品程式碼、部署或發布；需求方同意記錄：明確要求再次同步 GitHub 資料到本機。）
+- 獨立審查結論：不適用（低風險同步，以 refs／分支差異、文件結案與格式檢查替代。）
+- 發布授權：不適用；本輪不推送、不打包、不發布
+- 部署／發布結果：不適用；未建立 tag、package release 或 GitHub Release
+- 遺留風險與後續事項：目前 `codex/0.51-anthropic-claude` 仍為本機 topic branch，且上次 `SYNC-026` 工作紀錄也尚未提交；若要切換、合併或建立本機分支，需另行指定明確目標。
+
+## 2026-09-01 — GitHub 遠端資料再次同步至本機（SYNC-026）
+
+- 狀態：完成
+- 結案判定：SYNC-026 通過；GitHub refs 已 fetch，`origin/main` 與本機 `main` 一致，新增遠端分支更新已落在本機 `origin/*` tracking ref；目前 topic branch 沒有同名遠端分支，本輪不執行猜測性合併
+- 執行者：Codex
+- 需求來源：需求方要求「請再次同步 github資料 到本機」。
+- 關聯需求／缺陷：`SYNC-026`、`NFR-006`、`NFR-008`
+- 變更等級：低（Git fetch 與分支／tag 狀態同步；不預期修改產品程式碼）
+- 執行前已讀：`npm run project:preflight -- --type=general` 列出的固定核心與 general 路由文件（是）
+- 來源基準：本機 `codex/0.51-anthropic-claude@17df978`；執行前工作樹 clean；遠端 `origin` 為 `https://github.com/twyderek/offline-subtitle-factory-app.git`
+- 目標與成功條件：取得 GitHub `origin` 最新 refs；確認目前分支是否有可安全快轉的同名遠端分支；若無則不猜測合併目標，核對 `origin/main`、本機 `main`、目前 topic branch 與 tags 的差異。
+- 不在範圍：不將 `origin/main` 猜測性合併進目前 topic branch；不建立或推送 commit／tag；不修改或刪除 GitHub 資料；不覆蓋本機使用者檔案。
+- 風險與回復方式：目前 topic branch 沒有 upstream／同名遠端分支，將 `main` 或其他 topic branch 合併進來會改變開發分支內容；本輪只 fetch refs，不做未授權合併。
+- 驗證計畫：`git fetch origin`、`git fetch origin --tags`、remote branch／tag 核對、`git rev-list` 分歧計數、`git status`、`git diff --check`、`npm run docs:check:final`。
+- 實際修改：`git fetch origin` 將本機 `origin/codex/ai-cues-response-repair` 從 `d0aeddb` 更新至 `3f8df97`；`git fetch origin --tags` 完成 tags 核對；未修改產品程式碼，未合併、rebase、push、prune 或刪除任何 branch／tag。
+- 開發驗證結果：沙盒內 GitHub DNS 查詢受限；取得受控網路權限後上述兩個 fetch 均 exit 0。`origin/main` 與本機 `main` 均為 `7829876862bca5dff72098aa6831b61fc266d594`，`git rev-list --left-right --count origin/main...main` 為 `0 0`；目前工作分支為 `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`，沒有同名 `origin/codex/0.51-anthropic-claude`；新增／更新遠端分支最新提交為 `3f8df972746890ec52f955198df413abf9054265`。未執行產品測試，因本輪沒有產品程式碼變更。
+- 獨立審查是否執行：否（低風險 Git refs 同步；原因：只更新本機 remote-tracking refs，不涉及產品程式碼、部署或發布；需求方同意記錄：明確要求再次同步 GitHub 資料到本機。）
+- 獨立審查結論：不適用（低風險同步，以 refs／分支差異、文件結案與格式檢查替代。）
+- 發布授權：不適用；本輪不推送、不打包、不發布
+- 部署／發布結果：不適用；未建立 tag、package release 或 GitHub Release
+- 遺留風險與後續事項：目前 `codex/0.51-anthropic-claude` 仍為本機 topic branch，GitHub 新遠端分支只存在於 `origin/codex/ai-cues-response-repair` tracking ref；若要切換、合併或建立本機分支，需另行指定明確目標。
+
 ## 2026-08-27 — 0.51.0 Windows CI／發布流程版本對齊（DEV-047）
 
 - 狀態：完成

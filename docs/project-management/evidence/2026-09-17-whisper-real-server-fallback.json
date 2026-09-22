@@ -1,0 +1,69 @@
+{
+  "schema": "offline-subtitle-factory.whisper-real-server-fallback.v1",
+  "startedAt": "2026-09-17T03:03:40.006Z",
+  "completedAt": "2026-09-17T03:03:43.796Z",
+  "elapsedMs": 3789,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "assets": {
+    "toolsDir": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools",
+    "runtimePath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-cpp/whisper-cli",
+    "modelPath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
+    "runtimeSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+    "modelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21"
+  },
+  "input": {
+    "kind": "generated-silence-wav",
+    "sampleRate": 16000,
+    "channels": 1,
+    "durationSeconds": 1,
+    "userMediaRead": false
+  },
+  "server": {
+    "mode": "production",
+    "loopbackOnly": true,
+    "testRunnersDisabled": true,
+    "requestedPort": 24535,
+    "actualPort": 24535
+  },
+  "job": {
+    "created": true,
+    "started": true,
+    "status": "completed",
+    "stage": "ready-review",
+    "metrics": {
+      "asrEngine": "whisper.cpp",
+      "whisperDevice": "metal",
+      "modelName": "tiny"
+    },
+    "logMarkers": {
+      "metalExit139": false,
+      "cpuFallback": false,
+      "fullLogsStored": false,
+      "selectedLogs": [
+        "FFmpeg=OK ASR=whisper.cpp",
+        "啟動 Whisper 轉錄",
+        "啟動 Whisper.cpp 快速（Tiny）（ggml-tiny.bin）",
+        "任務完成，等待人工校閱"
+      ]
+    },
+    "outputs": {
+      "draftSrt": true,
+      "whisperCppSrt": true,
+      "whisperCppJson": true,
+      "qualityMetadata": false,
+      "stalePartialOutput": false,
+      "stalePartialArtifacts": []
+    },
+    "fallbackObserved": false
+  },
+  "scope": {
+    "externalNetwork": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "userSubtitleModified": false
+  },
+  "status": "pass"
+}

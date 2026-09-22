@@ -1,0 +1,82 @@
+{
+  "schema": "offline-subtitle-factory.release-readiness-audit.v1",
+  "auditedAt": "2026-09-22",
+  "repository": "offline-subtitle-factory-app",
+  "packageVersion": "0.51.0",
+  "branch": "codex/0.51-anthropic-claude",
+  "currentHead": "17df9788abf2cf964d52df10b74f9a8fcd7a45d6",
+  "worktreeChangedPathCount": 111,
+  "scope": {
+    "localOnly": true,
+    "externalNetwork": false,
+    "githubUpload": false,
+    "tagCreated": false,
+    "pushPerformed": false,
+    "releasePublished": false,
+    "userDataModified": false
+  },
+  "runtimeVerification": {
+    "darwinArm64": "pass",
+    "win32X64": "pass"
+  },
+  "candidates": {
+    "macos": {
+      "directory": "../dist/test-build-0.51.0-macos-88da220",
+      "sourceCommit": "88da220",
+      "sourceCommitIsAncestorOfCurrentHead": true,
+      "commitsAfterSourceCommit": 2,
+      "artifacts": {
+        "dmg": {
+          "name": "offline-subtitle-factory-0.51.0-macos-arm64.dmg",
+          "sha256Manifest": "pass",
+          "hdiutilVerify": "pass",
+          "latestMetadataSha512AndSize": "pass"
+        },
+        "zip": {
+          "name": "offline-subtitle-factory-0.51.0-macos-arm64.zip",
+          "sha256Manifest": "pass",
+          "unzipTest": "pass",
+          "latestMetadataSha512AndSize": "pass"
+        }
+      },
+      "packagedAppVersion": "0.51.0",
+      "deepStrictCodesign": "pass",
+      "credentialFilesFound": false,
+      "filesLargerThan1GiBFound": false,
+      "signing": "ad-hoc; Developer ID and notarization not provided"
+    },
+    "windows": {
+      "directory": "../dist/test-build-0.51.0-91eca2b",
+      "sourceCommit": "91eca2b",
+      "sourceCommitIsAncestorOfCurrentHead": true,
+      "commitsAfterSourceCommit": 3,
+      "artifacts": {
+        "setup": {
+          "name": "offline-subtitle-factory-setup-0.51.0.exe",
+          "sha256Manifest": "pass",
+          "latestMetadataSha512AndSize": "pass",
+          "containerTest": "not-run-7z-unavailable"
+        },
+        "portable": {
+          "name": "offline-subtitle-factory-portable-0.51.0.exe",
+          "sha256Manifest": "pass",
+          "containerTest": "not-run-7z-unavailable"
+        }
+      },
+      "unpackedExecutable": "PE32+ x86-64",
+      "packagedAppVersion": "0.51.0",
+      "credentialFilesFound": false,
+      "signing": "unsigned; Authenticode not verified",
+      "windowsRealMachineValidation": "not-run-on-macos-host"
+    }
+  },
+  "releaseReady": false,
+  "blockingFindings": [
+    "Existing candidates were built from older source commits and do not include the current HEAD or current dirty worktree changes.",
+    "Windows real-machine install, renderer, uninstall, SmartScreen, Authenticode, and offline behavior remain unverified.",
+    "macOS clean install, Gatekeeper, Developer ID, and notarization remain unverified.",
+    "CI artifact cross-verification and GitHub post-upload asset verification were not performed.",
+    "No release authorization was requested or used in this local audit."
+  ],
+  "notARelease": true
+}

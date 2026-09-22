@@ -1,0 +1,74 @@
+{
+  "schema": "offline-subtitle-factory.macos-clean-head-candidate.v1",
+  "recordedAt": "2026-09-22",
+  "workItem": "REL-047",
+  "packageVersion": "0.51.0",
+  "scope": {
+    "platform": "darwin-arm64",
+    "hostWasMacOSAppleSilicon": true,
+    "windowsExecuted": false,
+    "localOnly": true,
+    "externalApiUsed": false,
+    "systemNetworkDisabled": false,
+    "lmStudioExecuted": false,
+    "userDataModified": false
+  },
+  "source": {
+    "currentHead": "17df9788abf2cf964d52df10b74f9a8fcd7a45d6",
+    "sourceState": "clean detached worktree at HEAD",
+    "dirtyWorktreeChangesIncluded": false,
+    "outputDirectory": "../dist/test-build-0.51.0-head-17df978",
+    "packagedApp": "mac-arm64/離線字幕工廠.app"
+  },
+  "build": {
+    "runtimeManifest": "pass",
+    "runtimeVerify": "pass",
+    "electronBuilder": "pass",
+    "electron": "43.3.0",
+    "electronBuilderVersion": "26.15.7",
+    "asarDisabledWarning": true
+  },
+  "packagedApp": {
+    "version": "0.51.0",
+    "deepStrictCodesign": "pass",
+    "spctlAssessment": "rejected",
+    "spctlAccepted": false,
+    "expectedAdHocLimitation": true,
+    "developerId": false,
+    "notarized": false,
+    "executableSha256": "86bf28dc8e0ceff75f66893bff832e616b50467d0713c468d8a8b672c52a87a4",
+    "runtime": {
+      "manifestSha256": "eb0b9dea9dfd98eadf305c994ec7f77590e6e2a0604aa3bade43244f260b4579",
+      "ffmpegSha256": "eaf91238e104dd0e262bc6510e25061855cc99a6955a721b0ac99660d58c473d",
+      "ffprobeSha256": "ed9dc5871914b466b96b402c9ec0ba68ce4f836e72faa464b1b4e279835bd4a6",
+      "whisperCliSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+      "tinyModelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21"
+    }
+  },
+  "rendererSmoke": {
+    "status": "pass",
+    "homeBridgeSettings": true,
+    "breezeSelectionOpenedAndCancelled": true,
+    "manualSubtitleJob": "completed",
+    "cleanedSrtProduced": true,
+    "realTrim": {
+      "status": "completed",
+      "durationSeconds": 2.021333,
+      "postTrimSubtitleJob": "completed",
+      "usesTrimmedVideo": true,
+      "shiftedSubtitle": true
+    },
+    "aiReviewAssets": true,
+    "glossaryRoundTrip": true,
+    "providerDefinitions": 8,
+    "isolatedUserDataCleaned": true
+  },
+  "result": "pass-with-release-limitations",
+  "releaseReady": false,
+  "limitations": [
+    "本候選只代表目前 clean HEAD，不包含 dirty worktree 的未提交變更",
+    "spctl 因 ad-hoc、未 Developer ID、未公證而拒絕",
+    "正式 Applications／乾淨帳號、Gatekeeper 通過、Developer ID／公證、真正斷網、真實 AI／模型品質、Windows 與公開 Release 尚未完成"
+  ],
+  "notARelease": true
+}
