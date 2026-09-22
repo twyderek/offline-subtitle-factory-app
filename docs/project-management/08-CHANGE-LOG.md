@@ -2,19 +2,35 @@
 
 ## 2026-09-22 — 0.51.0 GitHub Release 準備與發布（macOS；Windows 暫緩）
 
-- 狀態：進行中
-- 結案判定：尚待依需求方明確要求完成 0.51.0 GitHub Release；目前先盤點 dirty worktree 與發布資產，完成必要驗證、commit／push、tag、GitHub Release 建立與發布後資產核對。Windows 依先前需求仍暫緩，不將未驗收的 Windows 資產宣稱為本輪完成。
+- 狀態：完成
+- 結案判定：0.51.0 GitHub Release 已公開並完成發布後 API／下載／digest／資產大小核對；本輪完成範圍為 macOS arm64-only，Windows 依需求方要求暫緩，不將未驗收的 Windows 資產宣稱為本輪完成。
 - 執行者：Codex
 - 需求來源：需求方明確要求「請完成到發佈至github」；此前已明確要求 macOS 實機驗收、Windows 部分暫時略過。
 - 關聯需求／缺陷：`REL-047`、`FR-021`、`FR-023`、`NFR-005`、`NFR-006`
 - 變更等級：發布（涉及整理 release source、commit／push、建立 `v0.51.0` tag 與 GitHub Release；僅在完成驗證與發布後核對後結案，不修改既有公開 Release）
-- 來源基準：目前分支 `codex/0.51-anthropic-claude`、HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6`；需先辨識 124 個 dirty worktree 路徑，避免遺失既有工作或將未驗證內容誤納入發布。
+- 來源基準：目前分支 `codex/0.51-anthropic-claude`；已先辨識 124 個 dirty worktree 路徑並將本輪允許的 125 項變更提交為 release source `53956ccdee6e16e4c0413f09312a419613b27da6`，tag `v0.51.0` 解析至同一 commit。
 - 目標與成功條件：確認 0.51.0 發布來源、版本與 release notes，完成必要 `npm run check`／封裝與發布 gate，將明確核准的 release commit 推送至 GitHub，建立 tag／Release，附上已核對的 macOS 資產與 metadata／SHA，完成 GitHub API／下載 URL／digest／資產大小的發布後反向核對。
 - 不在範圍：Windows 實機／安裝／renderer 驗收；Developer ID／notarization 取得；真正斷網；真實 Anthropic／Ollama／LM Studio API；中文模型品質；修改或覆蓋既有公開 Release；任何未經核對的資產上傳。
-- 風險與回復方式：發布前保存 worktree／commit／資產清單，先以 dry-run／API readback 核對；若驗證失敗不建立 Release。若 push／tag／Release 已成功，保留 URL／digest／資產核對 evidence，避免重複建立或覆蓋既有 tag／Release。
+- 風險與回復方式：發布前保存 worktree／commit／資產清單，先以候選驗證與 API readback 核對；發布成功後保留 URL／digest／資產核對 evidence，避免重複建立或覆蓋既有 tag／Release。公開 Release 不回收；後續若要修正須建立新版本。
 - 驗證計畫：盤點 dirty worktree 與 release scope、`npm run check`、macOS artifact／metadata／SHA／DMG／ZIP integrity、GitHub auth／remote／tag collision、commit／push／tag、GitHub Release 建立、發布後 API／下載／digest／資產核對、evidence assertions、獨立六面向審查與 `npm run docs:check:final`。
 - 預計影響檔案／模組：release commit 所包含的既有產品／治理文件變更、`00-CURRENT-STATUS.md`、本文件、新的發布 evidence／獨立審查報告，以及 GitHub branch／tag／Release；不修改 Windows 資產內容。
-- 發布授權：需求方已明確授權本輪完成 GitHub 發布；發布範圍仍限於完成驗證的 macOS 0.51.0 資產與必要 metadata，Windows 暫緩及未完成風險須在 Release／文件揭露。
+- 發布授權：需求方已明確同意並核准本輪打包、提交、推送 branch／tag、建立並公開 GitHub Release；另依 `AUTH-2026-07-23-01` 揭露並接受 macOS 未 Developer ID／未公證的對外發布限制。發布範圍限於完成驗證的 macOS 0.51.0 資產與必要 metadata，Windows 暫緩及未完成風險已在 Release／文件揭露。
+  - 發布核准紀錄：
+  - 是否需要：是（macOS arm64 0.51.0 打包、提交、推送 branch／tag、建立並公開 GitHub Release，含發布後資產核對）
+  - 核准人／角色：需求提出者／產品負責人
+  - 核准時間：2026-09-22（需求方明確要求「請完成到發佈至github」，並持續要求「繼續」）
+  - 核准範圍：明確同意並核准本輪打包、提交、推送、建立 tag、發布與共享 macOS arm64 0.51.0 資產；接受 ad-hoc／未 Developer ID／未公證與 `spctl` rejected、Windows 暫緩／未驗收及其他文件揭露風險；不涵蓋 Windows 實機完成或其他未驗收風險。
+- 開發驗證結果：125 項盤點後變更已提交為 `53956ccdee6e16e4c0413f09312a419613b27da6`；`npm audit fix --package-lock-only` 後 npm audit 為 0 vulnerabilities，`npm ci`、`npm run check`、`git diff --check` 與 `npm run docs:check:final` 通過。由該 commit 的乾淨 detached worktree 重建 macOS arm64 DMG／ZIP，兩條新候選實機 renderer／字幕／real trim／post-trim／AI smoke 通過；branch 與 annotated tag 已 push，GitHub Release 已公開。
+- 部署結果：公開 Release <https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0>；GitHub API 回報 9 項資產，DMG／ZIP／blockmap／metadata／checksum／provenance／簽章狀態／README 的名稱、大小、digest 與正式下載 URL 已核對；DMG／ZIP／`latest-mac.yml`／SHA256 清單已實際下載回讀並通過 byte／hash 比對，完整證據為 `docs/project-management/evidence/2026-09-22-github-release-post-publish.json`。
+- 獨立審查結果：發布前 round1 與發布後 round2 均由獨立上下文以六面向審查並有條件通過；round1 報告確認候選尚未發布時的限制，round2 報告確認公開 Release、tag、資產 digest、下載回讀與剩餘風險。
+- 獨立審查是否執行：是（發布前 round1 與發布後 round2；均有條件通過，限定 macOS arm64 release scope）
+- round1 審查檔案：`docs/project-management/reviews/2026-09-22-github-release-candidate-macos-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 macOS arm64 GitHub release candidate 的來源、npm audit、DMG／ZIP／blockmap／SHA／latest-mac.yml 與兩條新實機 smoke 均有足夠證據而有條件通過，但因候選為 ad-hoc／spctl rejected、Windows 依需求暫緩且 GitHub 尚未推送、打 tag 或建立 Release，仍不得視為已發布，下一步需由主要代理執行並完成發布後核對。**
+- round2 審查檔案：`docs/project-management/reviews/2026-09-22-github-release-post-publish-round2.md`
+- round2 判定（逐字引用完整結論句）：**本輪 v0.51.0 macOS arm64 GitHub Release 已公開並標示 latest，tag 正確指向 53956cc，9 項資產的名稱／大小／GitHub digest 與遠端 DMG／ZIP／latest-mac.yml／SHA256SUMS 回讀均一致，Release notes 僅有一個尾端換行差異，Windows workflow failure 僅屬需求方已暫緩的 Windows 範圍，但 macOS 仍維持 ad-hoc／未公證、真正斷網／外部 AI 品質／乾淨安裝未覆蓋等剩餘風險。**
+- 條件是否已被需求方接受：是（依需求方明確要求完成至 GitHub；接受本輪限定為 macOS arm64-only，Windows 實機／安裝與既有 workflow 失敗均不擴大解讀為完成）
+- 條件關閉：已完成公開 Release、tag／commit 對齊、9 項資產 API 核對、4 項正式下載回讀、round2 獨立審查與 `docs:check:final`；Release notes 的額外尾端 LF 已確認不影響內容一致性，不改變已發布資產。
+- 遺留風險與後續事項：Windows preview runs `35700305138`／`35700315448` 均因 `test-breeze-asr.mjs` 的 Breeze assertion 失敗；Windows 實機、Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網與真實 AI／模型品質仍未完成。`spctl` exit 3／rejected 為 ad-hoc 未公證的預期限制。
 
 ## 2026-09-22 — 0.51.0 macOS clean-HEAD updater metadata 補齊與核對（Windows 暫緩）
 

@@ -1,0 +1,112 @@
+{
+  "schema": "offline-subtitle-factory.github-release-candidate-macos.v1",
+  "recordedAt": "2026-09-22",
+  "workItem": "REL-047",
+  "packageVersion": "0.51.0",
+  "scope": {
+    "releaseScope": "macos-arm64-only",
+    "hostWasMacOSAppleSilicon": true,
+    "windowsExecuted": false,
+    "localOnlyBeforeUpload": true,
+    "externalApiUsed": false,
+    "systemNetworkDisabled": false,
+    "lmStudioExecuted": false,
+    "userDataModified": false,
+    "releasePublishedAtEvidenceCreation": false
+  },
+  "source": {
+    "branch": "codex/0.51-anthropic-claude",
+    "commit": "53956ccdee6e16e4c0413f09312a419613b27da6",
+    "sourceState": "clean detached worktree at committed release source",
+    "dirtyWorktreeChangesIncluded": false,
+    "candidateDirectory": "../dist/release-0.51.0-macos-53956cc/"
+  },
+  "build": {
+    "runtimeManifest": "pass",
+    "runtimeVerify": "pass",
+    "electronBuilder": "pass",
+    "electron": "43.3.0",
+    "electronBuilderVersion": "26.15.7",
+    "packagedVersion": "0.51.0",
+    "npmCi": "pass",
+    "npmAudit": {
+      "total": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "npmCheck": "pass"
+  },
+  "artifacts": {
+    "dmg": {
+      "file": "offline-subtitle-factory-0.51.0-macos-arm64.dmg",
+      "bytes": 242742979,
+      "sha256": "2fd5ee33b74c19cf65791f844be645becc3482d2eba2538a38e3343f2e17263d",
+      "sha512": "nY+yozf+qVcogVGBvJTjbntIDCLV2bN6MQu+eLjqCDBaAbnlKzK4QsSAXIbXq7mn3NnwfrkJ9SxPLplqVnNCPA==",
+      "hdiutilVerify": "pass"
+    },
+    "zip": {
+      "file": "offline-subtitle-factory-0.51.0-macos-arm64.zip",
+      "bytes": 249963233,
+      "sha256": "e5499742edf2660a9e7fafcd7fde7eb5d513fa1e6523ea33bbc30019d507d260",
+      "sha512": "LOgcDMtoNgUb0X8qme43QFIwO0TtlPJQpb86JMJJ0bZn2RiVp+GM0CbdsF4O1GUzlFmrKx4eUWvJVbL11HR9kw==",
+      "unzipTest": "pass"
+    },
+    "blockmaps": {
+      "dmgSha256": "75324cc83f2141ed93d3d4ee4f41def04933489d9876e3e79794906180ac35fb",
+      "zipSha256": "bbec76e809f8e054c24e0280a9d72b53e6eceb82108926df81997c7d581d6800",
+      "gzipJsonSchemaVersion": "2"
+    },
+    "latestMacYml": {
+      "urlPathSizeSha512": "pass",
+      "topLevelPathAndSha512": "pass",
+      "localQaOnlyBeforeUpload": true
+    }
+  },
+  "security": {
+    "deepStrictCodesign": "pass",
+    "spctlAssessment": "rejected",
+    "spctlExit": 3,
+    "expectedAdHocLimitation": true,
+    "developerId": false,
+    "notarized": false,
+    "zipQuarantinePresent": false
+  },
+  "realMachineAcceptance": {
+    "dmg": {
+      "readonlyAttach": "pass",
+      "rendererSmoke": "pass",
+      "manualSubtitle": "completed",
+      "cleanedSrt": true,
+      "realTrim": "completed",
+      "trimDurationSeconds": 2.021333,
+      "postTrim": "completed",
+      "aiReviewAssets": true,
+      "glossaryRoundTrip": true,
+      "providerDefinitions": 8,
+      "detachedAndCleaned": true
+    },
+    "zip": {
+      "integrity": "pass",
+      "extractAndIsolatedCopy": "pass",
+      "rendererSmoke": "pass",
+      "manualSubtitle": "completed",
+      "cleanedSrt": true,
+      "realTrim": "completed",
+      "trimDurationSeconds": 2.021333,
+      "postTrim": "completed",
+      "aiReviewAssets": true,
+      "glossaryRoundTrip": true,
+      "providerDefinitions": 8,
+      "cleanup": "pass"
+    }
+  },
+  "releaseScopeReady": true,
+  "projectWideReleaseReady": false,
+  "githubReleaseCreated": false,
+  "limitations": [
+    "本輪發布範圍僅為已驗收的 macOS arm64 DMG／ZIP；Windows 依需求方要求暫緩",
+    "macOS 為 ad-hoc、未 Developer ID、未公證；spctl rejected 是預期限制",
+    "正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質與公開 Release 尚待發布後或另行驗收"
+  ],
+  "notAReleaseYet": true
+}

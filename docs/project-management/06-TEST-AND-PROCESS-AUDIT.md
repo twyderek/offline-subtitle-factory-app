@@ -15,6 +15,14 @@
 
 治理前置流程另以 `test-project-preflight.mjs` 驗證任務路由，確保一般任務不載入完整歷史，發布與 full 類型仍包含必要治理／授權文件；未知類型必須失敗。
 
+## 2026-09-22 0.51.0 GitHub Release 發布後核對（macOS arm64；Windows 暫緩）
+
+- 發布結果：`v0.51.0` 已公開且標示 Latest：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0>；GitHub API 回報 `draft=false`、`prerelease=false`、9 項資產，annotated tag 解析至 commit `53956ccdee6e16e4c0413f09312a419613b27da6`。
+- 開發驗證：發布來源 commit 已完成 `npm ci`、`npm audit`（0 vulnerabilities）、`npm run check`、`git diff --check`；macOS arm64 DMG／ZIP 兩條新實機路徑均完成 renderer／手動字幕／real trim／post-trim／AI review／glossary／8 provider smoke 與 cleanup。發布前候選 evidence：`docs/project-management/evidence/2026-09-22-github-release-candidate-macos.json`。
+- 發布資產核對：GitHub API 的 9 項資產名稱／byte size／SHA-256 digest／直接下載 URL 與本機候選一致；正式下載 URL 回讀 DMG `242742979` bytes、ZIP `249963233` bytes、`latest-mac.yml` `566` bytes、SHA256 清單 `474` bytes，四者 hash 均與本地一致。`latest-mac.yml` 的 ZIP／DMG path、size、SHA-512 與發布資產一致；release notes 與本地檔案除 GitHub 自動附加的尾端換行外一致。發布後 evidence：`docs/project-management/evidence/2026-09-22-github-release-post-publish.json`。
+- 簽章與限制：DMG／ZIP deep strict codesign 通過；`spctl` exit 3／rejected，符合 ad-hoc、未 Developer ID、未公證限制，不宣稱 Gatekeeper 通過。Windows 未做實機驗收；branch／tag push 觸發的 preview runs `35700305138`、`35700315448` 均因 `test-breeze-asr.mjs` 找不到可測試 Breeze 效能提示更新函式而失敗，不能代替 Windows 驗收。
+- 稽核判定：macOS arm64-only GitHub Release 的來源、封裝、實機 smoke、公開資產、metadata、digest 與下載回讀均完成；Windows、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Developer ID／公證／Gatekeeper 仍是明確遺留風險，不因本次發布擴大宣稱完成。
+
 ## 2026-09-22 0.51.0 macOS 實機驗收（Windows 暫緩）
 
 - 本輪依需求方要求只驗收 macOS Apple Silicon，Windows 不執行；使用既有 `../dist/test-build-0.51.0-macos-88da220/` DMG，未重建候選、未修改產品 runtime、未上傳／推送／建立 tag／發布。
@@ -58,6 +66,15 @@
 - `shasum -a 256 -c SHA256SUMS-macos-arm64.txt`、DMG `hdiutil verify` 與 ZIP `unzip -t` 重放均通過；上一輪 DMG／ZIP 實機 renderer／字幕／trim smoke evidence 重用，不宣稱本輪重新安裝或重新建置。
 - 非敏感 evidence：`docs/project-management/evidence/2026-09-22-macos-clean-head-updater-metadata.json`；候選 `TEST-CANDIDATE-README.md`／`PROVENANCE.txt` 已補充 metadata 是 local QA、非發布資產。
 - 範圍判定：`latest-mac.yml` 缺口已在本機 candidate 層級補齊並核對，但 `publish=never`、未上傳／未發布，故不代表公開 updater metadata、Developer ID／公證／Gatekeeper、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Windows 或公開 Release 完成，`releaseReady=false`。
+
+## 2026-09-22 0.51.0 GitHub Release macOS candidate（Windows 暫緩）
+
+- 發布來源：先將目前已盤點的產品／測試／治理變更提交為 `53956ccdee6e16e4c0413f09312a419613b27da6`，再於乾淨 detached worktree 建置 `../dist/release-0.51.0-macos-53956cc/`；dirty worktree 未提交變更未納入，Windows 不執行。
+- 開發驗證：`npm ci`、npm audit（0 vulnerabilities）、`npm run check`、runtime manifest／verify、Electron `43.3.0`、electron-builder `26.15.7`、packaged version `0.51.0`、deep strict codesign 均通過。
+- 資產驗證：DMG `242742979` bytes／SHA-256 `2fd5ee33b74c19cf65791f844be645becc3482d2eba2538a38e3343f2e17263d`、ZIP `249963233` bytes／SHA-256 `e5499742edf2660a9e7fafcd7fde7eb5d513fa1e6523ea33bbc30019d507d260`；DMG `hdiutil verify` VALID、ZIP `unzip -t` 無錯、blockmap／SHA256／`latest-mac.yml` URL／path／size／SHA-512 一致。
+- 實機驗收：新候選 DMG readonly attach／renderer／手動字幕／real trim `2.021333` 秒／post-trim／AI review／glossary／8 providers／detach cleanup，以及 ZIP 解壓／隔離安裝／同等 smoke／cleanup 均通過；兩條路徑 `spctl` exit 3／rejected，符合 ad-hoc／未 Developer ID／未公證限制，ZIP 未發現 quarantine。
+- 非敏感 evidence：`docs/project-management/evidence/2026-09-22-github-release-candidate-macos.json`；候選 `PROVENANCE.txt`／`SIGNING-STATUS-macos-arm64.txt`／`SHA256SUMS-macos-arm64.txt`／`latest-mac.yml`／README 均已保存。
+- 發布前判定：macOS-only release scope 已具備發布證據，但尚未 push／tag／建立 GitHub Release；Windows、Developer ID／公證、正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質仍不在本輪完成範圍。
 
 ## 2026-09-22 0.51.0 release-readiness 本機候選核對
 

@@ -1,12 +1,21 @@
 # 目前專案狀態
 
 > 最後查證日期：2026-09-22
-> 現行版本：0.51.0（Anthropic Claude provider 開發中）
-> 現行公開版本：0.49.1（GitHub Latest）
-> 發布 tag／commit：`v0.49.1` → `917ae82886a0dff195009c66ce9438b78675fcc0`
+> 現行版本：0.51.0
+> 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
+> 發布 tag／commit：`v0.51.0` → `53956ccdee6e16e4c0413f09312a419613b27da6`
 > 主分支：`main`
 
-## 0.51.0 Anthropic Claude provider（開發中）
+## 0.51.0 GitHub 正式發布（macOS arm64；Windows 暫緩）
+
+- `v0.51.0` 已於 2026-09-22 公開為 GitHub Latest：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0>；annotated tag 解析至來源 commit `53956ccdee6e16e4c0413f09312a419613b27da6`，發布來源為 `codex/0.51-anthropic-claude`。
+- 公開 Release 包含 9 項 macOS arm64 資產：DMG／ZIP、兩個 blockmap、`latest-mac.yml`、SHA256 清單、簽章狀態、provenance 與候選說明。GitHub API 的名稱／大小／SHA-256 digest／直接下載 URL 與本機候選一致；DMG／ZIP／`latest-mac.yml`／SHA256 清單再由正式下載 URL 回讀並完成 hash／byte 比對。完整證據：`docs/project-management/evidence/2026-09-22-github-release-post-publish.json`。
+- macOS Apple Silicon 兩條發布候選路徑均已通過實機 renderer、手動字幕、real trim／post-trim、AI review、glossary round-trip、8 providers 與清理；候選為 ad-hoc，`codesign --verify --deep --strict` 通過，但 `spctl` exit 3／rejected，未使用 Developer ID／公證，故不宣稱 Gatekeeper 通過。
+- 開發驗證已完成：來源 commit 53956cc 的 `npm ci`、`npm audit=0`、`npm run check`、`git diff --check`、封裝／容器／metadata／SHA 驗證均通過；發布前 round1 與發布後 round2 獨立審查均只在 macOS arm64 release scope 內判定有條件通過。
+- Windows 依需求方要求未做 macOS 主機上的實機驗收；branch／tag push 觸發的兩個 Windows preview run `35700305138`、`35700315448` 均因 `test-breeze-asr.mjs` 找不到可測試的 Breeze 效能提示更新函式而失敗。這不是 Windows 實機驗收，Windows 仍是未完成項目。
+- 其他未完成風險：正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Developer ID／公證／Gatekeeper，以及 Windows 安裝／renderer／實機品質；不以本次 macOS-only Release 擴大宣稱上述項目完成。
+
+## 0.51.0 Anthropic Claude provider（已發布；後續品質驗證仍追蹤）
 
 - 開發分支：`codex/0.51-anthropic-claude`，來源為已完成 BUG-026 可靠性修正的 `codex/0.50-whisper-small-long-cues@9c9a5d5`。
 - 新增 Anthropic Claude Messages API adapter：模型清單與連線測試使用 `/v1/models`（不發送生成測試），優化使用 `/v1/messages`，以 `x-api-key`／`anthropic-version` 認證，並將 system prompt、`max_tokens` 與 content blocks 轉接至既有 AI optimizer contract。
@@ -42,14 +51,15 @@
 - 已建立 macOS arm64 DMG／ZIP 測試包：`../dist/test-build-0.51.0-macos-88da220/`；`hdiutil verify`、唯讀掛載內容、`unzip -t`、ad-hoc deep codesign、renderer smoke、blockmap／`latest-mac.yml` SHA-512／size 與 SHA-256 均通過，仍未公證或完成乾淨安裝驗收。
 - 已建立 Windows x64 cross-build directory 測試候選：`../dist/win-unpacked/`；runtime／PE／SHA-256／Anthropic marker 靜態核對通過，但目前 macOS 主機沒有 Wine，尚未做 Windows renderer、安裝／解除安裝或實機轉錄 smoke，候選不代表 Windows 實機驗收。
 - 已建立 Windows x64 unsigned Setup／Portable 測試包：`../dist/test-build-0.51.0-91eca2b/`；Setup／Portable／blockmap／`latest.yml` 與 SHA-256／SHA-512 metadata 已核對，仍未在 Windows 實機安裝或驗證 Authenticode，僅供隔離測試。
-- `.github/workflows/windows-preview.yml` 已對齊 0.51.0：push branch `codex/0.51-anthropic-claude`、tag `v0.51.0`、Setup／Portable filters、packaged Release notes 與 artifact name 均更新；workflow 尚未觸發，Windows runner／Secrets／實機 gate 仍待外部執行。
-- 0.51.0 尚未建立 tag 或 GitHub Release；公開 Latest 仍為 `v0.49.1`。本機候選不代表真實 Anthropic／Breeze／Whisper 品質、長音訊效能、Windows 或乾淨安裝驗收。
+- `.github/workflows/windows-preview.yml` 已對齊 0.51.0 並由 branch／tag push 觸發；run `35700305138`、`35700315448` 均在 `test-breeze-asr.mjs` 的 Breeze 效能提示更新函式 assertion 失敗，不能視為 Windows 實機驗收。Windows scope 仍暫緩。
+- 0.51.0 已建立 tag 與 GitHub Release，公開 Latest 已更新為 `v0.51.0`；本機與遠端資產驗證不代表真實 Anthropic／Breeze／Whisper 品質、長音訊效能、Windows 或乾淨安裝驗收。
 - 2026-09-22 release-readiness audit 已核對既有 macOS／Windows 0.51.0 測試候選：runtime manifest、checksum、macOS ZIP／DMG 容器、latest metadata、macOS ad-hoc codesign 與 packaged version 通過；Windows unpacked PE32+／version 與 metadata 通過。候選 provenance 為 mac `88da220`、Windows `91eca2b`，目前 HEAD 為 `17df978` 且工作樹仍有 111 個變更路徑，因此候選不可代表目前工作樹、不可發布。證據：`docs/project-management/evidence/2026-09-22-release-readiness-audit.json`。Windows 真機／7z archive test、macOS 乾淨安裝／Gatekeeper／Developer ID／公證、CI artifact 與 GitHub upload 後核對仍未完成。
 - 2026-09-22 依需求方要求先完成 macOS 實機驗收（Windows 暫緩）：既有 DMG 在目前 macOS arm64 實機唯讀掛載，複製至隔離 Applications-like 路徑後，deep strict codesign、packaged renderer、Breeze 開啟／取消、手動字幕完成、real trim／post-trim、AI review／glossary／8 provider 與 cleanup 均通過；DMG force detach 與隔離 app 移除通過。`spctl` 因候選為 ad-hoc／未 Developer ID／未公證而拒絕，已按預期記錄，不視為啟動失敗。證據：`docs/project-management/evidence/2026-09-22-macos-real-machine-acceptance-rel-047.json`。本候選來源仍為 `88da220`，落後目前 HEAD，故本結果是候選實機驗收，不解除 release provenance／正式簽章／公證／乾淨帳號與發布 gate。
 - 2026-09-22 續補同一候選 ZIP 實機路徑（Windows 暫緩）：ZIP integrity／隔離解壓／Applications-like copy、deep strict codesign、packaged renderer、手動字幕、real trim／post-trim、AI review／glossary／8 provider、xattr 核對與 cleanup 均通過；`com.apple.quarantine` 未存在，`com.apple.provenance` 存在；`spctl` 仍因 ad-hoc／未 Developer ID／未公證而 rejected。證據：`docs/project-management/evidence/2026-09-22-macos-zip-acceptance-rel-047.json`。這仍是舊 provenance 候選的 macOS 實機補驗，不解除目前 HEAD／dirty worktree、正式簽章／公證、乾淨帳號或 release gate。
 - 2026-09-22 為解除舊候選 provenance 落後問題，於隔離 clean detached worktree 以目前 HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6` 建立新 macOS arm64 directory candidate：runtime manifest／verify、electron-builder、packaged version 0.51.0、deep strict ad-hoc codesign、runtime hash 與 renderer／manual subtitle／real trim／post-trim／AI review smoke 均通過。證據：`docs/project-management/evidence/2026-09-22-macos-clean-head-candidate.json`；候選位置：`../dist/test-build-0.51.0-head-17df978/`。此候選刻意不包含目前 dirty worktree 未提交變更，且 `spctl` 仍因 ad-hoc／未公證而 rejected，因此仍不可視為公開 Release。
 - 2026-09-22 續以同一 clean HEAD `17df9788abf2cf964d52df10b74f9a8fcd7a45d6` 在隔離 detached worktree 封裝 macOS arm64 DMG／ZIP：DMG `hdiutil verify`、ZIP `unzip -t`、gzip blockmap、packaged runtime verify、version 0.51.0、deep strict codesign 與 DMG／ZIP 隔離實機 renderer／手動字幕／real trim／post-trim／AI asset smoke 均通過；兩條路徑 `spctl` exit 3／rejected 屬 ad-hoc／未 Developer ID／未公證預期限制，ZIP 未發現 `com.apple.quarantine`。證據：`docs/project-management/evidence/2026-09-22-macos-clean-head-packaged-acceptance.json`；候選位置：`../dist/test-build-0.51.0-head-17df978-packaged/`。dirty worktree 未提交變更未納入，Windows 依需求方要求暫緩，仍不可視為公開 Release。
 - 2026-09-22 另補同一 clean-HEAD candidate 的本機 `latest-mac.yml`：以實體 DMG／ZIP bytes 獨立重算 URL／path／size／SHA-512，兩項 metadata 與 top-level updater path/hash 均一致，並重放 SHA256、DMG `hdiutil verify`、ZIP `unzip -t`。證據：`docs/project-management/evidence/2026-09-22-macos-clean-head-updater-metadata.json`；此 metadata 僅供 local QA，未上傳、未發布，`releaseReady=false` 維持。
+- 2026-09-22 已以發布 commit `53956ccdee6e16e4c0413f09312a419613b27da6` 重建 macOS arm64 GitHub release candidate：`npm ci`／npm audit 0 vulnerabilities、完整 `npm run check`、runtime／version／deep strict codesign、DMG／ZIP integrity、`latest-mac.yml` URL／path／size／SHA-512、DMG／ZIP 兩條實機 renderer／字幕／trim／AI smoke 均通過。證據：`docs/project-management/evidence/2026-09-22-github-release-candidate-macos.json`；候選位置：`../dist/release-0.51.0-macos-53956cc/`。本輪 Release scope 僅 macOS arm64，Windows 依需求方要求暫緩；尚未上傳或建立 GitHub Release。
 
 ## 0.50.0 Breeze 效能透明化與首次選擇提醒（開發中）
 
