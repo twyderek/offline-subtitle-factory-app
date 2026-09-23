@@ -1,5 +1,22 @@
 # 改版與工作紀錄
 
+## 2026-09-23 — BUG-032 Windows CRLF 造成 Breeze 效能提示契約測試誤判
+
+- 狀態：進行中
+- 結案判定：尚待完成 CRLF／LF 重現、最小測試修正、Windows 相容性驗證、完整回歸與獨立審查；不執行 Windows 實機驗收、不修改已公開 v0.51.0 Release。
+- 執行者：Codex
+- 需求來源：發布後 GitHub Windows preview run `35714599428`（以及同一來源的前兩次 run）在 `scripts/test-breeze-asr.mjs:176` 失敗；需求方要求繼續處理，但 Windows 實機驗收仍暫緩。
+- 關聯需求／缺陷：`BUG-032`、`FR-025`、`NFR-006`
+- 變更等級：中（只修正跨平台測試讀取／比對，不改產品 Breeze 行為、不重建或覆蓋公開 Release）
+- 來源基準：分支 `codex/0.51-anthropic-claude`、目前 clean HEAD `1d47a6583f518679d9bcb4f456502372d39917fe`；Windows CI 錯誤為「應存在可測試的 Breeze 效能提示更新函式」，本機 LF checkout 可重現測試通過，需用 CRLF fixture／Windows runner 邊界確認。
+- 目標與成功條件：確認根因為測試 regex 僅接受 LF；以最小方式讓 source-contract test 對 LF／CRLF 等價，保留 `updateBreezePerformanceNotice` 的行為斷言；Windows preview 的 Breeze test 不再因換行格式誤判，macOS 既有測試仍通過。
+- 不在範圍：Windows 實機安裝／renderer／轉錄品質；Breeze 真實 runtime／模型下載；產品 UI／server 行為；重新建立 tag 或修改已公開 v0.51.0 Release 資產。
+- 風險與回復方式：只修改 `scripts/test-breeze-asr.mjs` 與必要治理文件；若 CRLF fixture 或完整回歸失敗，保留診斷並回退本輪測試變更，不碰公開 tag／Release。
+- 驗證計畫：先以 CRLF 字串重放現行 regex 失敗，再套用最小修正；執行 `node scripts/test-breeze-asr.mjs`、`npm run check`、`git diff --check`、必要的 Windows workflow／source contract 核對、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：`scripts/test-breeze-asr.mjs`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件與新的獨立審查報告；不修改產品 runtime。
+- 發布授權：不適用；本輪不打包、不建立 tag、不修改或重新發布 GitHub Release。
+- 獨立審查是否執行：是（開發驗證完成後由獨立上下文審查；若修正影響結論，建立 round2 複審）
+
 ## 2026-09-22 — 0.51.0 GitHub Release 準備與發布（macOS；Windows 暫緩）
 
 - 狀態：完成

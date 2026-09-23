@@ -15,6 +15,13 @@
 
 治理前置流程另以 `test-project-preflight.mjs` 驗證任務路由，確保一般任務不載入完整歷史，發布與 full 類型仍包含必要治理／授權文件；未知類型必須失敗。
 
+## 2026-09-23 BUG-032 Windows CRLF source-contract test 修正
+
+- 問題重現：現行 `scripts/test-breeze-asr.mjs` 的 Breeze 函式擷取 regex 在 LF source 可匹配，但將同一份 `public/app.js` 重放為 CRLF 時無法匹配 `}\n\nfunction updateAsrEngineUi` 邊界；本機重現輸出為 `lfMatch=true`、`crlfMatch=false`。產品函式實際存在，故根因是測試換行格式假設。
+- 最小修正：測試讀取 `public/app.js` 後將 CRLF 正規化為 LF，再執行既有 source-contract 與 `updateBreezePerformanceNotice` 行為 assertions；新增 LF→CRLF→LF fixture assertion，沒有修改產品 runtime 或公開 v0.51.0 Release。
+- 開發驗證：`node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check` 通過（文件、語法、所有 npm tests）。`git diff --check` 與 Windows preview runner 重跑尚待提交修正後執行。
+- 範圍判定：此輪只處理跨平台自動測試誤判；Windows 實機安裝／renderer／轉錄品質仍依需求方要求暫緩，不以本輪修正宣稱 Windows 實機驗收完成。獨立六面向審查待開發驗證後執行。
+
 ## 2026-09-22 0.51.0 GitHub Release 發布後核對（macOS arm64；Windows 暫緩）
 
 - 發布結果：`v0.51.0` 已公開且標示 Latest：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0>；GitHub API 回報 `draft=false`、`prerelease=false`、9 項資產，annotated tag 解析至 commit `53956ccdee6e16e4c0413f09312a419613b27da6`。

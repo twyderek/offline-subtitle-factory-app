@@ -151,7 +151,12 @@ try {
   assert.doesNotMatch(quotedImportRedactionProbe.stderr, /secret|LEAK_MARKER|multi word password/);
   const moduleSource = fs.readFileSync(new URL('../lib/breeze-asr.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /(?:open|read|stat)Sync\(/, 'Breeze 模型檢查不可用同步檔案 I/O 阻塞 event loop');
-  const appSource = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const normalizeAppSource = (source) => source.replace(/\r\n/gu, '\n');
+  const appSourceRaw = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const appSource = normalizeAppSource(appSourceRaw);
+  const crlfAppSource = appSource.replace(/\n/gu, '\r\n');
+  const normalizedCrlfAppSource = normalizeAppSource(crlfAppSource);
+  assert.equal(normalizedCrlfAppSource, appSource, 'source contract 讀取應對 CRLF 與 LF 保持等價');
   const indexSource = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(appSource, /async function refreshHomeHealth\(\)[\s\S]*?updateMetrics\(tools\)/, '首頁健康檢查應同步更新系統工具卡');
   assert.match(appSource, /openBreezeRuntimeInstallDialog/);
@@ -171,8 +176,10 @@ try {
   assert.match(appSource, /breezeReadinessPromise/, 'Breeze readiness 應避免快速重複選擇造成重入');
   assert.match(appSource, /Breeze ASR 25 已就緒，可開始提交任務/, 'Breeze runtime 就緒後應顯示明確完成狀態');
   assert.match(appSource, /breezeAsrCatalog\?\.model\?\.performanceReference/, 'Breeze 選擇後應顯示固定效能參考提醒');
-  const noticeFunction = appSource.match(/function updateBreezePerformanceNotice\(element, engine, reference\) \{[\s\S]*?\n\}\n\nfunction updateAsrEngineUi/)?.[0]
+  const extractNoticeFunction = (source) => source.match(/function updateBreezePerformanceNotice\(element, engine, reference\) \{[\s\S]*?\n\}\n\nfunction updateAsrEngineUi/)?.[0]
     .replace(/\n\nfunction updateAsrEngineUi$/, '');
+  const noticeFunction = extractNoticeFunction(appSource);
+  assert.ok(extractNoticeFunction(normalizedCrlfAppSource), 'CRLF source 正規化後應可擷取 Breeze 效能提示更新函式');
   assert.ok(noticeFunction, '應存在可測試的 Breeze 效能提示更新函式');
   const noticeContext = {};
   vm.runInNewContext(`globalThis.updateBreezePerformanceNotice = ${noticeFunction}`, noticeContext);
