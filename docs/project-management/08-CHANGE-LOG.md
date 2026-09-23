@@ -1,5 +1,30 @@
 # 改版與工作紀錄
 
+## 2026-09-23 — npm／Node deprecation warning 依賴來源分流
+
+- 狀態：完成
+- 結案判定：依賴來源證據、上游風險判定、本機回歸與獨立審查均完成；本輪維持不直接升級 Electron／electron-builder、不覆寫 transitive lockfile、不修改公開 v0.51.0 Release。warning 已分流但未宣稱消失。
+- 執行者：Codex
+- 需求來源：Windows CI action runtime 升級後，run `35808794946` 已解除 Node.js 20 Actions annotation，但仍看見獨立 `punycode` 與 npm transitive deprecation warnings；需求方要求繼續處理。
+- 關聯需求／缺陷：`NFR-006`、`REL-047`
+- 變更等級：低（唯讀依賴分流與治理記錄；預期不修改產品、依賴鎖檔或發布資產）
+- 來源基準：目前 clean HEAD `89d33c9290c58a1a9e189f49eeecdeb7d0bd525b`；`npm ls`／`npm explain` 顯示 `inflight@1.0.6`、`glob@7.2.3`、`rimraf@2.6.3`、`boolean@3.2.0` 均由 `electron-builder@26.15.7`／`app-builder-lib`／Windows packaging toolchain 間接引入，專案依賴樹沒有 `punycode`。
+- 目標與成功條件：區分 project dependency、electron-builder upstream transitive warning 與 GitHub Actions runtime warning；確認 `npm audit` 仍為 0；沒有安全且已驗證的最小升級時，維持現有鎖檔並明確揭露不處理原因，不把 warning 誤標為 vulnerability 或 CI failure。
+- 不在範圍：Electron／electron-builder major upgrade；`overrides` 強制替換 `glob`／`rimraf`／`inflight`；npm dependency lockfile 重寫；Node runtime／GitHub action workflow（已由上一輪處理）；Windows 實機驗收；公開 Release。
+- 風險與回復方式：本輪只新增治理文件；若依賴來源判定不一致，保留 `npm ls`／audit 輸出並停止任何升級。既有 clean build／CI 綠燈不因本輪 triage 改變。
+- 驗證計畫：重放 `npm ls`／`npm audit`／`npm explain` 依賴來源、執行 `npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`；不宣稱上游 warning 已消失。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件與新的獨立審查報告；不修改 `package.json`、`package-lock.json`、產品 runtime 或 workflow。
+- 發布授權：不適用；本輪不打包、不建立 tag、不修改或重新發布 GitHub Release。
+- 獨立審查是否執行：是（開發驗證完成後由獨立上下文審查）
+- 實際修改：只新增本工作紀錄與治理證據；未修改 `package.json`、`package-lock.json`、workflow、產品 runtime、候選資產或公開 Release。維持 electron-builder 26.15.7 的既有鎖定，不使用 `overrides` 取代其 transitive toolchain。
+- 開發驗證結果：`npm explain inflight`／`glob`／`rimraf`／`boolean`、`npm ls punycode --all`、`npm audit --json`、依賴／workflow diff guard、完整 `npm run check` 與 `git diff --check` 均通過；audit 漏洞總數為 0。來源分流支持 warning 為上游 dev／optional toolchain deprecation，不是 vulnerability；未宣稱 warning 已消失或上游已修復。
+- 獨立審查結果：round1 有條件通過；確認不修改依賴／不加 overrides 的安全決策有證據支持，唯一條件為完成文件 final gate。
+- round1 審查檔案：`docs/project-management/reviews/2026-09-23-deprecation-warning-triage-round1.md`
+- round1 判定（逐字引用完整結論句）：**本輪 npm／Node deprecation warning 依賴來源分流的證據足以支持不修改 package.json／package-lock.json、不加 overrides 的安全決策：inflight／glob／rimraf／boolean 均可由 electron-builder@26.15.7 的 app-builder-lib／Windows packaging transitive toolchain 追溯，punycode 不在專案依賴樹，npm audit 為 0 且完整 npm run check 通過；本輪未發現產品／workflow／Release 變更，但 warning 仍屬上游 deprecation 提示而非 vulnerability，後續仍須在上游版本變更時重新評估。**
+- 條件是否已被需求方接受：是（依持續「繼續」要求完成本輪安全分流；接受 warning 保留為上游維護風險，不誤標為 vulnerability 或已修復）
+- 條件關閉：已補掛 round1 報告、回填逐字結論並完成 `npm run docs:check:final`；依賴／lockfile／workflow／Release 未改，後續只在上游版本或 warning 風險變化時重新評估。
+- 遺留風險與後續事項：上游 electron-builder toolchain 仍帶入 deprecated transitive packages；GitHub Actions／Node runtime 的 `punycode` warning 來源不在本專案依賴樹；本輪未處理這些上游 warning、未執行依賴升級、Windows 實機驗收、Developer ID／公證、真正斷網或真實 AI 品質驗證。
+
 ## 2026-09-23 — Windows CI Actions Node.js 20 deprecation warning 收斂
 
 - 狀態：完成

@@ -15,6 +15,13 @@
 
 治理前置流程另以 `test-project-preflight.mjs` 驗證任務路由，確保一般任務不載入完整歷史，發布與 full 類型仍包含必要治理／授權文件；未知類型必須失敗。
 
+## 2026-09-23 npm／Node deprecation warning 依賴來源分流
+
+- 依賴來源：`npm explain` 將 `inflight@1.0.6`／`glob@7.2.3`／`rimraf@2.6.3`／`boolean@3.2.0` 追溯至 `electron-builder@26.15.7` 的 `app-builder-lib`、`@electron/asar`、`electron-winstaller` 與 `global-agent` transitive toolchain；`npm ls punycode --all` 為空，專案 manifest／lockfile 也無 `punycode`。
+- 安全判定：`npm audit --json` 漏洞總數為 0（info／low／moderate／high／critical 均為 0）；因此這些是上游 dev／optional toolchain deprecation warnings，不是本專案 vulnerability。本輪不加 `overrides`、不重寫 lockfile、不升級 Electron／electron-builder。
+- 開發驗證：依賴來源分流、完整 `npm run check`、`git diff --check` 與文件檢查通過；未修改產品、workflow、依賴 manifest、Release 或 Windows 實機範圍。
+- 範圍判定：warning 來源已分流但未宣稱已修復；後續僅在 electron-builder／app-builder-lib 上游版本或 warning 風險改變時重新評估。獨立報告：`docs/project-management/reviews/2026-09-23-deprecation-warning-triage-round1.md`。
+
 ## 2026-09-23 BUG-032 Windows CRLF source-contract test 修正
 
 - 問題重現：現行 `scripts/test-breeze-asr.mjs` 的 Breeze 函式擷取 regex 在 LF source 可匹配，但將同一份 `public/app.js` 重放為 CRLF 時無法匹配 `}\n\nfunction updateAsrEngineUi` 邊界；本機重現輸出為 `lfMatch=true`、`crlfMatch=false`。產品函式實際存在，故根因是測試換行格式假設。

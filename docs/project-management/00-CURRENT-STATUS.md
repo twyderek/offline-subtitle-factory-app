@@ -15,6 +15,7 @@
 - Windows 依需求方要求未做 macOS 主機上的實機驗收；branch／tag push 觸發的 Windows preview run `35700305138`、`35700315448` 與後續 `35714599428` 均因 `test-breeze-asr.mjs` 找不到可測試的 Breeze 效能提示更新函式而失敗。這不是 Windows 實機驗收，Windows 仍是未完成項目。
 - 2026-09-23 已完成 BUG-032 的最小測試修正：`scripts/test-breeze-asr.mjs` 讀取 `public/app.js` 後正規化 CRLF／LF，並以共用 matcher 直接驗證正規化後 CRLF fixture；focused Breeze test、完整 `npm run check` 與 Windows preview run `35804611051` 均通過。Windows runner 成功不等於 Windows 實機驗收，該驗收仍暫緩，未修改 v0.51.0 Release。
 - 2026-09-23 已將 Windows preview workflow 的 `actions/checkout`／`setup-node` 升至 v5、`upload-artifact` 升至 v6；run `35807444485` 成功完成 source／FFmpeg regression、preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload，且未再出現三個 Node.js 20 Actions runtime deprecation annotation。獨立的 `punycode`／npm transitive package warnings 不在本輪範圍；Windows 實機仍暫緩。
+- 2026-09-23 依賴 warning triage 已完成：`inflight`／`glob`／`rimraf`／`boolean` 均由 electron-builder 26.15.7 的 dev／optional transitive toolchain 引入，`punycode` 不在專案依賴樹，`npm audit` 為 0；未使用 overrides 或升級 lockfile，避免未驗證的打包工具鏈變更。這些仍是上游維護 warning，不宣稱已消失。
 - 其他未完成風險：正式 Applications／乾淨帳號、真正斷網、真實 AI／模型品質、Developer ID／公證／Gatekeeper，以及 Windows 安裝／renderer／實機品質；不以本次 macOS-only Release 擴大宣稱上述項目完成。
 
 ## 0.51.0 Anthropic Claude provider（已發布；後續品質驗證仍追蹤）
