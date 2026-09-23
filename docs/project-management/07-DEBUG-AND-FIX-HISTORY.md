@@ -6,8 +6,8 @@
 - 重現基準：`public/app.js` 的函式本身存在；現行 regex 結尾要求 `}\n\nfunction updateAsrEngineUi`。將相同 source 轉為 CRLF 後，`}\r\n\r\nfunction` 無法符合該 regex，造成 `noticeFunction` 為 `undefined`。這是測試讀取格式問題，不是產品函式缺失。
 - 根因：source-contract test 直接以 LF-only regex 解析 checkout 的 `public/app.js`；Windows Git checkout 的 CRLF 行尾使函式邊界比對失敗。
 - 最小修正：`scripts/test-breeze-asr.mjs` 讀取 `public/app.js` 後先將 CRLF 正規化為 LF，再執行既有函式擷取與 UI 行為 assertions；另以 LF→CRLF→LF fixture assertion 固定跨平台等價性。不改 `public/app.js`、產品 runtime 或 Breeze 行為。
-- 開發驗證：現行 regex 的 CRLF 重放明確由 `lfMatch=true` 變為 `crlfMatch=false`；修正後 `node scripts/test-breeze-asr.mjs` 與完整 `npm run check` 均通過。Windows GitHub runner 重跑尚待提交修正後確認，不先宣稱 CI 已恢復。
-- 防回歸：保留 CRLF fixture 重放、Breeze focused test 與完整 `npm run check`；若 Windows runner 仍失敗，停止宣稱 CI 修正完成並保留新的失敗 evidence。
+- 開發驗證：現行 regex 的 CRLF 重放明確由 `lfMatch=true` 變為 `crlfMatch=false`；修正後 `node scripts/test-breeze-asr.mjs`、完整 `npm run check` 與 `git diff --check` 均通過。Windows preview run `35804611051` 於修正 commit `e8ccee8` 成功完成 source／FFmpeg regression、preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload。
+- 防回歸：保留 CRLF fixture 重放，並以共用 `extractNoticeFunction` 直接驗證正規化後 CRLF source 可擷取 Breeze 函式；Breeze focused test、完整回歸與 Windows runner 均通過。Windows runner 成功不等同 Windows 實機驗收。
 - 剩餘風險：本輪不執行 Windows 實機驗收、不驗證 Breeze 真實 runtime／模型品質；修正只涵蓋 source-contract 測試的換行可攜性。
 
 ### FR-020／NFR-006：bundled Whisper 長音訊來源 SRT hash 完整性補強（2026-09-21）

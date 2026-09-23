@@ -2,20 +2,30 @@
 
 ## 2026-09-23 — BUG-032 Windows CRLF 造成 Breeze 效能提示契約測試誤判
 
-- 狀態：進行中
-- 結案判定：尚待完成 CRLF／LF 重現、最小測試修正、Windows 相容性驗證、完整回歸與獨立審查；不執行 Windows 實機驗收、不修改已公開 v0.51.0 Release。
+- 狀態：完成
+- 結案判定：BUG-032 已完成最小測試修正、CRLF／LF 重現、完整回歸、Windows preview runner 重跑與兩輪獨立審查；Windows 實機驗收仍不執行，已公開 v0.51.0 Release 未修改。
 - 執行者：Codex
 - 需求來源：發布後 GitHub Windows preview run `35714599428`（以及同一來源的前兩次 run）在 `scripts/test-breeze-asr.mjs:176` 失敗；需求方要求繼續處理，但 Windows 實機驗收仍暫緩。
 - 關聯需求／缺陷：`BUG-032`、`FR-025`、`NFR-006`
 - 變更等級：中（只修正跨平台測試讀取／比對，不改產品 Breeze 行為、不重建或覆蓋公開 Release）
-- 來源基準：分支 `codex/0.51-anthropic-claude`、目前 clean HEAD `1d47a6583f518679d9bcb4f456502372d39917fe`；Windows CI 錯誤為「應存在可測試的 Breeze 效能提示更新函式」，本機 LF checkout 可重現測試通過，需用 CRLF fixture／Windows runner 邊界確認。
+- 來源基準：分支 `codex/0.51-anthropic-claude`、修正 commit `e8ccee8ba84a54a542997b89403d511b9f582852`；Windows CI 錯誤為「應存在可測試的 Breeze 效能提示更新函式」，本機 LF／CRLF fixture 與修正後 Windows runner 均已確認。
 - 目標與成功條件：確認根因為測試 regex 僅接受 LF；以最小方式讓 source-contract test 對 LF／CRLF 等價，保留 `updateBreezePerformanceNotice` 的行為斷言；Windows preview 的 Breeze test 不再因換行格式誤判，macOS 既有測試仍通過。
 - 不在範圍：Windows 實機安裝／renderer／轉錄品質；Breeze 真實 runtime／模型下載；產品 UI／server 行為；重新建立 tag 或修改已公開 v0.51.0 Release 資產。
-- 風險與回復方式：只修改 `scripts/test-breeze-asr.mjs` 與必要治理文件；若 CRLF fixture 或完整回歸失敗，保留診斷並回退本輪測試變更，不碰公開 tag／Release。
+- 風險與回復方式：只修改 `scripts/test-breeze-asr.mjs` 與必要治理文件；若後續平台回歸失敗，保留診斷並回退本輪測試變更，不碰公開 tag／Release。
 - 驗證計畫：先以 CRLF 字串重放現行 regex 失敗，再套用最小修正；執行 `node scripts/test-breeze-asr.mjs`、`npm run check`、`git diff --check`、必要的 Windows workflow／source contract 核對、獨立六面向審查與 `npm run docs:check:final`。
 - 預計影響檔案／模組：`scripts/test-breeze-asr.mjs`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件與新的獨立審查報告；不修改產品 runtime。
 - 發布授權：不適用；本輪不打包、不建立 tag、不修改或重新發布 GitHub Release。
 - 獨立審查是否執行：是（開發驗證完成後由獨立上下文審查；若修正影響結論，建立 round2 複審）
+- 實際修改：`scripts/test-breeze-asr.mjs` 新增 `normalizeAppSource`，將讀入的 CRLF 正規化為 LF；以 `normalizedCrlfAppSource` 與共用 `extractNoticeFunction` matcher 直接重放 `updateBreezePerformanceNotice` 擷取，並保留 Breeze 顯示／隱藏行為斷言。未修改 `public/app.js`、產品 runtime、workflow、tag 或 Release。
+- 開發驗證結果：原始 regex 的 LF／CRLF 重現為 `lfMatch=true`、`crlfMatch=false`；修正後 focused Breeze test、`node --check scripts/test-breeze-asr.mjs`、完整 `npm run check`、`git diff --check` 均通過。Windows preview run `35804611051`（commit `e8ccee8`）於 Windows Server 2022 完成 source／FFmpeg regression、unsigned preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload，整體 conclusion=`success`；該 runner 不等同 Windows 實機驗收。
+- 獨立審查結果：round1 有條件通過，指出 Windows runner 與直接 matcher fixture 尚待閉合；round2 確認 F-002 已關閉，未發現產品／Release／範圍外變更，並在 Windows runner 通過後完成條件關閉。
+- round1 審查檔案：`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round1.md`
+- round1 判定（逐字引用完整結論句）：**BUG-032 的最小修正僅在 `scripts/test-breeze-asr.mjs` 以測試層 CRLF→LF 正規化，保留 `updateBreezePerformanceNotice` 的顯示／隱藏行為斷言，且 focused test、CRLF regex replay、syntax、diff 與一般文件檢查通過，因此在目前 macOS／靜態範圍有條件通過；但 Windows runner 尚未以修正版重跑、CRLF fixture 未直接重放完整 matcher，且 `docs:check:final` 因工作條目尚未結案而失敗，Windows 實機驗收仍未完成。**
+- round2 審查檔案：`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round2.md`
+- round2 判定（逐字引用完整結論句）：**BUG-032 round2 已關閉 round1 F-002：`scripts/test-breeze-asr.mjs` 以 `normalizeAppSource` 建立 `normalizedCrlfAppSource`，並以共用 `extractNoticeFunction` matcher 成功擷取 `updateBreezePerformanceNotice`；focused test、syntax、CRLF matcher replay、diff 與一般文件檢查均通過，未發現產品／Release 或範圍外變更，因此本輪有條件通過，但 Windows runner 尚未重跑、CI 尚未證實恢復、Windows 實機驗收仍未完成，且治理 final gate 尚待主要代理結案回填。**
+- 條件是否已被需求方接受：是（本輪已依持續「繼續」要求完成 Windows preview CI gate；接受 Windows 實機驗收仍暫緩且不擴大宣稱）
+- 條件關閉：Windows preview run `35804611051` 已成功完成，確認修正後 source／FFmpeg regression 不再因 Breeze CRLF assertion 失敗；round1 F-002 已由 round2 關閉，Windows 實機／安裝／renderer／轉錄品質仍明確保留為未驗收風險。
+- 遺留風險與後續事項：本輪只證明 source-contract test 的 Windows runner 相容性與既有 Windows preview packaging／renderer／archive workflow；不代表 Windows 實機驗收、Breeze 真實 runtime／模型品質、Developer ID／公證、真正斷網、真實 AI 品質或乾淨安裝完成。公開 v0.51.0 Release 未因本輪測試修正重建或修改。
 
 ## 2026-09-22 — 0.51.0 GitHub Release 準備與發布（macOS；Windows 暫緩）
 

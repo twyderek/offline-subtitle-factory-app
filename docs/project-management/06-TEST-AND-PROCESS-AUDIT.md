@@ -19,8 +19,8 @@
 
 - 問題重現：現行 `scripts/test-breeze-asr.mjs` 的 Breeze 函式擷取 regex 在 LF source 可匹配，但將同一份 `public/app.js` 重放為 CRLF 時無法匹配 `}\n\nfunction updateAsrEngineUi` 邊界；本機重現輸出為 `lfMatch=true`、`crlfMatch=false`。產品函式實際存在，故根因是測試換行格式假設。
 - 最小修正：測試讀取 `public/app.js` 後將 CRLF 正規化為 LF，再執行既有 source-contract 與 `updateBreezePerformanceNotice` 行為 assertions；新增 LF→CRLF→LF fixture assertion，沒有修改產品 runtime 或公開 v0.51.0 Release。
-- 開發驗證：`node scripts/test-breeze-asr.mjs` 通過；完整 `npm run check` 通過（文件、語法、所有 npm tests）。`git diff --check` 與 Windows preview runner 重跑尚待提交修正後執行。
-- 範圍判定：此輪只處理跨平台自動測試誤判；Windows 實機安裝／renderer／轉錄品質仍依需求方要求暫緩，不以本輪修正宣稱 Windows 實機驗收完成。獨立六面向審查待開發驗證後執行。
+- 開發驗證：`node scripts/test-breeze-asr.mjs`、完整 `npm run check`、`git diff --check` 均通過；Windows preview run `35804611051`（修正 commit `e8ccee8`）亦成功完成 source／FFmpeg regression、preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload。獨立 round1／round2 審查報告：`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round1.md`、`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round2.md`。
+- 範圍判定：此輪已解除跨平台自動測試誤判；Windows preview runner 成功不等於 Windows 實機安裝／renderer／轉錄品質驗收，該等項目仍依需求方要求暫緩；不修改公開 v0.51.0 Release。
 
 ## 2026-09-22 0.51.0 GitHub Release 發布後核對（macOS arm64；Windows 暫緩）
 
