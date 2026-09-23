@@ -1,5 +1,22 @@
 # 改版與工作紀錄
 
+## 2026-09-23 — Windows CI Actions Node.js 20 deprecation warning 收斂
+
+- 狀態：進行中
+- 結案判定：尚待完成 workflow 版本更新、YAML／本機回歸驗證、Windows preview runner 重跑與獨立審查；Windows 實機驗收仍不執行、不修改公開 v0.51.0 Release。
+- 執行者：Codex
+- 需求來源：BUG-032 修正後 Windows preview run `35804611051`／`35805107676` 成功，但仍回報 `actions/checkout@v4`、`actions/setup-node@v4`、`actions/upload-artifact@v4` 被強制使用 Node.js 24 的 deprecation annotation；需求方要求繼續處理。
+- 關聯需求／缺陷：`NFR-006`、`BUG-032`、`REL-047`
+- 變更等級：中（只更新 GitHub Actions runtime major versions 與治理紀錄，不改產品 runtime、測試行為、封裝內容或公開 Release）
+- 來源基準：分支 `codex/0.51-anthropic-claude`、目前 clean HEAD `7b2fea04b96c70ae3e38697cf26aef841afb8e0f`；官方 action 說明指出 checkout／setup-node v5 與 upload-artifact v6 使用 Node.js 24，需由 workflow runner 重跑確認。
+- 目標與成功條件：將 `.github/workflows/windows-preview.yml` 的 `checkout`／`setup-node` 升至 v5、`upload-artifact` 升至 v6；YAML／本機完整回歸通過，Windows preview runner 成功且不再出現這三個 Node.js 20 runtime annotation；不把 CI 成功解讀為 Windows 實機驗收。
+- 不在範圍：Windows 實機安裝／renderer／轉錄品質；產品程式與 npm dependencies；Developer ID／公證；重新建立 tag 或修改 v0.51.0 Release 資產。
+- 風險與回復方式：只修改 workflow 與必要治理文件；若 action major 升級造成 runner／artifact／測試失敗，保留 workflow log 並回退本輪 workflow 變更，不碰公開 tag／Release。
+- 驗證計畫：先核對官方 action runtime／最低 runner 條件，套用最小 workflow diff；執行 YAML／actionlint（若可用）、`npm run check`、`git diff --check`、獨立六面向審查、`npm run docs:check:final`，推送 branch 後重跑 Windows preview 並核對 annotations／conclusion。
+- 預計影響檔案／模組：`.github/workflows/windows-preview.yml`、`docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件與新的獨立審查報告；不修改產品 runtime。
+- 發布授權：不適用；本輪不打包、不建立 tag、不修改或重新發布 GitHub Release。
+- 獨立審查是否執行：是（開發驗證完成後由獨立上下文審查）
+
 ## 2026-09-23 — BUG-032 Windows CRLF 造成 Breeze 效能提示契約測試誤判
 
 - 狀態：完成

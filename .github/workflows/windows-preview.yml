@@ -19,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -125,7 +125,7 @@ jobs:
           Copy-Item ../dist/SIGNING-STATUS-windows-x64.txt -Destination $uploadDir
 
       - name: Upload Windows preview artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: offline-subtitle-factory-0.51.0-windows-x64
           path: |
