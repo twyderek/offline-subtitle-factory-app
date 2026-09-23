@@ -22,6 +22,14 @@
 - 開發驗證：`node scripts/test-breeze-asr.mjs`、完整 `npm run check`、`git diff --check` 均通過；Windows preview run `35804611051`（修正 commit `e8ccee8`）亦成功完成 source／FFmpeg regression、preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload。獨立 round1／round2 審查報告：`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round1.md`、`docs/project-management/reviews/2026-09-23-bug-032-windows-crlf-round2.md`。
 - 範圍判定：此輪已解除跨平台自動測試誤判；Windows preview runner 成功不等於 Windows 實機安裝／renderer／轉錄品質驗收，該等項目仍依需求方要求暫緩；不修改公開 v0.51.0 Release。
 
+## 2026-09-23 Windows CI Actions runtime 升級核對
+
+- 變更：`.github/workflows/windows-preview.yml` 將 `actions/checkout@v4`／`actions/setup-node@v4`／`actions/upload-artifact@v4` 升至 `@v5`／`@v5`／`@v6`；Node 22、Windows 2022、測試／封裝條件、artifact path 與 permissions 未變。
+- 開發驗證：YAML parse、action ref assertion、完整 `npm run check`、`git diff --check` 通過；Windows preview run `35807444485` 結論 `success`，source／FFmpeg regression、unsigned package、renderer／install lifecycle、archive／SHA-256 與 artifact upload 均成功。run log 未出現三個 Node.js 20 Actions runtime deprecation annotation。
+- 殘留警告與工具限制：run log 仍有獨立 Node `punycode` 與 npm transitive package deprecation warnings，本輪不處理；本機沒有 `actionlint`，只以 YAML parser／action ref assertion 替代。這些限制不影響本輪 action major upgrade 的 Windows run success，但不宣稱所有 warning 已清零。
+- 範圍判定：本輪只收斂 GitHub Actions runtime warning；Windows 實機安裝／renderer／轉錄品質、真實模型品質、正式簽章／公證與公開 Release 均未驗收或修改。
+- 獨立審查：`docs/project-management/reviews/2026-09-23-windows-actions-node24-round1.md` 判定有條件通過；Windows run `35807444485` 已補足其唯一 CI runner 驗收條件。
+
 ## 2026-09-22 0.51.0 GitHub Release 發布後核對（macOS arm64；Windows 暫緩）
 
 - 發布結果：`v0.51.0` 已公開且標示 Latest：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0>；GitHub API 回報 `draft=false`、`prerelease=false`、9 項資產，annotated tag 解析至 commit `53956ccdee6e16e4c0413f09312a419613b27da6`。
