@@ -223,3 +223,34 @@
 - 驗證：升級後完整 `npm audit --json` 為 0；`npm run check`、macOS arm64 runtime／目錄版、隔離 userData packaged renderer smoke、Windows x64 runtime／目錄版／Setup／Portable 建置均通過。封裝內版本、PE 架構、Tiny-only 模型政策與本版 Release notes 已核對。
 - 防回歸：發布驗證保留 dependency tree／audit、兩平台 build、封裝 source marker、updater metadata 與 SHA 核對；未來 Electron major 升級必須重新確認最低 OS 與 packaged renderer。
 - 剩餘風險：Windows 10／11 實機啟動／安裝／解除安裝與本版 macOS DMG／ZIP 乾淨安裝仍未完成；`asar:false` 為既有封裝強化債務；Windows 未 Authenticode、macOS 未 Developer ID／公證。
+
+# BUG-021 — Breeze runtime 缺件沒有可操作處理方法
+
+- 日期／版本：2026-08-13／0.49.0
+- 現象：選取 Breeze ASR 25 後只顯示「需安裝 patched Whisper runtime」，沒有官方安裝步驟、啟動命令或重新檢查入口。
+- 重現：在任務表單選擇 `breeze-asr-25`，API 回報模型有效但 `runtimeReady=false`；原前端只寫入狀態／log 後 return false。
+- 根因：runtime 是不隨 App 封裝的外部 Python／patched Whisper；既有前端沒有 guide modal。初版指引又在普通 clone 後直接 pip install 空的 submodule，並在 Breeze repo 內執行本 App 的 `npm start`，無法完成實際安裝／啟動。
+- 修正：新增固定非秘密的 guide API 與 runtime modal，提供 `git clone --recurse-submodules`、家目錄 venv、模型／runtime 驗證，以及本專案開發版、macOS `/Applications`、Windows NSIS 預設路徑的啟動命令；模型下載視窗與 ASR 欄位保留 persistent 指引入口；App 不自動執行 shell／pip。
+- 驗證：`test-breeze-asr.mjs` 覆蓋 submodule 初始化、平台命令、安裝版啟動路徑與錯誤 cwd 負向條件；`test-core.mjs` 覆蓋 API guide；`npm run check`、UI 缺件 smoke、`npm run docs:check:final` 與 `git diff --check` 待 round2 完成後補記。
+- 防回歸：後續若改動 guide，必須同步 `docs/BREEZE-ASR-25.md`、功能設計、測試稽核與本測試；不得把未安裝真實 runtime／checkpoint 的 deterministic 證據描述成模型品質或跨平台實機驗收。
+- 剩餘風險：Python／git／pip／網路、第三方 submodule 供應鏈、真實 3 GB checkpoint、Windows PowerShell／macOS shell、安裝後啟動、品質／效能／長音訊／取消與 process tree 仍待外部驗收。
+
+# BUG-022 — Breeze runtime 路徑與首頁健康卡未同步
+
+- 日期／版本：2026-08-13／0.49.0
+- 現象：macOS 畫面顯示 Breeze ASR 25 模型已就緒但缺少 patched Whisper runtime；首頁系統效能卡片的 FFmpeg／轉錄引擎／Whisper 狀態仍停留「待檢查」。
+- 根因判定：runtime 探針只以通用 bundled Python 與系統命令作回退，未涵蓋使用者家目錄的標準 Breeze venv；Windows 同時存在 `HOME`／`USERPROFILE` 時可能選錯家目錄，且一般 bundled Python 可能遮蔽真正的 patched venv。首頁健康 API 成功後未呼叫既有 `updateMetrics`，因此工具狀態沒有反映最新回應。
+- 修正：`resolveBreezePython` 依平台優先解析 macOS／Linux `$HOME`、Windows `USERPROFILE` 的 `Breeze-ASR-25/.venv`，並把外部 patched venv 排在一般 bundled Python 前；`server.mjs`／`electron/main.mjs` 補齊 Unix `bin/python` 工具路徑；`refreshHomeHealth` 在健康 API 成功後同步更新系統工具卡片。
+- 驗證：Node syntax、`node scripts/test-breeze-asr.mjs` 與完整 `npm run check` 通過；新增 macOS／Windows 標準 venv 偵測、Windows `USERPROFILE` 優先序、外部 venv 優先 bundled Python 與首頁 `updateMetrics` source assertion。
+- 防回歸：明確 `BREEZE_ASR_PYTHON` 仍優先；缺件時不自動執行安裝命令；任何新平台路徑變更須加入平台衝突與 bundled／external 優先序測試。
+- 剩餘風險：本機未安裝或未執行真實 MediaTek patched runtime、3 GB checkpoint、長音訊與品質／效能；Windows process tree、macOS／Windows 乾淨安裝與自訂 runtime 路徑仍需外部驗收。
+
+# BUG-023 — Breeze 首次選擇未立即協助設定
+
+- 日期／版本：2026-08-18／0.49.1 修正版候選
+- 現象：選取 Breeze 時只更新狀態文字，模型下載與 runtime 指引要等到提交任務才出現；選單文字也把「實驗性／需另裝 runtime」混在產品名稱中。
+- 根因：ASR 選擇器 change handler 只查詢狀態並自行分支，沒有共用提交前的 `ensureBreezeAsrReady()` readiness flow；產品名稱與限制說明未分離。
+- 修正：選取 Breeze 後立即共用模型／runtime readiness flow；模型缺失開啟固定官方下載對話框，下載完成後接續 runtime guide，取消仍阻止任務建立；選單改為 `Breeze ASR 25`，限制與效能風險移至說明／發布文件。
+- 驗證：`scripts/test-breeze-asr.mjs` 新增 UI 文字與首次選擇 source assertions；完整回歸與獨立審查待本輪結案補記。
+- 效能依據：需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約需 6 小時（約 `3.4×`）；單一本機觀察，不代表品質或跨平台效能驗收。
+- 剩餘風險：模型約 2.88 GiB 且 runtime 不隨包提供；低資源 CPU 可能長時間執行，仍需真實 profiler、長音訊、品質、Windows／macOS 乾淨安裝驗收。

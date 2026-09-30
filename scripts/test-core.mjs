@@ -492,6 +492,10 @@ try {
   assert.equal(breezeStatus.model.name, 'breeze-asr-25');
   assert.equal(breezeStatus.model.download.revision, 'cffe7ccb404d025296a00758d0a33468bec3a9d0');
   assert.equal(breezeStatus.model.download.size, 3087008569);
+  assert.equal(breezeStatus.runtimeInstallGuideDetails.officialRepository, 'https://github.com/mtkresearch/Breeze-ASR-25');
+  assert.match(breezeStatus.runtimeInstallGuideDetails.platforms.unix.setupCommand, /third_party\/whisper-patch-breeze/);
+  assert.match(breezeStatus.runtimeInstallGuideDetails.platforms.windows.launchCommand, /BREEZE_ASR_PYTHON/);
+  assert.equal(breezeStatus.model.runtimeInstallGuideDetails.officialRepository, breezeStatus.runtimeInstallGuideDetails.officialRepository);
   const breezeForm = new FormData();
   breezeForm.set('video', new Blob(['breeze-selection-video']), 'breeze.mp4');
   breezeForm.set('existingSrt', new Blob(['1\n00:00:00,000 --> 00:00:01,000\nBreeze 模型選擇測試\n']), 'breeze.srt');

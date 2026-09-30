@@ -1,10 +1,28 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-08-11
-> 現行版本：0.48.1（GitHub Release 已公開）
-> 現行公開版本：0.48.1（GitHub Latest）
-> 發布 tag／commit：`v0.48.1` → `c8c657682c1f22e28d5eaa50261d0ca8afd197a9`
+> 最後查證日期：2026-08-18
+> 現行版本：0.49.1（Breeze 首次設定流程正式發布）
+> 現行公開版本：0.49.1（GitHub Latest）
+> 發布 tag／commit：`v0.49.1` → `917ae82886a0dff195009c66ce9438b78675fcc0`
 > 主分支：`main`
+
+## 0.49.0 Breeze 第一版正式發布
+
+## 0.49.1 Breeze 首次設定流程正式發布
+
+- PR #14 已合併至 `main`，annotated tag `v0.49.1` 指向 merge commit `917ae82886a0dff195009c66ce9438b78675fcc0`；GitHub Release 已公開並標示 Latest，既有 `v0.49.0` 保留為歷史版本。
+- 首次選取 Breeze 會立即開啟模型下載／runtime 設定協助；選單不再把 experimental 說明混入產品名稱，文件與 Release notes 仍保留真實 runtime／品質／效能限制。
+- 需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2` 回報 1:46:00 影片約需 6 小時（約 `3.4×`），列為 0.49.1 發布依據與低資源效能警示，非跨機型驗收。
+- tag workflow run `32095872065` 成功；Windows artifact `9309963799`（490,424,761 bytes，digest `sha256:6551957e320b6f299328bc2b13898134814534585854b1c9d9164096419be04a`）已下載重組並通過 ZIP／PE／checksum／`latest.yml` 核對。公開 Release 13 項 asset 的名稱、大小、digest、`/releases/download/v0.49.1/` URL 均已從 GitHub API 反向核對；metadata／blockmap／notes 直接下載 hash 與本機一致，四個主資產 Content-Length 與 API size 一致。
+- 公開 Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1>
+
+- `codex/breeze-first-release` 由最新 `origin/main=05b275f` 建立，保留 0.48.1 已合併的 Windows CI、模型完整性、外部驗收與發布收尾修正；沒有直接發布落後 25 個提交的舊 Breeze 開發分支。
+- FR-024 的 Breeze runtime／模型只讀探針與診斷遮罩已移植；`npm run probe:breeze -- --json` 會檢查固定 checkpoint 契約與 `whisper.available_models()` 能力，缺件時非零結束且不下載、不安裝或啟動任務。
+- Breeze ASR 25 仍為實驗性選用功能；Whisper.cpp Tiny／Base／Small 維持預設。約 2.88 GiB checkpoint、Python、PyTorch 與 patched Whisper runtime 不納入安裝包。
+- Breeze 首次選擇已改為立即開啟模型下載／runtime 設定協助；需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2` 回報 1:46:00 影片約需 6 小時（約 `3.4×`），列為發布依據與低資源效能風險，非跨機型驗收。
+- 0.49.0 已由 PR #11 合併至 `main`，annotated tag `v0.49.0` 解析至 merge commit `1f50b85c0599ef85c73f05085d70925d4d6b670a`；GitHub Release 保留為歷史版本，共 9 項資產。
+- tag workflow run `31661442776` 完整通過，Windows artifact `9166375562` 來源為最終 tag commit；Setup／Portable、renderer、安裝解除、archive、checkpoint 排除與 updater metadata 已通過。公開 Release 的四個主資產、checksum、metadata 與簽章說明已從正式 URL 重新下載並反向核對；round3 獨立發布後審查已通過。
+- GitHub CLI 已於 2026-08-13 重新登入 `twyderek`；公開 repo、PR #11、tag 與 Release 已完成。
 
 ## 0.48.1 正式發布狀態
 
@@ -12,7 +30,7 @@
 - FR-023 已加入 Base／Small 首次使用下載確認、固定官方 revision、userData 模型快取、進度與大小／SHA-256 驗證；下載失敗可依官方 URL 手動匯入。
 - SYNC-024 已從 GitHub 核對 Windows Ollama 修正（遠端 `4d0bee6` 與本地 HEAD `170e08e` 完全一致），並同步最新 Azure OpenAI request parameter 修正 `baed6d7` 至目前工作樹與本機測試包。
 - REL-025／REL-028 已收斂成 `v0.48.1` 正式交付：PR #8 已合併至 `main`，Release notes 已建立，公開封裝只內建 Tiny，Base／Small 使用首次下載；下載取消會停止背景請求並清除暫存檔。Electron 已升級至 43.3.0、electron-builder 升級至 26.15.7，完整 `npm audit` 為 0；兩平台封裝、四項資產 SHA-256、updater SHA-512、partial-body 取消與 active DELETE API 已通過核對。
-- FR-024 已在專用分支加入 Breeze ASR 25 實驗性流程：固定官方 revision／大小／SHA-256、約 2.88 GiB 模型下載確認、外部 patched Whisper runtime 能力探針、任務執行與可採取行動的缺件提示；Whisper.cpp 仍為預設，Breeze runtime 與模型不納入安裝包。
+- FR-024 的 Breeze ASR 25 實驗性流程已由後續 v0.49.0 正式發布；0.48.1 的公開資產與 tag 保留為歷史版本。
 - 三模式 deterministic mock runner、模型下載 fixture 與核心 API 回歸已通過；Base／Small 中文準確率、速度、記憶體、Windows 10／11 實機安裝後驗收與真實 provider endpoint 仍是公開揭露的外部風險。
 - `v0.48.1` Release 已公開，包含 macOS arm64 DMG／ZIP、Windows Setup／Portable、兩平台 updater metadata、SHA-256 與 Windows 未簽章狀態。
 
@@ -20,7 +38,7 @@
 
 - Windows 10／11 x64：NSIS Setup 與 Portable 已建置並發布。
 - Apple Silicon macOS 12+：DMG 與 ZIP 已發布。
-- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.1>
+- GitHub Release：<https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1>
 - 線上完整操作說明：<https://offline-subtitle-factory-0451-guide.derek62101.chatgpt.site>
 - Windows 安裝包內含 `resources/docs/0.45.2/USER-GUIDE.html`、圖文資產與三段操作動畫。
 - 0.45.1 已修正 Azure OpenAI GPT-5 的 `max_completion_tokens` 與 `temperature` 相容性，並加入可收合 AI 優化面板。
@@ -35,7 +53,7 @@
 
 ## 歷史 0.45.2 發布資產狀態
 
-- v0.45.2 為歷史公開 Release；目前公開版本已更新為 v0.48.0。
+- v0.45.2 為歷史公開 Release；目前公開版本已更新為 v0.49.0。
 - v0.45.2 Windows 發布資產來自 CI run `29886823270`：`offline-subtitle-factory-setup-0.45.2.exe`、`offline-subtitle-factory-portable-0.45.2.exe`、`latest.yml` 與 SHA 已核對。
 - v0.45.2 macOS arm64 發布資產為 ASCII DMG／ZIP；`latest-mac.yml` URL／path／size 與實際資產一致，DMG `hdiutil verify`、ZIP `unzip -t` 通過。
 

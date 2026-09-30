@@ -21,6 +21,40 @@ function appUrl(pathname) {
   return url.toString();
 }
 
+async function openExternalUrl(url) {
+  if (!url || url === '#') return;
+  if (window.electronAPI?.openExternal) {
+    try {
+      await window.electronAPI.openExternal(url);
+      return;
+    } catch {
+      // Fall back to the browser when the Electron bridge is unavailable.
+    }
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Try the compatibility path below when clipboard permission is denied.
+    }
+  }
+  const input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if (!copied) throw new Error('瀏覽器不允許複製');
+}
+
 const form = document.getElementById('jobForm');
 const progressNumber = document.getElementById('progressNumber');
 const progressBar = document.getElementById('progressBar');
@@ -82,6 +116,7 @@ let currentProjectPath = null;
 let allTasks = [];
 let whisperModelCatalog = null;
 let breezeAsrCatalog = null;
+let breezeReadinessPromise = null;
 
 // ── First-launch bootstrap check ────────────────────────────────────────────
 (async function runBootstrapCheck() {
@@ -385,6 +420,7 @@ async function refreshHomeHealth() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
     const tools = data.tools || {};
+    updateMetrics(tools);
     const runtime = document.getElementById('homeRuntimeStatus');
     const model = document.getElementById('homeModelStatus');
     const device = document.getElementById('homeDeviceStatus');
@@ -437,6 +473,7 @@ async function refreshBreezeAsrStatus(force = false) {
     breezeAsrCatalog = data;
     return data;
   } catch (error) {
+    breezeAsrCatalog = null;
     setStatus({ progress: 0, stage: 'waiting', message: `Breeze ASR 25 狀態無法取得：${error.message}`, logs: ['GET /api/breeze-asr 失敗'] });
     return null;
   }
@@ -510,6 +547,7 @@ function openWhisperModelDownloadDialog(modelName, status, options = {}) {
   const start = document.getElementById('startModelDownload');
   const cancel = document.getElementById('cancelModelDownload');
   const close = document.getElementById('closeModelDownload');
+  const runtimeGuideButton = document.getElementById('openBreezeRuntimeFromModel');
   if (!modal || !start || !cancel) return Promise.resolve(false);
   const label = options.label || whisperModelLabel(modelName);
   const endpoint = options.endpoint || `${API_BASE}/api/whisper-models/${encodeURIComponent(modelName)}/download`;
@@ -517,6 +555,7 @@ function openWhisperModelDownloadDialog(modelName, status, options = {}) {
   description.textContent = options.description || `${label} 約 ${formatModelDownloadSize(status?.download?.size)}，下載後會自動驗證 SHA-256。下載期間請保持網路連線。`;
   if (cacheDirectory) cacheDirectory.textContent = options.cacheDirectory || whisperModelCatalog?.cacheDirectory || '請先重新檢查模型狀態';
   link.href = status?.download?.url || '#';
+  if (runtimeGuideButton) runtimeGuideButton.hidden = !options.runtimeGuide;
   progress.value = Number(status?.progress || 0);
   percent.textContent = `${progress.value}%`;
   statusEl.textContent = status?.status === 'downloading' ? '下載已在進行中…' : '尚未開始下載';
@@ -530,6 +569,10 @@ function openWhisperModelDownloadDialog(modelName, status, options = {}) {
     start.onclick = null;
     cancel.onclick = null;
     close.onclick = null;
+    if (runtimeGuideButton) {
+      runtimeGuideButton.onclick = null;
+      runtimeGuideButton.hidden = true;
+    }
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
   };
@@ -598,7 +641,140 @@ function openWhisperModelDownloadDialog(modelName, status, options = {}) {
   start.onclick = begin;
   cancel.onclick = dismiss;
   close.onclick = dismiss;
+  if (runtimeGuideButton) runtimeGuideButton.onclick = () => openBreezeRuntimeInstallDialog(options.runtimeGuide, status);
   return promise;
+}
+
+function openBreezeRuntimeInstallDialog(catalog, model) {
+  const modal = document.getElementById('breezeRuntimeModal');
+  const requirement = document.getElementById('breezeRuntimeRequirement');
+  const setupLabel = document.getElementById('breezeRuntimeSetupLabel');
+  const setupCommand = document.getElementById('breezeRuntimeSetupCommand');
+  const launchCommand = document.getElementById('breezeRuntimeLaunchCommand');
+  const packagedLaunchCommand = document.getElementById('breezeRuntimePackagedLaunchCommand');
+  const afterInstall = document.getElementById('breezeRuntimeAfterInstall');
+  const statusEl = document.getElementById('breezeRuntimeStatus');
+  const unixTab = document.getElementById('breezeRuntimeUnixTab');
+  const windowsTab = document.getElementById('breezeRuntimeWindowsTab');
+  const copySetup = document.getElementById('copyBreezeRuntimeSetup');
+  const copyLaunch = document.getElementById('copyBreezeRuntimeLaunch');
+  const copyPackagedLaunch = document.getElementById('copyBreezeRuntimePackagedLaunch');
+  const openDocs = document.getElementById('openBreezeRuntimeDocs');
+  const openModel = document.getElementById('openBreezeModelPage');
+  const recheck = document.getElementById('recheckBreezeRuntime');
+  const useWhisper = document.getElementById('useWhisperCppInstead');
+  const dismiss = document.getElementById('dismissBreezeRuntime');
+  const close = document.getElementById('closeBreezeRuntime');
+  if (!modal || !setupCommand || !launchCommand || !packagedLaunchCommand || !recheck || !dismiss || !close) return;
+
+  const guide = model?.runtimeInstallGuideDetails || catalog?.runtimeInstallGuideDetails;
+  if (!guide?.platforms?.unix || !guide?.platforms?.windows) {
+    setStatus({ progress: 0, stage: 'failed', message: '無法載入 Breeze runtime 安裝指引。', logs: [model?.runtimeInstallGuide || catalog?.instructions || '請重新整理 App 後再試。'] });
+    return;
+  }
+  if (requirement) requirement.textContent = guide.runtimeRequirement || '需要 Python 與 MediaTek patched Whisper runtime。';
+  if (afterInstall) afterInstall.textContent = guide.afterInstall || '';
+  modal.classList.add('is-open');
+  modal.setAttribute('aria-hidden', 'false');
+  let platform = 'unix';
+  let closed = false;
+
+  const cleanup = () => {
+    unixTab?.removeEventListener('click', selectUnix);
+    windowsTab?.removeEventListener('click', selectWindows);
+    copySetup?.removeEventListener('click', copySetupCommand);
+    copyLaunch?.removeEventListener('click', copyLaunchCommand);
+    copyPackagedLaunch?.removeEventListener('click', copyPackagedLaunchCommand);
+    openDocs?.removeEventListener('click', openDocumentation);
+    openModel?.removeEventListener('click', openModelPage);
+    recheck.removeEventListener('click', recheckRuntime);
+    useWhisper?.removeEventListener('click', chooseWhisper);
+    dismiss.removeEventListener('click', dismissDialog);
+    close.removeEventListener('click', dismissDialog);
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+  const dismissDialog = () => {
+    if (closed) return;
+    closed = true;
+    cleanup();
+  };
+  const selectPlatform = (nextPlatform) => {
+    platform = nextPlatform;
+    const selected = guide.platforms[platform];
+    setupLabel.textContent = `${selected.label} 安裝與驗證`;
+    setupCommand.textContent = selected.setupCommand;
+    launchCommand.textContent = selected.launchCommand;
+    packagedLaunchCommand.textContent = selected.packagedLaunchCommand || '';
+    unixTab?.classList.toggle('is-active', platform === 'unix');
+    windowsTab?.classList.toggle('is-active', platform === 'windows');
+    unixTab?.setAttribute('aria-selected', String(platform === 'unix'));
+    windowsTab?.setAttribute('aria-selected', String(platform === 'windows'));
+  };
+  const selectUnix = () => selectPlatform('unix');
+  const selectWindows = () => selectPlatform('windows');
+  const copySetupCommand = async () => {
+    try {
+      await copyTextToClipboard(guide.platforms[platform].setupCommand);
+      statusEl.textContent = '已複製安裝與驗證指令。';
+    } catch (error) {
+      statusEl.textContent = `複製失敗：${error.message}`;
+    }
+  };
+  const copyLaunchCommand = async () => {
+    try {
+      await copyTextToClipboard(guide.platforms[platform].launchCommand);
+      statusEl.textContent = '已複製啟動指令。';
+    } catch (error) {
+      statusEl.textContent = `複製失敗：${error.message}`;
+    }
+  };
+  const copyPackagedLaunchCommand = async () => {
+    try {
+      await copyTextToClipboard(guide.platforms[platform].packagedLaunchCommand || '');
+      statusEl.textContent = '已複製安裝版啟動指令。';
+    } catch (error) {
+      statusEl.textContent = `複製失敗：${error.message}`;
+    }
+  };
+  const openDocumentation = () => openExternalUrl(guide.officialDocumentation || guide.officialRepository);
+  const openModelPage = () => openExternalUrl(guide.modelPage);
+  const recheckRuntime = async () => {
+    if (closed) return;
+    recheck.disabled = true;
+    statusEl.textContent = '正在重新檢查 Breeze runtime…';
+    const refreshed = await refreshBreezeAsrStatus(true);
+    const refreshedModel = refreshed?.model;
+    if (refreshedModel?.runtimeReady) {
+      statusEl.textContent = '已偵測到 Breeze runtime，可以提交任務。';
+      setStatus({ progress: 0, stage: 'ready', message: 'Breeze ASR 25 runtime 已就緒。', logs: ['runtime probe 通過；可重新提交字幕任務。'] });
+      updateAsrEngineUi();
+      dismissDialog();
+      return;
+    }
+    statusEl.textContent = refreshedModel?.runtimeInstallGuide || refreshed?.instructions || '仍未偵測到 runtime；完成安裝並重新啟動 App 後再試。';
+    recheck.disabled = false;
+  };
+  const chooseWhisper = () => {
+    if (form.elements.asrEngine) form.elements.asrEngine.value = 'whisper-cpp';
+    updateAsrEngineUi();
+    setStatus({ progress: 0, stage: 'waiting', message: '已切換至內建 Whisper.cpp。', logs: ['Breeze runtime 安裝可稍後從 ASR 引擎選單重新處理。'] });
+    dismissDialog();
+  };
+
+  selectPlatform(platform);
+  statusEl.textContent = '尚未重新檢查 runtime。';
+  unixTab?.addEventListener('click', selectUnix);
+  windowsTab?.addEventListener('click', selectWindows);
+  copySetup?.addEventListener('click', copySetupCommand);
+  copyLaunch?.addEventListener('click', copyLaunchCommand);
+  copyPackagedLaunch?.addEventListener('click', copyPackagedLaunchCommand);
+  openDocs?.addEventListener('click', openDocumentation);
+  openModel?.addEventListener('click', openModelPage);
+  recheck.addEventListener('click', recheckRuntime);
+  useWhisper?.addEventListener('click', chooseWhisper);
+  dismiss.addEventListener('click', dismissDialog);
+  close.addEventListener('click', dismissDialog);
 }
 
 async function ensureSelectedWhisperModel() {
@@ -622,7 +798,7 @@ async function ensureSelectedWhisperModel() {
   return Boolean(refreshed?.models?.[modelName]?.valid);
 }
 
-async function ensureBreezeAsrReady() {
+async function ensureBreezeAsrReadyInternal() {
   let catalog = await refreshBreezeAsrStatus(true);
   let model = catalog?.model;
   if (!model) return false;
@@ -633,6 +809,7 @@ async function ensureBreezeAsrReady() {
       description: `模型約 ${formatModelDownloadSize(model.download?.size)}，將從 MediaTek Research 固定官方版本下載並驗證 SHA-256。此模型需要另行安裝官方 patched Whisper runtime。`,
       endpoint: `${API_BASE}/api/breeze-asr/download`,
       cacheDirectory: catalog.cacheDirectory,
+      runtimeGuide: catalog,
       onCompleted: async () => { breezeAsrCatalog = await refreshBreezeAsrStatus(true); },
     });
     if (!downloaded) {
@@ -643,15 +820,26 @@ async function ensureBreezeAsrReady() {
     model = catalog?.model;
   }
   if (!model?.runtimeReady) {
+    openBreezeRuntimeInstallDialog(catalog, model);
     setStatus({
       progress: 0,
       stage: 'needs-action',
       message: 'Breeze ASR 25 模型已就緒，但缺少 MediaTek patched Whisper runtime。',
-      logs: [model?.runtimeInstallGuide || catalog?.instructions || '請依官方 Breeze-ASR-25 說明安裝 runtime 後重新啟動 App。'],
+      logs: ['已開啟 Breeze runtime 安裝指引；完成安裝並重新啟動 App 後按「重新檢查 runtime」。'],
     });
     return false;
   }
   return Boolean(model.valid && model.runtimeReady);
+}
+
+async function ensureBreezeAsrReady() {
+  if (breezeReadinessPromise) return breezeReadinessPromise;
+  breezeReadinessPromise = ensureBreezeAsrReadyInternal();
+  try {
+    return await breezeReadinessPromise;
+  } finally {
+    breezeReadinessPromise = null;
+  }
 }
 
 function updateAsrEngineUi() {
@@ -662,28 +850,34 @@ function updateAsrEngineUi() {
   if (whisperSelect) whisperSelect.disabled = engine !== 'whisper-cpp';
   const statusEl = document.getElementById('whisperModelStatus');
   const downloadButton = document.getElementById('downloadWhisperModel');
+  const runtimeGuideButton = document.getElementById('openBreezeRuntimeGuideButton');
   if (engine === 'breeze-asr-25') {
-    if (statusEl) statusEl.textContent = 'Breeze ASR 25 會在提交前檢查模型與 patched runtime。';
+    const breezeModel = breezeAsrCatalog?.model;
+    const breezeStatus = !breezeModel
+      ? '首次選擇 Breeze ASR 25 會先協助下載模型，再引導設定 patched runtime。'
+      : !breezeModel.valid
+        ? `Breeze ASR 25 尚未安裝（約 ${formatModelDownloadSize(breezeModel.download?.size)}）；可開始官方下載。`
+        : !breezeModel.runtimeReady
+          ? 'Breeze ASR 25 模型已安裝，請完成 patched runtime 設定後重新檢查。'
+          : 'Breeze ASR 25 已就緒，可開始提交任務。';
+    if (statusEl) statusEl.textContent = breezeStatus;
     if (downloadButton) downloadButton.hidden = true;
+    if (runtimeGuideButton) runtimeGuideButton.hidden = !(breezeAsrCatalog?.model?.valid && !breezeAsrCatalog?.model?.runtimeReady);
   } else if (engine === 'manual') {
     if (statusEl) statusEl.textContent = '手動模式只使用已上傳的 SRT。';
     if (downloadButton) downloadButton.hidden = true;
+    if (runtimeGuideButton) runtimeGuideButton.hidden = true;
   } else {
+    if (runtimeGuideButton) runtimeGuideButton.hidden = true;
     updateWhisperModelUi();
   }
 }
 
 form.elements.asrEngine?.addEventListener('change', async () => {
   updateAsrEngineUi();
-  if (form.elements.asrEngine.value === 'breeze-asr-25') {
-    const catalog = await refreshBreezeAsrStatus();
-    const model = catalog?.model;
-    if (model && !model.valid) {
-      document.getElementById('whisperModelStatus').textContent = `Breeze ASR 25 尚未安裝（約 ${formatModelDownloadSize(model.download?.size)}）；提交任務時會先確認下載。`;
-    } else if (model) {
-      document.getElementById('whisperModelStatus').textContent = model.runtimeReady ? 'Breeze ASR 25 已就緒。' : 'Breeze 模型已安裝，但缺少 patched Whisper runtime。';
-    }
-  }
+  if (form.elements.asrEngine.value !== 'breeze-asr-25') return;
+  await ensureBreezeAsrReady();
+  updateAsrEngineUi();
 });
 
 document.querySelector('select[name="modelName"]')?.addEventListener('change', async () => {
@@ -699,6 +893,11 @@ document.getElementById('downloadWhisperModel')?.addEventListener('click', async
   const modelName = form.elements.modelName?.value || 'tiny';
   const model = whisperModelCatalog?.models?.[modelName] || (await refreshWhisperModelStatuses())?.models?.[modelName];
   if (model) await openWhisperModelDownloadDialog(modelName, model);
+});
+
+document.getElementById('openBreezeRuntimeGuideButton')?.addEventListener('click', async () => {
+  const catalog = breezeAsrCatalog || await refreshBreezeAsrStatus(true);
+  if (catalog?.model) openBreezeRuntimeInstallDialog(catalog, catalog.model);
 });
 
 async function handleHomeProjectClick(event) {
