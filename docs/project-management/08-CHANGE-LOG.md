@@ -23,8 +23,8 @@
   - 審查檔案：`docs/project-management/reviews/2026-09-30-pr-10-merge-conflict-repair-round1.md`
   - 判定（逐字引用）：**PR #10 合併衝突修復 round1 獨立審查結論為通過（限合併解析範圍）：合併衝突已解除且 PR implementation 未被改寫；完整 core regression 因本機缺少 FFmpeg 仍需另行補跑。**
 - 發布授權：不適用（本輪不發布、不打包、不修改 Release）
-- 部署／發布結果：待推送；本輪不合併 PR 至 `main`、不發布、不修改 Release／tag。
-- 遺留風險與後續事項：本機缺少 FFmpeg／Breeze mock runtime，完整 `npm run check` 的 core case 尚待具備該 runtime 的環境補跑；推送後需核對 PR #10 遠端 head 與 mergeability；本輪未呼叫真實 LM Studio／Ollama endpoint。
+- 部署／發布結果：建立 merge commit `e3c3f8618aae52830bd28863d08aa92f18b67764` 並推送至 `origin/codex/ai-cues-response-repair`；GitHub PR #10 反向核對為 open／Draft、head 同一 SHA、`mergeable=MERGEABLE`、`mergeStateStatus=CLEAN`；本輪不合併 PR 至 `main`、不發布、不修改 Release／tag。
+- 遺留風險與後續事項：本機缺少 FFmpeg／Breeze mock runtime，完整 `npm run check` 的 core case 尚待具備該 runtime 的環境補跑；本輪未呼叫真實 LM Studio／Ollama endpoint，真實模型品質與服務可用性仍需外部 acceptance。
 
 ## 2026-08-29 — AI 回應缺少 cues 的 JSON candidate parser 修正（PR #10）
 
