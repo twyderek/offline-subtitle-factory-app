@@ -148,7 +148,7 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 本次 v0.52.0 發布不提供 Windows x64 資產。歷史 Windows 0.49.0 x64 版曾提供 NSIS Setup 與 Portable，可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 取得；它不是本版，也不包含 v0.52.0 功能。
 
-目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
+歷史 Windows 0.49.0 資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對該 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
 ## 預設模式不需要自行安裝其他軟體
 
