@@ -18,9 +18,21 @@ let selectedChannel = 'channel-A';
 let openBehavior = 'success';
 let listenerUrl;
 const secretMarker = 'DO-NOT-LEAK-SECRET';
-const safeStorage = { isEncryptionAvailable: () => true,
-  encryptString: (value) => Buffer.from(`encrypted:${value}`),
-  decryptString: (value) => value.toString().slice(10) };
+let safeStorageCiphertextId = 0;
+const safeStorageCiphertexts = new Map();
+const safeStorage = {
+  isEncryptionAvailable: () => true,
+  encryptString: (value) => {
+    const ciphertext = Buffer.from(`safe-storage-fixture:${++safeStorageCiphertextId}`);
+    safeStorageCiphertexts.set(ciphertext.toString(), value);
+    return ciphertext;
+  },
+  decryptString: (value) => {
+    const plaintext = safeStorageCiphertexts.get(value.toString());
+    if (plaintext === undefined) throw new Error('Unknown safeStorage fixture ciphertext');
+    return plaintext;
+  },
+};
 class FakeAuth extends EventEmitter {
   setCredentials(tokens) { this.credentials = tokens; }
   generateAuthUrl(options) { this.options = options; return `https://accounts.google.com/o/oauth2/v2/auth?state=${options.state}`; }
@@ -90,7 +102,16 @@ try {
   assert.throws(() => publisher.configure('{"web":{}}'));
   const json = JSON.stringify({ installed: { client_id: 'test.apps.googleusercontent.com', client_secret: secretMarker } });
   publisher.configure(json);
-  assert.equal(fs.statSync(path.join(configDir, 'youtube-oauth.safe')).mode & 0o777, 0o600);
+  const credentialFile = path.join(configDir, 'youtube-oauth.safe');
+  const credentialStats = fs.statSync(credentialFile);
+  const credentialCiphertext = fs.readFileSync(credentialFile);
+  assert.equal(credentialStats.isFile(), true);
+  assert.match(credentialCiphertext.toString(), /^safe-storage-fixture:\d+$/);
+  assert.equal(credentialCiphertext.includes(Buffer.from(secretMarker)), false);
+  assert.deepEqual(JSON.parse(safeStorage.decryptString(credentialCiphertext)), {
+    clientId: 'test.apps.googleusercontent.com', clientSecret: secretMarker,
+  });
+  if (process.platform !== 'win32') assert.equal(credentialStats.mode & 0o777, 0o600);
   openBehavior = 'denied';
   await assert.rejects(publisher.connect(), /取消/);
   assert.equal(publisher.status().connected, false);
