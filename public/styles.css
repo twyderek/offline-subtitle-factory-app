@@ -37,6 +37,41 @@
 .review-ai-suggestion-actions > span { margin-right: auto; color: #475569; font-size: 12px; }
 .review-ai-modal { position: fixed; inset: 0; z-index: 80; display: none; place-items: center; padding: 22px; background: rgba(8, 21, 42, .58); }
 .review-ai-modal.open { display: grid; }
+/* YouTube reuses review controls; only the middle panel scrolls. */
+.review-youtube-dialog {
+  width: min(720px, calc(100vw - 40px)); height: min(760px, calc(100dvh - 40px));
+  max-width: none; max-height: none; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 28, 68, .25);
+  font: 14px/1.5 "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+}
+.review-youtube-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.review-youtube-dialog::backdrop { background: rgba(8, 21, 42, .58); }
+.review-youtube-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.review-youtube-header h2 { margin: 0; font-size: 20px; color: var(--ink); }
+.review-youtube-header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.review-youtube-header .review-youtube-error { grid-column: 1 / -1; margin: 0; padding: 9px 12px; border: 1px solid #f3c0ba; border-radius: 8px; background: #fff3f1; color: #8b2b20; overflow-wrap: anywhere; }
+.review-youtube-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px 22px; }
+.review-youtube-body .review-ai-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.review-youtube-body .full { grid-column: 1 / -1; }
+.review-youtube-body label, .review-youtube-body select, .review-youtube-body input, .review-youtube-body textarea { min-width: 0; }
+.review-youtube-account { padding: 12px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-soft); }
+.review-youtube-account > p { margin: 0 0 6px; overflow-wrap: anywhere; }
+.review-youtube-account summary { color: var(--blue); cursor: pointer; font-weight: 700; }
+.review-youtube-account details p { font-size: 13px; color: var(--muted); }
+.review-youtube-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.review-youtube-account .review-youtube-actions { justify-content: flex-start; }
+.review-youtube-dialog .review-button { font: 700 14px "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif; }
+.review-youtube-dialog .review-button[hidden], .review-youtube-dialog [hidden] { display: none; }
+.review-youtube-dialog .review-youtube-consent { display: flex; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; }
+.review-youtube-consent input { flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0; }
+.review-youtube-hint { margin: 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.review-youtube-footer { padding: 14px 22px 18px; border-top: 1px solid var(--line); background: var(--panel-soft); }
+.review-youtube-footer p { margin: 0 0 6px; overflow-wrap: anywhere; }
+.review-youtube-footer #youtubeProgress, .review-youtube-footer #youtubeIdentifiers { max-height: 4.5em; overflow: auto; }
+.review-youtube-footer #youtubeIdentifiers:empty { display: none; }
+.review-youtube-footer .review-youtube-actions { margin-top: 10px; }
+.review-youtube-dialog :focus-visible { outline: 3px solid #7fb9fa; outline-offset: 2px; }
 .review-ai-dialog { width: min(720px, 100%); max-height: calc(100vh - 44px); overflow: auto; padding: 22px; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(0, 28, 68, .25); }
 .review-ai-dialog > header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .review-ai-dialog > header p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
@@ -1350,7 +1385,7 @@ code {
 }
 
 .review-pro-body {
-  min-width: 1180px;
+  min-width: 1100px;
   height: 100vh;
   margin: 0;
   padding: 0;
@@ -2079,20 +2114,22 @@ code {
 
 /* Preferred subtitle review layout */
 .review-pro-body {
-  min-width: 1180px;
+  min-width: 1100px;
   background: #f4f7fb;
 }
 
 .review-pro-app {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
-  grid-template-rows: 1fr;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .review-sidebar {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
   padding: 30px 12px 16px;
   background: linear-gradient(180deg, #061b3c 0%, #082954 55%, #061a37 100%);
   color: #ffffff;
@@ -2177,9 +2214,11 @@ code {
 
 .review-main {
   display: grid;
-  grid-template-rows: 84px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 .review-pro-topbar {
@@ -2190,10 +2229,10 @@ code {
   box-shadow: none;
 }
 
-.review-pro-title { min-width: 300px; }
+.review-pro-title { min-width: 0; flex: 1 1 210px; }
 .review-pro-title strong { color: #102b50; font-size: 22px; }
-.review-pro-title .review-status { margin: 5px 0 0; min-width: 0; text-align: left; color: #2d9c67; }
-.review-top-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.review-pro-title .review-status { margin: 5px 0 0; min-width: 0; text-align: left; color: #2d9c67; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-top-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; min-width: 0; gap: 9px; margin-left: auto; }
 .review-top-actions input[type="file"] { display: none; }
 .review-button,
 .review-file-button { min-height: 40px; border-radius: 8px; font-weight: 700; }
@@ -2206,18 +2245,21 @@ code {
 }
 
 .review-workspace {
-  grid-template-columns: minmax(510px, 52%) minmax(520px, 48%);
+  grid-template-columns: minmax(0, 52fr) minmax(0, 48fr);
   gap: 12px;
   padding: 12px;
   background: #eef3f9;
 }
 
 .review-viewer {
-  grid-template-rows: auto auto 138px auto auto;
+  grid-template-rows: max-content max-content 138px max-content max-content;
   gap: 10px;
   padding: 0;
   border: 0;
   background: transparent;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
 }
 
 .review-video-shell {
@@ -2271,15 +2313,22 @@ code {
 
 .review-current-card { border-radius: 9px; box-shadow: none; }
 .review-current-text { min-height: 58px; padding: 10px 16px; font-size: 18px; }
-.review-bottom-controls { display: flex; align-items: center; gap: 8px; color: #7d8ca1; font-size: 11px; }
+.review-bottom-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #7d8ca1; font-size: 11px; }
 .review-bottom-controls span { margin-left: auto; }
 
 .review-editor {
   grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
   border: 1px solid #d8e2ee;
   border-radius: 10px;
   overflow: hidden;
   background: #ffffff;
+}
+.review-editor .review-stage { overflow: auto; }
+.review-editor .review-stage-panel.active {
+  height: auto;
+  min-height: 100%;
+  grid-template-rows: auto auto minmax(180px, 1fr);
 }
 .review-editor-toolbar {
   display: grid;
@@ -2294,7 +2343,7 @@ code {
 .review-metric span { white-space: nowrap; }
 .review-metric strong { margin: 0; font-size: 16px; }
 .review-metric.warn strong { color: #d98a15; }
-.review-tool-row { flex-wrap: nowrap; padding: 10px 12px; background: #fbfcfe; }
+.review-tool-row { flex-wrap: wrap; padding: 10px 12px; background: #fbfcfe; }
 .review-cue-list { padding: 10px 12px 18px; }
 .review-cue {
   contain-intrinsic-size: auto 108px;
@@ -2323,11 +2372,19 @@ code {
 .cue-advanced-actions .cue-mini-buttons { grid-template-columns: 1fr 1fr; }
 .review-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+/* Keep the existing split view usable at the desktop minimum window size. */
 @media (max-width: 1280px) {
   .review-pro-app { grid-template-columns: 205px minmax(0, 1fr); }
-  .review-workspace { grid-template-columns: minmax(460px, 49%) minmax(500px, 51%); }
+  .review-brand { gap: 8px; padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+  .review-workspace { grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); }
   .review-top-actions .review-file-button { display: none; }
   .review-bottom-controls span { display: none; }
+  .review-viewer, .review-editor { min-width: 0; }
+  .review-player-strip { grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); }
+  .review-player-strip #loopCue { grid-column: 1 / 3; }
+  .review-player-strip #clock { justify-self: end; }
+  .review-editor-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .cue-advanced-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 0.22.1 — 首頁總覽：依核定畫面保留深藍側欄與雙欄專案儀表板 */

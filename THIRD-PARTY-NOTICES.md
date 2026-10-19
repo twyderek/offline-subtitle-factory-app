@@ -32,4 +32,9 @@
 - 專案：https://github.com/mscdex/busboy
 - 授權：MIT License
 
-本軟體不會將使用者的影片、音訊或字幕上傳到上述第三方服務。
+## Google YouTube API client（選用 YouTube 私人上傳）
+
+- `@googleapis/youtube`：https://github.com/googleapis/google-api-nodejs-client
+- `google-auth-library`：https://github.com/googleapis/google-auth-library-nodejs
+- 授權：Apache License 2.0；完整授權隨各 npm 套件附帶。
+- 只有使用者主動連結頻道並同意上傳時，才把選取的 MP4、已保存 SRT 與影片資訊傳送到 Google／YouTube。離線字幕處理不會自動上傳影音。

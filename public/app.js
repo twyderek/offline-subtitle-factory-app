@@ -111,6 +111,7 @@ const homeNavButtons = [...document.querySelectorAll('.home-nav button')];
 
 let currentJobId = null;
 let pollTimer = null;
+let pollingGeneration = 0;
 let currentSettings = null;
 let currentProjectPath = null;
 let allTasks = [];
@@ -440,10 +441,7 @@ async function refreshHomeHealth() {
 }
 
 function formatModelDownloadSize(bytes) {
-  const value = Number(bytes || 0);
-  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  if (value >= 1024 * 1024) return `${Math.round(value / (1024 * 1024))} MB`;
-  return `${Math.round(value / 1024)} KB`;
+  return formatFileSize(bytes);
 }
 
 function whisperModelLabel(modelName) {
@@ -929,6 +927,7 @@ async function handleHomeProjectClick(event) {
     window.location.href = appUrl(`/review/${encodeURIComponent(jobId)}?stage=proofread`);
     return;
   }
+  stopPolling();
   currentJobId = jobId;
   jobBadge.textContent = `workspace/jobs/${currentJobId}`;
   showWorkspace();
@@ -1287,22 +1286,63 @@ function bindDropUploads() {
   });
 }
 
-function startPolling() {
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (!currentJobId) return;
-    const response = await fetch(`${API_BASE}/api/jobs/${currentJobId}/status`, { cache: 'no-store' });
-    if (!response.ok) return;
-    const status = await response.json();
-    setStatus(status);
-    const terminalStates = ['completed', 'failed', 'cancelled', 'needs-action'];
-    if (terminalStates.includes(status.status)) {
-      clearInterval(pollTimer);
-      openReview.disabled = status.status !== 'completed';
-      refreshHomeDashboard();
-    }
-  }, 1000);
+function stopPolling() {
+  pollingGeneration += 1;
+  if (pollTimer !== null) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
 }
+
+function startPolling() {
+  stopPolling();
+  const generation = pollingGeneration;
+  const pollingJobId = currentJobId;
+  const terminalStates = ['completed', 'failed', 'cancelled', 'needs-action'];
+  let intervalMs = 1000;
+  let previousSignature = '';
+
+  const schedule = () => {
+    if (generation !== pollingGeneration || !currentJobId || currentJobId !== pollingJobId) return;
+    const visibilityDelay = document.hidden ? Math.min(10000, intervalMs * 2) : intervalMs;
+    pollTimer = window.setTimeout(poll, visibilityDelay);
+  };
+
+  const poll = async () => {
+    if (generation !== pollingGeneration || !currentJobId || currentJobId !== pollingJobId) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(pollingJobId)}/status`, { cache: 'no-store' });
+      if (generation !== pollingGeneration || !currentJobId || currentJobId !== pollingJobId) return;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const status = await response.json();
+      if (generation !== pollingGeneration || !currentJobId || currentJobId !== pollingJobId) return;
+      setStatus(status);
+      const signature = [status.status, status.stage, status.progress, status.message].join('|');
+      if (signature !== previousSignature) {
+        previousSignature = signature;
+        intervalMs = 1000;
+      } else {
+        intervalMs = Math.min(10000, Math.max(1000, Math.ceil(intervalMs * 1.5)));
+      }
+      if (terminalStates.includes(status.status)) {
+        stopPolling();
+        openReview.disabled = status.status !== 'completed';
+        refreshHomeDashboard();
+        return;
+      }
+    } catch {
+      intervalMs = Math.min(10000, Math.max(1000, Math.ceil(intervalMs * 1.75)));
+    }
+    schedule();
+  };
+
+  poll();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopPolling();
+  else if (currentJobId) startPolling();
+});
 
 function openReviewStage(stage) {
   if (!currentJobId) {
@@ -1493,6 +1533,7 @@ async function handleTaskAction(event) {
     }
     return;
   }
+  stopPolling();
   currentJobId = jobId;
   jobBadge.textContent = `workspace/jobs/${currentJobId}`;
   await loadJobStatus(jobId, { fallbackMessage: `已載入歷史任務：${jobId}` });
@@ -1727,7 +1768,7 @@ async function openProjectFile() {
 }
 
 async function applyProjectData(project, filePath) {
-  clearInterval(pollTimer);
+  stopPolling();
   currentProjectPath = filePath || null;
   currentJobId = project?.jobId || null;
   form.reset();
@@ -1789,14 +1830,19 @@ function applySavedFileLabels(files) {
 }
 
 async function loadJobStatus(jobId, { fallbackMessage, fallbackLogs } = {}) {
+  const requestGeneration = pollingGeneration;
   try {
     const response = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(jobId)}/status`, { cache: 'no-store' });
+    if (requestGeneration !== pollingGeneration || currentJobId !== jobId) return;
     if (!response.ok) throw new Error(await response.text());
     const status = await response.json();
+    if (requestGeneration !== pollingGeneration || currentJobId !== jobId) return;
     setStatus(status);
     openReview.disabled = status.status !== 'completed';
-    if (status.status === 'running') startPolling();
+    if (['running', 'queued'].includes(status.status)) startPolling();
+    else stopPolling();
   } catch (error) {
+    if (requestGeneration !== pollingGeneration || currentJobId !== jobId) return;
     setStatus({
       progress: 0,
       stage: 'waiting',
@@ -1809,7 +1855,7 @@ async function loadJobStatus(jobId, { fallbackMessage, fallbackLogs } = {}) {
 
 function newBlankProject({ confirmFirst = false } = {}) {
   if (confirmFirst && !confirm('確定要建立空白專案嗎？目前未儲存的表單內容會被清除。')) return;
-  clearInterval(pollTimer);
+  stopPolling();
   currentJobId = null;
   currentProjectPath = null;
   localStorage.removeItem('offlineSubtitleFactory.currentJobId');
@@ -1967,7 +2013,8 @@ if (cancelBtn) {
       if (statusResp.ok) {
         const status = await statusResp.json();
         setStatus(status);
-        clearInterval(pollTimer);
+        if (['completed', 'failed', 'cancelled', 'needs-action'].includes(status.status)) stopPolling();
+        else startPolling();
       }
     }
     cancelBtn.disabled = false;

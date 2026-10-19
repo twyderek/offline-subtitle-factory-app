@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createPublisher } from '../lib/youtube/publisher.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(__dirname, '..');
@@ -15,6 +16,61 @@ let serverApiToken = '';
 let currentServerPort = null;
 let mainWindow = null;
 let secureAiKeys = {};
+let youtubePublisher;
+
+// Keep OAuth credentials and local paths in the main process. No renderer-provided paths or URLs.
+ipcMain.handle('youtube-publish', async (event, action, jobId, input) => {
+  const frame = event.senderFrame;
+  let url;
+  try { url = new URL(frame?.url); } catch { return { ok: false, error: '無效的操作來源。' }; }
+  if (!mainWindow || event.sender !== mainWindow.webContents || frame !== event.sender.mainFrame
+    || url.origin !== `http://127.0.0.1:${currentServerPort}`) return { ok: false, error: '不允許的操作來源。' };
+  try {
+    youtubePublisher ||= createPublisher({ dataDir: () => {
+      const settingsFile = path.join(app.getPath('userData'), 'config', 'settings.json');
+      const settings = fs.existsSync(settingsFile) ? JSON.parse(fs.readFileSync(settingsFile, 'utf8')) : {};
+      return settings.projectFolder || path.join(app.getPath('userData'), 'jobs');
+    },
+      configDir: path.join(app.getPath('userData'), 'config'), safeStorage, openExternal: (target) => shell.openExternal(target),
+      acquireLease: async (id, expectedRoot) => {
+        const call = async (action, body) => {
+          const response = await fetch(`http://127.0.0.1:${currentServerPort}/api/jobs/${encodeURIComponent(id)}/${action}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Offline-Subtitle-Token': serverApiToken },
+            body: JSON.stringify(body), signal: AbortSignal.timeout(15000), redirect: 'error',
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) throw new Error('YouTube 專案鎖定失敗。');
+          return result;
+        };
+        const { leaseId } = await call('youtube-publish-lease', { expectedRoot });
+        return { release: () => call('youtube-publish-release', { leaseId }) };
+      } });
+    let result;
+    switch (action) {
+      case 'status': result = youtubePublisher.status(); break;
+      case 'configure': {
+        const selected = await dialog.showOpenDialog(mainWindow, { title: '匯入 Google Desktop OAuth client JSON',
+          properties: ['openFile'], filters: [{ name: 'OAuth client JSON', extensions: ['json'] }] });
+        if (selected.canceled) return { ok: true, cancelled: true };
+        const file = selected.filePaths[0];
+        if (fs.statSync(file).size > 65536) return { ok: false, error: 'OAuth 設定檔過大。' };
+        result = youtubePublisher.configure(fs.readFileSync(file, 'utf8')); break;
+      }
+      case 'connect': result = await youtubePublisher.connect(); break;
+      case 'disconnect': result = youtubePublisher.disconnect(); break;
+      case 'files': result = youtubePublisher.files(jobId); break;
+      case 'start': result = await youtubePublisher.start(jobId, input); break;
+      case 'retry-captions': result = await youtubePublisher.retryCaptions(jobId, input); break;
+      case 'cancel': result = youtubePublisher.cancel(jobId); break;
+      case 'reset-unsent': result = youtubePublisher.resetUnsent(jobId); break;
+      default: return { ok: false, error: '不支援的 YouTube 操作。' };
+    }
+    return { ok: true, result };
+  } catch {
+    // SDK errors can contain request headers, OAuth codes and local paths.
+    return { ok: false, error: 'YouTube 操作未完成。請確認 Desktop OAuth 設定、連結頻道、已匯出的 MP4 與已儲存的字幕；如已有發布紀錄，請先至 Studio 核對。' };
+  }
+});
 
 function secureAiKeysPath() { return path.join(app.getPath('userData'), 'config', 'ai-keys.safe'); }
 function readSecureAiKeys() {

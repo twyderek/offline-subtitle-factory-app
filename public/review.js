@@ -51,6 +51,7 @@ const state = {
   waveformDuration: 0,
   aiSuggestions: new Map(),
   aiPolling: false,
+  aiPollingGeneration: 0,
   selectedCueIds: new Set(),
   aiProjectSettings: { glossary: [], prompts: {} },
   aiSessionId: '',
@@ -556,6 +557,7 @@ function setAiProgress(progress, message) {
 }
 
 function setAiRunning(running) {
+  state.aiPollingGeneration = (Number(state.aiPollingGeneration) || 0) + 1;
   state.aiPolling = running;
   document.getElementById('runAiOptimize').disabled = running;
   document.getElementById('cancelAiOptimize').hidden = !running;
@@ -575,7 +577,11 @@ async function requestAiApi(pathname, options = {}, operation = 'AI 請求') {
   } catch {
     throw invalidAiApiResponseError({ apiBase: API_BASE, operation });
   }
-  if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+  if (!response.ok || !result.ok) {
+    const error = new Error(result.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return result;
 }
 
@@ -614,7 +620,9 @@ async function runAiOptimize() {
   updateAiSuggestionActions();
   renderCueList();
   setAiRunning(true);
+  const generation = state.aiPollingGeneration;
   setAiProgress({ processedCues: 0, totalCues: cues.length, completedBatches: 0, totalBatches: 1 }, '正在啟動 AI 優化…');
+  let awaitingStart = true;
   try {
     const result = await requestAiApi(`/api/jobs/${encodeURIComponent(jobId)}/ai-optimize`, {
       method: 'POST',
@@ -628,10 +636,16 @@ async function runAiOptimize() {
         instructions: document.getElementById('aiInstructions').value.trim(),
       }),
     }, '啟動 AI 優化');
+    if (state.aiPollingGeneration !== generation) return;
+    awaitingStart = false;
     await pollAiOptimization();
   } catch (error) {
+    const ownsState = state.aiPollingGeneration === generation
+      || (!awaitingStart && !state.aiPolling && state.aiPollingGeneration === generation + 1);
+    if (!ownsState) return;
     if (isNetworkFetchFailure(error)) {
       const recovered = await restoreAiOptimizationStatus({ silent: true });
+      if (!recovered && state.aiPollingGeneration !== generation) return;
       if (['running', 'completed', 'cancelled'].includes(recovered?.status)) return;
       if (recovered?.status === 'failed' || recovered?.status === 'interrupted') {
         error = new Error(recovered.error || error.message);
@@ -644,9 +658,19 @@ async function runAiOptimize() {
 }
 
 async function pollAiOptimization() {
-  while (state.aiPolling) {
+  const generation = state.aiPollingGeneration;
+  const active = () => state.aiPolling && state.aiPollingGeneration === generation;
+  while (active()) {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    const result = await requestAiStatusWithRetry();
+    if (!active()) return;
+    let result;
+    try {
+      result = await requestAiStatusWithRetry();
+    } catch (error) {
+      if (!active()) return;
+      throw error;
+    }
+    if (!active()) return;
     setAiProgress(result.progress, result.status === 'running' ? undefined : `AI 任務：${result.status}`);
     if (result.status === 'running') continue;
     setAiRunning(false);
@@ -671,8 +695,10 @@ async function pollAiOptimization() {
 
 async function restoreAiOptimizationStatus({ silent = false } = {}) {
   if (!jobId) return null;
+  const generation = state.aiPollingGeneration;
   try {
     const result = await requestAiStatusWithRetry();
+    if (state.aiPollingGeneration !== generation) return null;
     if (result.status === 'running') {
       setAiRunning(true);
       setAiProgress(result.progress, '正在恢復 AI 任務狀態…');
@@ -695,7 +721,8 @@ async function restoreAiOptimizationStatus({ silent = false } = {}) {
     }
     return result;
   } catch (error) {
-    if (/^HTTP 404$/.test(String(error?.message || ''))) return null;
+    if (state.aiPollingGeneration !== generation) return null;
+    if (error?.status === 404 || /^HTTP 404$/.test(String(error?.message || ''))) return null;
     if (!silent) statusMessage(`AI 狀態恢復失敗：${error.message}`);
     return null;
   }
@@ -723,6 +750,12 @@ async function cancelAiOptimize() {
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
     setAiRunning(false);
+    // An in-flight poll can still deliver its pre-cancel 'running' snapshot.
+    // Reconcile checkpoint/resume controls without relying on that old loop.
+    const generation = state.aiPollingGeneration;
+    const restored = await restoreAiOptimizationStatus({ silent: true });
+    if ((!restored && state.aiPollingGeneration !== generation)
+      || (restored && restored.status !== 'cancelled')) return;
     setAiProgress(null, 'AI 優化已取消');
     statusMessage('AI 優化已取消，原字幕未變更');
   } catch (error) {
@@ -1059,7 +1092,7 @@ function renderCueList() {
       <div class="review-cue-number"><input class="review-cue-select" type="checkbox" aria-label="選取字幕 ${index + 1}" ${state.selectedCueIds.has(String(cue.id)) ? 'checked' : ''}><br>${index + 1}</div>
       <div class="review-cue-content">
         <div class="review-cue-meta">
-          <div class="review-time">${cue.startRaw} <span>→</span> ${cue.endRaw}</div>
+          <div class="review-time">${escapeHtml(cue.startRaw)} <span>→</span> ${escapeHtml(cue.endRaw)}</div>
           <span class="${quality.reasons.length || hasRuleWarning(cue.translatedText) ? 'review-chip warn' : 'review-chip'}">${quality.reasons.length ? escapeHtml(`風險 ${quality.score} · ${quality.reasons.join('、')}`) : (hasRuleWarning(cue.translatedText) ? '待檢查' : '已確認')}</span>
           <button class="jump cue-more" type="button" title="跳到此字幕">•••</button>
         </div>
@@ -1071,7 +1104,7 @@ function renderCueList() {
           <div><button class="accept-ai-suggestion" type="button">接受</button><button class="reject-ai-suggestion" type="button">略過</button></div>
         </div>` : ''}
         <div class="cue-advanced-actions">
-          <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${formatDuration(cue.end - cue.start)}"></label>
+          <label class="duration-field">長度（秒）<input class="duration-input" type="number" min="0.1" step="0.1" value="${escapeHtml(formatDuration(cue.end - cue.start))}"></label>
           <div class="cue-mini-buttons"><button class="shorten-cue" type="button">縮短</button><button class="extend-cue" type="button">延長</button></div>
           <button class="split-cue" type="button">分割</button>
           <button class="merge-next" type="button">合併下段</button>

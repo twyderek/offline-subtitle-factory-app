@@ -81,13 +81,19 @@ fs.mkdirSync(toolPaths.breezeModelCache, { recursive: true });
 for (const modelCacheDir of [toolPaths.whisperModelCache, toolPaths.breezeModelCache]) {
   for (const file of fs.readdirSync(modelCacheDir)) {
     if (file.endsWith('.download')) {
-      try { fs.unlinkSync(path.join(modelCacheDir, file)); } catch {}
+      const filePath = path.join(modelCacheDir, file);
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') console.warn('[server] Failed to remove temp file:', filePath, error.message);
+      }
     }
   }
 }
 
 const runningJobs = new Map();
 const runningBurns = new Map();
+const youtubePublishLeases = new Map();
 const runningWaveforms = new Map();
 const runningThumbnails = new Map();
 const runningTrims = new Map();
@@ -153,8 +159,26 @@ const defaultSettings = {
 let appSettings = loadSettings();
 fs.mkdirSync(getJobsDir(), { recursive: true });
 
+const internalErrorDetailsPattern = /(?:[A-Za-z]:[\\/]|(?:file:\/\/)?(?:^|[\s("'`])\/(?:Users|private|tmp|var|home|Volumes|Applications|opt|etc|System)\/|\b(?:ENOENT|EACCES|EPERM|ENOTFOUND|ffprobe|spawn)\b|\bat\s+\S+:\d+)/i;
+
+function sanitizeApiErrorPayload(value) {
+  if (Array.isArray(value)) return value.map((item) => sanitizeApiErrorPayload(item));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    ['error', 'message', 'detail', 'reason', 'stderr', 'stdout'].includes(key) && typeof item === 'string'
+      ? getSafeApiErrorMessage({ message: item }, '操作失敗，請稍後再試。')
+      : key === 'logs' && Array.isArray(item)
+        ? item.map((entry) => typeof entry === 'string'
+          ? getSafeApiErrorMessage({ message: entry }, '操作失敗，請稍後再試。')
+          : sanitizeApiErrorPayload(entry))
+      : sanitizeApiErrorPayload(item),
+  ]));
+}
+
 function sendJson(res, status, value) {
-  const body = JSON.stringify(value, null, 2);
+  const safeValue = sanitizeApiErrorPayload(value);
+  const body = JSON.stringify(safeValue, null, 2);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
@@ -165,6 +189,14 @@ function sendJson(res, status, value) {
 function sendText(res, status, text) {
   res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(text);
+}
+
+function getSafeApiErrorMessage(error, fallback) {
+  const message = String(error?.message || '').trim();
+  const detailedErrorsEnabled = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  if (detailedErrorsEnabled && message) return message.slice(0, 200);
+  if (!message || message.length > 200 || internalErrorDetailsPattern.test(message)) return fallback;
+  return message;
 }
 
 function readRequest(req, timeoutMs = 60000) {
@@ -205,7 +237,11 @@ function streamMultipart(req, tempDir) {
     const tempPaths = [];
     let settled = false;
     const cleanup = () => tempPaths.forEach((filePath) => {
-      try { fs.unlinkSync(filePath); } catch {}
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') console.warn('[server] Failed to cleanup temp file:', filePath, error.message);
+      }
     });
     const fail = (error) => {
       if (settled) return;
@@ -918,6 +954,7 @@ function listJobs() {
 
 function saveStatus(job) {
   writeJson(path.join(job.jobRoot, 'job-status.json'), job.status);
+  jobsListCache = null;
 }
 
 function updateJob(job, patch, log) {
@@ -925,7 +962,6 @@ function updateJob(job, patch, log) {
   const cleanLog = sanitizeLog(log);
   if (cleanLog) job.status.logs = [...(job.status.logs || []), cleanLog].slice(-120);
   saveStatus(job);
-  jobsListCache = null;
 }
 
 function sanitizeLog(value) {
@@ -3052,6 +3088,11 @@ function deleteJob(job) {
     throw new Error('Refusing to delete a path outside the jobs directory.');
   }
   const jobId = job.config.jobId;
+  if (youtubePublishLeases.has(fs.realpathSync(jobRoot))) {
+    const error = new Error('YouTube 上傳中，請先在上傳視窗停止傳送並等待完成後再刪除專案。');
+    error.statusCode = 409;
+    throw error;
+  }
   cancelJob(jobId);
   cancelTrim(jobId);
   cancelBurn(jobId);
@@ -3979,7 +4020,7 @@ async function handleApi(req, res) {
         cacheDirectory: toolPaths.breezeModelCache,
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '模型下載失敗，請稍後再試。') });
     }
     return;
   }
@@ -4001,7 +4042,7 @@ async function handleApi(req, res) {
         cacheDirectory: toolPaths.whisperModelCache,
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '模型下載失敗，請稍後再試。') });
     }
     return;
   }
@@ -4025,7 +4066,7 @@ async function handleApi(req, res) {
         settings: saveSettings(payload),
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '設定格式無效，請檢查後重試。') });
     }
     return;
   }
@@ -4062,7 +4103,7 @@ async function handleApi(req, res) {
       saveAiApiKey(payload.apiKey, nextAi.provider);
       sendJson(res, 200, { ok: true, settings: publicAiSettings() });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 設定無效，請檢查後重試。') });
     }
     return;
   }
@@ -4085,7 +4126,7 @@ async function handleApi(req, res) {
       if (apiKey) runtimeAiKeys[provider] = apiKey;
       else delete runtimeAiKeys[provider];
       sendJson(res, 200, { ok: true, hasApiKey: Boolean(runtimeAiKeys[provider]) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 金鑰設定失敗，請重試。') }); }
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/ai/local-services') {
@@ -4103,7 +4144,7 @@ async function handleApi(req, res) {
         models: models.map((model) => ({ id: String(model?.id || '') })).filter((model) => model.id),
       });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 模型清單讀取失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -4118,7 +4159,7 @@ async function handleApi(req, res) {
         capabilities,
       });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 模型能力檢查失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -4129,7 +4170,7 @@ async function handleApi(req, res) {
       const result = await createProvider(config).test();
       sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 服務連線失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -4178,7 +4219,7 @@ async function handleApi(req, res) {
       });
     } catch (error) {
       console.error('[api] video probe error:', error.message);
-      sendJson(res, 500, { error: error.message });
+      sendJson(res, 500, { error: getSafeApiErrorMessage(error, '無法分析影片，請確認檔案格式後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -4201,7 +4242,7 @@ async function handleApi(req, res) {
       });
     } catch (error) {
       console.error('[api] Job list error:', error.message);
-      sendJson(res, 500, { error: error.message });
+      sendJson(res, 500, { error: getSafeApiErrorMessage(error, '無法讀取任務清單，請稍後再試。') });
     }
     return;
   }
@@ -4214,7 +4255,7 @@ async function handleApi(req, res) {
       sendJson(res, 201, result);
     } catch (error) {
       console.error('[api] Job creation error:', error.message, error.stack);
-      sendJson(res, 400, { error: error.message });
+      sendJson(res, 400, { error: getSafeApiErrorMessage(error, '無法建立字幕任務，請確認檔案與設定後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -4228,6 +4269,18 @@ async function handleApi(req, res) {
   }
   const jobId = match[1];
   const action = match[2];
+  if (req.method === 'POST' && action === 'youtube-publish-release') {
+    const payload = await readJsonBody(req);
+    for (const [root, lease] of youtubePublishLeases) {
+      if (lease.id === payload.leaseId && lease.jobId === jobId) {
+        youtubePublishLeases.delete(root);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+    }
+    sendJson(res, 409, { ok: false, error: '找不到對應的 YouTube 上傳鎖定。' });
+    return;
+  }
   const job = loadJob(jobId);
   if (!job) {
     sendJson(res, 404, { error: '找不到任務' });
@@ -4238,8 +4291,21 @@ async function handleApi(req, res) {
     try {
       sendJson(res, 200, deleteJob(job));
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, error.statusCode || 400, { ok: false, error: getSafeApiErrorMessage(error, '刪除任務失敗，請稍後再試。') });
     }
+    return;
+  }
+
+  if (req.method === 'POST' && action === 'youtube-publish-lease') {
+    const payload = await readJsonBody(req);
+    const root = fs.realpathSync(job.jobRoot);
+    if (payload.expectedRoot !== root || youtubePublishLeases.has(root)) {
+      sendJson(res, 409, { ok: false, error: '專案已變動或 YouTube 上傳進行中。' });
+      return;
+    }
+    const id = crypto.randomUUID();
+    youtubePublishLeases.set(root, { id, jobId });
+    sendJson(res, 200, { ok: true, leaseId: id });
     return;
   }
 
@@ -4310,7 +4376,7 @@ async function handleApi(req, res) {
       });
       res.end(body);
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕檔案讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4333,7 +4399,7 @@ async function handleApi(req, res) {
         jobStatus: { status: job.status.status, stage: job.status.stage },
       });
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '無法讀取修剪資訊，請確認任務檔案後重試。') });
     }
     return;
   }
@@ -4343,7 +4409,7 @@ async function handleApi(req, res) {
       const plan = await saveEditPlan(job, payload);
       sendJson(res, 200, { ok: true, plan });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '修剪設定儲存失敗，請檢查內容後重試。') });
     }
     return;
   }
@@ -4367,7 +4433,7 @@ async function handleApi(req, res) {
     try {
       sendJson(res, 200, restoreOriginalMedia(job));
     } catch (error) {
-      sendJson(res, error.statusCode || 400, { ok: false, error: error.message });
+      sendJson(res, error.statusCode || 400, { ok: false, error: getSafeApiErrorMessage(error, '還原原始影片失敗，請稍後再試。') });
     }
     return;
   }
@@ -4378,7 +4444,7 @@ async function handleApi(req, res) {
       await openFolderInExplorer(folder);
       sendJson(res, 200, { ok: true, folder: relativeToApp(folder) });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '開啟資料夾失敗，請稍後再試。') });
     }
     return;
   }
@@ -4457,7 +4523,7 @@ async function handleApi(req, res) {
         },
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕規則套用失敗，請檢查規則內容後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -4481,7 +4547,7 @@ async function handleApi(req, res) {
       const subtitle = serializeSrt(bilingualCues, payload.layout === 'translated-top' ? 'translated-top' : 'source-top');
       sendJson(res, 200, { ok: true, subtitle, bilingualCues, totalCues: cues.length, changedCues: bilingualCues.filter((cue, index) => cue.sourceText !== cues[index].sourceText || cue.translatedText !== cues[index].translatedText).length });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '雙語規則套用失敗，請檢查規則內容後重試。') });
     }
     return;
   }
@@ -4492,7 +4558,7 @@ async function handleApi(req, res) {
       const record = startAiOptimizationJob(job, payload);
       sendJson(res, 202, { ok: true, status: record.status, progress: record.progress });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 優化任務啟動失敗，請稍後再試。') });
     }
     return;
   }
@@ -4502,7 +4568,7 @@ async function handleApi(req, res) {
   }
   if (req.method === 'POST' && action === 'ai-project-settings') {
     try { sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, await readJsonBody(req)) }); }
-    catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 專案設定儲存失敗，請檢查內容後重試。') }); }
     return;
   }
   if (req.method === 'POST' && action === 'ai-glossary-import') {
@@ -4511,7 +4577,7 @@ async function handleApi(req, res) {
       const current = loadProjectAiSettings(job);
       const glossary = payload.format === 'csv' ? parseGlossaryCsv(payload.content) : normalizeProjectAiSettings({ glossary: JSON.parse(payload.content || '[]') }).glossary;
       sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, { ...current, glossary }) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 詞彙匯入失敗，請檢查檔案內容後重試。') }); }
     return;
   }
   if (req.method === 'GET' && action === 'ai-glossary-export') {
@@ -4528,14 +4594,14 @@ async function handleApi(req, res) {
     try {
       const payload = await readJsonBody(req);
       sendJson(res, 200, { ok: true, session: updateAiSessionDecisions(job, payload.sessionId, payload.decisions) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 工作階段決策儲存失敗，請稍後再試。') }); }
     return;
   }
   if (req.method === 'POST' && ['undo-ai-session', 'redo-ai-session'].includes(action)) {
     try {
       const payload = await readJsonBody(req);
       sendJson(res, 200, { ok: true, ...sessionTextChanges(job, payload.sessionId, payload.cues, action.startsWith('undo') ? 'undo' : 'redo') });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 工作階段復原失敗，請稍後再試。') }); }
     return;
   }
   if (req.method === 'GET' && action === 'ai-optimize') {
@@ -4552,7 +4618,7 @@ async function handleApi(req, res) {
       const record = startAiOptimizationJob(job, previous.request, previous);
       sendJson(res, 202, { ok: true, status: record.status, progress: record.progress, resumedFromBatch: record.checkpoint.nextBatchIndex });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 優化任務恢復失敗，請稍後再試。') });
     }
     return;
   }
@@ -4573,7 +4639,7 @@ async function handleApi(req, res) {
     try {
       serveFile(req, res, await getProjectThumbnail(job));
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '縮圖讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4582,7 +4648,7 @@ async function handleApi(req, res) {
       const result = await getWaveform(job, url.searchParams.get('points'), url.searchParams.get('source') || 'effective');
       sendJson(res, 200, result);
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '波形資料讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4605,7 +4671,7 @@ async function handleApi(req, res) {
       updateJob(job, { files: { ...(job.status.files || {}), reviewedSrt: subtitlePath, ...(files.bilingualCues ? { bilingualCues: bilingualPath } : {}) } }, '已儲存校閱後字幕');
       sendJson(res, 200, { ok: true, files });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '校閱字幕儲存失敗，請稍後再試。') });
     }
     return;
   }
@@ -4656,7 +4722,7 @@ async function handleApi(req, res) {
       }, '已儲存完整校稿包');
       sendJson(res, 200, { ok: true, folder: relativeToApp(reviewOutputDir), files: manifest.files });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '校閱套件儲存失敗，請稍後再試。') });
     }
     return;
   }
@@ -4675,7 +4741,7 @@ async function handleApi(req, res) {
         });
       }
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕輸出啟動失敗，請稍後再試。') });
     }
     return;
   }
@@ -4706,7 +4772,7 @@ const server = createServer(async (req, res) => {
     else serveStatic(req, res);
   } catch (error) {
     console.error('[server] Request error:', error.message);
-    if (!res.headersSent) sendJson(res, 500, { error: error.message });
+    if (!res.headersSent) sendJson(res, 500, { error: getSafeApiErrorMessage(error, '伺服器處理請求時發生錯誤，請稍後再試。') });
   }
 });
 

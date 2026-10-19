@@ -328,6 +328,8 @@ try {
   assert.match(liveOllamaProbeSource, /optimizeSubtitleCues/, 'Ollama live probe 必須驗證實際 optimizer product path');
   assert.match(liveOllamaProbeSource, /LIVE-OPT-1/, 'Ollama optimizer probe 必須保留固定 cue contract');
   const productOllamaProbeSource = fs.readFileSync(new URL('./probe-ollama-product-live.mjs', import.meta.url), 'utf8');
+  const offlineOllamaProbeSource = fs.readFileSync(new URL('./probe-ollama-product-offline.mjs', import.meta.url), 'utf8');
+  const managedChildSource = fs.readFileSync(new URL('../lib/ai/managed-child-process.mjs', import.meta.url), 'utf8');
   const uiOllamaProbeSource = fs.readFileSync(new URL('./verify-electron-ollama-ui.mjs', import.meta.url), 'utf8');
   assert.match(productOllamaProbeSource, /OFFLINE_SUBTITLE_DATA_DIR/, 'Ollama product probe 必須隔離暫存資料目錄');
   assert.match(productOllamaProbeSource, /OFFLINE_SUBTITLE_TOOLS_DIR: toolDataDir/, 'Ollama product probe 必須隔離 server tools 目錄');
@@ -342,6 +344,28 @@ try {
   assert.match(productOllamaProbeSource, /sourceSrtBeforeSha256/, 'Ollama product probe 必須保存保存前原始 SRT hash');
   assert.match(productOllamaProbeSource, /sourceSrtAfterSha256/, 'Ollama product probe 必須保存保存後原始 SRT hash');
   assert.match(productOllamaProbeSource, /flag: 'wx'/, 'Ollama product probe 必須以 exclusive create 防止 evidence 競態覆寫');
+  assert.match(offlineOllamaProbeSource, /\(deny network\*\)/, '離線 Ollama acceptance 必須由 Seatbelt 明確拒絕所有網路操作');
+  assert.match(offlineOllamaProbeSource, /network-bind \(local ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback bind');
+  assert.match(offlineOllamaProbeSource, /network-inbound \(local ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback inbound');
+  assert.match(offlineOllamaProbeSource, /network-outbound \(remote ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback outbound');
+  assert.match(offlineOllamaProbeSource, /externalError !== 'EPERM'/, '離線 Ollama acceptance 必須先以 OS EPERM 證明外連被拒');
+  assert.match(offlineOllamaProbeSource, /MODEL_NOT_PREINSTALLED/, '缺少本機模型時必須停止，避免觸發下載');
+  assert.match(offlineOllamaProbeSource, /if \(configuredOllamaBaseUrl\) fail\('CUSTOM_OLLAMA_URL_NOT_ALLOWED'\)/, '離線 acceptance 必須拒絕任何呼叫端自訂 endpoint');
+  assert.match(offlineOllamaProbeSource, /preinstalledModelFound: false/, 'offline evidence 預設不得宣稱已找到預裝模型');
+  assert.match(offlineOllamaProbeSource, /daemonSpawnCommand = testDaemonSpawnCommand \? path\.resolve\(testDaemonSpawnCommand\) : sandboxExec/, 'daemon 預設必須由 Seatbelt 啟動');
+  assert.match(offlineOllamaProbeSource, /spawnManagedChild\(daemonSpawnCommand, \['-p', sandboxProfile/, 'Ollama daemon spawn 必須使用錯誤事件受控 helper');
+  assert.match(offlineOllamaProbeSource, /process\.env\.NODE_ENV === 'test'[\s\S]*OSF_TEST_ONLY_OLLAMA_SPAWN_COMMAND/, 'daemon spawn fault injection 必須只在 test environment 生效');
+  assert.match(offlineOllamaProbeSource, /currentStage = 'ollama_start';[\s\S]*SANDBOXED_OLLAMA_SPAWN_FAILED/, 'daemon spawn failure 必須留下明確 stage 與 failure code');
+  assert.match(offlineOllamaProbeSource, /SANDBOXED_OLLAMA_SPAWN_FAILED/, 'Ollama daemon 非同步 spawn error 必須進入 fail-closed evidence 流程');
+  assert.match(offlineOllamaProbeSource, /stopManagedChild\(ollamaProcess\)/, 'Ollama daemon cleanup 必須使用 managed-child close tracking');
+  assert.match(managedChildSource, /child\.once\('error'/, 'managed child 必須接收 spawn error event');
+  assert.match(managedChildSource, /child\.once\('close'/, 'managed child 必須追蹤 close event');
+  assert.match(offlineOllamaProbeSource, /runChild\(sandboxExec, \['-p', sandboxProfile/, 'product probe 必須由 Seatbelt 沙箱啟動');
+  assert.match(offlineOllamaProbeSource, /networkSandboxInheritedByProductServer: true/, 'offline evidence 必須界定 app server 子程序在 sandbox 中');
+  assert.match(offlineOllamaProbeSource, /temporaryRootRemoved: true/, '離線探針必須以暫存清理狀態 fail closed');
+  assert.match(offlineOllamaProbeSource, /startedInSandbox: false/, 'offline evidence 預設不得預先宣稱 daemon 已在沙箱內');
+  assert.match(offlineOllamaProbeSource, /flag: 'wx'/, 'offline evidence 必須 exclusive create 且不可覆寫');
+  assert.match(offlineOllamaProbeSource, /systemNetworkDisabled: false/, 'offline probe 不得誤稱整台系統已斷網');
   assert.match(uiOllamaProbeSource, /Page\.navigate/, 'Ollama UI probe 必須實際導覽封裝版校閱頁');
   assert.match(uiOllamaProbeSource, /getElementById\('openAiSettings'\)\.click/, 'Ollama UI probe 必須從畫面開啟 AI 設定');
   assert.match(uiOllamaProbeSource, /getElementById\('runAiOptimize'\)\.click/, 'Ollama UI probe 必須由畫面按下 AI 優化');
@@ -355,6 +379,7 @@ try {
   assert.match(uiOllamaProbeSource, /flag: 'wx'/, 'Ollama UI probe 必須以 exclusive create 防止 evidence 覆寫');
   const packageManifest = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(packageManifest.scripts['acceptance:ollama:product'], 'node scripts/probe-ollama-product-live.mjs', 'Ollama product probe 必須有可重放 npm script');
+  assert.equal(packageManifest.scripts['acceptance:ollama:offline'], 'node scripts/probe-ollama-product-offline.mjs', 'Ollama offline acceptance 必須有可重播 npm script');
   assert.equal(packageManifest.scripts['acceptance:ollama:ui'], 'node scripts/verify-electron-ollama-ui.mjs', 'Ollama UI probe 必須有可重放 npm script');
 
   const csv = 'source,target,caseSensitive,doNotTranslate,note\nOpen AI,OpenAI,true,false,brand\nWhisper,,false,true,keep';

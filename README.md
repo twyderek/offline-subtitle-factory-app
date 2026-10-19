@@ -1,13 +1,27 @@
 # 離線字幕工廠
 
-## 0.51.0 開發中：Anthropic Claude provider
+## 0.52.0：YouTube 私人影片與字幕上傳
+
+0.52.0 的 GitHub 發行範圍為 macOS Apple Silicon（arm64）。Windows 版未納入本次發布，因為尚未完成此版封裝及實機驗收。
+
+Electron 校閱頁新增「上傳 YouTube」。先儲存校閱字幕、匯出 MP4，再匯入 Google Cloud 的 Desktop OAuth client JSON 並透過系統瀏覽器連結頻道。啟用 YouTube Data API v3；OAuth consent screen 處於 Testing 時，須把登入帳號加入測試使用者。影片／字幕上傳需授予 `youtube.force-ssl` 權限。
+
+視窗列出實際頻道、已輸出 MP4、已保存的 `reviewed.srt`、標題、說明、語言及兒童內容選項；勾選外送同意後才開始。影片固定為私人，字幕獨立上傳；公開、排程及處理狀態可至 YouTube Studio 確認。只會使用最後保存的字幕，未保存編輯不會上傳。
+
+上傳失敗或取消後，遠端可能已有資料；有影片 ID 時可只重試原字幕 snapshot，不重傳影片。沒有影片 ID 的未知結果須先到 Studio 人工核對，此版本不提供跨重啟 byte-level 續傳或自動重新上傳。每個專案僅建立一筆發布紀錄。移除本機授權不等於撤銷 Google 帳戶端權限。
+
+此功能是使用者選用的影音外送例外；離線轉錄與校閱不會自動啟用。真實 Google client／頻道授權、Keychain 與實際影片／字幕上傳尚未驗收。開發驗證：`npm run test:youtube`；隔離桌面 UI：`node scripts/verify-youtube-ui.mjs <新的截圖路徑.png>`。首次 OAuth 設定及上傳限制見 [0.52.0 發布說明](RELEASE-NOTES-0.52.0.md)。
+
+上傳中無法刪除專案，須先停止傳送並等待工作結束。發布摘要另存於使用者 config 的 `youtube-publish-history`，刪除本機專案或移除授權不會刪除 YouTube 遠端影片，也不會清除這份摘要。若本機鎖定請求的回應遺失，可能需要重啟 App，再到 Studio 核對遠端結果。
+
+## 0.51.0 正式發布：Anthropic Claude provider
 
 0.51.0 新增可選的 Anthropic Claude provider。App 以官方 Messages API 傳送字幕文字，使用 `x-api-key` 與固定 API 版本標頭，並把回應轉回既有的 cue 驗證流程；影片與音訊不會送出，API Key 僅作為該供應商的認證標頭，不會寫入一般設定或 API 回應。首次使用需在校閱頁保存 Anthropic Base URL、模型與 API Key，模型清單可由 `/v1/models` 載入。
 
 - 開發說明：[RELEASE-NOTES-0.51.0.md](RELEASE-NOTES-0.51.0.md)
-- 本版尚未建立公開 tag 或 GitHub Release；公開 Latest 仍為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)
+- GitHub Release：[v0.51.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0)
 
-## 0.50.0 開發中：Breeze 效能透明化
+## 0.50.0 開發內容：Breeze 效能透明化（收錄於後續版本）
 
 0.50.0 在 0.49.1 的首次 Breeze 設定流程上，新增固定效能參考與選取後提醒。需求方提供的 MacBook Air M3／8 GB 觀察為 1 小時 46 分影片約需 6 小時（約 `3.4×`）；這是單機風險訊號，不是跨機型保證或效能改善承諾。Whisper.cpp 仍是預設，速度敏感時可切回內建引擎。
 
@@ -16,7 +30,7 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 0.50 同時修正 macOS 乾淨 profile 首次啟動：沒有既存加密 AI 金鑰檔時，App 不再先查詢系統 Keychain，避免不必要的金鑰提示或啟動等待；只有實際存在安全金鑰檔時才會檢查並解密。
 
 - 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
-- 目前公開版本仍為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)
+- 開發期間的公開基線為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)；後續正式版本見上方 0.51.0 與 0.52.0。
 
 ## 0.49.0 Breeze 第一版正式發布
 
@@ -38,7 +52,7 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 ## 0.48.0 正式發布
 
-0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開，macOS／Windows 資產與 SHA-256 digest 已核對；目前 Latest 為 v0.49.0。
+0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開，macOS／Windows 資產與 SHA-256 digest 已核對；當時 Latest 為 v0.49.0。
 
 - 正式 Release：[v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)
 - macOS Apple Silicon：DMG 與 ZIP。
@@ -118,7 +132,7 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 此預覽版在核定的深藍側欄首頁與字幕校對工作區上，新增單一區間、非破壞式影片修剪。macOS 版使用內建 Whisper.cpp、Apple Metal、FFmpeg 與多語模型，不需要另外安裝 Python。
 
-離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。只有使用者主動啟用自行設定的 AI 供應商時，字幕文字才會送往該服務，影音不會上傳。
+離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。使用者主動啟用 AI 供應商時只送出字幕文字；開發版另提供需明確同意的 YouTube 影片／字幕上傳，詳見上方說明。
 
 ## 安裝版
 
@@ -196,7 +210,7 @@ Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.49.0` 
 
 ## 開發與測試
 
-目前 0.47.1 發布與治理收尾位於 `codex/release-v0.47.1`；GitHub 專案首頁以 `main` 為預設分支，本次同步完成後新 checkout 應以 `main` 為準。
+GitHub 專案預設分支為 `main`。要重現特定正式版本，請切換到該版本的 tag；最新穩定安裝檔請使用 GitHub Releases 頁面，不要把預設分支的開發狀態視為最新版安裝包。
 
 ### Windows 11 x64
 

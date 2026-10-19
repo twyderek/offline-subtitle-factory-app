@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 import { isLoopbackAiUrl, providerProfileMatches, providerProfileSnapshot, runProviderConnectionTest, validateProviderConnectionForm } from '../public/ai-provider-settings.mjs';
 import { selectAiCues } from '../public/ai-scope.mjs';
 
@@ -147,5 +148,209 @@ const thrownConnection = await runProviderConnectionTest({
 assert.equal(thrownConnection, null, '連線 fetch 例外不可逃逸控制器');
 assert.equal(thrownButton.disabled, false, '連線 fetch 例外後按鈕必須恢復');
 assert.match(thrownStatuses.at(-1), /network down/, '連線 fetch 例外應顯示可診斷訊息');
+
+// Execute the actual UI functions: a status GET begun before cancellation may
+// return its old 'running' snapshot after the cancel POST has completed.
+function uiFunctionSource(name) {
+  const match = js.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n\\}`));
+  assert.ok(match, `missing executable UI function ${name}`);
+  return match[0];
+}
+async function exerciseCancellationRace({ retryable, cancelOk = true }) {
+  const controls = {
+    runAiOptimize: { disabled: true },
+    cancelAiOptimize: { hidden: false },
+    resumeAiOptimize: { hidden: true },
+  };
+  const messages = [];
+  let releaseTimer;
+  let releaseOldStatus;
+  let statusReads = 0;
+  const context = vm.createContext({
+    state: { aiPolling: true }, API_BASE: '', jobId: 'synthetic-job',
+    document: { getElementById: (id) => controls[id] },
+    setTimeout: (callback) => { releaseTimer = callback; },
+    setAiProgress: () => {}, statusMessage: (message) => messages.push(message),
+    fetch: async () => ({ ok: cancelOk, status: cancelOk ? 200 : 409, json: async () => ({ ok: cancelOk, error: 'cancel rejected' }) }),
+    requestAiStatusWithRetry: () => {
+      statusReads += 1;
+      if (statusReads === 1) return new Promise((resolve) => { releaseOldStatus = resolve; });
+      return Promise.resolve({ status: 'cancelled', retryable, progress: { completedBatches: retryable ? 1 : 0 } });
+    },
+  });
+  vm.runInContext(['setAiRunning', 'pollAiOptimization', 'restoreAiOptimizationStatus', 'cancelAiOptimize'].map(uiFunctionSource).join('\n'), context);
+  const polling = context.pollAiOptimization();
+  releaseTimer();
+  await Promise.resolve();
+  assert.equal(typeof releaseOldStatus, 'function', 'old status GET must be in flight');
+  await context.cancelAiOptimize();
+  if (!cancelOk) {
+    assert.equal(context.state.aiPolling, true, 'rejected cancel must not stop active polling');
+    assert.equal(controls.cancelAiOptimize.hidden, false);
+    assert.match(messages.at(-1), /取消失敗/);
+    context.state.aiPolling = false;
+  }
+  releaseOldStatus({ status: 'running', progress: { completedBatches: 0 } });
+  await polling;
+  if (cancelOk) {
+    assert.equal(controls.resumeAiOptimize.hidden, !retryable, 'cancel must reconcile checkpoint controls even when the old poll exits on stale running status');
+    assert.equal(controls.runAiOptimize.disabled, false);
+    assert.equal(controls.cancelAiOptimize.hidden, true);
+    assert.equal(statusReads, 2, 'successful cancellation must read authoritative terminal/checkpoint state');
+  }
+}
+// A normal review job with no previous AI run receives an expected 404 from
+// the status endpoint; preserve the HTTP status so the UI can treat it as idle.
+{
+  const controls = { resumeAiOptimize: { hidden: true } };
+  const messages = [];
+  const context = vm.createContext({
+    API_BASE: '', jobId: 'job-without-ai-record', state: { aiPollingGeneration: 0 },
+    document: { getElementById: (id) => controls[id] },
+    fetch: async () => ({ ok: false, status: 404, json: async () => ({ ok: false, error: '找不到 AI 優化任務' }) }),
+    statusMessage: (message) => messages.push(message),
+  });
+  vm.runInContext([uiFunctionSource('requestAiApi'), uiFunctionSource('restoreAiOptimizationStatus')].join('\n'), context);
+  context.requestAiStatusWithRetry = () => context.requestAiApi('/api/jobs/job-without-ai-record/ai-optimize');
+  const restored = await context.restoreAiOptimizationStatus();
+  assert.equal(restored, null, 'missing AI record should resolve as idle');
+  assert.deepEqual(messages, [], 'expected AI record 404 must not show an error in a normal review session');
+  await assert.rejects(context.requestAiApi('/api/jobs/job-without-ai-record/ai-optimize'), (error) => error.status === 404);
+}
+
+await exerciseCancellationRace({ retryable: true });
+await exerciseCancellationRace({ retryable: false });
+await exerciseCancellationRace({ retryable: true, cancelOk: false });
+
+for (const staleStatus of ['cancelled', 'failed', 'completed', 'network-error']) {
+  const controls = { runAiOptimize: { disabled: true }, cancelAiOptimize: { hidden: false }, resumeAiOptimize: { hidden: true, disabled: false } };
+  const timers = [];
+  let releaseOldStatus;
+  let rejectOldStatus;
+  let reads = 0;
+  const context = vm.createContext({
+    state: { aiPolling: true, aiPollingGeneration: 0 }, jobId: 'synthetic-job', API_BASE: '',
+    document: { getElementById: (id) => controls[id] },
+    setTimeout: (callback) => { timers.push(callback); },
+    setAiProgress: () => {}, statusMessage: () => {}, setAiToolbarCollapsed: () => {},
+    updateAiSuggestionActions: () => {}, renderCueList: () => {}, updateAiSessionControls: () => {},
+    fetch: async () => ({ ok: true, json: async () => ({ ok: true }) }),
+    requestAiApi: async () => ({ ok: true, resumedFromBatch: 1 }),
+    requestAiStatusWithRetry: () => {
+      reads += 1;
+      if (reads === 1) return new Promise((resolve, reject) => { releaseOldStatus = resolve; rejectOldStatus = reject; });
+      if (reads === 2) return Promise.resolve({ status: 'cancelled', retryable: true });
+      return Promise.resolve({ status: 'completed', sessionId: 'resumed-session', result: { suggestions: [] } });
+    },
+  });
+  vm.runInContext(['setAiRunning', 'pollAiOptimization', 'restoreAiOptimizationStatus', 'cancelAiOptimize', 'resumeAiOptimize'].map(uiFunctionSource).join('\n'), context);
+  const oldPoll = context.pollAiOptimization();
+  timers.shift()();
+  await Promise.resolve();
+  await context.cancelAiOptimize();
+  const resumed = context.resumeAiOptimize();
+  await new Promise(setImmediate);
+  assert.equal(context.state.aiPolling, true);
+  if (staleStatus === 'network-error') rejectOldStatus(new Error('stale status request failed'));
+  else releaseOldStatus({ status: staleStatus, retryable: true, sessionId: 'stale-session', result: { suggestions: [] } });
+  await oldPoll;
+  assert.equal(context.state.aiPolling, true, `late ${staleStatus} must not stop resumed polling`);
+  assert.equal(controls.cancelAiOptimize.hidden, false, 'new running controls must remain visible');
+  assert.equal(controls.resumeAiOptimize.hidden, true);
+  timers.shift()();
+  await resumed;
+  assert.equal(context.state.aiSessionId, 'resumed-session', 'new generation must complete normally');
+  assert.equal(reads, 3);
+}
+
+for (const restoreFails of [false, true]) {
+  const controls = { runAiOptimize: { disabled: true }, cancelAiOptimize: { hidden: false }, resumeAiOptimize: { hidden: true }, aiScope: { value: 'all' }, aiPromptMode: { value: 'translate' }, aiPreserveTiming: { checked: true }, aiInstructions: { value: '' } };
+  const messages = [];
+  const timers = [];
+  let resolveRestore;
+  let rejectRestore;
+  let statusReads = 0;
+  const context = vm.createContext({
+    state: { aiPolling: true, aiPollingGeneration: 0, aiSuggestions: new Map(), aiSessionId: 'original-session' }, jobId: 'synthetic-job', API_BASE: '',
+    document: { getElementById: (id) => controls[id] },
+    setAiProgress: (_progress, message) => messages.push(message), statusMessage: (message) => messages.push(message),
+    aiRequestCues: () => [{ id: 1, text: 'fixture' }], getAiLanguage: () => 'en', setAiToolbarCollapsed: () => {},
+    updateAiSuggestionActions: () => {}, renderCueList: () => {}, updateAiSessionControls: () => {},
+    requestAiApi: async () => ({ ok: true }), isNetworkFetchFailure: () => false,
+    setTimeout: (callback) => timers.push(callback),
+    fetch: async () => ({ ok: true, json: async () => ({ ok: true }) }),
+    requestAiStatusWithRetry: () => {
+      statusReads += 1;
+      if (statusReads === 1) return new Promise((resolve, reject) => { resolveRestore = resolve; rejectRestore = reject; });
+      return Promise.resolve({ status: 'completed', sessionId: 'new-session', result: { suggestions: [] } });
+    },
+  });
+  vm.runInContext(['setAiRunning', 'pollAiOptimization', 'runAiOptimize', 'restoreAiOptimizationStatus', 'cancelAiOptimize'].map(uiFunctionSource).join('\n'), context);
+  const cancelled = context.cancelAiOptimize();
+  await new Promise(setImmediate);
+  assert.equal(typeof resolveRestore, 'function', 'cancel restore GET must be in flight');
+  const newTask = context.runAiOptimize();
+  await new Promise(setImmediate);
+  messages.length = 0;
+  messages.push('NEW_TASK_STATUS');
+  if (restoreFails) rejectRestore(new Error('old status network failure'));
+  else resolveRestore({ status: 'cancelled', retryable: true });
+  await cancelled;
+  assert.equal(context.state.aiPolling, true, 'late restore must not stop the newly started task');
+  assert.equal(controls.runAiOptimize.disabled, true);
+  assert.equal(controls.cancelAiOptimize.hidden, false);
+  assert.equal(controls.resumeAiOptimize.hidden, true);
+  assert.equal(context.state.aiSessionId, 'original-session', 'pending new task Session must not be overwritten by old restore');
+  assert.deepEqual(messages, ['NEW_TASK_STATUS'], 'superseded cancel/restore must not overwrite the new task status');
+  timers.shift()();
+  await newTask;
+  assert.equal(context.state.aiSessionId, 'new-session', 'the new actual UI task must complete normally');
+  assert.equal(context.state.aiPolling, false);
+  assert.equal(controls.runAiOptimize.disabled, false);
+}
+
+for (const scenario of ['superseded-start', 'current-start-failure', 'current-poll-failure']) {
+  const controls = {
+    runAiOptimize: { disabled: false }, cancelAiOptimize: { hidden: true }, resumeAiOptimize: { hidden: true },
+    aiScope: { value: 'all' }, aiPromptMode: { value: 'translate' }, aiPreserveTiming: { checked: true }, aiInstructions: { value: '' },
+  };
+  const messages = [];
+  const timers = [];
+  let rejectStart;
+  const context = vm.createContext({
+    state: { aiPolling: false, aiPollingGeneration: 0, aiSuggestions: new Map() }, jobId: 'synthetic-job', API_BASE: '',
+    document: { getElementById: (id) => controls[id] },
+    aiRequestCues: () => [{ id: 1, text: 'fixture' }], getAiLanguage: () => 'en',
+    updateAiSuggestionActions: () => {}, renderCueList: () => {}, setAiToolbarCollapsed: () => {},
+    setAiProgress: (_progress, message) => messages.push(message), statusMessage: (message) => messages.push(message),
+    isNetworkFetchFailure: () => false,
+    requestAiApi: () => scenario === 'current-poll-failure' ? Promise.resolve({ ok: true }) : new Promise((_resolve, reject) => { rejectStart = reject; }),
+    requestAiStatusWithRetry: async () => ({ status: 'failed', retryable: true, error: 'FIXTURE_ERROR' }),
+    setTimeout: (callback) => timers.push(callback),
+  });
+  vm.runInContext(['setAiRunning', 'pollAiOptimization', 'runAiOptimize'].map(uiFunctionSource).join('\n'), context);
+  const running = context.runAiOptimize();
+  await new Promise(setImmediate);
+  if (scenario === 'current-poll-failure') timers.shift()();
+  else {
+    if (scenario === 'superseded-start') {
+      context.setAiRunning(false);
+      context.setAiRunning(true);
+      messages.length = 0;
+      messages.push('NEW_TASK_STATUS');
+    }
+    rejectStart(new Error('FIXTURE_ERROR'));
+  }
+  await running;
+  if (scenario === 'superseded-start') {
+    assert.equal(context.state.aiPolling, true);
+    assert.equal(controls.cancelAiOptimize.hidden, false);
+    assert.deepEqual(messages, ['NEW_TASK_STATUS'], 'superseded start error must not stop or report over the new task');
+  } else {
+    assert.equal(context.state.aiPolling, false);
+    assert.equal(controls.runAiOptimize.disabled, false);
+    assert.ok(messages.some((message) => String(message).includes('FIXTURE_ERROR')), 'current task failures must remain visible');
+  }
+}
 
 console.log('校閱 UI 測試通過：AI 面板預設收合、狀態記憶、自動展開與字幕清單空間');
