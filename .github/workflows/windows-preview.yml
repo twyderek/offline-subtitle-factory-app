@@ -104,9 +104,29 @@ jobs:
             throw 'Breeze checkpoint must remain an optional external download and must not enter the release package.'
           }
 
+          $packedAppRoot = (Resolve-Path -LiteralPath '../dist/win-unpacked/resources/app').Path
+          $manifestPath = '../dist/PACKAGED-APP-MANIFEST-windows-x64.txt'
+          $packageVersion = (Get-Content -Raw -LiteralPath 'package.json' | ConvertFrom-Json).version
+          $manifestLines = [System.Collections.Generic.List[string]]::new()
+          $manifestLines.Add("sourceCommit=$env:GITHUB_SHA")
+          $manifestLines.Add("packageVersion=$packageVersion")
+          $manifestLines.Add('manifestRoot=resources/app (node_modules excluded; platform-specific dependencies are not compared)')
+          Get-ChildItem -LiteralPath $packedAppRoot -Recurse -File |
+            Where-Object { $_.FullName -notlike "$packedAppRoot\node_modules\*" } |
+            Sort-Object FullName |
+            ForEach-Object {
+              $relativePath = [IO.Path]::GetRelativePath($packedAppRoot, $_.FullName).Replace('\', '/')
+              $fileHash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $manifestLines.Add("$fileHash  $relativePath")
+            }
+          if ($manifestLines.Count -le 3) { throw 'Packaged app source fingerprint is empty.' }
+          $manifestLines | Set-Content -LiteralPath $manifestPath -Encoding utf8
+
           $artifacts | Get-FileHash -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } |
             Set-Content ../dist/SHA256SUMS-windows-x64.txt -Encoding utf8
+          $manifestHash = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Add-Content ../dist/SHA256SUMS-windows-x64.txt "$manifestHash  PACKAGED-APP-MANIFEST-windows-x64.txt" -Encoding utf8
 
           $signatures = $artifacts | ForEach-Object { Get-AuthenticodeSignature $_.FullName }
           $allSigned = ($signatures | Where-Object Status -ne 'Valid').Count -eq 0
@@ -123,6 +143,7 @@ jobs:
           Copy-Item ../dist/latest.yml -Destination $uploadDir
           Copy-Item ../dist/SHA256SUMS-windows-x64.txt -Destination $uploadDir
           Copy-Item ../dist/SIGNING-STATUS-windows-x64.txt -Destination $uploadDir
+          Copy-Item $manifestPath -Destination $uploadDir
 
       - name: Upload Windows preview artifacts
         uses: actions/upload-artifact@v6
