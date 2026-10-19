@@ -18,8 +18,24 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Preserve repository line endings for source fingerprint
+        shell: pwsh
+        run: git config --global core.autocrlf false
+
       - name: Checkout source
         uses: actions/checkout@v5
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+
+      - name: Verify source checkout line-ending mode
+        shell: pwsh
+        run: |
+          $coreAutocrlf = git config --get core.autocrlf
+          if ($LASTEXITCODE -ne 0 -or $coreAutocrlf -ne 'false') {
+            throw "Expected core.autocrlf=false before packaging; got '$coreAutocrlf'."
+          }
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
