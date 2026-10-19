@@ -4,6 +4,8 @@
 
 0.52.0 的 GitHub 發行範圍為 macOS Apple Silicon（arm64）。Windows 版未納入本次發布，因為尚未完成此版封裝及實機驗收。
 
+下載 v0.52.0：[GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)（僅提供下方列出的 macOS arm64 DMG／ZIP；不提供 Windows 0.52.0 安裝檔）。
+
 Electron 校閱頁新增「上傳 YouTube」。先儲存校閱字幕、匯出 MP4，再匯入 Google Cloud 的 Desktop OAuth client JSON 並透過系統瀏覽器連結頻道。啟用 YouTube Data API v3；OAuth consent screen 處於 Testing 時，須把登入帳號加入測試使用者。影片／字幕上傳需授予 `youtube.force-ssl` 權限。
 
 視窗列出實際頻道、已輸出 MP4、已保存的 `reviewed.srt`、標題、說明、語言及兒童內容選項；勾選外送同意後才開始。影片固定為私人，字幕獨立上傳；公開、排程及處理狀態可至 YouTube Studio 確認。只會使用最後保存的字幕，未保存編輯不會上傳。
@@ -138,17 +140,13 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 ### macOS Apple Silicon
 
-開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
+從 [v0.52.0 GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 下載 `offline-subtitle-factory-0.52.0-macos-arm64.dmg`，開啟後將「離線字幕工廠」拖到「應用程式」。也可下載同頁的 `offline-subtitle-factory-0.52.0-macos-arm64.zip`，解壓後把 APP 移入「應用程式」。
 
-```text
-offline-subtitle-factory-0.49.0-macos-arm64.dmg
-```
-
-另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
+此版使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 下載 `offline-subtitle-factory-setup-0.49.0.exe` 與 `offline-subtitle-factory-portable-0.49.0.exe`。
+本次 v0.52.0 發布不提供 Windows x64 資產。歷史 Windows 0.49.0 x64 版曾提供 NSIS Setup 與 Portable，可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 取得；它不是本版，也不包含 v0.52.0 功能。
 
 目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
