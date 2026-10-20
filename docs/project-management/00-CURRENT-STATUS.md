@@ -2,15 +2,15 @@
 
 > 最後查證日期：2026-10-20
 
-> 現行版本：0.52.0（round12 blocker 文件同步與最終來源重驗中）
+> 現行版本：0.52.0（round13 blocker 修正與 final-source 重驗中）
 > 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
-> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release／assets。round12 已核實 source `85203c86112584d54e034257b83ca1e4eb3f924c` 的 macOS arm64 candidate、exact-source Windows CI `39370147881` 與 73/73 shared-file hashes 通過；但因當時受控文件仍以 `1f6b207` 為最新並將 `docs:check:final` 列作發布前 gate，round12 判 BLOCK。現行 round12 blocker 修正工作已在 08 建立：同步該 SHA 證據，並依 `workflows/07-DOCUMENT-CLOSEOUT.md` 明確規劃 `docs:check:final` 為實際發布與資產核對後的文件結案 gate，交由 round13 獨立審查評估。這批文件更新會產生新 source SHA，故必須用最終 SHA 重跑完整 check、macOS 候選、exact-source Windows CI／hash gate，並取得 round13 無發布阻擋的結論後才可建立 tag／Release。候選 smoke 不代表有效播放／完整轉錄；Windows artifact 僅抽取 ZIP byte ranges，未驗證完整 archive，且 Windows preview 不屬本次公開資產。
+> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release／assets。round13 已核實 source `21d8b077b0bb25af02de5562e000660f6912bef3` 的 macOS arm64 candidate 與 exact-source Windows run `39376042653`／artifact `12243556843`；candidate package checks 通過、Windows range manifest 的 73/73 shared hashes 相符。但 round13 對整體 readiness 判 BLOCK：當時 `00`／`05`／`06`／`08` 未同步此 SHA 的結果，且較早 readiness 紀錄仍保留發布前 `docs:check:final` 條件，與 `workflows/07-DOCUMENT-CLOSEOUT.md` 的發布後 closeout 衝突。round13 blocker 工作項目已完成這批證據同步，並正式取代舊 gate 時序；最新條目保留 round13 BLOCK 原文。已提交文件所形成的新 source SHA 尚須重跑完整 check、macOS 候選、exact-source Windows CI／hash gate，並取得 round14 無發布阻擋後才可建立 tag／Release。候選 smoke 不代表有效播放／完整轉錄；Windows artifact 僅抽取 ZIP byte range，未驗證完整 archive，且 Windows preview 不屬本次公開資產。
 > 發布 tag／commit：`v0.51.0` → `53956ccdee6e16e4c0413f09312a419613b27da6`
 > 主分支：`main`
 
 ## 2026-10-20 0.52.0 發布狀態
 
-round9／round10 指出的歷史 source archive 個人路徑與 smoke provenance 問題已修正；但需求方於 2026-10-20 明確核准 round12 reviewer 報告原樣公開，知情接受該原件含一處本機家目錄絕對路徑，README／Release notes 將揭露這個限縮例外。round12 對 source `85203c86112584d54e034257b83ca1e4eb3f924c` 的 macOS arm64 candidate 與 exact-source Windows run `39370147881`／artifact `12240369026` 判定技術證據通過；候選目錄、資產雜湊與 73/73 shared-file hash 結果見 `06-TEST-AND-PROCESS-AUDIT.md` 及 `../dist/release-0.52.0-macos-85203c8-normal/PROVENANCE.txt`。round12 整體仍為 BLOCK，原因是其當時受控文件落後且 readiness 工作紀錄明訂發布前 `docs:check:final`。本輪已建立新的文件同步工作項目，將其修正為：發布前須通過完整測試、最終 SHA 候選／同源 CI／hash gate 與 round13 獨立審查；依通用 `workflows/07-DOCUMENT-CLOSEOUT.md`，發布後再核對資產並執行 `docs:check:final`。round13 必須獨立評估此順序及其證據，若不接受或發現阻擋即不發布。現行文件更新將產生新 source SHA，該 SHA 尚待重驗。此刻尚無 tag／Release／資產，GitHub Latest 仍是 0.51.0。
+round9／round10 指出的歷史 source archive 個人路徑與 smoke provenance 問題已修正；需求方於 2026-10-20 明確核准 round12 reviewer 報告原樣公開，知情接受該原件含一處本機家目錄絕對路徑，README／Release notes 已揭露此限縮例外。round13 對 source `21d8b077b0bb25af02de5562e000660f6912bef3` 的 macOS arm64 candidate 與 exact-source Windows run `39376042653`／artifact `12243556843` 判定技術證據通過；候選檢查與 73/73 shared-file hashes 見 `06-TEST-AND-PROCESS-AUDIT.md` 及 `../dist/release-0.52.0-macos-21d8b07-normal/PROVENANCE.txt`。round13 整體仍為 BLOCK：當時受控文件落後，且舊 readiness 項目仍明訂發布前 `docs:check:final`。最新 round13 blocker 工作項目已同步 21d8 結果，並正式標註舊條件已依 `workflows/06-BUILD-RELEASE.md`／`workflows/07-DOCUMENT-CLOSEOUT.md` 取代；發布前 gate 為完整 source tests、最終 SHA candidate／同源 CI／hash gate 與 round14 獨立審查，`docs:check:final` 於實際發布及 asset 核對後執行。文件提交後的新 source SHA 尚待重驗；round14 無發布阻擋前不建立 tag／Release。候選 smoke 不代表有效播放／完整轉錄；Windows artifact 僅抽取 ZIP byte range，未驗證完整 archive，且 Windows preview 不屬本次公開資產。此刻尚無 tag／Release／資產，GitHub Latest 仍為 0.51.0。
 
 使用者已明確接受並要求於 Release notes 揭露兩項獨立風險後發布 MVP：真實 Google OAuth／Keychain／頻道影片與字幕上傳尚未實帳號端到端驗收；完整 dependency audit 有 8 個 moderate paths（`GHSA-hp3w-g68c-fv3c`，位於 electron-builder build-time chain；production audit 為 0，公告目前無上游修補版）。Release notes 也標明本版僅 macOS arm64、ad-hoc／未 Developer ID／未公證；Windows 不屬本次發行範圍。以上接受不豁免來源、checksum、機密、審查或其他發版門檻。
 
