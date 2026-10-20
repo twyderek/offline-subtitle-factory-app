@@ -2,15 +2,15 @@
 
 > 最後查證日期：2026-10-20
 
-> 現行版本：0.52.0（candidate 依 source archive path 去識別重建中）
+> 現行版本：0.52.0（round10 blocker 修正中；下一個 source SHA 尚待候選重建）
 > 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
-> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release。舊候選 `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 的 round8 readiness 與候選階段 `docs:check:final` 已完成，但 round9 公開發布前審查判定 BLOCK：GitHub source archive 原本會包含 60 份治理文件／145 行個人 home 絕對路徑，且 Release notes 未明示 UI smoke 不構成有效播放。需求方已選擇先清除路徑。工作樹已將這 145 行及 `NEXT-VERSION-FIX-LOG.md` 另 1 行的個人 home 前綴改為 `<user-home>`，並在 README／Release notes 加入 source archive 與 playback 限制；新 source SHA、完整檢查、候選／同源 CI 及 round10 複審仍待完成。舊 `a8e839f` 候選不得直接作為本次發布來源。其 Windows artifact 使用 byte-range 核驗，未下載完整 ZIP，無 whole-archive integrity claim。
+> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release。round9 發現並觸發清理 60 份治理文件／145 行及 `NEXT-VERSION-FIX-LOG.md` 1 行的個人路徑；round10 再發現三處歷史遮罩說明仍帶有易混淆路徑 token，且候選主／比較 smoke JSON 的 currentTime 分別為 0.000484 秒及 0.000847 秒，因而 BLOCK。三處路徑措辭已在工作樹修正；要以新 source SHA 重跑完整檢查、macOS arm64 候選、同源 Windows CI／manifest 與 round11 複審。先前 exact-SHA run `39360760582`／artifact `12236898325` 的 73/73 shared hashes 通過，但未下載完整 Windows ZIP，不主張 whole-archive integrity。舊 `a8e839f` 候選不得作為本次發布來源；尚未建立 tag／Release 或上傳資產。
 > 發布 tag／commit：`v0.51.0` → `53956ccdee6e16e4c0413f09312a419613b27da6`
 > 主分支：`main`
 
 ## 2026-10-20 0.52.0 發布狀態
 
-候選 readiness 舊 source `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 的 run `39351138322` success，artifact `12233128155` 的 manifest checksum 與 73/73 shared raw hashes 全數通過；byte-range 摘要未下載完整 ZIP。round8 schema-compliant review 與候選階段 `docs:check:final` 均已通過，該候選的 DMG／ZIP、metadata、checksums、strict codesign 與 unpacked UI/layout/usability smoke 檢查完成；播放時間僅 0.000525 秒，不構成有效播放驗收。後續 round9 發現 source archive 個人路徑揭露與播放限制揭露不足並 BLOCK。已按需求方指示先去識別 source tree 中的個人 home 前綴及更新 README／Release notes；這會形成新 source SHA，須完整重跑 check、候選建置／驗證、同源 CI 與 round10 review。GitHub Latest 仍 0.51.0；新 SHA／candidate／round10 通過前不建立 tag／Release。
+舊候選 readiness source `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 的 round8 gate 與 candidate-phase `docs:check:final` 已完成；該階段的播放 smoke 只顯示 0.000525 秒，並非有效播放驗收。round9 隱私清理後，exact-SHA `aaee1d9f1996eea3b84723a42f47d3a9adaaf9e2` 候選與 Windows CI `39360760582` 曾通過 package／manifest gate，73/73 shared hashes 相符；Windows artifact 未完整下載。round10 發現三處歷史路徑措辭及 smoke JSON／provenance 量測未區分而 BLOCK；工作樹已改正三處措辭，候選主 JSON 為 0.000484 秒、comparison JSON 為 0.000847 秒，兩者均不能證明有效播放。此 SHA 及其候選不再是發布來源；新 SHA／candidate／CI 完成且 round11 通過前不建立 tag／Release。GitHub Latest 仍 0.51.0。
 
 使用者已明確接受並要求於 Release notes 揭露兩項獨立風險後發布 MVP：真實 Google OAuth／Keychain／頻道影片與字幕上傳尚未實帳號端到端驗收；完整 dependency audit 有 8 個 moderate paths（`GHSA-hp3w-g68c-fv3c`，位於 electron-builder build-time chain；production audit 為 0，公告目前無上游修補版）。Release notes 也標明本版僅 macOS arm64、ad-hoc／未 Developer ID／未公證；Windows 不屬本次發行範圍。以上接受不豁免來源、checksum、機密、審查或其他發版門檻。
 

@@ -10,10 +10,11 @@
 - round6 獨立發布審查報告 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round6.md` 判定 **BLOCK**。P1 是此 exact source SHA 尚無 CI run／artifact；報告確認 workflow 設定靜態合理，但無法替代後續 Windows checkout／packaging 的實際 raw-hash 驗證。審查者獨立重跑完整 `npm run check`、YAML parse、diff check 與候選 SHA／ZIP／DMG／codesign 驗證，均通過；`actionlint` 未安裝。GitHub 唯讀狀態：遠端 branch 仍 `1c045e7`、`a8e839f` run list 空、Latest `v0.51.0`、`v0.52.0` tag／Release 不存在。審查代理未 push／tag／Release／upload，且唯一新增檔案為其報告。
 - round7 報告 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round7.md` 獨立重驗 run `39351138322`／artifact `12233128155`，manifest sidecar 與 73/73 raw hashes 通過；完整 ZIP 未下載，whole-archive integrity 不宣稱。round7 因當時最新工作紀錄未 closeout、`docs:check:final` 失敗而作 BLOCK 結論；其報告格式也未提供 checker 要求的固定六個標題／逐字可引用結論句，因此保留原件。候選 readiness 階段後續已由 schema-compliant round8 完成，且該階段 `docs:check:final` 通過；公開發布另立工作紀錄。
 
-## 2026-10-20 FR-027 v0.52.0 round9 blocker remediation（進行中）
+## 2026-10-20 FR-027 v0.52.0 round10 blocker remediation（進行中）
 
 - round9 獨立審查 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round9.md` 判定 BLOCK：舊 candidate source archive 內 `docs/project-management/` 有 60 份文件共 145 行包含個人 home 絕對路徑；`NEXT-VERSION-FIX-LOG.md` 另有 1 行，故本輪一併納入清理；README／Release notes 未揭露 source archive 內容，且未說明 UI smoke 的合成影片僅前進 0.000525 秒。需求方已選擇移除路徑並重跑 CI／候選驗證／複審，不以風險接受取代清理。
-- 已機械取代上述文件中可辨識帳號的 home prefix 為 `<user-home>`，不刪除歷史行或其餘路徑 suffix；保留 `scripts/test-breeze-asr.mjs` 的合成 path fixture。README 與 `RELEASE-NOTES-0.52.0.md` 已補 source archive 限制及 UI smoke 不代表有效播放／轉錄的說明。尚待確認所有 tracked source 無個人 home prefix、完整 `npm run check`、更新 source commit、重新建置／檢查 macOS arm64 candidate、對 exact new SHA 重跑 Windows preview CI／manifest hash gate，以及 round10 發布前審查。舊 SHA `a8e839f` 候選不再作為發布來源；此時仍無 tag／Release／上傳。
+- 60 份治理文件／145 行與 `NEXT-VERSION-FIX-LOG.md` 1 行已將帳號識別的 home prefix 去識別，並保留 `scripts/test-breeze-asr.mjs` 中性合成 fixture。round10 發現三處歷史 review／worklog 描述仍列出易混淆的 home／private temporary path token，工作樹已改為中性文字；round10 亦發現主 smoke JSON `currentTime=0.000484` 與比較 JSON `0.000847` 未在 candidate provenance 區分。round10 審查 BLOCK；此輪變更後須重跑 `npm run check`、確認全 tracked source 的非中性個人路徑清零、提交新 SHA、重建 macOS arm64 candidate、執行 exact-SHA Windows preview CI／73-file manifest gate，更新 candidate provenance，並完成 round11 review。舊 `a8e839f`、`aaee1d9` 候選均不得作為本次發布來源；尚無 tag／Release／上傳。
+- round10 獨立報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round10.md` 的完整結論為 BLOCK：「指定 source 仍有 3 個非中性的歷史 home-directory 引用會進入公開原始碼封存，且清理與 provenance 宣稱不符；先去識別並以新 SHA 重建、重核候選及同源 CI，才可進入 tag／Release 階段。」報告確認 candidate package checks 與 exact-SHA Windows 73/73 shared-file hash gate 通過，但未把 byte-range 抽查擴稱完整 Windows archive integrity。
 
 ## 2026-10-19 FR-027 v0.52.0 macOS arm64 GitHub 發行候選
 

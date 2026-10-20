@@ -16,7 +16,7 @@
 ## 2. 邏輯正確性
 
 - 判定：通過
-- 證據：`lib/whisper-probe-diagnostics.mjs:7-17` 先處理明確 sensitive values，再以整段值模式遮罩 `api_key`／`authorization`／`token`／`secret`／`password`／`credential`，可涵蓋 quoted、escaped 與含空白值；另處理 Bearer／Basic、`/Users/`、`/private/tmp/`、`/tmp/` 與 `/var/folders/`，最後才限制 1600 字元尾端。
+- 證據：`lib/whisper-probe-diagnostics.mjs:7-17` 先處理明確 sensitive values，再以整段值模式遮罩 `api_key`／`authorization`／`token`／`secret`／`password`／`credential`，可涵蓋 quoted、escaped 與含空白值；另處理 Bearer／Basic、使用者目錄前綴、一般暫存目錄（`/tmp/`）與系統暫存位置，最後才限制 1600 字元尾端。
 - 證據：`scripts/verify-whisper-real-fallback.mjs:190-205` 以 pipe 收集 child stdout／stderr，`:80-99` 在 ready 前辨識 child exit，`:287-298` 在停止 child 後先檢查原始輸出是否含 generated probe token，再保存遮罩後 tail；token guard 失敗會將 evidence 設為 fail，不會把洩漏結果當成通過。
 - 證據：`scripts/verify-whisper-real-fallback.mjs:68-77` 從隔離 data directory 的 `offline-subtitle-port.tmp` 讀取實際 port，沒有把固定 requested port 誤當成 server 已 ready 的證據；`:301-307` 以 exclusive create 寫 evidence 並在 nested `finally` 清理暫存。
 

@@ -22,7 +22,7 @@
 
 - 判定：部分通過
 - 證據：目前 evidence assertions 已實際確認 v2 schema、production／loopback scope、PID、1600 字元尾端上限、預設 `listen EPERM`／ready=false／job 未建立、受控 `completed`／`ready-review`／Metal／無 fallback、輸出存在、stale partial 為空及兩側 runtime／model hash 一致。這覆蓋了本輪要求的預設啟動失敗與受控正常路徑邊界。
-- 證據：未覆蓋且會影響安全邊界的輸入包括 quoted／escaped／含空白 credential、裸 token、`/tmp/` 路徑、長 stderr 在切尾前的敏感值位置，以及 server 以非標準格式輸出 secrets 的情境。source 只遮罩 `/Users/`、`/private/tmp/`、`/var/folders/`（`:46`），沒有 `/tmp/`；也沒有在寫 evidence 前以 `requireOk` 明確斷言 generated probe token 不在兩個 diagnostic tail。故不能把目前兩份無洩漏 evidence 擴張為完整 redaction boundary。
+- 證據：未覆蓋且會影響安全邊界的輸入包括 quoted／escaped／含空白 credential、裸 token、`/tmp/` 路徑、長 stderr 在切尾前的敏感值位置，以及 server 以非標準格式輸出 secrets 的情境。source 對使用者目錄前綴與系統暫存位置的遮罩仍有限（`:46`），沒有涵蓋一般 `/tmp/`；也沒有在寫 evidence 前以 `requireOk` 明確斷言 generated probe token 不在兩個 diagnostic tail。故不能把目前兩份無洩漏 evidence 擴張為完整 redaction boundary。
 - 證據：本輪明確沒有真實 bundled Metal crash→CPU fallback 證據；受控 evidence 的 `metalFailure`／`metalExit`／`metalSignal`／`cpuFallback`／`fallbackObserved` 均為 false（`...-escalated.json:53-76`）。這是本輪範圍限制，不應被誤判成 probe 診斷功能失敗或 fallback 已完成。
 
 ## 4. 程式碼品質
