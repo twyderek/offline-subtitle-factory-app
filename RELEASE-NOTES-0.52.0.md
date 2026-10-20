@@ -19,7 +19,7 @@
 
 - 本次候選發行範圍為 macOS Apple Silicon（arm64）。Windows 0.52.0 尚未完成此版封裝及實機驗收，不包含 Windows 發行資產。
 - 尚未以真實 Google OAuth client、macOS Keychain、個人頻道完成登入、影片上傳及字幕上傳端到端驗收。請將 YouTube 上傳視為尚未完成實帳號驗收的功能，首次使用前先以非重要／私人測試素材確認。
-- 本版 packaged UI smoke 只驗證版面與互動；3 秒合成影片前進不到 1 毫秒，不能視為有效播放、完整轉錄或上傳驗收。
+- 本版 packaged UI smoke 只驗證版面與互動；合成影片測試沒有展示有效播放進度，不能視為有效播放、完整轉錄或上傳驗收。
 - GitHub 自動產生的原始碼封存包含追蹤中的歷史治理文件；個人 home 路徑前綴已匿名化為 `<user-home>`。封存會包含治理紀錄，不包含本機建置產物。
 - macOS app 為 ad-hoc 簽章，未使用 Apple Developer ID 簽章或公證；macOS 可能顯示安全性警告。只從本專案 GitHub Release 下載並核對發布頁提供的 SHA-256。
 - Production dependency audit 為 0 vulnerabilities。完整開發相依樹仍包含 GitHub Advisory `GHSA-hp3w-g68c-fv3c`（`sprintf-js` <= 1.1.3，moderate；位於 electron-builder 的 build-time dependency chain）。該 advisory 目前未列出修補版本，且此套件不屬於 production dependency；升級前請重新檢查 advisory 與依賴解析結果。
