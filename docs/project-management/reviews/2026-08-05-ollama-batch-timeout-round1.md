@@ -28,7 +28,7 @@
 ## 5. 測試覆蓋
 
 - 判定：部分通過
-- 證據：2026-08-05 11:13 +08:00 執行 `node scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs` 與 `npm run check`，均通過；完整回歸包含核心 HTTP、AI provider、optimizer、文件與語法檢查。實際 baseline job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 顯示 `provider=ollama`、`model=llama3.2:3b`、`status=failed`、`error=AI 請求逾時`、`completedBatches=2/55`、`processedCues=2/55`、`activeBatch=3`、`retryable=true`、`checkpoint.nextBatchIndex=2`，與缺陷描述一致。兩 ZIP `unzip -t` 均回報 `No errors detected in compressed data`；兩平台 Small manifest／檔案均為 487,601,967 bytes、SHA-256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b`、`installed:true, valid:true, reason:"ok"`，Base `reason:"missing"`。本機 Ollama `curl http://127.0.0.1:11434/api/tags` 實測連線拒絕，故沒有真模型 response evidence。
+- 證據：2026-08-05 11:13 +08:00 執行 `node scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs` 與 `npm run check`，均通過；完整回歸包含核心 HTTP、AI provider、optimizer、文件與語法檢查。實際 baseline job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 顯示 `provider=ollama`、`model=llama3.2:3b`、`status=failed`、`error=AI 請求逾時`、`completedBatches=2/55`、`processedCues=2/55`、`activeBatch=3`、`retryable=true`、`checkpoint.nextBatchIndex=2`，與缺陷描述一致。兩 ZIP `unzip -t` 均回報 `No errors detected in compressed data`；兩平台 Small manifest／檔案均為 487,601,967 bytes、SHA-256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b`、`installed:true, valid:true, reason:"ok"`，Base `reason:"missing"`。本機 Ollama `curl http://127.0.0.1:11434/api/tags` 實測連線拒絕，故沒有真模型 response evidence。
 
 ## 6. 實際運行結果
 

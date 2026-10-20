@@ -30,7 +30,7 @@
 - 判定：部分通過
 - 證據：
   - evidence schema v2 保存 started／completed／elapsed、平台、輸入 metadata／hash、bundled runtime／model hash、抽取／推論命令摘要、exit／signal、輸出 hash／大小與統計（`scripts/verify-whisper-long-media.mjs:115-127`；evidence: `:1-5,37-75,78-96`）。
-  - probe 的摘要解析修正與 v2 隱私目的有 `docs/project-management/07-DEBUG-AND-FIX-HISTORY.md:3-9` 及 `docs/project-management/06-TEST-AND-PROCESS-AUDIT.md:18-23` 可回溯。以新 evidence 路徑形式可重播：`node scripts/verify-whisper-long-media.mjs /Users/nycu/Downloads/20260909.mp4 small <new-evidence-path>`；既有 output path 會由 `scripts/verify-whisper-long-media.mjs:12-14` 拒絕覆寫。
+  - probe 的摘要解析修正與 v2 隱私目的有 `docs/project-management/07-DEBUG-AND-FIX-HISTORY.md:3-9` 及 `docs/project-management/06-TEST-AND-PROCESS-AUDIT.md:18-23` 可回溯。以新 evidence 路徑形式可重播：`node scripts/verify-whisper-long-media.mjs <user-home>/Downloads/20260909.mp4 small <new-evidence-path>`；既有 output path 會由 `scripts/verify-whisper-long-media.mjs:12-14` 拒絕覆寫。
   - `scripts/verify-whisper-long-media.mjs:147-177` 保存抽取／推論的 exit／signal、耗時、音訊 hash、輸出 hash／大小；`184-196` 在 finally 清理暫存並以 exclusive create 寫 evidence。
   - 本審查已對既有 JSON 做 14 項唯讀 assertions，涵蓋 schema、pass、平台／架構、輸入長度、抽取／推論 exit／signal、SRT／JSON 非空、segment 數、temp cleanup、未保存 transcript、缺失 quality 欄位與 scope；結果為 `evidence assertions passed: 14`。
   - 限制：本報告未再跑一次約 7 分鐘的完整長音訊 probe，因既有輸出 evidence 存在且 probe 明確拒絕覆寫，而本輪唯一允許持久寫入為本報告；因此本節的 runtime 實測結果以 2026-09-21 已保存 evidence 為基準，新增驗證是唯讀 assertions／回歸，而非第二份長音訊 replay。
@@ -42,7 +42,7 @@
 - 證據：
   - `scripts/verify-whisper-long-media.mjs:37-45,106-112,115-127` 對診斷路徑做遮罩，stdout 只保存 line count／timestamped line count／`contentStored=false`；evidence `:62-67,89-94` 並記錄 `contentStored=false`、`fullTranscriptStored=false`、`externalNetwork=false`、LM Studio explicit scope exception、`originalVideoModified=false`、`originalSrtModified=false`。
   - 本審查讀取的 evidence 原始內容只有 3,043 bytes；唯讀負向檢查未發現 `stdoutTail`、`transcriptText`、`segmentText` 或 `fullTranscript` 原始欄位，未保存字幕文字。這也符合 `docs/project-management/06-TEST-AND-PROCESS-AUDIT.md:20-23` 與 `08-CHANGE-LOG.md:15-16` 的 v2 說明。
-  - 目前影片 SHA-256 重算為 `dc22525eb84ad675259d13e8b87ca2147bc2868364044292ea935c209de04d78`，與 evidence `:11-15` 一致；影片與 `/Users/nycu/Downloads/20260909.mp4.edited.srt` 的目前檔案時間早於 2026-09-21 replay。probe 原始碼只對輸入影片做 stat／hash／讀取，輸出 SRT／JSON 位於 temp root（`1-22,138-141,147-177`），沒有 source SRT 寫入路徑。
+  - 目前影片 SHA-256 重算為 `dc22525eb84ad675259d13e8b87ca2147bc2868364044292ea935c209de04d78`，與 evidence `:11-15` 一致；影片與 `<user-home>/Downloads/20260909.mp4.edited.srt` 的目前檔案時間早於 2026-09-21 replay。probe 原始碼只對輸入影片做 stat／hash／讀取，輸出 SRT／JSON 位於 temp root（`1-22,138-141,147-177`），沒有 source SRT 寫入路徑。
   - `scripts/verify-whisper-long-media.mjs:184-189` 在 finally 以 recursive force remove 清理 temp root；evidence `:78-87` 的 `tempRootRemoved=true`，且抽取／推論均為 exit 0、signal null，故本次 exit／signal 與清理欄位彼此合理。
   - 保留限制：evidence 沒有在 probe 前後保存來源 `.edited.srt` 的 SHA-256，`originalSrtModified=false` 是 scope assertion 而非可獨立比對的 before／after hash。因此可確認本 probe code path 未讀寫來源 SRT、目前檔案時間與執行前相符，但不能把它描述成具來源 SRT 前後 hash 的完整不可否認證據。
 
@@ -51,7 +51,7 @@
 - 判定：部分通過
 - 證據：
   - 2026-09-21（Asia/Taipei，本輪審查）執行 `node --check scripts/verify-whisper-long-media.mjs`，exit 0。
-  - 同日執行既有 evidence 的唯讀 14 項 assertions，輸出 `evidence assertions passed: 14`；`shasum -a 256 /Users/nycu/Downloads/20260909.mp4` 與 evidence hash 一致。
+  - 同日執行既有 evidence 的唯讀 14 項 assertions，輸出 `evidence assertions passed: 14`；`shasum -a 256 <user-home>/Downloads/20260909.mp4` 與 evidence hash 一致。
   - 同日執行 `npm run check`，exit 0：`docs:check` 通過，所有既有 Whisper／quality／AI／UI／核心 API 回歸測試通過；輸出包含「核心回歸測試通過」。
   - 同日執行 `git diff --check`，exit 0。
   - 同日執行 `npm run docs:check:final`，exit 1；validator 明確指出最新 `08-CHANGE-LOG.md` 工作紀錄尚未標示完成、仍有「待執行」欄位，且「獨立審查是否執行」尚未為是／否。這是文件結案 gate 缺口，不是本輪 runtime evidence 的 pass／fail 反轉。

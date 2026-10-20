@@ -35,8 +35,8 @@
   - 2026-08-12 15:58:57–15:58:58：`npm run probe:breeze -- --json` 以預期 exit 1 回報 `python3`、`ModuleNotFoundError: No module named whisper`、模型 `reason:"missing"`、`ready:false`；輸出 Python／model directory／model path 均為 basename。
   - 2026-08-12 15:59:09：POSIX process group descendant cleanup 成功。
   - 2026-08-12 15:59:19：延遲 close 需等 close 後才完成。
-  - 2026-08-12 15:59:30–15:59:31：自訂 `/Users/example/.venv/bin/python` 與 `/Users/example/private/breeze-cache` 聚合結果只輸出 `python`／`breeze-cache`；不存在 executable 的 error 亦為 `runtime probe returned diagnostic output (omitted for privacy)`。
-  - 同一實測以 stderr `SECRET_MARKER /Users/example/private token=abc password=xyz` 執行，輸出為 `runtime probe returned diagnostic output (omitted for privacy)`；marker、路徑與 token 未進報告。
+  - 2026-08-12 15:59:30–15:59:31：自訂 `<user-home>/.venv/bin/python` 與 `<user-home>/private/breeze-cache` 聚合結果只輸出 `python`／`breeze-cache`；不存在 executable 的 error 亦為 `runtime probe returned diagnostic output (omitted for privacy)`。
+  - 同一實測以 stderr `SECRET_MARKER <user-home>/private token=abc password=xyz` 執行，輸出為 `runtime probe returned diagnostic output (omitted for privacy)`；marker、路徑與 token 未進報告。
 - 未覆蓋／未解除：Windows 真實 `taskkill /T /F`／descendant、taskkill 失敗或延遲、server `probeCommand` process-tree、真實 3 GB hash、官方 runtime、磁碟不足與 runtime 大量輸出。另 `ImportError` 摘要的 secret replacement 目前可能出現字面 `$1=<redacted>`（不洩漏值但訊息品質不佳），未構成 round1 P2 的敏感洩漏。
 
 ## 4. 程式碼品質

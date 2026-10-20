@@ -1,7 +1,7 @@
 {
   "schema": "offline-subtitle-factory.electron-renderer-acceptance.v1",
   "observedAt": "2026-09-16T11:05:41+08:00",
-  "candidatePath": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "candidatePath": "<user-home>/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",

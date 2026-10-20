@@ -1,5 +1,758 @@
 # 改版與工作紀錄
 
+## 2026-10-20 — FR-027 v0.52.0 GitHub 公開發布（macOS arm64）
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：需求方已明確要求完成至 GitHub 發布；本工作承接已結案的候選／CI readiness 階段及既有發布授權，執行實際公開 Release 與上傳後核對。
+- 關聯需求／缺陷：`FR-027`、`BUG-050`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`。
+- 變更等級：發布。
+- 執行前已讀：`npm run project:preflight -- --type=release` 固定核心及 release 路由（是）；候選 readiness 紀錄與 round8 報告已結案；既有 dirty worktree 不會被整批提交或覆寫。
+- 目標與成功條件：先將 GitHub auto-generated source archive 所含、60 份治理文件中的 145 行個人 home 絕對路徑改為中性佔位符，並在 README／Release notes 揭露歷史路徑已去識別及 UI smoke 不構成有效播放／轉錄驗收；以清理後的新 exact source SHA 重建 macOS arm64 候選並完成同源 CI、候選驗證與獨立複審。全部通過後建立 immutable tag `v0.52.0` 與 macOS arm64-only GitHub Release，上傳 DMG／ZIP、blockmaps、`latest-mac.yml`、SHA-256 sidecar、signing status；發布後核對 GitHub 資產名稱、大小、digest、URL 與說明。不得發布 Windows preview artifact。
+- 不在範圍：不改產品 runtime、不刪除歷史治理記錄或任意證據（只以 `<user-home>` 取代歷史個人 home prefix）、不替換 `/Applications` 中 v0.51.0、不覆寫既有 tag／Release／資產，不將完整 Windows preview ZIP integrity 或真實 Google／Keychain／影片播放／字幕上傳說成已驗收。
+- 可執行計畫：1. 重核 remote tag/release 為空及本機／remote source SHA；核定精確清理範圍為 source commit 中 `docs/project-management/` 60 文件／145 行與 `NEXT-VERSION-FIX-LOG.md` 1 行；保留測試程式中明確合成的路徑 fixture。2. 只將上述文件中可辨識使用者身分的 home prefix 機械取代為中性佔位符，更新 README／Release notes，將 README／Release notes 的 playback 與 source archive 限制明確寫入，重核全 tracked source 無個人 home prefix；完整回歸、提交並 fast-forward push 新 source SHA。3. 以新 SHA 重建 macOS arm64 candidate 並觸發同 SHA Windows preview CI，核 manifest／共享檔 hashes、候選封裝／metadata／checksums／runtime／signature。4. 由獨立上下文完成 round10 六面向發布前審查；通過後依既有授權建立 tag／Release 並上傳限定 macOS 資產。5. 唯讀核對 GitHub 實際 asset IDs、名稱、大小、digest、下載 URL 與 Release notes，更新文件並執行完整測試／`npm run docs:check:final`。任一步不符即停止後續寫入並修正／再審，不覆寫已存在版本。
+- 預計影響檔案／模組：包含 60 份 `docs/project-management/` tracked 文件及 `NEXT-VERSION-FIX-LOG.md` 的歷史路徑 prefix 去識別、`README.md`、`RELEASE-NOTES-0.52.0.md`、本工作紀錄、`00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`；新 source commit 對應的新 macOS arm64 candidate／Windows preview CI 證據；最終 GitHub tag／Release assets。產品 runtime 不變。
+- 風險與回復方式：round9 發現舊候選 source archive 將公開 60 份治理文件／145 行個人 home 絕對路徑，且 Release notes 未說明 packaged UI smoke 沒有有效媒體播放；不沿用舊候選或宣稱已取得原風險接受，改採路徑前綴去識別、明示 source archive 與 playback 限制，再以新 source SHA 重跑所有來源／建置／審查 gate。公開範圍限 macOS arm64。真實 Google OAuth／Keychain／頻道授權／影片及字幕上傳未實帳號驗收；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory（production audit 0）；ad-hoc、未 Developer ID／公證、Gatekeeper 未驗收；有效影片播放／轉錄未驗收；完整 Windows preview ZIP 未下載。以上限制不因發布授權或候選檢查而消失。若任何新 SHA／manifest／candidate／asset digest／URL／名稱不符，停止宣告完成、不覆寫 tag／Release，保留證據後修正並複審。
+- 實際修改：已將 60 份 `docs/project-management/` 中 145 行，以及 `NEXT-VERSION-FIX-LOG.md` 1 行的個人 home 前綴機械改為 `<user-home>`，保留歷史行與路徑 suffix；保留測試程式中的 synthetic path fixture。`README.md` 與 `RELEASE-NOTES-0.52.0.md` 已增補 source archive 與 UI playback 限制。尚未建立新 source commit／新 candidate，尚未建立 tag／Release、尚未上傳 assets。
+- 開發驗證結果：舊 SHA `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 的 round8 候選 readiness 保留為歷史證據；round9 發布審查發現的 path disclosure 與 playback disclosure 已按需求方選擇修正。`npm run check` exit 0（docs 19 files、完整回歸與四組 YouTube suites）；`npm audit --omit=dev` 0 vulnerabilities；`git diff --check` 通過，targeted history path scan 無剩餘 personal home prefix，合成 fixture 保留。新 source SHA candidate、同源 CI 與 round10 尚未開始。
+- 獨立審查是否執行：是，round9 已執行但 BLOCK；path 去識別與說明完成、以新 source SHA 完成所有檢查後須 round10 複審。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round9.md`
+  - 判定（逐字引用審查檔案結論句）：**本輪 0.52.0 GitHub 公開發布前審查不通過：Release notes 未揭露 source archive 既有本機絕對路徑及 UI smoke 未驗證有效播放，補齊揭露並取得相應風險接受或移除路徑後，才可繼續發布。**
+- 發布授權：
+  - 是否需要：是（建立 `v0.52.0` Git tag／GitHub Release，公開並共享 macOS arm64 assets）。
+  - 核准人／角色：需求提出者／產品負責人。
+  - 核准時間：2026-10-19（需求方明確要求完成至 GitHub 發布，並回覆接受風險清楚揭露後公開 MVP）。
+  - 核准範圍：明確同意並核准在候選／CI／hash／獨立審查／文件結案門檻通過後，打包、提交／推送所需 source、建立 tag／Release、公開及共享本版 macOS arm64 資產；接受真實 Google OAuth／Keychain／頻道影片字幕上傳未驗收、`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、ad-hoc／未公證等條件需於 README／Release notes 清楚揭露。授權不涵蓋略過 checksum／review／gate、Windows 發行資產、機密洩漏或覆寫既有公開版本。
+- 部署／發布結果：尚未公開；round9 BLOCK 項已進入 source 路徑去識別修正，需以新 SHA 完成 round10 通過後才可建立 tag／Release。
+- 遺留風險與後續事項：新 source commit、CI／candidate 檢查、round10 審查尚未完成。Release assets 上傳後逐項確認 GitHub API digest、size、名稱、URL 與說明；若官方回傳缺 digest，須以可信下載 bytes 的 hash 證據補足，並保留「完整 Windows preview artifact ZIP 未核」與本版未驗收風險。沒有 round10 通過及所有發行後核對前，不將本工作標示完成。
+
+## 2026-10-20 — FR-027 v0.52.0 發布候選與同源 CI 驗證
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方此前明確要求完成至 GitHub 發布；本紀錄階段專責完成 macOS 候選與同源 CI/hash gate，實際公開發布另以獨立工作紀錄結案。
+- 關聯需求／缺陷：`FR-027`、`BUG-050`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`。
+- 變更等級：發布。
+- 執行前已讀：`npm run project:preflight -- --type=release` 固定核心與 release 路由（是）；工作樹原有未提交檔案均保留。
+- 目標與成功條件：完成 0.52.0 macOS arm64 候選驗證、exact-source Windows preview CI artifact 的 manifest/checksum 與 73 個共享檔 raw hash 對照、格式合規的獨立六面向審查及本階段 `docs:check:final`。這一階段只完成「候選可供發布」判定，不建立 tag／Release、不上傳發行資產；實際 GitHub 公開發布另開工作紀錄。
+- 不在範圍：不替換 `/Applications` 內 v0.51.0、不覆蓋任何既有 tag／Release／工作樹文件、不把 mock 或 UI smoke 說成真實 Google／Keychain／影片上傳驗收、不發布 Windows 資產。
+- 可執行計畫：1. 完成舊候選 round5 限制記錄與 line-ending 根因修正；2. 以新 SHA 重建／檢查 macOS 候選並 push 精確 source 觸發 Windows preview CI；3. 驗證 artifact manifest checksum 及 73 個共享檔 raw hashes；4. 將 round6／round7 結果保留，另完成符合 validator schema 的 round8 獨立審查；5. close out 本候選驗證工作並通過 `npm run docs:check:final`。隨後另立公開發布工作項目，經既有授權與候選審查後執行 tag／Release 及上傳核對。
+- 預計影響檔案／模組：`.github/workflows/windows-preview.yml`（在 runner checkout 前固定 LF 來源 bytes）、重新建置的 macOS arm64 candidate／manifest 證據、`00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本文件及本輪獨立審查報告；`scripts/verify-youtube-ui.mjs` 的臨時門檻已還原，產品 runtime 未改。
+- 風險與回復方式：若 exact-source CI 失敗／無 artifact／manifest 或共享 hashes 不符，立即停止 tag／Release／上傳；只調查和修正候選 source，不覆寫公開版本。round5 另指出 smoke 未證明影片實際播放，需明確限定證據範圍，不得宣稱播放驗收通過。
+- 實際修改：獨立 round5 報告新增於 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round5.md`；確認來源 `1c045e7fff77049ff084126e3dc59e602fc60918` 相對前一 source 僅新增 `scripts/test-youtube.mjs` 的 BUG-050 跨平台測試修正。依授權 fast-forward push 至 `1c045e7`；run `39342333188` 成功但 67/73 raw hashes 因 CRLF 不同，gate 失敗，診斷摘要在 `../dist/release-0.52.0-macos-1c045e7-normal/windows-ci-source-manifest-range-check-39342333188.json`。workflow checkout 修正以獨立 commit `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 提交；round6 報告 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round6.md` 的歷史結論為「結論：**不通過（BLOCK）**」，唯一 P1 是當時缺 exact-SHA artifact。依授權僅 fast-forward push 精確 SHA 觸發 CI，run `39351138322` 完整成功（head SHA 相同），artifact ID `12233128155`、名稱 `offline-subtitle-factory-0.52.0-windows-x64`、504,800,541 bytes。經 authenticated byte-range 讀取 ZIP central directory、manifest 與 checksum sidecar（完整 505 MB archive 未下載，無 whole-archive integrity claim），逐 entry CRC／size 有效；manifest SHA-256 `e7af0c860f7a7e99f695c8d70f1c85b6463c4320841cbb7c35f771bdd3ffee94` 與 artifact sidecar 相符，source/version 正確，73/73 path sets 及 raw SHA-256 全數相符；精確證據 `../dist/release-0.52.0-macos-a8e839f-normal/windows-ci-source-manifest-range-check-39351138322.json`。round6 的 artifact/hash P1 由此解除。新 macOS arm64 候選位於 `../dist/release-0.52.0-macos-a8e839f-normal/`；全 `.app` 895 entries 中 3 項因生成 runtime manifest／launcher／簽章而不同；僅 73 個非 `node_modules` Resources/app 檔案跨平台 raw hashes 比對通過，不宣稱整包 byte-identical。新候選 UI/layout/usability smoke 首次 CDP `Fetch.disable` timeout，cleanup 確認 group closed、未 forced、profile removed；fresh retry 通過 renderer fixture 12/12、四 viewport 與互動檢查、無 Google requests，但 3 秒合成影片進度只有 0.000525 秒，不構成有效播放證明。round7 報告位於 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round7.md`，其歷史結論為「結論：**「不通過（BLOCK）」**」；它發現 `docs:check:final` exit 1（當時本工作仍進行中且未引用報告），並指出其報告格式缺少此專案 checker 要求的可逐字引用結論與固定六個 schema 標題，因此保留原件、不把它作為本階段 closeout 引用。需另行 round8 按 repo validator schema 完成獨立候選審查。未建立 tag／Release 或上傳發行資產。
+- 開發驗證結果：`npm run check`（含 `docs:check` 19 文件、完整 test 與四份 YouTube suites）exit 0；`npm audit --omit=dev` 為 0 vulnerabilities；`git diff --check`、workflow YAML parse 均通過。新候選 `verify-runtime-package.mjs --target=darwin-arm64` 通過；DMG `hdiutil verify` VALID、ZIP integrity clean、deep strict codesign pass，`latest-mac.yml` 兩項 size／SHA-512 與實體 bytes 一致，四項 SHA-256 sidecar 獨立重算一致。round6 reviewer 獨立重跑完整 check、YAML parse、diff check、候選 checksums／ZIP／DMG／codesign 均通過；`actionlint` 未安裝，無該項 schema lint。新 exact-source CI `39351138322` 所有 job／步驟成功，unsigned Windows preview package lifecycle 與 archive checksum 通過；round7／round8 reviewer 獨立重驗 manifest checksum sidecar、CRC／size 及 73/73 shared raw hashes。只下載 artifact ZIP 所需 range entries，故未驗證全 archive integrity。Exact a8e839f UI/layout/usability retry 通過；首輪 CDP cleanup timeout 及成功清理、重試播放只有 0.000525 秒等限制見上。round8 候選 readiness milestone review 通過；候選階段 `docs:check:final` 正執行 closeout，實際公開發布另立工作項。
+- 獨立審查是否執行：是（round5–round8 均由獨立上下文執行；各 reviewer 限寫本輪報告）。
+- 獨立審查結論：round6 報告 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round6.md` 綜合原文判定「結論：**不通過（BLOCK）**。」其 P1 為完整 SHA `a8e839f3321ac1ea06525261baa8a2da7fe7637b` 尚無 Actions run／Windows artifact，因而無法驗證 `PACKAGED-APP-MANIFEST-windows-x64.txt`、manifest 自身 checksum 與 73 個共享 packaged app 檔案 raw hashes。審查認定 `core.autocrlf=false` 靜態修正合理，但未有 runner／packaging 端到端證據。P2 為媒體 smoke 僅 0.000525 秒及 source archive 既存絕對路徑；P3 為未安裝 `actionlint`，僅 YAML syntax parse。報告未授權外部操作。
+- round7 審查結果摘要：報告 `docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round7.md` 的綜合判定「結論：**「不通過（BLOCK）」**」，當時 block 原因為 docs closeout/reference 尚未完整且本工作仍進行中。它獨立重現 artifact ranges，認定 manifest checksum 與 73/73 hashes gate 通過、完整 ZIP 未驗證是明確 residual risk。round7 格式與 checker schema 不符，故不作本階段結案引用；原報告保留，不修改。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-candidate-ci-round8.md`
+  - 判定（逐字引用審查檔案結論句）：**「本輪限定的 v0.52.0 macOS 候選與 exact-source CI/hash readiness 門檻通過；此判定不核准建立 tag、GitHub Release 或上傳資產。」**
+- 獨立審查結論：`docs/project-management/reviews/2026-10-20-fr-027-v0.52.0-github-release-round5.md` 逐字判定「結論：**不通過（BLOCK）**。」P1 唯一阻擋為完整 SHA `1c045e7fff77049ff084126e3dc59e602fc60918` 尚無 exact-source Windows CI run／artifact，故未能驗證 manifest checksum 及其與 macOS app 共享檔案 hashes。round5 將 smoke 媒體播放證據不足列為 P2 限制，不是本輪硬阻擋；候選文件須據實揭露。
+- 發布授權：
+  - 是否需要：是（打包與候選準備、推送精確 source SHA 以觸發 CI；全部發布 gate 通過後公開 macOS arm64 v0.52.0 GitHub Release；不發布 Windows 資產）。
+  - 核准人／角色：需求提出者／產品負責人。
+  - 核准時間：2026-10-19（需求方明確要求完成至 GitHub 發布，並回覆接受真實 Google 功能及 advisory 風險揭露後發布）。
+  - 核准範圍：明確同意並核准本輪打包、提交、推送 release branch 精確 source SHA 以取得同源 CI artifact；所有 source／CI／hash／複審／final docs gate 通過後，公開本版 macOS arm64 MVP。接受真實 Google OAuth／Keychain／頻道影片與字幕上傳未驗收、`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、ad-hoc／未公證等風險須在 README／Release notes 揭露；此授權不涵蓋略過 checksum／raw hash／CI gates、洩漏機密、發布 Windows 資產或覆寫既有版本。round6 報告本身不新增外部寫入授權。
+- 部署／發布結果：GitHub Latest 仍為 v0.51.0；`v0.52.0` tag／Release 均不存在。release branch 已 fast-forward 至 `a8e839f`，同 SHA run `39351138322` success，artifact `12233128155` 的 manifest checksum 與 73/73 shared raw hashes gate 通過。此候選 readiness 工作項已完成；公開發布尚未執行，會另立工作紀錄。
+- 遺留風險與後續事項：候選 readiness gate 已完成；本次 final documentation closeout 通過後，建立新的 0.52.0 公開發布工作紀錄，依既有授權建立 tag／Release、上傳 macOS arm64 assets 並核對 GitHub 名稱／大小／digest／URL。range 核驗未下載完整 505 MB artifact，故不宣稱 whole-archive integrity；該 artifact僅為 Windows same-source cross-check，並非 Windows release asset／實機驗收。新候選 smoke 播放時間 0.000525 秒不足以宣稱播放通過。真實 Google OAuth／Keychain／頻道授權及影片字幕上傳、ad-hoc／未 Developer ID 簽章／公證／Gatekeeper、`GHSA-hp3w-g68c-fv3c` build-time advisory、Windows 實機與完整轉錄品質依前文列為已接受揭露或未覆蓋項目；均不得與已完成項混為一談。
+
+## 2026-10-19 — FR-027 YouTube 私人上傳後續版本 GitHub 發布準備
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：需求提出者明確要求「繼續完成到發佈上github」。
+- 關聯需求／缺陷：`FR-027`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`。
+- 變更等級：發布。
+- 執行前已讀：`npm run project:preflight -- --type=release` 列出的固定核心與 release 路由（是）。
+- 目標與成功條件：在既有 0.51.0 GitHub Release 之上，確認目前工作樹、分支及公開 main 的完整來源差異與發布範圍；完成適用平台／功能的回歸、封裝候選驗收、獨立六面向 release review、版本與 Release notes、資產／checksum／簽章揭露，並依本專案 0.51.0 既有方式將審核通過的 release commit 推送至 release branch、建立新 immutable tag／GitHub Release，發布後核對實際資產與下載。除非另有明確整合需要，本輪不合併 main，以免無關歷史分支內容與治理紀錄擴大發佈範圍。
+- 不在範圍：不得覆寫既有公開 tag／Release／資產，不得清除或覆蓋既有工作樹變更，不得將 mock 或候選工具通過宣稱為真實 Google／Keychain／頻道上傳通過；Windows 不因本次目標自動視為已實機驗收。
+- 預計影響檔案／模組：0.52.0 產品程式、測試、README、版本與鎖檔、Release notes、macOS arm64 候選／安裝包及 GitHub release branch／tag／Release；初始 342 項 dirty entries 不會整批納入。
+- 風險與回復方式：發布來源為 `codex/0.51-anthropic-claude`，工作分支相對 `main` 原先 ahead 22；公開版本 0.51.0。初始 342 項 dirty entries 已限定公開提交為 46 個明確列出的產品／測試／建置檔，治理紀錄、歷史 evidence 與審查檔未混入。中度 build-time advisory 與真實 Google 驗收缺口已分別取得明確揭露後發布核准。若最終 source、簽章、checksum 或發布資產不一致，即停止外部發布、不覆寫既有 tag／Release，修正後重驗。
+- 驗證計畫：核對 GitHub branch／PR／tag／Release 與來源 SHA；稽核 dirty files／secret leakage；`npm run check`、production dependency audit、`git diff --check`；重新建置候選並驗證 bundle、macOS DMG／ZIP、updater metadata、SHA-256／SHA-512 與 renderer/UI；獨立六面向審查；發布前再核對授權與風險揭露；發布後核對 API 資產 metadata／digest／直接下載內容及狀態文件。
+- 實際修改：候選版本升至 `0.52.0`；Electron 由 `43.3.0` 升至 `43.8.0`、electron-builder 由 `26.15.7` 升至 `26.17.0`；更新 Windows preview workflow 的版本/tag/artifact/Release notes 斷言與本文件部署版本說明。明確提交 46 個產品、測試及建置檔，建立本機 commit `969b7f8f0bb03445ab5992812b26cb0576e8eeee`。產出 DMG、ZIP、blockmaps、`latest-mac.yml`、checksums、provenance、簽章狀態及候選說明；目前尚未修改遠端分支、tag、Release 或資產。
+- 開發驗證結果：唯讀查得 GitHub `main` 為 `7829876862bca5dff72098aa6831b61fc266d594`，工作分支原先為 `codex/0.51-anthropic-claude@299ff5d4288b9d50e356db8b0a5ae349dcb23ebc`、相對 main ahead 22／behind 0；公開最新 Release 為 `v0.51.0`，PR #10 屬另一分支，遠端 `v0.52.0` tag 尚不存在。候選 46 個 source/build inputs 與 commit 一致；其餘 dirty 項為未納入封裝的 project-management 文件／evidence。`npm run check` exit 0（含全套 regression 與四組 YouTube suites）；production `npm audit --omit=dev` 為 0 vulnerabilities；完整 audit 有 8 個 moderate dependency paths，均追溯至 `GHSA-hp3w-g68c-fv3c` 的 electron-builder build-time dependency chain，上游尚無修補版。憑證格式、個人絕對路徑掃描未命中。DMG `hdiutil verify` VALID、ZIP `unzip -t` 通過、bundle `codesign --verify --deep --strict` 通過；`latest-mac.yml` 的 ZIP URL、大小、SHA-512 均匹配最終 ZIP，四項 SHA-256 sidecar 驗證通過。從唯讀掛載 DMG 與 ZIP 解壓後分別進行原生 UI／layout／usability smoke，renderer fixture 12/12、無 Google 請求、profile 與 process 清理通過，兩包 source hashes 相同；不代表全長播放／轉錄、實際上傳或真實 OAuth 驗收。Windows 不在本版發布範圍。
+- 獨立審查是否執行：是（發布等級六面向審查；round1–round4 報告均獨立留存；各輪審查代理只新增其本輪報告）。
+- 獨立審查結論：
+  - [round1 報告](docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round1.md)：逐字判定「結論：**不通過（BLOCK）**。」
+  - [round2 報告](docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round2.md)：逐字判定「結論：**BLOCK**。」
+  - [round3 報告](docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round3.md)：逐字判定「結論：**不通過（BLOCK）**。」
+  - [round4 報告](docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round4.md)：逐字判定「結論：**BLOCK**。」靜態 workflow review 未發現 manifest 程式缺陷；round3 的 exact-source CI blocker 仍在，尚無 `9517659...` GitHub workflow run／artifact，故不得宣稱 blocker 已解除。
+- 發布授權：
+  - 是否需要：是。
+  - 核准人／角色：需求提出者／產品負責人；需求方已明確提出完成至 GitHub 發布。
+  - 核准時間：2026-10-19（使用者分別明確回覆「接受，明確揭露後發布」及「接受並在發行說明揭露」）。
+  - 核准範圍：使用者接受 FR-027 真實 Google OAuth／Keychain／頻道影片與字幕上傳未驗收風險，以及 `GHSA-hp3w-g68c-fv3c` moderate build-time dependency advisory；兩者均須於 README／Release notes 清楚揭露後公開 MVP。另依常設授權 `AUTH-2026-07-23-01` 揭露 macOS ad-hoc／未 Developer ID 公證風險。此接受不涵蓋來源或資產不一致、checksum 未驗證、機密洩漏、未完成其餘發布檢查或 Windows 實機驗收。
+- 部署／發布結果：候選 source commits 為 `969b7f8f0bb03445ab5992812b26cb0576e8eeee`、`58ea01387a0a987910c84c0d85b284c95f850eb5`、`5685cdb2bde47e85e962b80bb6c8730420d3a66d`、`95176592746b51953d6f7e4f80e7a55a977f9c7f`、文件版本修正 `80a46a203dbfca34f26dc7c9545f9d9dac138e93` 及 BUG-050 test 修正 `1c045e7fff77049ff084126e3dc59e602fc60918`。最新本機候選 `1c045e7...` 與 sidecars 已建置於 `../dist/release-0.52.0-macos-1c045e7-normal/`，DMG／ZIP、metadata、SHA、codesign 與兩包 UI smoke 均完成；round5 獨立複審待執行。release branch 遠端仍指向 `80a46a2...`；尚未推送 `1c045e7`、建立 `v0.52.0` tag／GitHub Release 或上傳資產。
+- 遺留風險與後續事項：round2 的 B1／B2 已修正，round3／round4 均因 exact-source CI artifact 缺漏判定 BLOCK；run `39302030556` 因 docs status 版本不同步失敗，`39308587730` 修正後通過 docs:check／其他測試但因 BUG-050 跨平台 mode assertion 失敗，兩者均沒有 artifact。BUG-050 已在本機 test-only commit 修正：POSIX 保留 0600，Windows 以 opaque safeStorage fixture 密文與 round-trip 驗證；focused suite 及完整 check 通過。最新 `1c045e7` 候選 DMG／ZIP 驗證及 smoke 通過，但該 source SHA 尚無 round5 review、Windows CI run 或 artifact；需先複審，之後才依既定界線推送取得同 SHA artifact，再核 manifest checksum 與跨平台共享 app/source hashes。round4 靜態 review 未發現 manifest 程式缺陷；之前 Windows workflow 均未進入封裝步驟。真實 Google 憑證與頻道上傳、Developer ID／公證／Gatekeeper、Windows 實機，以及目前 release branch 對 main 的整合仍未完成；已核准風險會保留於公開說明。只有同 SHA CI artifact、hash 比對、後續獨立複審與 final docs gate 通過後才可建立 tag／Release，並須核對公開資產及下載 digest。
+
+### Round2 BLOCK 修正計畫（2026-10-19）
+
+- 審查依據：`docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round2.md` 判定 BLOCK；本次只處理其 B1 README 安裝資訊版本／平台錯置、B2 provenance 對 commit/package/source archive 範圍描述不精確、B3 缺少 exact-source CI artifact 三項。
+- 修正範圍：在 README 明列 v0.52.0 macOS arm64 DMG／ZIP 下載位置，將 Windows 0.49.0 指示標成歷史版並說明此版無 Windows 資產；在候選 `PROVENANCE.txt` 分別說明 46 檔 commit 增量、electron-builder app bundle allowlist（包括仍隨包附帶的 root `NEXT-VERSION-FIX-LOG.md`）及 GitHub tag source archive 的完整 tracked tree／未提交工作樹檔案排除範圍。
+- 驗證計畫：先核對現有 `windows-preview.yml` 是否能在候選 commit 觸發並提供 CI artifact；修正 README 後提交新的明確 source delta，重建及重新驗證 DMG／ZIP／checksum／metadata／UI smoke；完整 check、production audit、文件檢查後獨立複審。審查通過後才推送候選 branch，執行 exact-source CI，下載 artifact 並比對可跨平台逐位元一致的 app/source 檔案；CI Windows artifact 只作同源交叉驗證，不代表此版 Windows 發行或實機驗收。若 workflow 未產出或比對不一致，停止發版並調查。
+- 外部操作界線：此刻尚未推送、建立 tag／PR／draft／Release 或上傳資產；取得審查及 CI 交叉驗證後，再依原發布授權繼續。所有既存未提交治理紀錄、evidence 與 review 檔案保留，不納入 source commit。
+
+### Round2 B1／B2 修正與最新 macOS 候選（2026-10-19）
+
+- README 已在 commit `58ea01387a0a987910c84c0d85b284c95f850eb5` 更新 v0.52.0 macOS arm64 DMG／ZIP 安裝檔名與 GitHub Release 連結，明確說明本版沒有 Windows 資產；commit `5685cdb2bde47e85e962b80bb6c8730420d3a66d` 再把 SmartScreen 簽章提示限定為歷史 Windows 0.49.0，避免套用到本版。
+- 候選 provenance 分開揭露：branch base `299ff5d...` 至最新 source commit 的 46 個 tracked 路徑差異；electron-builder `build.files`／`extraResources` app bundle allowlist（不含 `docs/project-management/`，但含未變動、含既有工作站絕對路徑的 root `NEXT-VERSION-FIX-LOG.md`）；以及 GitHub tag source archive 會包括完整 tracked tree／既有歷史絕對路徑、但不包括不在 tag commit 的本機未提交及 untracked 工作檔。
+- 最新本機 macOS 候選以 `5685cdb2bde47e85e962b80bb6c8730420d3a66d` 建置於 `../dist/release-0.52.0-macos-5685cdb-normal/`。`npm run check`、production audit、DMG／ZIP／codesign／SHA-256／updater metadata 均通過；唯讀 DMG app 與 ZIP 解壓 app 各自的 native UI/layout/usability smoke 通過，renderer fixture 12/12、Google requests false、process group 正常關閉且 isolated profile 移除。完整 log 與 screenshot／JSON 證據保留在該候選目錄。
+- 目前尚未推送 source commit，故 workflow `windows-preview.yml` 尚無 `5685cdb...` 的 CI run／artifact。取得 round3 審查結論後，才推送 branch 觸發 CI，並以 Windows artifact 封裝內可跨平台一致的 source 檔 hash 對照 macOS app；此驗證不代表 Windows 本版發布或實機驗收。結果待記錄，不能宣稱 exact-source CI gate 已通過。
+
+### Round3 review follow-up：exact-source CI artifact（2026-10-19）
+
+- 獨立報告：`docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round3.md`。逐字判定：「結論：**不通過（BLOCK）**。」報告確認 B1 README 與 B2 provenance 已解決；唯一 P1 阻擋是缺少來源為 `5685cdb2bde47e85e962b80bb6c8730420d3a66d` 的 CI artifact 及同源 app/source 檔交叉核對。
+- 執行計畫：現有 `windows-preview.yml` artifact 目前只上傳安裝包與 sidecars，無法直接比較 app 內共享 source 檔；在最新候選 source 上為 Windows CI artifact 加入小型 packaged-app source fingerprint manifest（至少記錄 `GITHUB_SHA`、package version、relative path 與 SHA-256，排除 platform-specific `node_modules`），隨 artifact 上傳。完整審查與重新建置／smoke 後，唯讀重核 remote branch/tag，再 fast-forward push 候選 branch 以觸發 workflow；下載同 SHA artifact，比較 manifest 中共享檔案與本機 macOS app 內容，並記錄 run／artifact／hash 證據。若 CI 不成功、manifest SHA 不符或檔案不同，停止發布並修正。
+- 發布界線：branch push 僅用於取得已列為 release gate 的 exact-source CI artifact；在 artifact 核對、後續獨立複審、`docs:check:final` 通過之前，不建立 tag／PR／draft／公開 Release，也不上傳 macOS 資產。Windows CI 產物只供同源交叉驗證，不加入 v0.52.0 Release、不代表 Windows 實機驗收。
+- workflow fingerprint 已實作於 commit `95176592746b51953d6f7e4f80e7a55a977f9c7f`：Windows artifact 現將包含以實際 `win-unpacked/resources/app` 產生、含 source SHA/version/relative path/SHA-256 的 `PACKAGED-APP-MANIFEST-windows-x64.txt`，並把 manifest 自身 digest 加入 Windows checksum 清單。原 `5685cdb...` 候選因來源 commit 已更新而不再是發布候選；需從新 HEAD 重建及重驗，遠端 branch 尚未推送。round4 獨立 review 靜態核對 manifest 收集、checksum 與上傳路徑，未發現程式缺陷；因無同 SHA CI run／artifact，仍判定 BLOCK。
+
+### Round3 後 workflow fingerprint 與最新候選（2026-10-19）
+
+- Windows workflow YAML 由 `js-yaml` 成功解析，artifact step 確認保留；workflow-only source commit `95176592746b51953d6f7e4f80e7a55a977f9c7f` 加入 packaged-app fingerprint manifest 與其 SHA-256 checksum。完整 `npm run check` 首次在和唯讀檢查併行時，`test-core` 非同步 job wait 失敗；未改程式，單獨重跑 exit 0。`npm audit --omit=dev` 為 0；完整 audit 確認原已接受的 8 moderate paths 仍屬同一 GHSA。
+- 最新候選從 commit `9517659...` 建置於 `../dist/release-0.52.0-macos-9517659-normal/`，DMG／ZIP／blockmaps／updater metadata／checksum／provenance／signing status 已重新建立。DMG checksum VALID、ZIP 無錯誤、codesign strict 通過、版本 0.52.0、arm64；latest ZIP 256,484,008 bytes，SHA-512 與 updater metadata 一致；四項 SHA-256 驗證通過。
+- DMG packaged UI smoke 通過。ZIP 第一次在 CDP `Page.captureScreenshot` timeout，cleanup 確認未強制終止且 profile 已移除；保留原失敗 evidence 後，以新路徑 `zip-smoke-retry1.png` 重跑通過。兩個成功候選 renderer fixture 各 12/12、無 Google requests，executable/main hashes 一致。
+- round3 原審查對象為 `5685cdb...`，其唯一 blocker 是 exact-source CI artifact。round4 已審查 `9517659...` manifest 實作與新候選，結論 BLOCK 的唯一 P1 仍是尚無同 SHA CI artifact。已依本條目既定界線 fast-forward push 候選 branch 僅用於觸發 workflow；run `39302030556` 因 committed version-status 文件與 package version 不一致而在 docs:check 失敗，artifact 尚未產生。CI artifact 不加入 macOS release，也不宣稱 Windows 發行／實機驗收。
+
+### Round4 靜態 source review 與 CI 發布阻擋（2026-10-20）
+
+- 獨立報告：`docs/project-management/reviews/2026-10-19-fr-027-v0.52.0-github-release-round4.md`。逐字判定：「結論：**BLOCK**。」六面向檢查確認 workflow manifest 靜態收集 source commit／version／relative paths／SHA-256，將 manifest checksum 納入 sidecar 並隨 artifact 上傳；未發現本輪 workflow 程式缺陷。唯一 P1 發布阻擋是 GitHub 尚未執行 workflow，無同 SHA `95176592746b51953d6f7e4f80e7a55a977f9c7f` artifact，故無法核對實際 manifest 或跨平台共享 app/source hashes；不得宣稱 round3 blocker 已解除。
+- reviewer 在候選目錄重驗 DMG、ZIP、兩個 blockmaps 的 SHA-256 sidecar 與 ZIP integrity，均通過；此為候選完整性檢查，不代表 Windows CI／跨平台封裝驗收。完整 `npm run check`、production audit、DMG/ZIP smoke 為主代理前述結果，reviewer 未重跑。
+- 發布風險揭露（真實 Google OAuth／Keychain／頻道影片字幕上傳未測；ad-hoc 未公證／Gatekeeper 未測；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory，production audit 0；Windows 實機、跨平台及真實轉錄缺口）已記錄且取得揭露後發布接受；接受揭露不等於驗收事實或豁免 CI/source/checksum gate。
+- 外部操作：在同 SHA artifact 驗證前，不建立 tag／PR／draft／公開 Release、不上傳 macOS 資產。依本條目原定界線與發布授權，僅 push release branch 觸發 exact-source Windows preview workflow；artifact 核對失敗即停止並調查。遠端核查時間 2026-10-20（Asia/Taipei）：branch 仍指向 `299ff5d...`，`v0.52.0` tag 不存在、GitHub Release not found。
+
+### 首次 exact-source Windows CI 阻擋與最小修正計畫（2026-10-20）
+
+- 候選來源 commit `95176592746b51953d6f7e4f80e7a55a977f9c7f` 已依既定界線推送至 `codex/0.51-anthropic-claude`，遠端 branch fast-forward `299ff5d...` → `9517659...`；`gh run view` 證實 Actions run `39302030556` head SHA 完全相同，URL `https://github.com/twyderek/offline-subtitle-factory-app/actions/runs/39302030556`。
+- run 於 `Run source and real FFmpeg regression tests` 失敗；`gh run view --log-failed` 顯示 `npm run check` 的 `docs:check` 回報 `00-CURRENT-STATUS.md 的現行版本未與 package.json 0.52.0 同步`。建置／renderer／checksum／manifest／artifact upload 後續步驟全 skipped，沒有 CI artifact。這是已觀察到的 release gate 失敗，不是 manifest 程式錯誤或 Windows regression 結論。
+- 修正計畫：只在來源 `docs/project-management/00-CURRENT-STATUS.md` 將 tracked 的現行版本欄位從 0.51.0 同步為 0.52.0，不提交本機其餘治理紀錄／evidence／review 變更。新增 docs-only source commit 後，以新 HEAD 重新執行 `npm run check`、重建並驗證 macOS candidate、另觸發 exact-source Windows CI；需確認 workflow 完整通過並取得 artifact 後，才可進行 hash 比對與後續複審。tag／Release／assets 維持不建立。
+
+### BUG-050：Windows YouTube suite POSIX mode assertion 修正與重建候選（2026-10-20）
+
+- debug preflight：`npm run project:preflight -- --type=debug` exit 0；依路由讀取測試、獨立審查、偵錯修正與文件結案流程及 FR-027 設計／測試／debug 現況。
+- 第二次 exact-source CI：run `39308587730`，head `80a46a203dbfca34f26dc7c9545f9d9dac138e93`；`docs:check` 通過、`npm test` 的其他 scripts 直到核心回歸均通過，posttest YouTube suite 於 `scripts/test-youtube.mjs:93` 因實際 `fs.stat().mode & 0o777 = 438`、預期 `0600 = 384` fail；Windows packaging／manifest／upload 全 skipped，無 artifact。錯誤日誌由 `gh run view 39308587730 --log-failed` 取得，Actions URL `https://github.com/twyderek/offline-subtitle-factory-app/actions/runs/39308587730`。
+- 根因為測試無條件使用 POSIX mode bits 斷言，未考慮 Windows `fs.stat()` 語意；不能從 0666 推論 Windows ACL 暴露，也不能將其標為產品儲存安全缺陷。`lib/youtube/publisher.mjs` 仍經 `safeStorage.encryptString` 寫密文、臨時檔原子 rename。
+- 修正／本機驗證：BUG-050 已登記於 `docs/project-management/07-DEBUG-AND-FIX-HISTORY.md` 並修正在 `scripts/test-youtube.mjs`，commit `1c045e7fff77049ff084126e3dc59e602fc60918`。POSIX 保留 0600 精確斷言；safeStorage mock 改不透明密文 token map，確認檔案不含秘密明文及 decrypt round-trip；Windows 不使用 POSIX mode assertion。`node --check scripts/test-youtube.mjs`、focused `node scripts/test-youtube.mjs`、`npm run test:youtube`、完整 `npm run check` 與 `git diff --check` 均通過；無產品 runtime 行為修改。Windows-specific branch 待 exact-source CI。
+- 同步產物：最新 commit `1c045e7...` macOS arm64 候選及 sidecars 已建置於 `../dist/release-0.52.0-macos-1c045e7-normal/`；DMG VALID、ZIP integrity、codesign strict、bundle version 0.52.0／arm64 通過，latest metadata／四項 SHA256 與 bytes 相符，README source copy 一致，app Resources tree 與前一候選逐檔一致（排除 node_modules）。DMG smoke 通過；ZIP 第一次 `Runtime.evaluate` timeout、第二次新 profile `UI smoke timed out`，兩次 cleanup 均 group closed／`forcedCleanup=false`／profile removed；第三次 fresh ZIP extraction retry 通過。DMG／ZIP renderer fixture 各 12/12、無 Google requests；兩份 playback JSON 僅進展約 0.0006 秒且 paused，未驗收播放。candidate evidence／provenance 記錄所有失敗與成功。round5 已獨立複審並因同 SHA run/artifact 缺漏 BLOCK；依新延續條目所列 gate，尚待推送觸發 Windows workflow與 hash 比對。
+
+## 2026-10-19 — FR-027 封裝候選驗收工具邊界補強
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接本機 macOS unpacked 候選 round2 獨立審查提出的非阻擋改善；需求方回覆「ＯＫ，請繼續」。
+- 關聯需求／缺陷：`FR-027`、`NFR-006`、`NFR-007`。
+- 變更等級：中（只改本機驗收 CLI／fixture evidence 與測試，不改產品 runtime、不重建或安裝 App）。
+- 執行前已讀：`project:preflight -- --type=development` 列出的固定核心與任務路由（是）。
+- 目標與成功條件：拒絕重複、混用、帶值／拼錯及缺值的 native 目標參數；candidate `.app` 須為有效目錄、含 app package 與可執行主程式；失敗須在啟動 Electron／建立 profile 前退出。將 renderer state fixture 的 12 案結果與通過狀態保存於 usability JSON evidence。
+- 不在範圍：不改 YouTube 產品 UI／OAuth／publisher、不使用真實 Google／Keychain／頻道／上傳、不覆蓋或替換 `/Applications` App、不建立新安裝包、不發布。
+- 預計影響檔案／模組：新增驗收 CLI helper 與負向測試；`scripts/verify-youtube-ui.mjs`、`package.json`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、本條目、新 evidence 與獨立審查報告。
+- 風險與回復方式：macOS candidate 權限判斷須符合本機 `.app` bundle 執行型態；測試使用自有暫存 fixtures 並確認清理。既有候選、已安裝 App、歷史 evidence 與工作樹修改均保留。
+- 驗證計畫：重複／混用／空值／錯誤 bundle 負向測試、候選 native UI replay 確認 12 案 JSON 持久化、工具 syntax、完整 `npm run check`、`git diff --check`、獨立六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增 `scripts/youtube-ui-cli.mjs`，解析 target selector 時拒絕重複／混用／缺值／malformed native flags，並在啟動前檢查 candidate `.app` 根目錄、app package 資源、主 executable 型態及執行權限。新增 `scripts/test-youtube-ui-cli.mjs` 並註冊於 `npm test`；`scripts/verify-youtube-ui.mjs` 將通過的 renderer state fixture 12 案結果寫入 usability evidence JSON。round1 指出 `Contents` symlink 可越界後，新增逐層目錄檢查、package／executable realpath containment 及四層中介目錄 symlink 負向案例；round2 再指出 boolean target 接受 `=value` 靜默忽略，現已加上拒絕與回歸；round3 後加入明確 verifier flag 白名單；round5 再擴大為拒絕所有未知 dash option、額外 positional argument，且 verifier 要求 evidence path 位於 flags 前。verifier 子程序負向測試以 fixture `TMPDIR` 證明錯誤參數／bundle 在 user-data profile 與 evidence 建立前退出。更新本狀態與 06 稽核；未改產品 runtime、已安裝 App 或候選 bundle。
+- 開發驗證結果：初版 `node scripts/test-youtube-ui-cli.mjs`、工具 syntax、候選 replay v2 與完整 `npm run check` 均通過，但 round1 獨立探測成功重現 `Contents` symlink 外逸，該初版結果不可作結案依據。逐層 symlink 修正後 `node --check scripts/youtube-ui-cli.mjs && node --check scripts/test-youtube-ui-cli.mjs && node scripts/test-youtube-ui-cli.mjs` 及完整 `npm run check` 通過；唯讀 preflight 對實際 candidate bundle 亦通過，未啟動 App。round2 再發現帶值 boolean flag 靜默被忽略；round3 又發現雙破折號拼錯旗標靜默落到 source target；round5 發現 `-x` 單破折號旗標亦被忽略。現已拒絕所有未知 dash options、額外 positional inputs，且將 verifier flags 排在 evidence path 之後；direct／verifier subprocess tests 覆蓋拼錯／未知 option、evidence-first 誤用與無 profile／evidence side-effect。最新修正後 focused suite、三支腳本 syntax 及完整 `npm run check` exit 0（19 文件、全套 tests、四份 YouTube posttest suites）；`npm run docs:check`、`npm run docs:check:final` 與 `git diff --check` 均 exit 0。round6 獨立複審通過。round4 審查結論為通過，但首次 `npm run docs:check:final` exit 1：round4 報告缺固定阻擋欄位及聲明附句，原件保留未改；補齊治理紀錄後，本輪 final gate 已通過。candidate v2 UI replay 與 12 案持久 evidence早於 symlink 修正，僅證明 3 秒長合成影片 playback 曾開始（非全長播放）、字幕保存重載、布局與 mock cases。
+- 獨立審查是否執行：是（round1–round6 報告均完成；round6 通過且 schema 合規）。
+- 獨立審查結論：
+  - round1 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round1.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強審查不通過：重複／混用／缺值參數、一般錯誤 bundle 與 executable 權限的 focused 驗證及候選 smoke v2 evidence 大致符合記錄，但 `Contents` 中介路徑可經 symlink 指向 bundle 外，使 `validateCandidateApp` 接受並由 verifier 啟動 bundle 外 executable；修正此邊界並加入 fail-before-side-effect 回歸測試後，方可結案；此結果不代表 FR-027 真實 Google／Keychain 上傳功能已驗收。**
+  - 修正回應：round1 發現已由逐層目錄 `lstat`、realpath containment、四類中介 symlink 測試與 fail-before-evidence 子程序測試處理；修正後結果待 round2 複審。
+  - round2 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round2.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強 round2 複審不通過：round1 發現的中介目錄 symlink 越界已由逐層 lstat、realpath containment 與三組 direct／verifier 負向測試解除，修正後 focused suite 與既有候選唯讀 preflight 通過；但 `--installed-native=<value>`／`--source-native=<value>` 仍被靜默忽略，且 `--installed-native=typo` 會使 verifier 回退啟動 source Electron，違反錯誤 target fail-closed 要求，故修正旗標解析並加入回歸測試前不得結案；此判定不代表 FR-027 真實 Google／Keychain 上傳已驗收。**
+  - 修正回應：round2 的帶值／拼錯 boolean flag 已加 parser 拒絕與 direct／verifier 子程序測試；最後完整驗證與 round3 待完成。
+  - round3 複審：已完成，結論及逐字引用見上。
+  - round3 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round3.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強 round3 複審不通過：round1 的 bundle 外 symlink 外逸已由逐層目錄檢查、realpath containment 及四層 direct／verifier 負向測試解除，round2 的 `--installed-native=<value>`／`--source-native=<value>` 靜默忽略亦已由 parser 拒絕與回歸測試解除；但 `--instaled-native` 仍被靜默忽略並解析成預設 source target，故須補拼字錯誤 fail-closed 與無 profile／evidence 副作用測試後再複審；此結論不代表 FR-027 真實 Google／Keychain／帳號／上傳或安裝後驗收完成。**
+  - 修正回應：round3 指出的未知旗標回退已改為拒絕所有不在明確支援白名單內的 option；拼字負向測試已通過，修正後完整回歸與 round4 複審待完成。
+  - round4 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round4.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強 round4 獨立複審結論為通過：round1 的 bundle 外 symlink 外逸、round2 的 `--installed-native=<value>`／`--source-native=<value>` 靜默忽略，以及 round3 的 `--instaled-native` 靜默回退，均已由目前逐層 candidate 結構驗證、明確 option allowlist、focused direct／subprocess 測試及本輪 parser probes 排除；本輪 focused suite exit 0，唯讀實際 candidate preflight 成功，未發現新的阻擋問題；完整 `npm run check` 與 `git diff --check` 僅引用主代理最新紀錄，本 reviewer 未重跑，candidate v2 UI replay 為 symlink 修正前的較早 evidence，3 秒媒體僅記錄播放曾開始而非全長播放或本輪 UI replay；本結論僅適用於候選驗收工具邊界，不代表 FR-027 真實 Google／Keychain／帳號／上傳或安裝後驗收完成。**
+  - round4 審查結論之後續事項：程式 finding 無新增；round4 報告未符合 validator 固定欄位，故原件保留且不作 final gate 結案引用。
+  - round5 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round5.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強 round5 獨立複審結論為不通過：round1–round3 的 bundle symlink 外逸、帶值 native flag 及雙破折號拼錯／未知 option 問題，在目前逐層 `lstat`／realpath guard、focused／subprocess tests 與本輪唯讀 candidate preflight 下均未重現，12 案 fixture JSON 亦持久化；但 `-x` 這類未知單破折號 option 仍被 `parseNativeTarget` 靜默接受為預設 source target，verifier 後續依現行控制流會建立 profile 並選擇 source Electron，故未知 option 尚未全數 fail-closed，須修正 parser 並補上不建立 profile／evidence 的回歸後再複審；本輪未重跑完整 `npm run check` 或 `npm run docs:check:final`，後者仍待完成；既有 candidate v2 UI evidence 早於 symlink 修正且只證明播放開始，不代表全長播放或本輪 replay；本結論僅限候選驗收工具邊界，不代表 FR-027 真實 Google／Keychain／帳號／上傳或安裝後驗收完成。**
+  - 修正回應：round5 指出的未知單／雙破折號 option 已改為完整 dash-option allowlist，並新增 `-x` direct／subprocess fail-before-profile／evidence tests；round6 複審待完成。
+  - round6 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-candidate-validation-tool-hardening-round6.md`
+  - 判定（逐字引用報告綜合判定完整結論句）：**本輪 FR-027 封裝候選驗收工具邊界補強 round6 獨立複審結論為通過：round1 的 bundle 外 symlink、round2 的 boolean `=value`、round3 的 `--instaled-native` 及 round5 的未知單破折號 `-x` 靜默忽略問題，均已由目前 parser／candidate guard 與 direct／verifier subprocess regression 覆蓋；本輪指定 syntax 與 focused suite、known／unknown／positional／evidence-order probes 及實際 candidate 唯讀 preflight 均通過，且新增的 option-first evidence 子程序案例確認 exit 1、未寫同名 screenshot、未建 profile；完整 `npm run check`、`npm run docs:check` 與 `git diff --check` 僅為主代理最新 08／06 記錄，本 reviewer 未重跑，`npm run docs:check:final` 仍待主代理結案前完成；candidate v2 UI replay 早於 symlink 修正且只證明播放曾開始，本結論僅適用於驗收工具邊界，不代表 FR-027 真實 Google／Keychain／帳號／上傳或安裝後驗收完成。**
+- 結案檢查結果：首次 `npm run docs:check:final` exit 1，round4 報告 schema 欄位缺失；round5 發現的 `-x` 已修正，round6 通過；補齊本條目後再次執行 `npm run docs:check:final` exit 0（19 個治理文件、最新紀錄已結案），`git diff --check` exit 0。
+- 發布授權：不適用；本輪不發布。
+- 部署／發布結果：不適用；不打包或安裝。
+- 遺留風險與後續事項：真實 Google／Keychain／頻道上傳、DMG／ZIP 安裝後與 Windows 驗收不屬本輪；不得將工具測試通過擴張為產品端到端驗收。
+
+## 2026-10-19 — FR-027 macOS 封裝開發候選可用性驗證
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方於 BUG-049 source 修正及獨立審查結案後回覆「OK，請繼續」，承接開發版可用性確認。
+- 關聯需求／缺陷：`FR-027`、`FR-003`、`NFR-003`、`NFR-005`、`NFR-006`、`NFR-007`。
+- 變更等級：中（僅驗收工具與一次性 macOS arm64 unpacked 測試候選；不修改產品 runtime，不安裝或發布）。
+- 執行前已讀：`project:preflight -- --type=development` 列出的固定核心與任務路由（是）。
+- 目標與成功條件：以目前工作樹建立隔離 unpacked `.app`；透過該包自己的 Electron／main／server 使用自有 profile 與合成媒體，完成首頁／校閱播放及字幕編輯保存重載，並驗證窄視窗布局、YouTube 發布介面本機狀態與工具列可達；所有自有程序及 profile 可確認清理。
+- 不在範圍：不覆蓋已安裝 App 或既有 `dist` 候選、不寫入 runtime manifest、不真實 Google／Keychain／頻道／上傳、不建立 DMG／ZIP、不安裝／簽發／提交／推送／發布、不做 Windows 驗收。
+- 預計影響檔案／模組：`scripts/verify-youtube-ui.mjs`、`scripts/compare-installed-ui.mjs`、本條目與必要的 `00-CURRENT-STATUS.md`／`06-TEST-AND-PROCESS-AUDIT.md`／evidence／新獨立審查報告；一次性輸出至新的 `../dist/test-build-0.51.0-youtube-ui-20261019/`。
+- 風險與回復方式：electron-builder 必須明確指定尚不存在的輸出目錄並設定 `--publish never`；runtime manifest 先唯讀驗證，直接執行 unpacked build 避免生成／覆寫 manifest；候選 App 使用獨立臨時 userData，程序群組關閉確認後才移除 profile。若封裝或驗收失敗，保留失敗證據及候選供查核，不動已安裝版與其他 dist 內容。
+- 驗證計畫：檢查 source runtime manifest；產出 macOS arm64 unpacked App；驗證 bundle 簽章／版本／資源 hash；以候選 executable 執行原生 UI smoke、隔離 YouTube modal mock 與 1100×700／多 viewport layout；跑新增工具 syntax、`npm run check`、`git diff --check`；獨立六面向審查；整合文件後執行 `npm run docs:check:final`。
+- 實際修改：`scripts/verify-youtube-ui.mjs` 新增 `--candidate-native=<.app>`，從候選 bundle executable 啟動並使用隔離 profile；native candidate 可串接 YouTube usability fixture 與 review layout validator。`scripts/compare-installed-ui.mjs` 新增候選 bundle app root／前端 runtime hashes 與實際 resize／viewport 限制資訊。使用明確新路徑建立 unpacked bundle `../dist/test-build-0.51.0-youtube-ui-20261019/mac-arm64/離線字幕工廠.app`，保存 `2026-10-19-packaged-youtube-ui-v1.png` 系列 evidence；同步本狀態及 06 稽核。本輪未改產品 runtime、安裝版或 runtime manifest。
+- 開發驗證結果：既有 `npm run runtime:verify:mac`、candidate `codesign --verify --deep --strict --verbose=2`、candidate `verify-runtime-package.mjs --target=darwin-arm64` 均 exit 0。候選 native 命令 `node scripts/verify-youtube-ui.mjs docs/project-management/evidence/2026-10-19-packaged-youtube-ui-v1.png --candidate-native='<candidate.app>' --validate-layout --validate-usability` exit 0：首頁／校閱、3 秒合成 MP4 播放、字幕保存重載還原、native outer 1100×700／content 1100×668、22 控制及八尺寸各 22 控制命中、YouTube modal／錯誤保留／鍵盤／12 mock cases；無 Google requests。自有程序群組與 profile 清理確認，未 force。`npm run check`（包括 npm test 與四份 YouTube posttest suites）、兩支工具 `node --check`、`git diff --check` 通過。候選 514 MB、版本仍為 0.51.0、僅 ad-hoc signature 且未 notarize；不是 DMG／ZIP 安裝測試。
+- 獨立審查是否執行：是（round1與round2；round1原件保留，round2為結案依據）。
+- 獨立審查結論：
+  - round1審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-macos-unpacked-candidate-validation-round1.md`；格式驗證有缺項，原報告保留且不作本輪 final gate 依據。
+  - round2審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-macos-unpacked-candidate-validation-round2.md`
+  - 判定（逐字引用審查檔案綜合判定第53行完整結論句）：**Round2 獨立六面向審查確認 0.51.0 macOS arm64 unpacked 候選的本地啟動、隔離 profile、resource hashes、有限布局與 YouTube mock evidence 相符且清理已確認，本輪有條件通過；此結論不代表 FR-027 真實上傳、FR-003 實際離線轉錄、Windows、安裝後或發布驗收完成。**
+  - 條件（若為有條件通過）：結論僅適用於本機 macOS arm64 unpacked smoke；真實 OAuth／Keychain／上傳、實際離線轉錄、Windows、安裝後／Gatekeeper／發布仍未驗收。CLI 重複／malformed bundle 負向測試及 renderer state fixture 回傳物保存是後續工具改善，未阻擋本次有效候選。
+  - 條件是否已被需求方接受：是（本輪僅依需求方「請繼續」執行本機候選驗證，不作安裝或發布；此接受不代表核准任何未驗收項目對外發布）。
+- 發布授權：不適用；本輪不建立發布資產或對外發布。
+- 部署／發布結果：不適用；僅本機 unpacked 測試候選。
+- 遺留風險與後續事項：真實 Google OAuth／Keychain／影片字幕上傳、DMG／ZIP 安裝後流程、Windows 與完整轉錄／匯出仍需各自驗收；source／unpacked pass 不等於公開版或完整產品可交付。
+
+## 2026-10-19 — BUG-049 校閱窄視窗布局修正
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方於實際桌面版複核後回覆「OK，請繼續」，承接BUG-049修正。
+- 關聯需求／缺陷：NFR-006、NFR-007、FR-027、BUG-049。
+- 變更等級：中（局部CSS、版面回歸工具；不變更字幕資料或上傳後端）。
+- 執行前已讀：debug preflight核心及debug相關路由／測試／獨立審查／偵錯／結案流程。
+- 目標與成功條件：保留深藍側欄及左右校閱布局；1100×700工作區不橫向溢出、播放器不遮住編輯器，短視窗內容可捲動且基本操作可達；1280／1400不大幅改版。
+- 不在範圍：不改既有使用者資料／已安裝App，不真實Google／Keychain／上傳、不打包／發布、不擴大1024支援承諾。
+- 可執行計畫：1. 固定前輪BUG-049證據及CSS根因；2. 局部可收縮欄寬／短視窗捲動修正；3. 加入workspace與子控制可視性／捲動／編輯保存回歸，實際source Electron畫面與原生尺寸嘗試；4. focused、完整check及截圖；5. 獨立六面向審查並修正；6. 文件與final gate。
+- 預計影響檔案／模組：public/styles.css、scripts/compare-installed-ui.mjs、scripts/verify-youtube-ui.mjs與必要版面測試，00／03／06／07／08及新evidence／review。
+- 風險與回復方式：縮欄造成工具列換行與短高度捲動；以控制rect／hit-test與內容捲動驗證，不以overflow:hidden掩蓋；回復僅限本輪差異，保留既有dirty修改。
+- 驗證計畫：三尺寸／邊界尺寸完整workspace斷言，長字幕與AI展開、基本編輯保存重載、實際Electron截圖、YouTube既有smoke、npm run check、syntax／diff、獨立審查與docs:check:final。
+- 實際修改：局部review CSS改可收縮fr欄、窄工具列換行、viewer max-content rows、主grid與sidebar/viewer/stage各自捲動，避免影片蓋住播放鍵及長字幕focus捲走header。新增review-layout-fixture並由compare-installed-ui在source-native＋--validate-layout明示執行；同步00／03／06／07並保存各輪原件。未改renderer業務邏輯、上傳後端或使用者資料。
+- 開發驗證結果：最終review-layout-fix-v10 --source-native --validate-layout exit0；實際outer1100×700/content1100×668，22個控制rect與hit-test可達、8尺寸geometry、AI展開長文字且pageScrollY0；基本播放／保存重載與還原再讀回通過，group/profile清理確認且未force。最後CSS上的YouTube --validate-usability regression-v2（含鍵盤／12案）及完整npm run check exit0；新增／變更工具syntax與diff exit0。v1–v6斷言失敗、v7／v8中途通過但缺root-scroll驗證、v9補root後通過均保留，不當最終版本。
+- 獨立審查是否執行：是（獨立上下文round1，僅新增本輪報告）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-19-bug-049-review-narrow-layout-fix-round1.md`
+  - 判定（逐字引用「綜合判定／可逐字引用的完整結論句」）：**本輪 BUG-049 校閱窄視窗布局修正獨立六面向審查通過，最終 d01405c728ecc439da868b28974c0accbd6c8da959075154c627b0ed71672f02 CSS 經獨立 source Electron 原生 1100×700、八個 viewport、22 控制、長文字焦點及樣式與輸出設定補測，無本輪阻擋問題；本結論僅限 source 局部布局修復，不代表全產品可交付、真實 YouTube、封裝或跨平台驗收，主代理仍須回填工作紀錄並完成 final gate。**
+- 本輪結案判定：六步修正計畫完成；本輪局部source布局缺陷解除，不擴大全產品驗收範圍；未發布或更新已安裝軟體。
+- 結案檢查：整合獨立報告及限制後，npm run docs:check:final exit0（19文件、最新紀錄已結案）、git diff --check exit0。
+- 遺留風險與後續事項：真實YouTube、完整轉錄／匯出、新安裝包／Windows、OS縮放／螢幕閱讀器與一般使用者任務成功率不以本輪替代；原生resize只限實際量測1100×700，其餘八案為viewport模擬。共用comparison limitations仍有「未做resize」的舊字串，已在06明示本輪以layout.nativeResize實測欄位判讀，屬非阻擋工具後續改善；不改寫原始v10證據。
+- 發布授權：不適用；不提交、不推送、不打包、不發布。
+
+## 2026-10-19 — 已安裝版與開發版介面再次複核
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方再次反映介面與現行軟體差異過大，要求確認開發版可用性。
+- 關聯需求／缺陷：FR-027、NFR-006、NFR-007、BUG-046／047／048／049。
+- 變更等級：中（診斷工具及治理證據，不修改產品）。
+- 執行前已讀：debug preflight、核心與debug相關路由／測試／獨立審查／結案流程。
+- 目標與成功條件：識別本機已安裝版；同資料／同尺寸對照首頁與校閱頁；重測已修正YouTube視窗，區分局部技術通過與完整可交付驗收。
+- 不在範圍：不改產品介面／後端、不動使用者資料、不啟動已安裝App的既有profile、不真實Google／Keychain／上傳、不打包或發布。
+- 可執行計畫：1. 固定已安裝版與source雜湊／差異；2. 隔離Electron用已安裝前端資源與source後端fixture作同場對照（不冒稱installed runtime）；3. 重跑可用性與鄰近回歸；4. 同步發現與限制；5. 獨立六面向審查；6. final gate。
+- 需求方補充與計畫調整：使用者確認現行軟體即/Applications版，但明示檢核網頁不能和現行App比對；新增實際已安裝executable與source Electron各自隔離profile啟動，直接擷取App內容畫面與基本任務。原生預設視窗對照與三尺寸前端模擬分開，不碰使用者既有profile。未改產品或打包。
+- 預計影響檔案／模組：scripts/verify-youtube-ui.mjs、新前端對照helper、00／06／07／08、evidence及本輪獨立報告。
+- 風險與回復方式：兩版前端共用source fixture API不能代表完整安裝版驗收；明示限制，測試僅自有profile與合成資料，證據exclusive-create，不覆蓋既有修改。
+- 驗證計畫：已安裝public與source靜態hash／diff、三尺寸同場截圖與控制位置、影片／校閱／儲存本機fixture、YouTube --validate-usability、focused／完整check、獨立審查及docs:check:final。
+- 實際修改：新增compare-installed-ui helper，以Fetch唯讀已安裝public及source進行三尺寸同場對照，保存12張圖／hash／panel幾何／播放與編輯保存重載結果；verify-youtube-ui新增選用--compare-installed。同步00／06／07並新增BUG-049。未修改產品程式、既有資料或安裝版。
+- 原生追加實作：兩診斷腳本新增--installed-native／--source-native，直接啟動各自executable/main/server，擷取原生預設視窗App內容與hash；native使用獨立process group及既有cleanupProcessGroup並保存cleanup.json。還原fixture後加入二次重載，單獨compare模式亦產生有效媒體。
+- 開發驗證結果：v3完整compare＋--validate-usability exit0，兩版播放／編輯保存重載／還原fixture皆通過；YT12案與鍵盤亦通過；npm run check（含四份YT suites）exit0，兩支工具syntax與git diff --check exit0。1280／1400主布局相同；1100×700工作區溢出（BUG-049）仍未修，產品整體可用性不判通過。v1錯誤selector timeout、v2home丟token如實保留，v3修正測試導航及selector後通過。
+- 原生追加驗證：native-installed-v4／native-source-v4各exit0，真實App播放／保存讀回／還原再讀回；content分別1400×817／819，outer分別1400×849／851，未做原生resize或OS縮放。兩份cleanup確認自有group消失、profile移除且未force；使用者原有App仍運行。早期native-v1不支援window CDP方法、installed-v2收尾timeout exit1保留；後續確認自有程序退出後清舊fixture profile。追加後完整npm run check、兩工具syntax、diff exit0。
+- 獨立審查是否執行：是（獨立上下文round1／round2；僅新增各輪報告，保留原件）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-19-installed-development-ui-reaudit-round1.md`
+  - round1判定（逐字引用「綜合判定／可逐字引用的完整結論句」）：**本輪獨立審查通過僅限已安裝前端資源與 source 殼之隔離診斷：1280／1400 主布局幾何一致及 1100×700 的 BUG-049 均經獨立重現，程序 exit 0 不代表產品整體可用性通過；使用者已確認現行軟體為 /Applications 版，但原生已安裝 runtime 對照仍未完成，因此不得宣稱現行軟體比對需求全部完成或產品可交付。**
+  - 審查檔案：`docs/project-management/reviews/2026-10-19-installed-development-ui-reaudit-round2.md`
+  - round2判定（逐字引用「綜合判定／可逐字引用的完整結論句」）：**本輪 round2 獨立複審通過僅表示診斷證據完成：已安裝 App 與 source 各自原生預設視窗的首頁、校閱、合成影片播放、譯文保存重載及還原後重載已有可追溯證據，身分雜湊與清理紀錄核對通過；實際內容尺寸不同、原生 resize 未驗證且 BUG-049 仍未修正，因此不代表產品整體可用性通過或可交付。**
+- 本輪結案判定：六步診斷完成，原生基本任務證據由round2覆核；依審查修正06及本條目source outer高度851（未改原始證據），補工具註解。保留BUG-049，未修改產品，不以診斷通過替代產品驗收。
+- 結案檢查：整合兩輪報告後npm run docs:check:final exit0（19文件、最新紀錄已結案），兩工具node --check及git diff --check exit0。
+- 遺留風險與後續事項：使用者已確認/Applications中的0.51.0為現行軟體。BUG-049未修正，整體可交付標準未達；真實Google／Keychain、新開發版安裝包／Windows、原生resize與OS縮放、一般使用者任務成功率不以本輪替代。
+- 發布授權：不適用；不修改產品、不提交、不推送、不發布。
+
+## 2026-10-19 — FR-027 YouTube 介面可用性修正
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方於介面可用性複核後要求「請繼續」，承接修正 BUG-046／047／048。
+- 關聯需求／缺陷：FR-027、NFR-006、NFR-007、BUG-046／047／048。
+- 變更等級：中（renderer介面／狀態處理／CSS與測試；不變更OAuth或上傳後端）。
+- 執行前已讀：debug preflight、固定核心與debug路由、測試／獨立審查／結案工作流。
+- 目標與成功條件：沿用既有視覺樣式；header與footer持續可見、內容獨立捲動；1100×700等支援尺寸入口不溢出；錯誤不被輪詢覆蓋；鍵盤／Esc／焦點回復可驗證；保留同意、頻道與部分成功／重試語意。
+- 不在範圍：不改既有後端、真實Google／Keychain、公開／排程／續傳、安裝包／發布、Windows實機或整套介面重設計。
+- 可執行計畫：1. 建立條目並固定舊audit基準；2. 重整modal與頂列CSS、修正錯誤及輪詢競速；3. 補真實合成媒體／幾何／鍵盤／錯誤持續與狀態回歸；4. focused及完整check／截圖；5. 獨立六面向審查並修正；6. 文件同步與final gate。
+- 預計影響檔案／模組：public/youtube-publish.mjs、public/styles.css、scripts/verify-youtube-ui.mjs、必要前端測試、00／03／06／07／08、evidence及本輪reviews。
+- 風險與回復方式：新header/footer可能擠壓小視窗內容、輪詢可能與操作競速；以支援尺寸與受控競速回歸，失敗時只回復本輪差異，保留既有修改／證據。
+- 驗證計畫：真實Electron隔離profile＋合成MP4；1100×700／1280×800／1400×900；錯誤跨poll保持、鍵盤與焦點、頂列與footer幾何；四份YouTube suites及npm run check、diff、獨立審查、docs:check:final。
+- 實際修改：重整youtube-publish modal／狀態競速與同意控制；沿用review-button、固定header/footer及scroll body；styles兩處min-width與main grid修正頂列。review.html入口待module綁定才啟用。verify-youtube-ui增合成媒體、幾何／錯誤持續／原生鍵盤、renderer錯誤與清理檢查，新增iframe受控狀態fixture；同步00／03／06／07，保留既有變更與歷史evidence。
+- 開發驗證結果：npm run check exit0（含四份YouTube suites）、review UI、兩支驗證腳本node --check、git diff --check通過；fixed-v7 --validate-usability exit0，支援三尺寸／按鈕一致／錯誤1900ms保持／合成MP4播放／Tab、Escape、焦點及Enter／iframe12案（start僅一次）。PNG／JSON只是量測保存，不單獨代表後續測試pass。初期ready race以入口disabled修正，播放改等待currentTime；CDP Enter缺text導致早期鍵盤失敗，補完整事件後通過；diagnostic-v6保留但不稱全程pass。
+- 獨立審查是否執行：是（獨立上下文 round1，僅新增本輪報告）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-19-fr-027-youtube-usability-fix-round1.md`
+  - 判定（逐字引用「綜合判定／可逐字引用的完整結論句」）：**本輪 FR-027 YouTube 介面可用性修正獨立審查通過，BUG-046／047／048 在 source 與支援尺寸的隔離 Electron 驗證中無阻擋問題，同意、鍵盤及受控競速回歸通過；本結論不代表真實 Google、Keychain、安裝包、Windows 或封包級外連驗收，主代理仍須回填工作紀錄並完成 final gate。**
+- 本輪結案判定：六步計畫完成；無產品必修；依審查建議標示00舊段落為歷史診斷。僅source修正結案，未公開發布或實際頻道操作。final gate結果於下列欄位記錄。
+- 結案檢查：整合獨立報告及歷史標示後，`npm run docs:check:final` exit0（19文件、最新紀錄已結案）與 `git diff --check` exit0。
+- 遺留風險與後續事項：真實Google／Keychain／安裝包／Windows仍未驗收；先前audit只代表source viewport證據，不以技術測試取代真實發布驗收。
+- 發布授權：不適用；不提交、不推送、不打包、不外部發布。
+
+## 2026-10-16 — FR-027 介面一致性與可用性複核
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方反映開發版介面與現行軟體差異過大，要求再次確認可用性。
+- 關聯需求／缺陷：FR-027、NFR-006、NFR-007、BUG-046／047／048。
+- 變更等級：中（診斷／驗證工具與治理紀錄；產品程式唯讀）。
+- 執行前已讀：debug preflight、固定核心及 debug 路由／測試／獨立審查／結案流程。
+- 目標與成功條件：比對本機保留 v0.51.0 bundle 的校閱 HTML／CSS；以真實合成媒體檢查桌面視窗版面、控制樣式、初次使用／錯誤提示與輪詢；提供具體可用性判定及獨立審查，不把 mock 通過當真實發布驗收。
+- 不在範圍：不修改產品 UI／後端，不使用真實 Google 憑證、不外部上傳、不操作既有使用者專案、不打包或發布。
+- 可執行計畫：1. 比對 baseline；2. 補可用性 audit 模式與真實合成媒體；3. 實測及截圖／JSON；4. 更新發現與限制；5. 獨立六面向審查；6. final gate。
+- 預計影響檔案／模組：scripts/verify-youtube-ui.mjs、00／06／07／08、evidence 與本輪獨立報告。
+- 風險與回復方式：測試僅自有暫存 profile／合成媒體，完成清理；只新增驗證模式，不修改產品程式。
+- 驗證計畫：真實 Electron UI audit、YouTube focused suites、語法與 diff、獨立審查及 docs:check:final。
+- 實際修改：僅在 verify-youtube-ui 增加 --usability 診斷模式及真實合成MP4；新增v1／v2 PNG＋JSON，並同步00／06／07。產品UI、後端及正式資產完全未修改。新追蹤BUG-046／047／048，均為未修正的可用性事項。
+- 開發驗證結果：v2 audit exit0；muted影片duration3/currentTime0.176316；1400／1280／1100／1024×800量測完成，1024僅壓力案。modal client678/scroll1098，primary y1007.83／close1090.83，現有按鈕14px700圓角8／新modal16px圓角0，缺OAuth錯誤1.9秒後被改成準備上傳。minWidth1100頂列right1177，隱藏YT後舊匯出亦溢出；不能單獨歸因YT。baselineCSS hash完全相同，review.html只新增入口／module。四份YouTube suites、syntax與diff通過；不代表可交付可用性。
+- 獨立審查是否執行：是（round1自行重現；round2只補報告固定格式，保留兩份原件）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-16-fr-027-youtube-usability-audit-round1.md`
+  - 審查檔案：`docs/project-management/reviews/2026-10-16-fr-027-youtube-usability-audit-round2.md`
+  - 判定（逐字引用 round2「綜合判定」）：**FR-027 本輪介面一致性與可用性診斷已完成且主要發現經獨立重現，審查有條件通過，但開發版 YouTube 功能尚未達可交付可用性，不得以 audit 或既有 mock 測試通過替代產品驗收。**
+  - 條件是否已被需求方接受：是（本輪條件為遵守需求方明示的診斷範圍、AGENTS 的獨立報告／final gate及如實揭露限制；不代表需求方已接受BUG或未驗收風險進行產品交付）。
+  - 條件落實：保留round1／round2、原句完整引用；只就診斷結案，不修改產品，不把BUG-048歸因為YT獨有回歸；整合後 npm run docs:check:final exit0（19文件、最新紀錄已結案）及 git diff --check exit0。
+- 本輪結案判定：六步診斷計畫完成；四份focused suites、標準Electron smoke及audit均exit0；技術量測完成與產品可用性不通過分別記錄，BUG-046／047／048均未修正。
+- 遺留風險與後續事項：本機保留 bundle 是比對基準，不等於已確認使用者當前執行中的安裝版；baseline未同場runtime比對，尺寸為renderer viewport模擬而非原生resize／OS縮放；沒有封包監測或整程序egress證明。真實Google／Keychain／安裝包、Windows、完整鍵盤／焦點／螢幕閱讀器及一般使用者任務成功率仍未驗收；診斷不能當作可交付產品驗收。audit工具早期失敗清理／證據schema完整性有非阻擋改善項，見獨立報告。
+- 發布授權：不適用；本輪僅診斷，不發布或真實頻道操作。
+
+## 2026-10-16 — FR-027 YouTube 私人影片與字幕上傳
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方要求開始前輪 YouTube 一鍵影片與字幕發布概念的專案開發。
+- 關聯需求／缺陷：FR-027、NFR-001、NFR-002、NFR-005、BUG-043／044／045。
+- 變更等級：高（新增選用外部影音傳送、OAuth 與加密憑證儲存）。
+- 執行前已讀：已執行 development preflight，閱讀固定核心與 development 路由、測試／獨立審查／結案流程。
+- 目標與成功條件：Electron 校閱頁可匯入桌面 OAuth client、系統瀏覽器授權、顯示頻道、選擇已輸出 MP4 與已保存 SRT、私人上傳、進度／取消及既有影片字幕重試；OAuth secrets 不進 renderer 或一般工作紀錄。
+- 不在範圍：公開／排程、縮圖、播放清單、多頻道切換、跨重啟影片 byte-level 續傳、正式發布；真實 Google OAuth／上傳須有使用者自己的 client 與頻道。
+- 可執行計畫：1. 建立條目及 FR-027／設計；2. 官方 client、獨立 Electron service、safeStorage 與窄 IPC；3. 校閱發布 UI；4. deterministic OAuth／檔案邊界／上傳／取消／重試與 UI 驗證；5. 完整回歸及獨立六面向審查；6. 修正、文件同步及 final gate。
+- 預計影響檔案／模組：新 lib/youtube/、public/youtube-publish.mjs、scripts/test-youtube.mjs；electron/main.mjs、preload.cjs、public/review.html、package manifest／lock、02／03／06／00／08 與獨立報告。
+- 風險與回復方式：OAuth／外送僅使用者操作啟動；影片一律 private，失敗保留 videoId，不自動重新上傳影片；只回復本輪差異，保留既有 dirty worktree。
+- 驗證計畫：focused deterministic tests、syntax、UI 畫面、npm run check、git diff --check、獨立審查及 npm run docs:check:final。
+- 實際修改：新增官方 client、主行程 publisher service、safeStorage 獨立憑證檔、窄 IPC 與校閱發布 dialog；固定 private、channel binding、外送同意、stream 進度／取消、字幕 snapshot SHA-256／只重試字幕、未知結果保留及未傳送工作清除。projectFolder 跟隨現有設定且工作中固定；補測試、UI smoke、posttest、README／授權及 00／02／03／06。保留所有既有修改，無真實頻道操作。
+- 開發驗證結果：最終 runtime 的 npm run check（含四份 YouTube suites）exit 0；source Electron UI v3／v4 smoke exit 0，原始 v1／v2 亦保留。初次 binary 缺失及首版 fixture 背景缺欄位如實記錄於 06。git diff --check exit 0；production npm audit=0，完整12（8 moderate／4 high）屬既有依賴樹，未升級既有版本。round2 報告已整合；npm run docs:check:final exit 0（19 文件、最新紀錄已結案）。
+- 獨立審查是否執行：是（round1、round2；保留原件）。
+- round1 修正與驗證：主要代理修正 B1：main/server canonical-root lease、DELETE 409、無 job mkdir 的 persist、config 層去敏發布 history；B2：來源 stream error／abort／關閉與有界 SDK Promise 觀察；B3：UI videoId／captionId／captionStatus。另修 owned dynamic debugger。新增 stream fault 與真實 HTTP lifecycle suites，完整 npm run check（含四份 YouTube suites）exit 0；v3 隔離 Electron UI smoke exit 0。新增 BUG-043／044／045；未覆寫 round1 或既有 evidence。lease 回應遺失可能需重啟後到 Studio 核對，見 README／03。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-16-fr-027-youtube-private-upload-round1.md`
+  - 判定（逐字引用 round1「綜合判定」）：**本輪 round1 獨立審查結論為不通過：FR-027 的私人上傳、OAuth 與本地 SDK／Electron UI 基線已具驗證證據，但專案刪除競速會重建已刪目錄、來源串流讀取錯誤未受控，以及影片 ID／字幕狀態未直接顯示三項阻擋尚未修正；本輪沒有真實 Google、Keychain、封裝或 Windows 驗收證據。**
+  - 審查檔案：`docs/project-management/reviews/2026-10-16-fr-027-youtube-private-upload-round2.md`
+  - 判定（逐字引用 round2「綜合判定」）：**本輪 round2 獨立複審結論為有條件通過：round1 的 B1 專案刪除競速、B2 來源串流錯誤及 B3 影片 ID／字幕狀態呈現三項阻擋已由獨立 focused 測試與 source Electron UI 驗證解除，未發現新增程式阻擋；主代理仍須整合本報告並通過 final gate，且不得將本輪證據擴稱為真實 Google、Keychain、封裝或 Windows 驗收。**
+  - 條件是否已被需求方接受：是（條件為依需求方 AGENTS 明示要求整合獨立報告、執行 docs:check:final 並如實揭露剩餘風險，屬既有指示；不代表需求方接受未驗收風險發布或授權真實頻道操作）。
+  - 條件落實：已整合 round2；本條目只就 source MVP／mock／本機 UI 結案，未擴大驗收宣稱。整合後 npm run docs:check:final exit 0、git diff --check exit 0；計畫六步已完成。
+- 本輪結案判定：YouTube 私人影片＋字幕 source MVP 開發與獨立複審已完成；v4 UI smoke exit 0，實際可見 videoId／captionId／syncing，且驗證 partial＋failed；無真實頻道操作或安裝包發布。
+- 遺留風險與後續事項：真實 Google credentials／頻道、API quota／OAuth verification、真實 Keychain round-trip、Windows／macOS 安裝包驗收未執行；此階段為私人上傳 MVP，不含公開／排程與 byte-level 續傳。lease 回應遺失需重啟及 Studio 核對；history 與 job 不是跨檔交易、不還原已刪 snapshot，完整磁碟故障／外部同路徑替換矩陣未驗收。既有依賴 audit 12（含 Electron runtime 相關 advisory）另追蹤，不以 production-only audit=0 宣稱整個 App 無風險。固定 IPC 錯誤分類為非阻擋後續改善。
+- 發布授權：不適用；不提交、不推送、不發布安裝包，不操作使用者真實 YouTube 頻道。
+
+## 2026-10-14 — FR-021 offline wrapper argv redaction boundary
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接上一輪 runner provenance capture contract 的非阻擋遺留風險，補強 offline wrapper 在 evidence projection 邊界重新驗證 `runnerProvenance.argv` 的去敏格式，避免未來 live runner argv 組成變更時把使用者／暫存路徑或 secret-shaped value 帶入保存的 evidence。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`；本輪是 acceptance evidence projection hardening，不宣稱 packaged UI acceptance、replay-time provenance、exact Chromium generated profile 或 FR-021 完成。
+- 變更等級：中（offline acceptance wrapper／source-contract／治理文件變更；不啟動 packaged UI／Electron／Ollama、不建立外部網路連線、不修改 OS／Seatbelt／PF／防火牆、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=full`，並讀取固定核心、full 路由文件、測試／獨立審查／結案工作流與最新工作條目（是）。
+- 目標與成功條件：對 live runner 傳入的 argv 只保存明確允許的去敏 token／固定旗標／受限數字 port；未知或不符合格式的 item 不進入 evidence，且以固定計數／布林狀態揭露 projection 是否完整；新增 regression assertions 證明 path、raw secret-shaped value 與任意未去敏 token 不會被保存。
+- 不在範圍：不修改 live runner 的 spawn 行為、不保存被丟棄的 raw argv、不新增 raw diagnostics、不執行 packaged UI／Ollama／canary／network probe、不修改 OS policy、不發布／提交／推送。
+- 可執行計畫：1. 建立本條目後檢查 wrapper projection 與既有 source-contract seam；2. 加入邊界 re-sanitizer 與固定 completeness metadata；3. 補 focused source／VM regression assertions，並同步 00／03／06／07；4. 執行 focused、完整回歸與 diff／docs 驗證；5. 由獨立上下文依六面向審查，必要時修正並複審；6. 整合報告後執行 final gate。以上計畫已完成；round1 指出的 wrapper-boundary regression 條件已由主要代理補上，round2 確認關閉。
+- 預計影響檔案／模組：`scripts/verify-electron-ollama-ui-offline.mjs`、`scripts/test-ollama-ui-offline.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本紀錄，以及新 round1 review report；不覆寫既有 replay／evidence／review。
+- 風險與回復方式：白名單若過窄可能丟棄未來新增但安全的 runner token；以固定 allowlist、`argvRedactionValidated` 與 dropped count 使行為可見，若回歸失敗只回復本輪 wrapper／測試／文件差異，保留既有 evidence 與前輪報告。
+- 驗證計畫：focused `node scripts/test-ollama-ui-offline.mjs`、兩支 runner `node --check`、完整 `npm run check`、`git diff --check`、獨立 round1 六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增 `lib/runner-provenance.mjs` 純函式 allowlist re-sanitizer；`scripts/verify-electron-ollama-ui-offline.mjs` 將 offline evidence schema 升為 v5，於 `projectUiEvidence` 保存邊界投影 `argvRedactionValidated`、`argvDroppedCount`、`argvInputCount`；`scripts/test-ollama-ui-offline.mjs` 補純函式、截斷與實際 wrapper `projectUiEvidence` VM regression，覆蓋 private path、raw secret、unknown token、合法 token、缺少 argv 與 35 項輸入。`package.json` 將 helper 納入 syntax check；同步更新 00／03／06／07；未新增 runtime evidence、未覆寫既有 replay／evidence／review。
+- 開發驗證結果：focused `node scripts/test-ollama-ui-offline.mjs` exit 0（受控 missing-model daemon no-download、bundle preflight 三案、wrapper projection 與 packaged UI source contract）；兩支 runner／helper `node --check`、完整 `npm run check`、`git diff --check` 均 exit 0（19 個治理文件、全部 syntax、`npm test` 與核心回歸）。本輪未啟動 packaged Electron acceptance、未執行 canary／network probe、未修改 OS policy。
+- 獨立審查是否執行：是（round1、round2；round1 的唯一 wrapper-boundary 條件已修正，round2 確認關閉；兩份報告原件均保留）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-offline-wrapper-argv-redaction-boundary-round1.md`
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-offline-wrapper-argv-redaction-boundary-round2.md`
+  - 判定（逐字引用 round2「可逐字引用的完整結論句」）：**本輪 round2 獨立複審結論為有條件通過：round1 指出的 offline wrapper 保存邊界缺口已關閉，實際 `projectUiEvidence` deterministic regression 已對 private path、raw secret、unknown token、合法 token、35 項輸入、>32 安全 argv 截斷、缺少 argv 與最終 evidence metadata 完成驗證；本輪結論僅適用於 runner-level schema v5 projection，不代表 packaged UI acceptance、Ollama acceptance、network／OS policy 驗收、replay-time provenance、exact Chromium generated profile 或 FR-021 整體完成。**
+  - 六面向：round2 對需求完整性、邏輯正確性、邊界情況、程式碼品質、測試覆蓋與實際運行結果均在 runner-level projection scope 判定通過；未執行 packaged／Ollama／network／OS 實機驗收，且明確保留其非等價界線。
+  - 條件：本輪只可宣稱 offline wrapper schema v5 projection contract；不得擴張為 packaged UI acceptance、replay-time provenance、exact Chromium profile、binary／Framework runtime provenance、OS-level egress proof 或 FR-021 整體完成。round1 唯一程式／測試條件已關閉。
+  - 條件是否已被需求方接受：是（需求方明確要求繼續處理，且本輪範圍維持不啟動 packaged UI、Ollama acceptance、network probe、canary、OS policy 或 `--no-sandbox`；round1 條件則以 deterministic regression 證據關閉）。
+  - 阻擋問題（若有）：本輪 runner-level argv projection 無阻擋；FR-021 packaged UI offline acceptance、replay-time provenance、exact generated profile 與 OS-level egress 仍屬整體遺留阻擋，不由本輪解除。
+- 本輪結案判定：offline wrapper argv redaction boundary 已完成，round1 條件由 round2 確認關閉；`npm run docs:check:final` 已於本條目整合後重跑並通過。此結案只代表 runner-level schema v5 projection contract，不代表 packaged UI acceptance、Ollama acceptance 或 FR-021 整體完成。
+- 遺留風險與後續事項：candidate basename 目前是結構性 allowlist，不是語意 secret detector；若上游錯誤把 secret-shaped value 包成合法 candidate token，仍需另行處理。replay-time argv、exact Chromium generated profile、Framework／build provenance、packaged UI flow、Ollama 真實模型與 OS-level egress 仍未驗證。
+- 發布授權：不適用；本輪只補 acceptance evidence projection 與測試，不發布、不提交、不推送。
+
+## 2026-10-14 — FR-021 runner provenance capture contract
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接 readiness audit 的 partial 結論，在不啟動 packaged runtime、不變更 OS／網路政策的範圍內，補強 acceptance runner 可保存的 outer launch provenance、candidate Framework pre-launch identity 與 bounded diagnostic fingerprint。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`、`BUG-040`；本輪是驗收工具的證據契約補強，不宣稱產品 runtime 或 FR-021 offline acceptance 已完成。
+- 變更等級：中（runner／source-contract／治理文件變更；不啟動 packaged UI／Electron／Ollama、不建立網路連線、不修改 OS／Seatbelt／PF／防火牆、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=development`，並讀取固定核心、development 路由、測試／獨立審查／結案工作流與最新工作條目（是）。
+- 目標與成功條件：在 evidence 不保存 raw app／model output 的前提下，保存去敏 outer command／argv summary、candidate executable／Framework pre-launch hash、bounded child-output fingerprint／length 與固定 diagnostic categories；保留「pre-launch identity 不等於 replay-time loaded bytes，且不產生 exact Chromium generated profile」界線；既有 replay／evidence 不覆寫。
+- 不在範圍：不保存 raw stderr、不加入 `--no-sandbox`、不修改 Chromium／Electron runtime、不執行 packaged UI／Ollama／canary／network probe、不修改 OS policy、不發布／提交／推送。
+- 可執行計畫：1. 建立本條目後檢查現有 runner evidence schema、測試 seam 與 source-contract；2. 以最小修改加入去敏 launch summary、Framework hash 與 bounded diagnostics fingerprint；3. 新增／更新 source-contract assertions，避免 env／暫存路徑／raw output 洩漏；4. 更新 03／06／07 與新增唯一 evidence schema／測試結果說明；5. 執行 focused、完整回歸與 diff／docs 驗證；6. 由獨立上下文六面向審查，整合後執行 final gate。以上計畫已完成；round1／round2 發現的阻擋均由主要代理修正，round3 確認 runner-level contract，round4 完成治理格式複審。
+- 預計影響檔案／模組：`scripts/verify-electron-ollama-ui.mjs`、`scripts/verify-electron-ollama-ui-offline.mjs`、`scripts/test-ollama-ui-offline.mjs`、`docs/project-management/03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本紀錄，以及必要時新增非 runtime evidence／review report；不覆寫既有 replay／review。
+- 風險與回復方式：evidence schema 增加欄位可能影響既有 static contract assertions；若發現去敏不完整或 pre-launch hash 誤被解讀為 runtime provenance，保留舊 evidence、回復本輪 runner／測試／文件差異，不啟動任何 app 或 OS 變更。
+- 驗證計畫：source-contract focused tests、JSON／schema invariant、三個相關 `node --check`、完整 `npm run check`、`git diff --check`、獨立 round1 六面向審查及 `npm run docs:check:final`。
+- 實際修改：`scripts/verify-electron-ollama-ui.mjs` 將 live evidence 升為 schema v4，加入去敏 launch command／argv、outer sandbox 套用旗標、candidate executable／review script／Electron Framework 的 spawn 前 hash、16,000-byte child-output Buffer fingerprint／byte length／固定 categories 與固定 `CANDIDATE_ARTIFACT_READ_FAILED` error code／category；`scripts/verify-electron-ollama-ui-offline.mjs` 加入白名單 `runnerProvenance` projection；`scripts/test-ollama-ui-offline.mjs` 補 pre-spawn、byte-cap、diagnostics projection、固定 artifact failure 與不洩漏 path／raw output assertions。同步更新 00／03／06／07；未新增 runtime evidence、未覆寫既有 replay／evidence／review。
+- 開發驗證結果：focused `node scripts/test-ollama-ui-offline.mjs` exit 0（artifact read failure cleanup、daemon no-download、bundle preflight 三案與 packaged UI source contract）；三支相關 MJS `node --check`、`git diff --check` 與完整 `npm run check` exit 0（19 個治理文件、全部 syntax、`npm test` 與核心回歸）。測試只使用既有受控 fixture／owned missing-model daemon integration；本輪未啟動 packaged Electron acceptance、未執行 canary／network probe、未修改 OS policy。
+- 獨立審查是否執行：是（round1、round2、round3、round4；各輪報告原件均保留，round1／round2 阻擋已修正，round3 確認 runner-level contract，round4 完成治理格式複審）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-runner-provenance-capture-contract-round1.md`
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-runner-provenance-capture-contract-round2.md`
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-runner-provenance-capture-contract-round3.md`
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-runner-provenance-capture-contract-round4.md`
+  - 判定（逐字引用 round4「可逐字引用的完整結論句」）：**本輪獨立複審結論為通過：runner-level provenance capture contract 的 pre-spawn candidate hashes、16,000-byte bounded diagnostics、fixed projection 與 fixed artifact-read failure code 均通過 source、VM regression 與完整回歸驗證；本輪不代表 packaged UI acceptance、replay-time loaded bytes、exact Chromium generated profile、build provenance 或 FR-021 完成。**
+  - 六面向：round4 對 runner-level 需求完整性、邏輯正確性、邊界情況、程式碼品質、測試覆蓋與實際運行結果均判定通過；明確保留未執行 packaged acceptance 的範圍限制。
+  - 條件：只將本輪結論限定為 runner-level schema v4；保留 pre-launch identity 不等於 replay-time loaded bytes、bounded fingerprint 不等於 raw diagnostics、wrapper projection 不等於 exact generated profile／egress proof 的界線；不得宣稱 packaged UI acceptance、build provenance、唯一 root cause 或 FR-021 完成。
+  - 阻擋問題（若有）：runner-level 無；round1 的 pre-spawn capture／diagnostics projection 與 round2 的可變 artifact code 已修正並由 round3／round4 確認關閉。結案流程的 docs gate 已於本條目回填後重跑並通過。
+- 本輪結案判定：runner-level provenance capture contract 已完成並通過 round4 最終治理格式複審；`npm run docs:check:final` 已重跑並 exit 0（19 個治理文件，最新紀錄已結案）。此結案不代表 packaged UI acceptance、replay-time loaded bytes、exact Chromium generated profile、build provenance、OS-level egress proof 或 FR-021 整體完成。
+- 遺留風險與後續事項：pre-launch candidate／Framework hash 不等於 replay-time loaded bytes；bounded fingerprint 不保留 raw diagnostics；offline wrapper projection 不等於 exact Chromium generated profile、child runtime argv 或 OS-level egress proof。若要解除 FR-021 packaged UI blocker，需另立明確授權的 instrumented packaged run／等價 preserved trace，並保存 exact profile 或可等價核對的 runtime trace。
+- 發布授權：不適用；本輪只補 acceptance runner 證據契約，不發布、不提交、不推送。
+
+## 2026-10-14 — FR-021 instrumented packaged-run readiness audit
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接上一輪 exact generated profile feasibility audit，確認現有 Electron／packaged UI runner 是否已具備保存啟動 argv、sandbox diagnostics、stderr 與 Framework identity 的 instrumentation contract，為未來若取得明確授權的 instrumented packaged run 建立可審核入口。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`；本輪是驗收工具／證據準備度盤點，不視為產品 runtime defect 修補。
+- 變更等級：中（唯讀 source／bundle／治理契約盤點，可能只新增治理 evidence；不啟動 packaged UI／Electron／Ollama、不建立網路連線、不修改 OS／Seatbelt／PF／防火牆、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=debug`，並讀取固定核心、debug 路由、測試／獨立審查／偵錯／結案工作流與最新工作條目（是）。
+- 目標與成功條件：確認目前 runner 是否明確保存 outer／child launch argv、stderr／startup diagnostics、candidate executable／Framework hash 與 exact generated profile；區分「可由 source 增加的 capture」與「Chromium runtime 內部 profile 仍須受控實機 trace」；若契約不存在，固定缺口與未來需要的授權／回復要求。
+- 不在範圍：不修改 runner 或產品程式、不啟動 packaged app／Ollama、不重跑 canary、不建立 network probe、不改 OS policy、不使用 `--no-sandbox`、不覆寫既有 replay／evidence／review 原件、不發布／提交／推送。
+- 可執行計畫：1. 建立本條目後唯讀核對 runner 的 spawn／argv／stdio／evidence projection；2. 核對 Electron main、package metadata、保存 bundle identity 與既有 evidence 是否已有 instrumentation；3. 判定 exact generated profile capture 的可行邊界與缺少的外部條件；4. 若只需文件，新增非敏感 audit evidence 並同步 00／06／07；5. 執行 source／JSON／docs／diff 驗證；6. 由獨立上下文依六面向審查並執行 final gate。
+- 預計影響檔案／模組：本紀錄；若盤點結果需要保存，新增唯一 readiness audit evidence、更新 `docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md` 與新 round1 review report；不修改產品 runtime／runner。
+- 風險與回復方式：本輪可能只會確認現有 runner 無法保存 exact runtime profile，不能解除 FR-021 blocker；所有新增內容限治理／稽核原件，若檢查結果不一致則保留既有 evidence、移除本輪新增文件，不觸碰 packaged app 或系統政策。
+- 驗證計畫：runner／Electron source static scan、既有 evidence key／hash audit、audit evidence JSON invariant、`node --check`、`npm run check`、`git diff --check`、獨立 round1 六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增 `docs/project-management/evidence/2026-10-14-fr-021-instrumented-packaged-run-readiness-audit.json`，保存 runner／Electron main／package metadata／既有 replay 的輸入 hash、scope flags、目前可用與缺少的 instrumentation contract，並同步更新 00／06／07 與 BUG-040。未修改產品 runtime、runner、Chromium、OS policy 或既有 replay／identity／review 原件。
+- 開發驗證結果：readiness JSON parse／invariant／7 個輸入 SHA-256 與 source contract 核對通過；兩支 UI runner 與 `electron/main.mjs` `node --check`、`npm run docs:check`、`git diff --check` 通過；完整 `npm run check` exit 0（治理文件、syntax、`npm test` 與核心回歸均通過）。本輪未啟動 packaged Electron／Ollama、未重跑 canary、未建立 network probe。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-instrumented-packaged-run-readiness-audit-round1.md`
+  - 判定（逐字引用審查報告「可逐字引用的完整結論句」）：**本輪有條件通過：instrumented packaged-run readiness 僅部分具備；source hash、JSON invariant 與 scope flags 可追溯，exact generated profile 與 replay-time binary provenance 未保存且不可由 audited artifacts 重建，FR-021 packaged UI offline acceptance blocker 保留。**
+  - 六面向：需求完整性、邏輯正確性、邊界情況、程式碼品質為通過；測試覆蓋、實際運行結果為部分通過，因本輪刻意未執行 runtime／network／canary。
+  - 條件：保留 readiness=`partial`、exact profile／replay-time provenance／packaged UI blocker；不得把 static source／bundle identity、synthetic profile、failure category 或 audit pass 擴張為唯一 root cause／UI acceptance。若要解除 blocker，需另立明確授權的 instrumented packaged run 或等價 preserved trace，並保存 fixed candidate、Framework／build provenance、redacted argv／diagnostics、exact profile／等價 trace、cleanup 與 rollback。
+  - 條件是否已被需求方接受：是（需求方本輪要求繼續；僅接受靜態 readiness audit 與文件整合，不擴大至 packaged UI、OS-level egress control 或 `--no-sandbox`）。
+- 本輪結案判定：已完成 instrumented packaged-run readiness 靜態盤點；目前 contract 僅部分具備，無法由既有 app-level source／evidence 取得 replay-time exact generated profile 或 binary provenance。此「完成」只代表 readiness 診斷與證據界線結案，不代表 FR-021 整體驗收完成。
+- 發布授權：不適用；本輪限唯讀 instrumentation readiness 盤點，不發布、不提交、不推送。
+
+## 2026-10-14 — FR-021 replay11 exact generated profile capture feasibility audit
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接 FR-021 packaged Electron deny-network sandbox 邊界診斷之遺留條件，確認現有 replay11／release bundle／runner 原件是否實際保存可核對的 Chromium exact generated profile，而非再次宣稱 synthetic profile shape 或靜態 source identity 已完成驗收。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`、`BUG-037`；本輪聚焦證據完整性，不視為產品 runtime defect 修補。
+- 變更等級：中（唯讀證據／啟動路徑可追溯性盤點，完成後僅補治理文件與新稽核 evidence；不啟動 packaged UI／Electron／Ollama、不建立網路連線、不修改 OS 網路政策、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=debug`，並讀取其列出的固定核心、debug 路由、工作流、最新工作條目與範本（是）。
+- 目標與成功條件：以 replay11 JSON、相關 runner／launch argument source、現有 release bundle 靜態檔案與既有 evidence／hash 為輸入，明確判定 exact generated profile 是否已保存、是否可從現有原件重建，以及缺口是否能在不擴大授權下補足；不把 synthetic profile、source tag、bundle identity 或 error stage 誤標為 exact profile／replay-time provenance。
+- 不在範圍：不執行 packaged UI、不重跑 Electron／Ollama／network probe、不修改 OS／Seatbelt／PF／防火牆、不下載／更新模型、不覆寫既有 replay11／replay12／canary／review 原件、不發布／提交／推送。
+- 可執行計畫：1. 建立本條目後唯讀盤點 replay11 的欄位與雜湊；2. 核對 runner 是否保存 child policy／生成後 argv／framework provenance；3. 靜態檢查既有 bundle 與 evidence 是否可回溯 exact profile；4. 若缺失，建立最小非敏感 audit evidence 並同步 00／06／07 的遺留風險；5. 執行 JSON／source／docs／diff 驗證；6. 由獨立上下文依六面向審查並整合報告，最後執行 `npm run docs:check:final`。
+- 預計影響檔案／模組：本紀錄；若盤點結果需要保存，新增唯一 audit evidence、更新 `docs/project-management/00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md` 與新 round1 review report；不修改產品 runtime 或既有證據原件。
+- 風險與回復方式：本輪可能只會證實 exact profile 缺失，不能解除 FR-021 UI acceptance blocker；所有新增內容均為可刪除的治理／稽核原件，若驗證不一致則保留原始 evidence、回復本輪新增文件，不觸碰 packaged app 或系統政策。
+- 驗證計畫：replay11 JSON key／hash audit、相關 source `node --check`、audit evidence JSON invariant、`npm run check`、`git diff --check`、獨立 round1 六面向審查及 `npm run docs:check:final`。
+- 實際修改：新增 `docs/project-management/evidence/2026-10-14-fr-021-replay11-exact-profile-feasibility-audit.json`，保存 replay11／兩支 runner／static bundle identity 的相對路徑與 SHA-256、欄位缺口、scope flags 及不可重建結論；同步更新 00／06／07，明確固定 exact generated profile 是 audited artifacts 中不存在且不可回溯的 evidence blocker。未修改產品 runtime、runner、OS policy 或既有 replay／review 原件。
+- 開發驗證結果：audit JSON parse／invariant／四個輸入 hash 核對通過；兩支 UI runner 與 canary `node --check`、`npm run docs:check`、`git diff --check` 通過；完整 `npm run check` exit 0（治理文件、syntax、`npm test` 與核心回歸均通過）。本輪未啟動 packaged Electron／Ollama、未重跑 canary、未建立 network probe。
+- 獨立審查是否執行：是（round1；報告先補齊 validator 所需的逐字結論句，未修改其他專案檔案）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-replay11-exact-profile-feasibility-audit-round1.md`
+  - 判定（逐字引用審查報告「可逐字引用的完整結論句」）：**本輪有條件通過：exact generated profile 未保存且不可由 audited artifacts 重建，FR-021 packaged UI offline acceptance blocker 保留。**
+  - 六面向：需求完整性、邏輯正確性、邊界情況、程式碼品質為通過；測試覆蓋、實際運行結果為部分通過，因本輪刻意未啟動 runtime／network／canary。
+  - 條件：維持 00／06／07 與本條目對 FR-021 blocker 的限定；不得把 synthetic profile、pinned source、目前 bundle identity、`CHROMIUM_CHILD_SANDBOX_INIT_FAILED` 或 audit pass 改寫為 exact profile、binary provenance、唯一 root cause 或 packaged UI acceptance；若要解除 blocker，另立明確授權的 instrumented packaged run 或等價 preserved trace。
+  - 條件是否已被需求方接受：是（需求方本輪要求繼續；僅接受唯讀 evidence audit 與文件整合，不擴大至 packaged UI、OS-level egress control 或 `--no-sandbox`）。
+- 本輪結案判定：已完成 replay11 exact generated profile 可行性盤點與非敏感 evidence 固化；結論是目前 audited artifacts 不含且不可重建 exact profile，FR-021 packaged UI offline acceptance 仍受阻。此「完成」只代表本輪診斷／證據界線結案，不代表 FR-021 整體驗收完成。
+- 發布授權：不適用；本輪限唯讀證據盤點與治理文件補強，不發布、不提交、不推送。
+
+## 2026-10-14 — FR-021 canary explicit evidence path guard
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接 2026-10-14 round1 獨立審查指出的非阻擋可維運風險：canary 無參數執行仍先重跑探測、最後才因既有 replay2 evidence 的 exclusive-create 失敗。
+- 關聯需求／缺陷：`FR-021`、`NFR-005`、`NFR-006`、`BUG-037` 延伸；本項為診斷工具可維運性，不是產品 runtime defect。
+- 變更等級：中（診斷 script 的輸入／失敗行為與證據保存邊界；不啟動 packaged UI／Ollama、不建立外部網路連線、不修改 OS policy、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=full`，並讀取固定核心、full 路由文件、最新工作條目與相關 canary／evidence／審查原件（是）。
+- 目標與成功條件：未提供輸出路徑時，script 在任何 `sandbox-exec`／`/usr/bin/true` 執行前以清楚錯誤與非零狀態停止；提供新的 `.json` 路徑時維持 replay4 同樣的四案結果、exclusive-create 與 pinned source reference；既有 replay evidence 不覆寫。
+- 不在範圍：不改 parent／child Seatbelt profile、source pin、產品 runtime、packaged UI runner、Ollama、OS 網路設定或既有 evidence／審查報告；不發布／提交／推送。
+- 可執行計畫：1. 先驗證現行無參數與明確路徑行為；2. 建立 BUG-038 診斷紀錄並在輸入邊界做最小修正；3. 執行無參數 fail-closed、明確路徑 replay、syntax／JSON／完整回歸；4. 由獨立上下文依六面向審查；5. 整合報告後執行 `npm run docs:check:final`。
+- 預計影響檔案／模組：`scripts/accept-macos-seatbelt-nested-profile-canary.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本紀錄，以及新 evidence／review report；不覆寫既有 replay2／replay3／replay4 或審查原件。
+- 風險與回復方式：要求明確路徑可能使舊有無參數呼叫失敗，但可避免不可預期的 evidence 生成／覆寫競態；既有明確路徑 contract 保留。若回歸失敗，只回復本輪新增 guard／文件，保留歷史 evidence，不改 OS 或產品資料。
+- 驗證計畫：無參數 fail-closed 命令、明確新 evidence replay、`node --check`、JSON parse／invariant、`npm run check`、`git diff --check`、獨立 round1 審查及 `npm run docs:check:final`。
+- 基準結果：修正前無參數執行先完成 canary cases，最後因既有 replay2 evidence 的 exclusive-create 回報 `Evidence file already exists; refusing to overwrite.`、exit 2。
+- 實際修改：移除 replay2 fallback，要求明確傳入新的 `.json` evidence 路徑；缺少路徑時在任何 macOS／sandbox／case 行為前固定輸出錯誤並 exit 2。同步補 `BUG-038`、目前狀態與測試稽核界線；既有 replay2／replay3／replay4 與審查原件未覆寫。
+- 開發驗證結果：無參數命令 exit 2 且未新增 evidence；明確 replay5 `node scripts/accept-macos-seatbelt-nested-profile-canary.mjs docs/project-management/evidence/2026-10-14-fr-021-macos-seatbelt-nested-profile-canary-replay5.json` exit 0，四案 pass，無 network API／外部 socket／packaged UI／UI flow；`node --check`、replay5 JSON invariant、完整 `npm run check`、`git diff --check` 均 exit 0。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-canary-explicit-evidence-path-guard-round1.md`
+  - 判定（逐字引用審查報告「可逐字引用的完整結論句」）：**本輪獨立審查結論為有條件通過：BUG-038 的 explicit evidence path guard 已在任何 `sandbox-exec`、`/usr/bin/true`、case 執行與 evidence write 前以清楚訊息 exit 2，replay5 的四案／pinned source／scope flags／exclusive-create 與既有 replay 邊界可追溯，且既有 replay2／replay3／replay4、round1 與 round6 未被本輪覆寫；但本輪未重跑明確路徑 canary，且此結論不代表 packaged UI offline acceptance、binary provenance、exact profile 或 OS-level egress control 已完成。**
+  - 條件：整合本報告路徑與上述逐字結論，保留 replay2／replay3／replay4／replay5 及既有審查原件，並執行 `npm run docs:check:final`；不把本輪結果改寫為 packaged UI acceptance、binary provenance、exact profile 或 OS-level egress control 完成。
+  - 條件是否已被需求方接受：是（需求方要求繼續；範圍限診斷工具輸入邊界與證據保存，不擴大系統權限）。
+- 本輪結案判定：BUG-038 的無參數 fail-closed guard、明確 path replay5 與文件同步完成；審查報告列出的「本輪未重跑明確 path replay」已如實保留，replay5 採開發端已保存 evidence 的只讀核驗，不宣稱 reviewer 重新執行。
+- 發布授權：不適用；本輪只修診斷工具與治理文件，不發布、不提交、不推送。
+
+## 2026-10-14 — FR-021 canary source reference provenance wording clarification
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接 round6 獨立審查條件，釐清 canary／治理文件中 mutable Chromium `HEAD` source reference 與本輪固定的 versioned tag／commit／`network.sb` blob 之差異，避免將背景來源指標誤讀為 replay-time binary provenance。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`、`BUG-037`。
+- 變更等級：中（僅限診斷腳本來源欄位與治理文件證據邊界；不啟動 packaged UI、不修改 OS／網路政策、不使用 `--no-sandbox`）。
+- 執行前已讀：已執行 `npm run project:preflight -- --type=debug`，並讀取其列出的固定核心、debug 路由、工作流與最新工作條目（是）。
+- 目標與成功條件：所有本輪引用明確區分「mutable `HEAD` 僅作背景導覽」與「固定 tag／commit／blob 才是本輪可核對的 source reference」；canary evidence 與文件不得因此宣稱 exact generated profile、replay-time binary provenance 或 FR-021 packaged UI offline acceptance 已完成。
+- 不在範圍：不重寫既有 evidence、不啟動 Electron／Ollama／packaged UI、不建立外部網路連線、不更動 OS-level egress control、不修改產品 runtime、不發布／提交／推送。
+- 可執行計畫：1. 檢查 canary script 與 00／06／07／08 中的 `HEAD`、tag、commit、blob 引用；2. 以最小修補將可生成的來源引用固定到 versioned Chromium tag，並補足文件邊界說明；3. 以唯一新 evidence replay（若需要）及 syntax／JSON／文件／完整回歸驗證；4. 由獨立上下文依六面向複審；5. 整合逐字結論後執行 `npm run docs:check:final`。
+- 預計影響檔案／模組：`scripts/accept-macos-seatbelt-nested-profile-canary.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本紀錄，以及必要時新增唯一 evidence／review report；不覆寫既有 evidence 或審查原件。
+- 風險與回復方式：來源 URL 的固定化只改善可追溯性，不改變 Seatbelt 行為；若新 replay 或文件檢查顯示欄位不一致，保留舊 evidence、以新檔案修正並回復本輪新增文件／腳本差異，不觸碰既有診斷原件。
+- 驗證計畫：`node --check`、新 evidence JSON parse、`npm run docs:check`、`npm run check`、`git diff --check`、獨立 round1 六面向審查及 `npm run docs:check:final`。
+- 實際修改：`scripts/accept-macos-seatbelt-nested-profile-canary.mjs` 的 Chromium `network.sb` source reference 改為 `150.0.7871.212` versioned tag，新增 `sourceReferencePolicy` 記錄固定 tag、commit `69bf1c67cb894365d151bd020bb0171fd583633a6` 與 blob `58477d8d17902258b3f361d72751a32c034e0645`；`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md` 補充 mutable `HEAD` 僅屬歷史／背景參考的界線。既有 replay／exploratory evidence 未覆寫。
+- 新增 evidence：`docs/project-management/evidence/2026-10-14-fr-021-macos-seatbelt-nested-profile-canary-replay4.json`。canary exit 0；四案結果與既有 synthetic profile composition 一致，`networkConnectionsAttempted=false`、`externalSocketAttempted=false`、`packagedElectronRerun=false`、`uiFlowRun=false`，且新 evidence 的 source URL 已固定，不含 mutable `HEAD`。
+- 開發驗證結果：`npm run project:preflight -- --type=debug`、canary `node --check`、replay4 JSON parse、`npm run check`、`git diff --check` 均 exit 0；完整回歸包含 19 個治理文件、全部 syntax checks 與 `npm test`。
+- 獨立審查是否執行：是（round1）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-canary-source-provenance-clarification-round1.md`
+  - 判定（逐字引用審查報告「可逐字引用的完整結論句」）：**本輪獨立審查結論為有條件通過：canary source-reference wording 與 replay4 evidence 已將 Chromium mutable `HEAD` 限定為既有歷史／背景參考，改用 pinned `150.0.7871.212` tag URL 並記錄 tag 對應 commit `69bf1c67cb894365d151bd020bb0171fd583633a6` 與 `network.sb` blob `58477d8d17902258b3f361d72751a32c034e0645`，且 synthetic profile-composition 的範圍與限制可追溯；但本輪只完成來源引用與合成 canary 的邊界澄清，不代表 packaged UI offline acceptance、replay-time binary provenance、exact generated profile 或 FR-021 整體 acceptance 已完成。**
+  - 條件：整合本報告路徑與上述逐字結論，保留歷史 `HEAD` evidence／round6 原件，並執行 `npm run docs:check:final`；不因本輪 source clarification 擴張至 packaged UI、binary provenance、exact profile 或 OS-level egress acceptance。
+  - 條件是否已被需求方接受：是（需求方本輪要求繼續；範圍仍限文件／來源追溯與無網路副作用 canary）。
+- 本輪結案判定：已完成 pinned Chromium source reference、replay4 evidence 與治理文字邊界校正；reviewer 指出的無參數 script 預設 replay2 ergonomics 為非阻擋後續風險，未混同為 provenance 或 UI acceptance 證據。FR-021 packaged UI offline acceptance、replay-time binary provenance、exact generated profile 與 OS-level per-app egress control 仍未完成。
+- 發布授權：不適用；本輪只完成診斷來源追溯與文件／evidence 邊界澄清，不發布、不提交、不推送。
+
+## 2026-10-01 — FR-021 macOS packaged Electron UI deny-network sandbox 邊界診斷
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方持續要求完成 macOS 實機驗收，Windows 暫緩、LM Studio 已刪除且不驗收。上一子項已完成正常 loopback UI 取消／續跑，但 FR-021 的 macOS deny-network packaged UI 仍在 Chromium child sandbox 初始化失敗。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`、`BUG-037`（驗收環境相容性，不作為產品 runtime defect）。
+- 變更等級：中（macOS 本機驗收隔離相容性診斷；初始只讀與合成子程序，若發現需改產品／驗收程式才另做受控修補與審查）。
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心、debug 路由、最新工作條目與範本（是）；另核對前輪失敗證據、sandbox wrapper、Electron 主程序與獨立審查／測試／偵錯／結案規則。
+- 目標與成功條件：判定在不降低 Chromium sandbox、又不改全機／使用者網路設定的限制下，是否存在可支援的 macOS deny-network 隔離方式，能讓同一 packaged Electron UI 啟動並完成既定流程。所有探測使用唯一隔離資料與 evidence；若沒有合規技術路徑，精確記錄阻礙與所需的後續授權，不把 loopback／API-only 或不受 OS 網路約束的 run 當作離線通過。
+- 不在範圍：不使用 `--no-sandbox` 或停用 renderer sandbox；不修改 Wi-Fi／PF／防火牆／Network Extension／全機網路；不停止既有 Ollama service、不下載／刪除／更新模型、不讀寫需求方媒體或字幕、不發布／提交／推送、不驗收 Windows／LM Studio。
+- 可執行計畫：1. 核對目前 fail evidence、候選／source 雜湊與 Electron／Seatbelt 啟動路徑；2. 依 Electron／Apple 一手文件與無網路副作用的最小 nested-sandbox canary 查明失敗邊界；3. 只評估仍滿足外連 fail-closed 且保留 Chromium sandbox 的候選方式；4. 有純 task-local、可回復且能保持兩項安全條件的路徑才進入實作／實機驗收，否則保留為有界診斷；5. round1 審查要求後，補可重播 canary script（固定 `/usr/bin/true`、明列 parent／child profile 及實際 argv，不建立網路連線），保存新 evidence、補官方 Apple／Chromium source references，保持「合成 shape、非 Chromium exact profile」界線；6. 更新稽核／偵錯／狀態、適用驗證、獨立 round2 六面向複審及文件 final gate。OS-level per-app egress 仍須另行明確授權，不是本步驟。
+- 2026-10-12 追加計畫（唯讀）：由 replay11 executable SHA-256 在本機既有 v0.51.0 release bundle 中確認同 hash executable，再核對該 bundle 的 Electron Framework SHA-256／版本、程式碼簽章完整性與檔案修改時間；不啟動 app、不改 OS／網路設定。若證據支持，建立唯一靜態 identity evidence，更新狀態／測試稽核／偵錯紀錄並進行文件驗證與獨立六面向複審；明確保留 replay11 未記 bundle path、無當時 framework hash／exact generated profile 的關聯限制。
+- 預計影響檔案／模組：本紀錄、`scripts/accept-macos-seatbelt-nested-profile-canary.mjs`、既有 replay evidence；2026-10-12 追加唯一靜態 bundle identity evidence `docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json`；更新 `00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`；既有 canary／失敗 evidence／round1 report 均不覆寫。
+- 風險與回復方式：不可將測試 sandbox 設定誤認成產品網路安全功能；所有負向探測只連 loopback 及文件保留位址，不打到實際外部服務。保存失敗結果、不覆寫舊 evidence；無法確認 OS／程序清理即停止該路徑。系統網路管理方案若必要，需先提供可審核、可回復的具體方案並取得對應授權，本項不代為改動。
+- 驗證計畫：前輪 runner contract 與完整 replay evidence 只讀核對、官方 Electron／Apple 支援文件、nested Seatbelt 無網路副作用 canary、`node --check`／新 canary deterministic replay／安全範圍內的既有 focused test／完整 `npm run check`、`git diff --check`、round1／round2 獨立審查及 final gate。
+- 診斷結果：既有 packaged UI replay11 為 `electron_start`／`CHROMIUM_CHILD_SANDBOX_INIT_FAILED`。原始 exploratory canary、首個未通過的可重播 replay2 均保留。正式 replay3 的四案結果為：strict parent／strict child exit 0；strict parent 拒絕要求 TCP／UDP 的 child profile shape（71／EPERM）；只在 deny profile 上加窄 TCP／UDP allow 仍拒絕（71／EPERM）；`allow default` parent 接受該 child shape（0）。完整合成 parent／child profile 與 argv 載於 evidence；只執行 `/usr/bin/true`，沒有 socket API／外連嘗試。2026-10-02 追加以 replay11 executable hash、稽核所記候選 source commit 與該 commit lockfile，建立候選版本至 Electron／Chromium source 的關聯（見下方）；此結果仍是 synthetic Seatbelt profile-composition 診斷，不是 Chromium exact generated profile，不能證明唯一根因或 UI acceptance。
+- 可行性判定：在目前不降低 Chromium sandbox、不允許 process tree 外連、且不變更 OS 網路設定的範圍內，未找到可使相同 packaged UI 啟動的 task-local 解法。外層 `(allow default)` 的 probe 只證明合成 child profile 能載入，非外連 fail-closed 方案；本輪沒有停用 sandbox、改產品程式／OS policy。後續若要實際 UI egress acceptance，須另行界定並明確授權 OS-level per-app egress control 與 rollback，本工作不執行此系統變更。
+- 官方來源／系統控制限制：replay11 候選 source commit `53956ccdee6e16e4c0413f09312a419613b27da6` 的 lockfile 鎖定 Electron 43.3.0；官方 release 對應 Chromium 150.0.7871.212。此 Chromium tag 固定至 commit `69bf1c67cb894365d151bd020bb0171fd583633a`，`sandbox/policy/mac/network.sb` blob SHA-1 為 `58477d8d17902258b3f361d72751a32c034e0645`；該文件 lines 61–71 列出 remote TCP／UDP allowances。這固定了 source 與 synthetic policy shape 的參考版本。2026-10-12 對目前保留、且 executable SHA 與 replay11 相同的 release bundle 做唯讀核對：Electron Framework 43.3.0 binary SHA-256 `a6763870b706a065d621935435d82ea206747192b3948c8b17b7f5e2930c758a`、deep code signature verify exit 0；因 replay11 未保存 bundle path／framework hash，此值不能證明 replay-time framework 身分，exact generated profile 仍未取得。Apple `NEFilterDataProvider` 描述 per-flow 的 pass/block；Apple Xcode 文件要求 Network Extensions／Content Filter capability。本輪只讀官方文件，未建立 target、簽署 entitlement、安裝／啟用 filter 或更動系統政策。
+- 開發驗證結果：首次 focused `node scripts/test-ollama-ui-offline.mjs` exit 0（daemon missing-model integration、offline bundle preflight 三案、packaged UI contract）；2026-10-01 約 09:15 UTC 新增 replay script 後的完整 `npm run check` exit 0（19 個治理文件、syntax checks、全套 `npm test`，missing-model owned daemon／port／temp cleanup 通過）；新增 `node --check scripts/accept-macos-seatbelt-nested-profile-canary.mjs`、replay3 JSON parse、`git diff --check` exit 0。replay3 canary exit 0，replay2 原失敗保留。Round1 審查者因 focused test 可能啟動 Ollama，未自行重跑 tests；其 report 如實標示保存紀錄與獨立實測差異。2026-10-02 06:10 UTC 以 `git show 53956ccdee6e16e4c0413f09312a419613b27da6:package-lock.json`／JSON parse 確認鎖定版本 43.3.0；只讀檢視 replay11 的 failure stage／candidate hash／cleanup 欄位，未重跑 app。Round2 複審已完成並整合；round3 獨立審查亦已完成並整合。主代理於 2026-10-12 執行 `npm run docs:check`（19 個文件）及 `git diff --check` 均 exit 0；2026-10-14 重新執行完整 `npm run check` exit 0，確認現有 dirty worktree 的治理、語法、focused 與核心回歸仍通過。
+- 新增 evidence：`docs/project-management/evidence/2026-10-01-macos-seatbelt-nested-profile-canary-replay2.json`（窄 parent 實驗失敗，保留）及 `...-replay3.json`（完整 profile／argv，四案 pass）。2026-10-12 新增 `docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json`，記錄 executable hash-matching 保留 bundle 的目前 Electron Framework hash／version／mtime／簽章驗證及其 replay-time provenance 限制；未覆寫 replay11、其他 source 或舊 evidence。本工作僅有診斷 script，不是產品程式修補。
+- round1 獨立審查結論：`docs/project-management/reviews/2026-10-01-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round1.md:32-36` 判定為有條件通過。逐字結論：**有條件通過（僅限「目前限制內未找到 task-local 路徑」的邊界診斷；不代表 FR-021 packaged UI offline acceptance 通過）**（第 33 行）。逐字修正要求：**保留本工作項目「進行中」及上述根因限制，不要把 canary 或 contract tests 摘要成 UI／FR-021 通過。若要主張根因或完成 packaged UI acceptance，下一階段需保存可重播的 exact profile／命令及與目標 candidate 的關聯，引用 Apple／Electron 一手支援資料，並在明確核准的 egress 控制下實際驗證 packaged UI、Chromium sandbox 與整棵程序樹外連拒絕；同時記錄控制失敗時的 rollback。若沒有滿足這些條件的授權方案，應明確將 UI acceptance 留作阻擋項。**（第 36 行）。本輪只處理授權內的可重播合成診斷與來源引用；需求方「繼續」僅授權這些原有診斷的補強／報告整合，不代表接受略過驗收或授權任何 OS 網路設定變更。工作項目保持進行中，進一步複審前不宣稱結案。
+- round2 獨立審查結論：`docs/project-management/reviews/2026-10-01-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round2.md:32-36` 判定有條件通過。逐字結論：**有條件通過（僅限可重播的 synthetic Seatbelt profile-composition 診斷；不代表 root cause 已確定或 FR-021 packaged UI offline acceptance 通過）**（第 33 行）。審查者要求（摘要僅逐字引用報告第 36 行）：**維持工作項目「進行中」，並保留 replay2 fail 原件；不要將 replay3 或完整 check 稱為 packaged UI／FR-021 acceptance pass。若後續要宣稱 Chromium 根因，應以與 replay11 candidate 可核對的 Chromium 版本／profile 證據重現，並將 Chromium source 固定到對應版本或 commit。若要完成 UI egress acceptance，先取得明確的 per-app／OS egress control 與 rollback 授權，再以 packaged candidate 實測外連拒絕、Chromium sandbox、完整 UI 流程及 cleanup；本輪未取得該授權，也未執行這些步驟。**（第 36 行）。此條件下工作仍進行中；需求方指示「繼續」僅支援授權內診斷／整合，未授權 OS 網路設定變更。
+- 2026-10-02 證據對齊更新：候選 source commit／Electron lockfile／Electron release／Chromium versioned source 已串接，且 Chromium source 固定為上述 tag、commit 與 blob；此舉關閉可由靜態紀錄補強的 mutable `HEAD` 缺口，但沒有建立 exact generated profile，亦沒有重新執行 packaged UI。replay11 顯示失敗於 `electron_start`、SIGTRAP、`CHROMIUM_CHILD_SANDBOX_INIT_FAILED`，renderer 未載入且 cleanup 確認完成。SHA→source commit 關聯依賴 2026-09-30 稽核紀錄，replay11 JSON 未保存 source commit／build provenance，不能當作可驗證的 binary provenance。UI egress acceptance 仍需另行授權及實機驗證。
+- round3 獨立審查結論：`docs/project-management/reviews/2026-10-12-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round3.md:36-40` 判定有條件通過。逐字結論：**有條件通過（僅限 v0.51.0 candidate 的靜態 source-version／Chromium policy fragment 關聯補記；不代表 executable build provenance 已獨立驗證、root cause 已確定，或 FR-021 packaged UI offline acceptance 通過）**（第 37 行）。審查報告第 40 行要求保持工作進行中，若要主張 exact binary provenance 須補可回溯建置來源；完成 UI egress acceptance 前須先取得涵蓋 per-app／OS 控制與 rollback 的明確授權。此輪為文件與 source version 靜態審查，不是 UI／network acceptance 複審。
+- round3 審查驗證：reviewer 於 2026-10-12 約 06:50 UTC 執行 `npm run docs:check`（19 個文件，exit 0）、`git diff --check`（exit 0）、lockfile JSON 解析、Chromium tag／blob 查核及 replay11／round1／round2 原件 hash 核對；未執行 `npm test`、`npm run check`、canary、packaged app、Ollama 或 network probe。審查範圍及各面向判定見 round3 原件第 8–44 行。
+- round4 文件狀態校正複核：`docs/project-management/reviews/2026-10-12-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round4.md`。由主代理透過 multi-agent 工具另行派出的 agent context 依六面向核對最新條目、round3 原件及 00／06／07；確認 round3 限定結論未擴張，`npm run docs:check`、`git diff --check` 均 exit 0。本報告明示未重驗 source、binary、canary、app、Ollama、network 或 FR-021 實機 acceptance。報告內稱自身不能作為另一代理複審，與本輪由另一 agent context 產生的派工紀錄不一致；保留報告原文，僅採其明確限定範圍內的文件核對結果，不視為底層驗收證據。
+- round5 獨立審查：`docs/project-management/reviews/2026-10-12-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round5.md` 有條件通過本輪靜態 bundle identity 補記；reviewer 獨立重算 executable／Framework hash、核對版本／mtime、app 與 Framework 簽章，並重跑 docs／whitespace／JSON 檢查。條件為釐清 06 的舊句，使「目前 hash-matching bundle 的 Framework 已量測」與「replay-time Framework hash／identity／provenance 未驗證」清楚區分。主代理已按建議修正並重新跑文件檢查；不代表 FR-021 UI offline acceptance 通過。
+- round5 條件修正後開發驗證：`npm run docs:check`（19 個文件）、`git diff --check`、新 evidence JSON parse 均 exit 0；重新計算 executable／Framework SHA 與 evidence 一致。未重跑 app、Ollama、canary 或網路測試；`docs:check:final` 未執行，工作仍進行中。
+- 本輪結案判定：完成 2026-10-12 唯讀 static bundle identity 補記與其文件／證據邊界校正；FR-021 packaged UI offline acceptance、exact generated profile、replay-time binary provenance 與任何 OS-level per-app egress control 仍不在本輪完成範圍，並保留為遺留風險，不將本輪診斷描述為產品或 FR-021 驗收通過。
+- round6 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-14-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round6.md`
+  - 判定（逐字引用審查報告「可逐字引用的完整結論句」）：**本輪 round6 獨立審查結論為有條件通過：static bundle identity 診斷與文件收尾在限定範圍內可追溯且未被擴張為 FR-021 packaged UI offline acceptance；但 replay-time binary provenance、exact generated profile、OS-level egress control 與 packaged UI offline flow 仍未驗證。**
+  - 條件（若為有條件通過）：依報告第 46 行整合本報告原句與遺留風險，執行並保存 `npm run docs:check:final`；不修改 round1–round5 原件，不以本報告替代未執行的 packaged UI、exact profile、binary provenance 或 network acceptance。
+  - 條件是否已被需求方接受：是（需求方本輪要求繼續；僅接受文件整合與 final gate，不擴大至 OS-level egress control、packaged UI offline 或 FR-021 整體驗收授權）。
+- round6 條件履行與文件結案：主代理已整合 round6 審查檔案路徑、完整逐字結論與條件界線；後續執行 `npm run docs:check:final`，並保留既有 round5 格式缺口與本輪 final gate 前的失敗輸出，不修改任何既有審查原件。
+- 審查代理驗證範圍：round2 僅讀取 replay2／replay3 與主代理保存的完整 `npm run check`／canary 執行紀錄；親自於 2026-10-01 09:21:22 UTC 執行新 canary script `node --check` exit 0。未自行跑 tests、canary 或 app，未改 OS 網路、Ollama 或模型。
+- 獨立審查是否執行：是（round1、round2、round3、round5、round6；各輪原件保留，均有條件通過且範圍有限。round3 僅審查靜態 source-version／policy fragment 關聯；round5 僅審查目前 executable-hash-matching bundle 的 Framework identity 補記；round6 審查文件收尾與 static bundle identity 子範圍。round4 文件狀態報告亦保留，報告內對獨立性的自述與派工來源差異已如實記錄。上述均不代表 replay-time binary provenance、root cause 或 packaged UI acceptance 通過；FR-021 offline UI 仍未結案。）
+- 發布授權：不適用；本項不發布。
+
+## 2026-10-01 — FR-021 macOS Ollama UI 取消與 checkpoint 續跑驗收
+
+- 狀態：完成
+- 結案範圍：macOS 正常 loopback UI 取消／重載／checkpoint 續跑及預設流程，包含本輪競速／runner lifecycle 修補、完整回歸與 round4 最終獨立報告整合；2026-10-01 03:46 UTC 文件 final gate exit 0。不代表 packaged UI offline、FR-021 整體或發布完成。
+- 執行者：Codex
+- 需求來源：需求方持續要求先完成 macOS 實機驗收；Windows 暫緩、LM Studio 已刪除且不驗收。前輪 Seatbelt packaged UI 可行性重播已結案，本輪推進尚未覆蓋的 UI 取消／重載／checkpoint 續跑。
+- 關聯需求／缺陷：`FR-021`、`NFR-005`、`NFR-006`、`BUG-034`、`BUG-035`、`BUG-036`。
+- 變更等級：高（驗收工具及產品 UI 取消競速修補；須完整回歸、當前程式隔離封裝實測及獨立審查）。
+- 執行前已讀：`npm run project:preflight -- --type=debug` 固定核心、debug 路由、工作條目範本與獨立審查規則。
+- 來源基準：branch `codex/0.51-anthropic-claude`、HEAD `299ff5d4288b9d50e356db8b0a5ae349dcb23ebc`；既有 v0.51.0 packaged candidate `53956ccdee6e16e4c0413f09312a419613b27da6`；macOS 26.6.2 arm64、預裝 Ollama `llama3.2:3b`。
+- 目標與成功條件：使用隔離 userData 與合成字幕，從實際校閱 UI 啟動多批翻譯；至少一批 checkpoint 後取消、驗證原字幕不變、取消後恢復控制及重載還原；從 UI 續跑並確認相同 Session／checkpoint 起點、完成全部建議、人工接受、undo／redo、雙語保存與時間碼不變；所有 app process group／port／暫存資料清理可確認。未通過項目如實保存獨立 evidence，不覆寫失敗結果。
+- 可執行計畫：1. 補既有 runner 的 opt-in cancel-resume 情境並維持預設流程；2. 執行 syntax／focused regression 與現有 candidate 實測；3. 如有可重現 UI 缺陷，最小修補、補可執行回歸及當前程式實機重驗；4. 完整開發回歸、同步治理文件、獨立上下文六面向審查；5. 處理審查問題後執行 `npm run docs:check:final`。
+- 不在範圍：不更改 OS 網路、防火牆／Network Extension／PF／Wi-Fi，不使用 `--no-sandbox`，不停止既有 Ollama daemon、不下載模型、不使用雲端／API Key、不讀寫使用者影片或字幕、不發布／提交／推送；實測 `systemNetworkDisabled=false`，不視為 packaged UI 斷網驗收或 FR-021 整體完成。
+- 風險與回復方式：取消時機可能競速，必須確認 checkpoint 後且未全部完成；檢測不到窗口即 fail closed，不能以 API-only 或模擬模型代替實機通過。保留既有 dirty worktree 與所有 evidence；只新增唯一檔案，清理只限 runner 建立的隔離暫存路徑。
+- 驗證計畫：可執行 UI 控制回歸、runner 契約／syntax、真實預裝模型與 macOS Electron UI 重播、`npm run check`、`git diff --check`、独立六面向報告與 final gate。
+- 預計影響檔案／模組：`scripts/verify-electron-ollama-ui.mjs`、對應 UI／provider tests、本紀錄、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`；必要時 `public/review.js`、`03-FUNCTIONAL-DESIGN.md`、`07-DEBUG-AND-FIX-HISTORY.md`；新增獨立 evidence／review，不修改舊原件。
+- 獨立審查是否執行：是（round1、round2、round3、round4；各輪獨立報告保留，round4 為本輪最終複審依據）。
+- 發布授權：不適用；本輪僅開發與本機驗收。
+- 開發重現：replay1 在 UI flow 前被 target whitelist 拒絕且 cleanup 全確認；查核 packaged splash title／URL 與 runner 未 import 的 socket validator binding 後配置 `BUG-034`，共用 selector 改為先挑合法 local HTTP main page 再驗證 socket。另 actual UI function VM 控制 stale running 回應，修補前 `node scripts/test-review-ui.mjs` exit 1（恢復按鈕 actual hidden=true）；配置 `BUG-035` 並於成功取消後使用既有 restore 流程確認 checkpoint 控制。兩種缺陷分別為 tooling 啟動選取與受控產品競速，不混為實機模型失敗。
+- 實際修改：runner 新增 opt-in cancel-resume 六 cue／batchSize 1、cancel 控制／磁碟 checkpoint／不同 page time-origin 的 reload／resume POST 與 result 起點／Session 比對，original SRT before／after hash；v3 evidence 記錄 artifact hash、固定 stage／非敏感 trace，exclusive-create 與完整 cleanup 保留。新增 `scripts/ollama-ui-local-daemon.mjs`：自有 macOS loopback daemon，context 4096、no-cloud／no-prune、預裝模型 gate、有界啟動、process group／port／temp cleanup，不動使用者 daemon 或既有 offline policy。`public/review.js` 僅新增成功取消後的 restore；selector、UI VM 與 missing-model integration 回歸同步。
+- 封裝驗證：本輪隔離目錄 candidate 從 dirty worktree 建立，builder exit 0、ad-hoc `codesign --verify --deep --strict` exit 0；source／packaged review.js SHA-256 同為 `1801f4e20f99be4d4ac6f3b0a199696c1bf8ee5282fc4367c2875b139dd37b55`。舊 candidate／公開 Release 資產未改。
+- 實機結果：replay9 exit 0、pass（15,879 ms），checkpoint 1/6 取消、重載、同 Session 從 batch index 1 續跑、六筆建議接受／undo／redo／雙語保存，原 SRT 與時間碼不變；Electron／自有 Ollama／port／temp 全清理且未強制 SIGKILL。replay1–8 原始失敗均保留；既有 service 的高 context／8 GB 環境與專用 daemon 短啟動窗口限制如實列於測試稽核，不將它們改為成功。
+- 開發驗證結果：修補後 focused UI／provider／offline UI（含 missing-model daemon integration）、helper／runner／UI syntax 與 `git diff --check` exit 0；最新完整 `npm run check` exit 0（含全部核心整合）。預設情境 `2026-10-01-ollama-ui-default-regression-replay1.json` exit 0、pass、9,016 ms；兩 cue 設定／翻譯／接受／undo／redo／保存與原始 SRT hash、時間碼、所有 cleanup 均通過，`cancelResume=null`。非發布的隔離候選與預裝模型為兩案共同基準。
+- 遺留風險與後續事項：合成短句不代表長中文模型品質；本輪不更改公開 candidate、不驗收使用者原片或乾淨安裝。正常 loopback UI 通過不能代替 packaged UI offline（既有 Seatbelt 初始化失敗）、物理斷網或 FR-021 全需求；Windows 暫緩、LM Studio 不驗收。既有 desktop daemon 的高 context 與專用 daemon cold-start 原因未全面診斷，不修改其設定或服務。
+- 收尾查核：兩份正向 evidence 未含 raw subtitle／translatedText／text property、API token query 或 `/Users/`／`/private/` 個人路徑；實機 process snapshot 只剩原有 Ollama app PID 910／service PID 938，無本輪 Electron／owned daemon 殘留。一般 `npm run docs:check` exit 0，候選 bundle version 核對為 0.51.0；本輪不發布。
+- round1 修補計畫：獨立 reviewer 在 02:58:32／02:59:24 UTC 實際函式／runner VM 與 local HTTP fixture 重現 stale cancelled 在成功 resume 後關閉新 polling、artifact read EACCES 在主 try/finally 前逃逸造成已啟動 app／temp 未清理，以及 tags trickle body 超過 startup deadline。主代理維持狀態進行中，補 generation guard、將 artifact 讀取移入主 finally 保護範圍、對 tags 採剩餘 deadline 的 absolute timer；三案補持久可執行回歸、重建獨立新候選與新 evidence，不改 round1 或舊 pass／fail evidence，再完整回歸與 round2 複審。
+- round1 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-01-fr-021-macos-ollama-ui-cancel-resume-round1.md`
+  - 判定（逐字引用審查報告「綜合判定」完整句）：**本輪獨立審查結論為不通過：兩份正常 loopback 實機證據與候選雜湊一致，但取消後快速續跑仍受舊終態回應干擾，artifact 讀取失敗會略過清理，daemon 啟動期限亦未涵蓋持續回應；三項阻擋修正並複審後才能結案，FR-021 整體仍未完成。**
+- round1 修正結果：generation 隔離晚到終態；artifact 移入主 finally；tags absolute deadline／1 MiB cap。Actual UI VM 三個 stale terminal 回歸、actual runner EACCES lifecycle／path-canary 回歸、actual helper＋真實 loopback trickle fixture 回歸與原 focused tests 通過。新增 `BUG-036`，以新隔離候選與唯一 evidence 重驗，不覆寫舊成功或失敗結果。
+- round2 開發驗證：上述三項修補後完整 `npm run check` exit 0、syntax／whitespace exit 0；新獨立 candidate builder／ad-hoc verify exit 0。Latest review.js source／packaged hash `6bb93f9939415b21261c92a0adacfad0d5a9e304e97a02900770aeac6e8d1cf9`；replay10 cancel-resume exit 0、pass、21,106ms，default regression replay2 exit 0、pass、9,157ms，原始 SRT／時間碼／所有 app＋owned daemon cleanup 通過且未強制 SIGKILL。維持 systemNetworkDisabled=false／未發布／FR-021 未整體結案；啟動同一獨立 reviewer 建立 round2。
+- round2 延伸修補計畫：reviewer 重現 cancel 的 restore GET pending 時新 UI 任務已開始，晚到 cancelled restore 仍 setAiRunning(false)。主代理維持進行中，將同一 generation 核對擴至 restore GET 成功／失敗路徑，且已 superseded 的 cancel 不顯示舊取消訊息；補 actual函式回歸，確認新輪詢／controls／訊息不被覆寫，重新封裝與唯一新實機證據、完整回歸後 round3 複審。
+- round2 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-01-fr-021-macos-ollama-ui-cancel-resume-round2.md`
+  - 判定（逐字引用審查報告「綜合判定」完整句）：**本輪 round2 獨立複審結論為不通過：artifact 讀取失敗清理與 daemon 啟動期限兩項阻擋已解除，舊 poll 終態亦已隔離，但晚到的取消狀態還原仍會停止新任務；兩份新實機證據與候選雜湊一致，尚須修正該競速並複審，FR-021 整體仍未完成。**
+- round2 後修正：restore GET 成功／失敗及 superseded cancel 訊息隔離；actual 新 UI run 在舊 restore pending 後保持控制／訊息／Session 並正常完成。相鄰 stale GET rejection 修補前 focused exit 1，修補後 ignored；舊啟動 POST rejection 不影響新任務，目前任務 start／poll 失敗仍有可讀錯誤。P3-01 回應上限改用 Buffer.byteLength，真實 HTTP ASCII／UTF-8 oversized fixture 皆拒絕；startup 後 polling wait 亦限剩餘時間。新候選為 `dist/acceptance-2026-10-01-cancel-resume-round3-final`，source／packaged review.js hash `7efbe0d1cca764e015af940323725b1c8b0bc09c46e31a2a2b437375ee79c0d3`；round2／舊 evidence 未改。
+- round3 開發驗證：最終 focused UI／provider／offline UI、helper／UI syntax、`git diff --check`、最終完整 `npm run check` 均 exit 0（03:25 UTC）；current start／poll failure 可讀性與新 actual task 正常完成也已驗證。Round3-final candidate build／ad-hoc verify exit 0，source hash 一致；replay11 cancel-resume exit 0／pass、19,714ms，default regression replay3 exit 0／pass、10,326ms，原 SRT／時間碼／所有 app＋owned daemon cleanup 通過且未強制 SIGKILL。以同一獨立 reviewer 建立新 round3，所有前輪 report／evidence 保留。
+- round3 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-01-fr-021-macos-ollama-ui-cancel-resume-round3.md`
+  - 判定（逐字引用審查報告「綜合判定」第 67 行）：**本輪 round3 獨立複審結論為有條件通過：取消狀態還原競速與 UTF-8 位元組上限均已修正，前輪三項阻擋全部解除，獨立完整回歸及新候選實機證據雜湊核驗通過；主要代理尚須整合本報告並通過文件 final gate，正常 loopback 子範圍不代表 FR-021 整體完成。**
+  - 條件（若為有條件通過）：依第 69 行整合本報告原句、同步本工作條目及最後驗證／剩餘風險，執行並保存 `npm run docs:check:final` 結果；不改寫各輪審查原件。
+  - 條件是否已被需求方接受：是（需求方持續指示「繼續」；此條件為既有專案規範及已授權工作內的文件整合／結案檢查，不是需求方同意略過未完成驗收，也不增加系統網路變更、Windows 或發布授權）。
+- round3 獨立驗證：reviewer 於 03:27:59 UTC 起自行執行完整 `npm run check` exit 0，補充 syntax／whitespace 通過，核驗 final candidate 雜湊／ad-hoc 簽章與 replay11／default3；未重跑 live AI UI，不冒稱其獨立執行實機流程。主代理比對審查前後工作樹 SHA-256，只有新增 round3 報告，無既有 source／evidence／報告或其他檔案變更。
+- round3 文件 gate 失敗保留：2026-10-01 03:36 UTC `npm run docs:check:final` exit 1；round3 第 2、3、5、6 面向雖列出具體執行／證據，未使用固定 `- 證據：` 欄位，另 summary 使用 `- 阻擋問題：` 而非 `- 阻擋問題（若有）：`。`git diff --check` exit 0。主代理不改寫 round3 原件、不放寬 validator，條目回復進行中；由同一 reviewer 另建 round4，重新核對文件及 source／evidence 不變後以固定格式出具報告，再整合與重跑 final gate。
+- round4 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-01-fr-021-macos-ollama-ui-cancel-resume-round4.md`
+  - 判定（逐字引用審查報告「綜合判定」第 54 行）：**本輪 round4 獨立審查結論為有條件通過：報告已補齊既有 validator 要求的固定欄位，前輪程式阻擋解除判定維持，source、最終候選與兩份實機證據雜湊核驗一致；主要代理尚須整合本報告並通過文件 final gate，正常 loopback 子範圍仍不代表 FR-021 整體完成。**
+  - 條件（若為有條件通過）：依第 56 行連結並逐字引用本報告、同步最新工作條目及最後驗證／風險，執行且保存 `npm run docs:check:final` 結果；不以 report validator pass 代替 final gate。
+  - 條件是否已被需求方接受：是（需求方持續指示「繼續」；僅既有規範及已授權工作內的文件整合／結案檢查，不表示略過未完成驗收、不新增系統網路變更或發布授權）。
+- round4 驗證來源與原件保留：本輪 reviewer 的一般 docs／whitespace 與直接 `validateReviewReport` 格式驗證均通過（errors=[]），只讀 source／candidate／最終 evidence 雜湊核驗一致；未重跑完整 check 或 live AI，完整獨立回歸承接 round3 的實際結果。主代理審查前後 SHA-256 比對僅新增 round4 報告，既有 source／evidence／報告／其他檔案無變更；reviewer 完成後已關閉。
+- round4 條件履行與最終結案：最新審查原句／條件、目前狀態、稽核及本工作條目已同步；2026-10-01 03:46 UTC `npm run docs:check:final` exit 0（19 個文件、版本 0.51.0、最新紀錄已結案），`git diff --check` exit 0。已保存 03:36 UTC gate exit 1 與各輪原件，不將失敗覆寫為成功；結果補記後重跑 final gate／whitespace 亦 exit 0。03:39 UTC 清理複查僅原有 Ollama app PID 910／daemon PID 938，無本輪 Electron／owned daemon；不停止既有服務、不發布。
+
+## 2026-09-30 — FR-021 packaged Electron UI macOS 26.6.2 Seatbelt 可行性重播
+
+- 狀態：完成
+- 結案判定：macOS 26.6.2 版本差異可行性重播、acceptance runner 修補與完整開發回歸已完成，round3 獨立報告已整合，`npm run docs:check:final` 已通過。本輪完成範圍僅為可行性重播與 runner 修補，packaged UI acceptance 仍未通過，FR-021 整體未結案。
+- 執行者：Codex
+- 需求來源：需求方要求持續完成先前指定的 macOS 實機驗收（Windows 暫緩）；目前最新失敗證據來自 macOS 25.6，而本機為 macOS 26.6.2，故先以現有封裝候選補做版本差異重播。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`。
+- 變更等級：中（以既有 fail-closed acceptance runner 啟動現有 packaged app 與本機預裝 Ollama，新增非敏感 replay evidence；不改產品程式、模型、系統網路設定或發布資產）。
+- 執行前已讀：`npm run project:preflight -- --type=debug` 列出的固定核心、debug 任務路由與工作紀錄範本（是；2026-10-01 延續時重新確認路由）。
+- 來源基準：branch `codex/0.51-anthropic-claude`；既有 v0.51.0 macOS arm64 release candidate，來源 commit `53956ccdee6e16e4c0413f09312a419613b27da6`；本機 macOS 26.6.2 arm64，Ollama `llama3.2:3b` 已安裝。
+- 目標與成功條件：以既有 runner `npm run acceptance:ollama:ui:offline` 驗證 loopback 可用及外連測試 socket 為 `EPERM`，在不下載模型、不停用 Electron sandbox 的前提下重播 packaged UI；不論 app pass/fail，均以唯一 evidence 記錄狀態並確認 app／driver／daemon／port／暫存資料清理。
+- 不在範圍：不安裝或啟用第三方防火牆／Network Extension、不修改 PF／Wi-Fi／全機網路、不使用 `--no-sandbox`、不停止使用者既有服務、不讀寫使用者字幕或影片、不驗收 LM Studio／Windows／UI cancel-resume、不發布／提交／推送。
+- 風險與回復方式：只使用既有 candidate、預裝模型及隔離 temporary root；若 Seatbelt 前置條件、模型檢查或清理狀態不符合 runner 契約，即保留 fail-closed 結果並停止，不擴權重試；replay10／replay11 使用獨立路徑，禁止覆寫舊 evidence。
+- replay10 執行紀錄：首次呼叫誤將 `.app/Contents/MacOS/<executable>` 傳入只接受 `.app` bundle 目錄的參數，於 `app_bundle_preflight` 以 `APP_BUNDLE_INVALID` fail-closed；Electron／driver／daemon 均未啟動，所有 cleanup 欄位確認乾淨。原始 evidence `docs/project-management/evidence/2026-09-30-ollama-llama3.2-3b-ui-offline-replay10.json` 保留；修正呼叫形狀後使用 replay11 繼續，不覆寫 replay10。
+- round1 審查報告：`docs/project-management/reviews/2026-09-30-fr-021-macos-26-6-2-seatbelt-replay-round1.md`；判定（逐字引用該報告「綜合判定」第 39 行）：**結論：有條件通過。**
+- round1 後續修正計畫：replay evidence 升級至 schema v3，僅記錄經格式驗證的 macOS product version／build 與 bundle input kind（不保存原始路徑）；focused integration test 以 executable path 誤作 `.app` 目錄呼叫 wrapper，斷言 `APP_BUNDLE_INVALID`／`app_bundle_preflight`、未啟動 daemon／Electron 及 evidence 欄位；另以 replay12 保存新版 preflight evidence；其後依 scope 完成 round2、完整回歸與 final gate。
+- 驗證計畫：核對候選版本及簽章、focused runner test／Node syntax、macOS 26.6.2 replay10／11 evidence 與 replay12 v3 preflight evidence、負向 bundle-input integration test、完整 `npm run check`、`git diff --check`、round2 獨立六面向複審及 `npm run docs:check:final`。
+- 預計影響檔案／模組：`scripts/verify-electron-ollama-ui-offline.mjs`、`scripts/test-ollama-ui-offline.mjs`、本紀錄、`docs/project-management/00-CURRENT-STATUS.md`、`docs/project-management/06-TEST-AND-PROCESS-AUDIT.md`、既有 replay10／replay11 evidence 不覆寫、新增 replay12 evidence、round1 報告不修改；必要時新增 round2 獨立報告。不修改產品 runtime。
+- round1 條件處理：runner evidence schema 升 v3，只保存格式驗證的 macOS product version/build 與 bundle input kind；`scripts/test-ollama-ui-offline.mjs` 新增 executable-path misuse wrapper integration，實際斷言 `APP_BUNDLE_INVALID`／`app_bundle_preflight`、sandbox probe／daemon／Electron 未啟動及絕對路徑不外洩。`replay12` 保存 macOS 26.6.2／build 25G83、`app_executable_path`、負向 preflight 與乾淨 cleanup；舊 replay10／11 v2 evidence 未改。
+- 獨立審查是否執行：是（round1、round2、round3；各輪獨立報告均保留）。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-09-30-fr-021-macos-26-6-2-seatbelt-replay-round2.md`
+  - 判定（逐字引用審查報告「綜合判定」第 63 行）：**本輪 round2 獨立審查結論為有條件通過：executable-path 負向 CLI、去敏 macOS version/build 與 v3 input-kind evidence 已核驗，尚須主要代理整合報告並通過文件 final gate；合法 .app/ 輸入分類為 other 的非阻擋問題保留，packaged UI acceptance 仍失敗，FR-021 整體未結案。**
+- round2 後續修正計畫：以與 bundle preflight 一致的 `path.resolve` 分類輸入；將 executable-path 負向 regression 拆成僅需 macOS arm64／Seatbelt／candidate 的獨立區塊，搭配不存在的 Ollama binary，在任何 network probe／daemon 前停止；新增正常 `.app` 與尾端 separator `.app/` 的直接 CLI regression。重跑受影響 focused／完整測試後由原 reviewer 建立 round3，不改寫 round2 或舊 evidence。
+- round2 條件處理：classifier 改用 `path.resolve`，與實際 bundle preflight 使用相同正規化，`.app/` 不再落入 `other`；新增獨立的三案 CLI integration（executable／正常 bundle／尾端 separator bundle），使用不存在的 binary 與 spawn seams，驗證失敗 stage、OS/input-kind、無 network probe／daemon／driver／Electron 及 path 隱私。該三案不依賴 Ollama/model；原 ENOENT daemon integration 的模型 gate 保留且另有清楚 skip 訊息。
+- round3 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-09-30-fr-021-macos-26-6-2-seatbelt-replay-round3.md`
+  - 判定（逐字引用審查報告「綜合判定」第 61 行）：**本輪 round3 獨立審查結論為有條件通過：合法 .app/ 輸入分類及負向 preflight 與 Ollama/model gate 綁定問題已修正，三案無 daemon focused integration、語法與 whitespace 檢查通過；主要代理尚須整合本報告並通過文件 final gate，本工作僅結案可行性重播與 runner 修補，packaged UI acceptance 仍失敗，FR-021 整體未結案。**
+  - 條件（若為有條件通過）：整合本報告原句、同步本工作條目的狀態／驗證／遺留風險，執行並保存 `npm run docs:check:final` 結果；依該報告第 62、64 行處理。
+  - 條件是否已被需求方接受：是（需求方在已說明本輪範圍與 UI 失敗狀態後持續指示「繼續」；此條件為既有專案規範及已授權工作中的文件整合／結案檢查，不增加發布授權或驗收例外）。
+- round3 條件履行結果：報告完整原句已整合；目前狀態、測試稽核、本條目狀態／驗證／風險已同步。2026-10-01 `npm run docs:check:final` exit 0（19 個文件、最新紀錄已結案），`git diff --check` exit 0；僅結案本次可行性重播與 runner 修補，FR-021 整體狀態不變。
+- 實際修改：evidence v3 保留去敏 OS 身分與輸入類別；輸入分類使用一致的路徑正規化；preflight 三案與需模型的 daemon integration 分開；同步目前狀態、測試稽核與本工作紀錄，新增 reviewer 自行建立的 round2／round3 報告。
+- 實際結果：replay10 參數誤傳使 app-bundle preflight 回 `APP_BUNDLE_INVALID`，未啟動 Electron／Ollama，清理全通過；replay11 以正確 `.app` bundle 啟動，於 `electron_start` 回 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／`SIGTRAP`，loopback allow、外連 `EPERM`、預裝模型與完整清理均有 evidence。replay12 僅為 v3 負向 preflight；原 replay10／11／12 與 round1／round2 報告均保留。round3 報告已取得、逐字引用與文件同步已完成。
+- 開發驗證結果：2026-10-01 `OLLAMA_BIN=/nonexistent-round3-preflight node scripts/test-ollama-ui-offline.mjs` exit 0，實際跑過三案無 daemon preflight、另明確跳過需要真實 Ollama 的 ENOENT integration；runner/test 語法與 `git diff --check` exit 0。修補後完整 `npm run check` exit 0（19 個治理文件、全部 syntax 與所有 tests），同時執行三案 preflight 與原有隔離 daemon ENOENT integration；此前 candidate deep strict codesign 與 replay 的實測結果保留。
+- 遺留風險與後續事項：replay10／11 v2 未保存 OS/build/input-kind，不回填歷史值；preflight 三案仍需 macOS arm64／Seatbelt／現有 candidate，daemon integration 另需預裝 Ollama/model。實機離線 UI、取消／checkpoint-resume、全機斷網、模型品質與 FR-021 整體未完成；Windows 暫緩、LM Studio 依需求方決定不驗收。本次僅關閉可行性重播與 runner 修補範圍。
+- 發布授權：不適用；本輪不發布。
+- 部署／發布結果：不適用；未修改既有 v0.51.0 公開資產，未提交／推送。
+
+## 2026-09-30 — FR-021 macOS Seatbelt packaged Electron Ollama UI 隔離可行性查核
+
+- 狀態：完成
+- 結案判定：本輪完成 fail-closed 驗收 runner、故障注入與 macOS 實際啟動查核；packaged Electron UI 在目前 Seatbelt 外層網路隔離方式下未能啟動，故「可行性查核」結案不代表 UI 離線驗收通過，FR-021 整體仍未結案。
+- 執行者：Codex
+- 需求來源：需求方先前指定先完成 macOS 實機驗收、Windows 暫緩；延續 FR-021 macOS Seatbelt Ollama acceptance，查核目前仍缺的 packaged Electron UI 能否在 deny-network／loopback-only 條件下實測。
+- 關聯需求／缺陷：`FR-021`、`FR-010`、`NFR-001`、`NFR-005`、`NFR-006`。
+- 變更等級：高（新增實際啟動 packaged Electron 與 Ollama 的 macOS acceptance runner，涉及本機 AI／子程序／暫存資料與網路隔離證據；不改產品 runtime 或發布資產）。
+- 來源基準：分支 `codex/0.51-anthropic-claude`、HEAD `299ff5d4288b9d50e356db8b0a5ae349dcb23ebc`；候選為既有 v0.51.0 macOS arm64 release candidate，來源 commit `53956ccdee6e16e4c0413f09312a419613b27da6`，不含目前未提交工作樹變更。
+- 目標與成功條件：先以 Seatbelt 驗證 loopback 可用、RFC5737 外連為 `EPERM`，確認預裝 `llama3.2:3b` 且不下載；嘗試在隔離條件下啟動 packaged Electron 並完成校閱 UI flow。若 Chromium 內建 sandbox 與外層 Seatbelt 不相容，需保存不含 raw log／字幕的失敗 evidence、確認所有程序／port／暫存清理，且不得關閉 Electron sandbox 偽造通過；本輪依實測結果結案為可行性查核，未達 UI flow 驗收。
+- 不在範圍：不關閉全機網路、不修改 Wi-Fi／防火牆、不停止既有桌面 Ollama、不下載／更新／刪除模型、不使用 API Key／雲端、不讀寫使用者字幕或影片；LM Studio 依需求方決策不驗收、Windows 實機暫緩；不建立新封裝、不提交／推送／發布。
+- 風險與回復方式：Seatbelt 或模型前置條件不通過即停止；所有 app profile 與 acceptance 資料置於獨立暫存目錄；不在正式 evidence 保存 renderer raw error、子程序 log 或字幕文字；任何程序／port／暫存清理無法確認均以失敗記錄並停止後續驗收。
+- 驗證計畫：focused runner／evidence contract tests、`node --check`、Seatbelt loopback／EPERM 實機檢查、預裝 Ollama 3B packaged UI 啟動嘗試、app／daemon／port／temp cleanup、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`。
+- 預計影響檔案／模組：新增 `scripts/verify-electron-ollama-ui-offline.mjs`、`lib/electron-devtools-target.mjs`、`lib/process-group-cleanup.mjs` 與 focused tests；更新 `scripts/verify-electron-ollama-ui.mjs`、`package.json`、本紀錄、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`；產生非敏感 acceptance evidence 與獨立審查報告。
+- 發布授權：不適用；本輪不打包、不提交、不推送、不建立 tag、不發布。
+- 實際修改：新增 `scripts/verify-electron-ollama-ui-offline.mjs`／`npm run acceptance:ollama:ui:offline`，以 Seatbelt 驗證 loopback／外連 `EPERM`、確認 exact preinstalled model，再以同 policy 啟動 packaged app process tree；使用 exclusive-create evidence、最小 child env、隔離 HOME／TMPDIR／userData。新增 `lib/electron-devtools-target.mjs`，只允許 DevTools WebSocket 為 `ws:`、`127.0.0.1`、本輪指定 port 與 page path；拒絕遠端／非預期 port 時不建立 WebSocket。完全移除 startup raw-line debug 輸出，只留下固定 diagnostic categories。新增 `lib/process-group-cleanup.mjs`，分別記錄 Electron app、host automation driver、Ollama daemon process group 的 cleanup-start 狀態、final absence／confirmation 與 SIGKILL escalation；無效 group ID 或最終狀態不明一律 fail-closed。offline evidence schema 升為 v2；focused tests 覆蓋遠端與錯誤 port no-connect、graceful SIGTERM、SIGKILL、無法確認與無效 group ID，另保留 ENOENT integration test；未使用 `--no-sandbox`、未修改產品 runtime／系統網路設定。
+- round1 獨立審查：報告 `docs/project-management/reviews/2026-09-30-fr-021-macos-seatbelt-electron-ui-feasibility-round1.md` 判定：**不通過**。三項需修正事項為 host-side DevTools URL 未限制目的地、debug 可輸出未充分遮罩的原始啟動行，以及 Electron process-group 最終清理 evidence 時點含混；報告亦要求保留「UI 未啟動、不得宣稱驗收通過」的結論。
+- round1 條件處理：加入 DevTools scheme／loopback／exact-port 白名單與負向 no-constructor tests；移除所有 `OSF_DEBUG_UI_STARTUP`／raw-line 輸出路徑；將 process-group 初始存在與清理後確認分欄，分別涵蓋 Electron、driver、daemon，並測試 graceful／forced／unconfirmed／invalid-ID。round1 報告原件保留不修改。
+- 開發驗證結果：`node --check`（兩支 runner、兩個新 lib modules 與 focused test）、`node scripts/test-ollama-ui-offline.mjs`、完整 `npm run check`（包含 19 個治理文件與所有 tests）、`git diff --check` 均通過；test-only ENOENT integration 確認 model preflight、外連 `EPERM` 與 daemon／port／temp cleanup。既有候選 v0.51.0 macOS arm64 `53956cc` replay8、replay9 均再次得到 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／Electron `SIGTRAP`，未建立 app server／renderer／UI flow；replay9 同時確認 Electron process group 曾存在但清理後已消失、`forcedCleanup=false`，automation driver／daemon groups 關閉，daemon port、userData、temporary root 均清理。replay7 曾揭露 evidence forced-cleanup 欄位映射重複，原 evidence 保留；replay8／9 為欄位修正後重播。最新 evidence：`docs/project-management/evidence/2026-09-30-ollama-llama3.2-3b-ui-offline-replay9.json`。Electron 官方 sandbox 說明：[Process Sandboxing](https://www.electronjs.org/docs/latest/tutorial/sandbox)；沒有用 `--no-sandbox` 降低安全邊界。
+- round2 審查檔案：`docs/project-management/reviews/2026-09-30-fr-021-macos-seatbelt-electron-ui-feasibility-round2.md`
+- round2 判定（逐字引用審查報告完整結論句）：**本輪 round2 獨立審查結論為有條件通過：round1 三項修正與限定驗證均通過，但 replay9 因 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／`SIGTRAP` 未啟動 renderer，故不得視為 packaged UI acceptance 通過，FR-021 整體仍未結案。**
+- round2 審查驗證：報告判定有條件通過；round1 三項實作缺失已由程式檢查及 focused 測試解除，沒有新程式阻擋。審查代理獨立執行 focused test、五個 `node --check` 與 `git diff --check` 均通過；依限定未重跑完整 `npm run check`／`docs:check:final`，未重新啟動 packaged app。報告只由審查代理建立，主要代理未修改。
+- round2 條件（若為有條件通過）：本輪只結案為隔離可行性查核，維持 replay9 為失敗、FR-021 未結案，不宣稱 packaged UI acceptance 通過；如另行採用 macOS per-app egress policy，須另立範圍並取得系統設定變更授權；不得使用 `--no-sandbox`。
+- round2 條件是否已被需求方接受：是（本輪依需求方明示範圍完成 macOS 可行性查核、Windows 暫緩、LM Studio 不驗收；不宣稱 UI 通過；任何未來 OS 網路政策變更仍需另行授權，本輪未執行）。
+- 文件結案驗證：`npm run docs:check:final` 通過，檢查 19 個治理文件並確認最新紀錄結案；同次 `git diff --check` 通過。完整 `npm run check` 亦於程式修正後通過。
+- 獨立審查是否執行：是（round1、round2 均由獨立上下文建立報告；原件皆保留）。
+- 獨立審查結論：round1 `不通過`，round2 `有條件通過`；報告分別為 `docs/project-management/reviews/2026-09-30-fr-021-macos-seatbelt-electron-ui-feasibility-round1.md`、`docs/project-management/reviews/2026-09-30-fr-021-macos-seatbelt-electron-ui-feasibility-round2.md`。
+- 遺留風險與後續事項：packaged Electron UI 離線 flow 未驗收，FR-021 仍未結案；若要使用其他 per-app egress 控制方法，需先確認其安全性、可回復性及是否影響系統設定，再取得相應範圍授權。`--no-sandbox` 不作為驗收替代。全機物理斷網、UI cancel／checkpoint 續跑、乾淨安裝、Windows 實機仍未覆蓋；LM Studio 依需求方決策不驗收。
+
+## 2026-09-29 — 報告參考優化：任務狀態輪詢、快取與安全錯誤處理
+
+- 狀態：完成
+- 結案判定：本輪程式修改、focused／完整回歸、四輪獨立六面向審查與文件 final gate 均已完成；範圍限定於報告參考的輪詢、快取、安全錯誤邊界、清理日誌與校閱 DOM 防護，不代表完整重構或發布。
+- 執行者：Codex
+- 需求來源：需求方要求參考《專案檢查與優化報告》進行優化；報告中的程式片段視為參考資料，採用前先修正已知的 `setInterval` 自適應間隔與生產錯誤訊息洩漏問題。
+- 關聯需求／缺陷：維護性與安全性優化；沿用既有任務狀態、錯誤處理、校閱 UI 與資料不外洩設計，不新增公開需求 ID。
+- 變更等級：中（涉及 server API 錯誤回應、任務列表快取、前端任務輪詢與校閱 DOM 渲染；不改資料格式、不發布）。
+- 來源基準：branch `codex/0.51-anthropic-claude`；工作樹已有其他未提交 Ollama／Whisper 與治理文件變更，本輪保留且不覆蓋。
+- 目標與成功條件：任務狀態輪詢採可真正變更的自適應 `setTimeout` 且不重疊請求；任務狀態保存立即使列表快取失效；生產 API 不回傳內部 stack／路徑；校閱 cue 的動態值不直接形成未轉義 HTML；既有終態、取消與人工校閱流程維持相容。
+- 不在範圍：不拆分 `server.mjs`、不改用 WebSocket／SSE、不重構所有時間格式化函數、不改 API 資料結構、不進行打包／發布、不接觸工作樹既有無關變更。
+- 風險與回復方式：前端輪詢改為遞迴 timer，需覆蓋重複啟動、請求失敗、頁面隱藏與終態；DOM 修補需維持 textarea／input 事件；server 錯誤需保留伺服器端診斷但對外固定化。若回歸失敗，僅回復本輪觸及的檔案與測試，不重設工作樹。
+- 驗證計畫：相關 source-contract／核心回歸、`node --check`、`npm run check`、`git diff --check`、獨立六面向審查與 `npm run docs:check:final`；保留未覆蓋的 Electron 實機風險。
+- 預計影響檔案／模組：`server.mjs`、`public/app.js`、`public/review.js`、對應測試與本紀錄；必要時同步 `03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag。
+- 實際修改：`formatModelDownloadSize()` 改為共用 `formatFileSize()`；模型快取與 multipart 暫存清理對 `ENOENT` 保持靜默、其他失敗記錄警告；`saveStatus()` 集中清除 `jobsListCache`；前端輪詢改為 generation-aware 遞迴 `setTimeout`，依狀態變化／失敗退避，頁面 hidden 立即停止既有 timer、恢復可見時重啟，取消後非終態會繼續追蹤；校閱時間碼與數值 attribute 補 `escapeHtml()`；API 錯誤在既有 endpoint fallback 之外，於 `sendJson()` 遞迴遮罩 production 的 `error`／`message`／診斷欄位、內部路徑、stack、工具與權限細節。另保留工作樹中同一範圍的歷史任務切換／queued polling 收斂修改，不改資料格式。
+- round1 獨立審查：報告 `docs/project-management/reviews/2026-09-29-report-optimization-round1.md`；判定（逐字引用完整結論句）：**有條件通過**。
+- round1 條件處理：已補頁面隱藏／恢復可見輪詢與取消後非終態追蹤；已把 production API 錯誤安全邊界擴至 `sendJson()` 集中處理，保留短的使用者訊息、遮罩內部路徑／stack／工具細節；round1 原件不修改。
+- 獨立審查是否執行：是（round1、round2、round3、round4 均由獨立上下文建立報告；原件皆保留）。
+- 開發驗證結果：2026-09-29 最新 focused tests、syntax checks、`node scripts/test-review-ui.mjs`、`node scripts/test-core.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0；完整 check 包含 19 個治理文件檢查、既有測試、報告參考優化測試、校閱 UI 與核心 API 回歸。審查期間曾觀察 Whisper 子程序等待／階段等待的間歇性失敗，之後獨立重跑核心與完整 check 均 exit 0；該限制列入 06-TEST 稽核，不覆蓋失敗紀錄。
+- round2 獨立審查：報告 `docs/project-management/reviews/2026-09-29-report-optimization-round2.md`；判定（逐字引用「綜合判定」完整結論句）：**本輪獨立複審結論為不通過：直接 API catch 的 production 錯誤遮罩、generation-aware 輪詢、queued／取消終態、任務列表快取失效與校閱動態值轉義已有可追溯通過證據，但 `/api/jobs/:id/status` 與任務列表仍可透過巢狀 `status.message`／logs 回傳由 `error.message` 形成的內部路徑，且本輪最新完整 `npm run check` 出現兩次核心整合逾時／階段等待失敗，故尚不能宣稱本工作項目完成；需修正 production 狀態輸出、補回歸測試並取得穩定完整回歸與 final gate 證據。** round2 原件不修改。
+- round2 後續處理：已將 `sendJson()` 改為遞迴處理 `error`、`message`、`detail`、`reason`、`stderr`、`stdout` 與 `logs`，新增 production status／logs path fixture；已重跑 focused、核心與完整回歸，均 exit 0。
+- round3 獨立審查：報告 `docs/project-management/reviews/2026-09-29-report-optimization-round3.md`；判定（逐字引用完整結論句）：**本輪程式條件已關閉；治理文件 final gate 與未覆蓋的瀏覽器、Electron、跨平台實機驗證仍列為剩餘風險，待主要代理完成文件結案。** round3 原件不修改。
+- round3 後續處理：依 round3 後續改動規則，將頁面 hidden 行為收斂為立即 `stopPolling()`，恢復可見才重啟；同步功能設計與 focused source assertion，並重新通過 focused／完整回歸。
+- round4 審查檔案：`docs/project-management/reviews/2026-09-29-report-optimization-round4.md`；判定（逐字引用完整結論句）：**本輪程式條件已關閉；治理文件 final gate 與未覆蓋的瀏覽器、Electron、跨平台實機驗證仍列為剩餘風險，待主要代理完成文件結案。** round4 原件不修改。
+- round4 條件處理：已同步本報告路徑與逐字句、將本條目保留為完成範圍並揭露未覆蓋風險；接著重新執行 `npm run docs:check:final`。
+- round4 條件是否已被需求方接受：是（以完成本輪優化、審查與文件結案為交付條件；不擴大未覆蓋的瀏覽器、Electron、跨平台實機範圍）。
+- 獨立審查結論：round1、round2、round3、round4 報告均保留於 `docs/project-management/reviews/`；各輪均由獨立上下文建立，主要代理未修改報告原文。
+
+## 2026-09-29 — FR-021 Ollama macOS 作業系統網路隔離驗收
+
+- 狀態：完成
+- 結案判定：round1 的 daemon spawn-error 清理問題與 round2 的 wrapper 層 fault-injection 缺口均已修正並通過 focused／完整回歸；round3 有條件通過此 acceptance 子範圍，程式與測試條件已關閉，round3 條件已履行且 `npm run docs:check:final` 通過。範圍限定 acceptance subprocess，不代表 FR-021 整體完成。
+- 執行者：Codex
+- 需求來源：目前狀態記錄 FR-021 Ollama loopback API 已完成但 `systemNetworkDisabled=false`；需求方持續要求先完成 macOS 實機驗收，並明確暫緩 Windows、LM Studio 已刪除不驗收。
+- 關聯需求／缺陷：`FR-021`、`NFR-001`、`NFR-005`、`NFR-006`。
+- 變更等級：中（新增 macOS-only acceptance wrapper、安全契約測試與治理 evidence；不修改產品 runtime、模型或發布資產）。
+- 來源基準：branch `codex/0.51-anthropic-claude`、HEAD `299ff5d4288b9d50e356db8b0a5ae349dcb23ebc`；既有桌面 Ollama daemon 與模型保留原狀，舊 product probe 只宣告 loopback 並明示未斷網。
+- 目標與成功條件：在獨立 macOS Seatbelt profile 中僅允許 loopback socket；OS 明確拒絕 RFC5737 外連測試（`EPERM`）；先確認指定模型已在本機，再執行兩 cue product flow、人工接受／undo／redo／雙語保存；原始字幕及時間碼不變；非敏感 evidence exclusive-create；daemon／port／暫存目錄清理均可確認。
+- 不在範圍：不關閉全機網路、不修改 Wi-Fi／防火牆、不停止既有桌面 Ollama daemon、不下載／更新／刪除模型、不使用 API Key／雲端、不讀寫使用者影片或字幕；不測 packaged Electron UI offline、UI 取消／checkpoint 續跑、LM Studio（需求方已刪除）或 Windows 實機；不發布／推送／建立 tag。
+- 風險與回復方式：macOS `sandbox-exec` 僅作本機驗收工具，profile／EPERM 前置斷言不通過或模型不存在時 fail closed；不以系統防火牆作替代。Product/model 失敗保留非敏感 evidence，但不保存 raw model text／stderr；若清理狀態不確定，exit 非零並如實保留 failure。
+- 驗證計畫：wrapper 與 focused contract 測試、固定 profile 的實機網路 deny／loopback allow、預裝模型檢查及 Ollama product flow、遠端 endpoint 負向測試、完整 `npm run check`、`git diff --check`、獨立六面向 review、`npm run docs:check:final`。
+- 預計影響檔案／模組：新增 `scripts/probe-ollama-product-offline.mjs`、`lib/ai/managed-child-process.mjs`、focused lifecycle test、離線 acceptance source-contract assertions、`package.json` script；更新 `00-CURRENT-STATUS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本紀錄；建立非敏感 evidence 與獨立審查報告。既有 `probe-ollama-product-live.mjs`、產品 server、desktop Ollama service 與 model store 不修改。
+- 發布授權：不適用；本輪不發布、不推送、不建立 tag。
+- 實際修改：新增 macOS-only wrapper，固定 deny-network／loopback-only Seatbelt profile；以 sandbox socket check 驗證外連 `EPERM`；使用獨立 Ollama daemon 及暫存 HOME，只有 `/api/tags` exact model check 通過才呼叫既有 product probe；outer evidence 僅投影狀態／數量／hash，不保留字幕或 raw error，採 `flag: 'wx'`；finally 停止自有 daemon、確認 port 關閉並清除 temp root。round1 後抽出 managed-child lifecycle helper，接收 `spawn`／`error`／`close`，讓啟動失敗沿既有 evidence／cleanup 路徑收尾；round2 後新增只在 `NODE_ENV=test` 生效的 spawn executable 注入點，focused test 從 wrapper subprocess 驗證 failure code／stage／exit／cleanup evidence。沒有修改產品 runtime。
+- 開發驗證結果：round1 修復後及 round2 integration test 新增後，`node --check lib/ai/managed-child-process.mjs`、`node --check scripts/probe-ollama-product-offline.mjs`、`node --check scripts/test-ollama-offline-process.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ollama-offline-process.mjs`、`node scripts/test-ai-providers.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0；最新完整 check 包含 19 個治理文件檢查及整套回歸，wrapper integration test 實際觸發 ENOENT 並驗證 failure evidence／stage／exit／cleanup。修正後 1B replay8／replay9 均因 `MODEL_RESPONSE_CONTRACT_REJECTED` exit 1，但 evidence 均確認外連 `EPERM`、sandbox daemon 已啟動且已停止、port closed、temp root removed。另 `OLLAMA_MODEL=llama3.2:3b npm run acceptance:ollama:offline -- docs/project-management/evidence/2026-09-29-ollama-llama3.2-3b-product-offline-replay1.json` exit 0；外連 `EPERM`、loopback 可用、預裝模型存在、兩 cue 流程成功，daemon／port／temp root 清理均確認。原 replay7 的 1B 成功及負向遠端 URL evidence 保留；不宣稱任一模型品質穩定。
+- 獨立審查結果：round1 報告 `docs/project-management/reviews/2026-09-29-fr-021-ollama-macos-seatbelt-network-isolation-round1.md` 已由獨立上下文建立。判定（逐字引用「綜合判定」結論欄）：**不通過**（見該報告「綜合判定」）；round1 原件不覆寫，修復後待 round2 獨立複審。
+- round1 後續處理：已加入 `lib/ai/managed-child-process.mjs` 及 `scripts/test-ollama-offline-process.mjs`，重跑 focused tests、完整 `npm run check` 及 1B／3B sandbox replay；replay8／9 的 1B 模型輸出契約失敗與完整清理狀態均保存，3B post-fix replay 通過。
+- round2 獨立複審：報告 `docs/project-management/reviews/2026-09-29-fr-021-ollama-macos-seatbelt-network-isolation-round2.md`。判定（逐字引用「綜合判定」完整結論句）：**本輪程式、測試與 post-fix evidence 支持 macOS arm64 Ollama acceptance 子程序的 deny-network／loopback 流程及 managed-child ENOENT／close 修正，但 wrapper 層 spawn-error 故障注入尚未驗證，且文件 final gate 目前未通過，因此僅有條件通過此子範圍，FR-021 整體仍未結案。**
+- round2 條件是否已被需求方接受：是（需求方先前明確要求依審查建議繼續處理；接受補 wrapper 層 ENOENT fault injection 與 final gate，不擴大 FR-021／斷網／平台驗收範圍）。
+- round2 後續處理：已新增僅在 `NODE_ENV=test` 明確啟用的 daemon executable fault-injection seam；`node scripts/test-ollama-offline-process.mjs` 直接執行 wrapper subprocess，實際觸發 `ENOENT`，斷言 `SANDBOXED_OLLAMA_SPAWN_FAILED`／`ollama_start`、exit 1、daemon 未啟動、daemon／port／temp cleanup 與 failure evidence。integration test、provider contract、完整 `npm run check` 與 `git diff --check` 均通過；round3 獨立複審與 final gate 進行中，round1／round2 原件均保留。
+- 獨立審查是否執行：是（round1、round2、round3 均由獨立上下文建立各輪報告；原件皆保留）。
+- round3 審查檔案：`docs/project-management/reviews/2026-09-29-fr-021-ollama-macos-seatbelt-network-isolation-round3.md`
+- round3 判定（逐字引用完整結論句）：**本輪 wrapper 層 ENOENT fault injection 已在具備 macOS 前置條件的環境中實際通過，證據支持 acceptance 子程序的 failure 與 cleanup 控制流；惟 docs:check:final 仍因工作紀錄未完成而 exit 1，故僅有條件通過此子範圍，FR-021 整體仍未結案。**
+- round3 條件是否已被需求方接受：是（需求方要求依審查建議繼續完成；條件為更新最新工作紀錄並通過 `npm run docs:check:final`，不擴大產品／斷網／平台驗收範圍）。
+- round3 條件處理：wrapper 層 ENOENT fault injection 已由 round3 重新實際執行且通過；最新工作紀錄已補齊獨立審查欄位、報告路徑及逐字結論。`npm run docs:check:final` 於 2026-09-29 通過（19 個治理文件，最新紀錄已結案）；round1／round2／round3 報告均未修改。
+- 結案驗證結果：`npm run check`、`git diff --check`、三輪審查結論／條件同步及 `npm run docs:check:final` 均通過；未提交、未推送、未發布。
+- 遺留風險與後續事項：本輪是特定 macOS arm64／Ollama 預裝模型／兩 cue API flow，不等同全機物理斷網；packaged Electron UI 在 deny-network 下、cancel/checkpoint-resume、1B 輸出穩定性／翻譯品質、乾淨安裝仍待驗收。LM Studio 依需求方例外不驗收，Windows 實機依需求方決定暫緩；FR-021 整體維持未結案。
+
+## 2026-09-23 — FR-020／NFR-006 長音訊輸入媒體完整性 fault injection
+
+- 狀態：完成
+- 結案判定：本輪 probe 故障注入、evidence 隱私控制流、七案 acceptance replay、round7 六面向獨立複審、報告原句同步及文件治理 final gate 均已完成；`npm run docs:check:final` 通過，驗證 19 個治理文件且最新紀錄已結案。範圍僅為 probe 完整性切片，不代表長片字幕品質或 FR-020 全需求完成。
+- 執行者：Codex
+- 需求來源：目前狀態已指出長音訊 probe 尚未對來源 SRT hash mismatch／來源檔消失做故障注入，也未保存輸入影片的 before／after hash；需求方持續要求繼續，故補齊可自動重放的完整性邊界驗證。
+- 關聯需求／缺陷：`FR-020`、`NFR-005`、`NFR-006`
+- 變更等級：中（只擴充本機 acceptance probe、隔離完整性 helper、deterministic tests 與治理文件；不改產品 ASR／字幕資料流程）
+- 來源基準：分支 `codex/0.51-anthropic-claude`、clean HEAD `299ff5d`；既有 `verify-whisper-long-media.mjs` schema v3 已保存來源 SRT before／after hash，但來源檔變更／消失尚未 fault-inject，輸入影片僅保存 before hash。
+- 目標與成功條件：以串流 SHA-256 保存輸入影片及可選來源 SRT 的 before／after 狀態；任何內容變更或檔案消失均以明確 failure code 結束並保留非敏感 evidence；自動測試涵蓋 unchanged、hash mismatch、missing-after 三種邊界；stdout／stderr 原文及錯誤輸出均不得寫進 evidence，僅保存不含文字的摘要；不保存字幕文字。
+- 不在範圍：不重跑 90 分鐘長片；不修改原始影片／SRT；不把來源 SRT 當辨識 ground truth；不改產品 server、Whisper fallback、runtime／model；不發布、不推送、不建立 tag；Windows 實機驗收維持略過。
+- 風險與回復方式：新 hash helper 僅讀檔並以串流方式計算 SHA-256；測試只在獨立暫存目錄操作合成小檔。若 evidence／failure 判斷回歸或檔案清理無法證明，停止 probe 重播並保留失敗摘要，不接觸使用者來源檔。
+- round1 後續處理：round1 報告指出 Whisper `stderrTail` 原文及含 stderr 的失敗訊息尚未證明排除字幕文字；此為 evidence 隱私邊界不足，不代表已證實目前 bundled stderr 含字幕。本輪因此移除 raw stderr／推論失敗輸出，升為 evidence v5，並新增包含 transcript-like canary 的序列化負向測試。
+- round2 後續處理：獨立 round2 報告發現外層 catch 仍可能把未被路徑遮罩涵蓋的自訂來源 SRT 路徑寫入 evidence，且 temp root 移除狀態未確認成功時沒有明確 fail-closed。此為可達風險但報告未做端到端重現。本輪再改為固定化、不含原 exception message 的失敗摘要；抽出並測試 temp root 刪除後 lstat 確認，任何仍存在／不可確認狀態均令 evidence fail 並設非零 exit；另在 probe harness 加入帶 canary 的自訂缺失 SRT 路徑負向案例。
+- round3 後續處理：獨立 round3 判定有條件通過；round2 兩項阻擋已關閉，但報告指出 SRT basename 仍可能出現在 evidence，且 cleanup failure 僅有 helper 單元測試、未從 probe 子程序端到端注入。本輪將 evidence 的來源 SRT basename 固定為非識別標籤，於 harness 加 basename canary；並以隔離 Node preload 模擬 temp root 清理後無法確認，斷言 probe 寫出 `tempRootRemoved=false`／失敗碼及 exit 1。實際刪除合成暫存後才回報模擬 lstat failure，避免留下敏感資料。
+- round4 後續處理：獨立 round4 報告為有條件通過；確認 basename／自訂路徑遮罩及 probe fail-closed，但指出 cleanup preload 在實際移除目錄後才合成錯誤，尚未端到端驗證 `rmSync` 真正失敗且目錄仍存在。本輪計畫將故障注入改為在刪除前直接拒絕、由原生 `lstat` 確認暫存目錄殘留，斷言 probe evidence fail／`tempRootRemoved=false`／exit 1；父 harness 讀取隔離 marker 後再清理殘留，避免留下測試垃圾。完成後以新 v10 evidence 保存七案結果，並由新獨立上下文複審受影響差異。
+- round5 後續處理：獨立 round5 有條件通過，要求 repo 外新路徑重跑 v10，並指出 marker 前綴授權過寬、marker 遺失時父 harness 不一定能清除暫存目錄。本輪移除 marker：在隔離 case 目錄內預先選定 probe temp-root 路徑，preload 僅攔截與該路徑 `resolve` 完全相同的 rmSync；父 harness 預先持有確切路徑，於 finally 無條件清理並以 lstat 確認 ENOENT。repo 外七案重播及持久 v11 evidence 重播已通過，相關測試與完整回歸完成。
+- round6 審查派送歷史：前三次全新獨立上下文派送未提交報告，故不計為有效審查；第四次派送已提交六面向報告 `docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round6.md`。主要代理執行 final gate 時，驗證器指出該報告未使用指定中文綜合結論與固定聲明句；round6 原件保持原樣，該格式缺口及既有 source／evidence 已由 round7 全新獨立上下文複審。
+- 驗證計畫：以 deterministic fixture 驗證 unchanged／改寫／刪除、錯誤摘要不保存自訂來源路徑、basename canary、temp cleanup 成功／仍存在／不可確認；probe harness 重放影片／SRT 四項 integrity fault、custom missing／basename SRT privacy 及「rmSync 實際失敗、temp root 可由 lstat 確認仍存在」端到端案例，確認 evidence fail／`tempRootRemoved=false`／exit 1 並在父測試 finally 清除目錄；focused tests、repo 外與持久 v11 harness、完整 `npm run check`、`git diff --check`、round6 技術複審與 round7 文件／證據複審均已完成。round6 原件保留且其格式問題由 round7 報告取代為最新有效引用；同步後 `npm run docs:check:final` 通過（19 個治理文件，最新紀錄已結案）。不重跑完整長片。
+- 預計影響檔案／模組：`scripts/verify-whisper-long-media.mjs`、新增 `scripts/whisper-long-media-integrity.mjs`／`scripts/whisper-long-media-evidence.mjs`、unit tests 與隔離 fault-injection acceptance harness、`package.json`、`docs/project-management/03-FUNCTIONAL-DESIGN.md`、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件與新的獨立審查報告；不改產品 server 或發布資產。
+- 發布授權：不適用；本輪不發布。
+- 實際修改：新增串流 snapshot helper `scripts/whisper-long-media-integrity.mjs` 與 unchanged／同大小 hash mismatch／missing-after 測試；新增 `scripts/whisper-long-media-evidence.mjs` 與 transcript-like canary 隱私測試；probe evidence 升為 v5，保存 input media 與可選來源 SRT before／after hash／大小，stderr 僅存不含原文的摘要，FFprobe／FFmpeg／Whisper 失敗 outcome 均不含原始錯誤文字；另新增隔離 probe fault-injection harness 與 npm acceptance script。round2 後新增固定化外層 probe 錯誤、temp root lstat 確認與 fail-closed；round3 後來源 SRT basename 固定為 `source.srt`，新增 basename canary 及 probe-level cleanup failure 模擬；round4 後強化 cleanup failure 注入；round5 後移除 marker，改用隔離 case 內預選 root 與 exact-path 攔截，父 harness 直接清理固定目標。未修改產品 ASR、原始長片／SRT、runtime／model 或公開 Release。
+- 開發驗證結果：v9 七案歷史 evidence 涵蓋媒體／SRT 四種 mismatch／missing、自訂路徑 canary、basename canary 及 cleanup 不可確認：`docs/project-management/evidence/2026-09-24-whisper-long-media-integrity-fault-injection-v9.json`。round4 條件已由 2026-09-29 v10 七案重播補強：cleanup preload 在刪除前拒絕 `rmSync`，原生 lstat 確認目錄實際殘留；probe evidence 為 fail、`tempRootRemoved=false`、`TEMP_ROOT_CLEANUP_FAILED`、exit 1，父 harness 確認後清除並確認 ENOENT。新證據：`docs/project-management/evidence/2026-09-29-whisper-long-media-integrity-fault-injection-v10.json`。`node --check scripts/accept-whisper-long-media-integrity-fault-injection.mjs`、兩個 focused tests、v10 acceptance 七案、完整 `npm run check`、`git diff --check` 均通過；短合成 Tiny 正常路徑 evidence v5 保留為較早基線：`docs/project-management/evidence/2026-09-23-whisper-long-media-integrity-short-replay-v5.json`。本輪未重跑原始 5,416 秒影片。
+- round5 後開發驗證：兩個 focused tests、syntax check 及 repo 外一次性 evidence 七案重播均通過；另保存持久 evidence `docs/project-management/evidence/2026-09-29-whisper-long-media-integrity-fault-injection-v11.json`。cleanup 案 `tempRootPathPreselected=true`、父清理前 `lstat` 確認目錄存在、probe exit 1／evidence fail／`tempRootRemoved=false`／`TEMP_ROOT_CLEANUP_FAILED`，父 finally 清理後為 ENOENT。v11 程式及測試修改後完整 `npm run check` 已通過；round6 reviewer 另於 repo 外再跑七案通過，且 `npm run docs:check`、`git diff --check` 通過；不重跑原始 5,416 秒影片。
+- 獨立審查是否執行：是（round1 報告 `docs/project-management/reviews/2026-09-23-fr-020-long-media-integrity-fault-injection-round1.md` 明載不是獨立上下文，故不算合格審查；全新獨立上下文 round2 報告已完成，路徑 `docs/project-management/reviews/2026-09-23-fr-020-long-media-integrity-fault-injection-round2.md`，結論原文如下：**本輪 FR-020／NFR-006 長媒體完整性改動的 before／after SHA-256 判斷、兩項 focused tests、短合成 MP4 bundled Tiny replay 及 fake-runtime 四案有可追溯的有限範圍證據；FFprobe／FFmpeg／Whisper 的子程序失敗摘要未保存原始 stdout／stderr 或 child startup error，但外層 evidence catch 對自訂來源 SRT 路徑的遮罩不完整，且 `tempRootRemoved=false` 未強制失敗，因此隱私與 cleanup fail-closed 驗收尚未通過；本輪未重跑 5,416 秒原片、完整 npm check、Windows 實機或真實 Metal fallback。** round2 指出的兩個阻擋已完成修正並通過 focused／full validation；round3 有條件通過，報告見 `docs/project-management/reviews/2026-09-23-fr-020-long-media-integrity-fault-injection-round3.md`，其逐字判定及範圍見該報告。round4 報告 `docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round4.md` 判定原文：結論：**CONDITIONAL PASS（有條件通過）**，限自訂來源 SRT basename 隱私及 probe cleanup「無法確認」fail-closed 路徑。round4 指出的實際目錄殘留情境已新增 v10 驗證；其影響性變更待 round5 獨立複審，`npm run docs:check:final` 尚未執行。
+- 最新審查狀態更新：round6 報告 `docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round6.md` 保留為歷史原件；`npm run docs:check:final` 曾指出它未符合 validator 的中文綜合結論與固定審查聲明格式。round7 已以獨立上下文重新檢查 source、focused tests、v11 artifact、round6 格式錯誤與文件變更；round7 報告本身已通過 `validateReviewReport` 欄位檢查。最新判定與待 final gate 的條件以 round7 原句及引用為準。
+- round6 審查檔案（歷史原件，未修改）：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round6.md`
+  - 判定（逐字引用完整結論句）：**FR-020／NFR-006 長媒體 integrity probe 的 round5 四項條件已由目前 source、v11 artifact 與本輪 repo 外七案 acceptance replay 實際驗證，cleanup marker 已移除、probe root 限於 isolated case 的預選 exact path、preload 以 resolve exact equality 注入 rmSync EACCES、父 finally 清理 exact path 並以 ENOENT 確認；本輪結論為 CONDITIONAL PASS，因完整治理結案仍須由主要代理在同步工作紀錄後執行 npm run docs:check:final。**
+  - 條件是否已被需求方接受：是（需求方要求依建議繼續並完成此結案流程；條件限同步工作紀錄與通過 `npm run docs:check:final`，不擴大產品驗收範圍）。
+- round7 審查檔案：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round7.md`
+  - 判定（逐字引用完整結論句）：**本輪獨立複審確認 FR-020／NFR-006 長媒體 integrity probe 的前後 SHA-256、evidence 隱私與 cleanup fail-closed 控制流由目前 source、兩項 focused tests、v11 artifact 及本輪 repo 外七案 replay 支持；惟 npm run docs:check:final 實際因 round6 報告缺少有效綜合結論及固定聲明而 exit 1，且最新 08-CHANGE-LOG 尚未引用 round7 報告與本句，因此僅就 probe 完整性切片有條件通過，待主要代理同步本報告路徑及逐字結論句後重跑並通過 final gate，方可結案。**
+  - 條件是否已被需求方接受：是（需求方明確要求繼續並依建議完成任務；本條件僅要求同步工作紀錄與通過 final gate，未擴大至長片品質或跨平台實機驗收）。
+- round7 審查驗證：報告記錄兩項 focused tests、6 個相關 MJS syntax checks、repo 外七案 acceptance replay、`npm run docs:check` 及 `git diff --check` 均通過；repo 外 evidence 保留於一次性暫存目錄。round7 報告由 `validateReviewReport` 實際檢查為 `errors: []`；工作紀錄已同步報告路徑、逐字判定及需求方接受條件，之後 `npm run docs:check:final` 通過，輸出 `專案治理文件檢查通過：19 個文件，版本 0.51.0，最新紀錄已結案`。
+- round3 報告：`docs/project-management/reviews/2026-09-23-fr-020-long-media-integrity-fault-injection-round3.md`；判定為有條件通過，逐字完整結論：**本輪 FR-020／NFR-006 長媒體 integrity/evidence privacy round3 獨立複審結論為有條件通過：round2 指出的外層 catch 自訂來源 SRT 完整路徑外流與清理未確認仍可能假成功兩項程式阻擋已修正，兩個 focused tests 本輪均通過，v8 五案證據亦確認 custom-path canary 未進 evidence 且短合成／fake-runtime 範圍如實標示；但 cleanup failure 尚未做 probe-level 非零 exit／落盤 evidence 故障注入，來源 SRT basename 仍可寫入 evidence 且未由 canary 覆蓋，本輪亦未重跑完整 npm run check、5,416 秒原片、Windows 實機或真實 Metal fallback，因此結論只適用於已檢查的 probe 控制流，不代表 FR-020 整體或上述未驗範圍完成。** round3 提議已補實作與 v9 evidence；round4 報告未取得時曾暫緩最新複審與 final gate，後續已由 2026-09-29 round4 報告接續並指出一項尚待補測條件。
+- 遺留風險與後續事項：長片語意正確率、人工影音校閱、真實 Metal crash→CPU fallback、Windows 實機及其他既有未驗收項目不由本輪處理；其影響是本結案不代表端到端字幕品質或跨平台實機驗收，後續仍依各需求／缺陷工作項目追蹤。本輪未重跑原始 5,416 秒影片，亦未驗證原生 OS 權限拒絕。
+
 ## 2026-09-23 — npm／Node deprecation warning 依賴來源分流
 
 - 狀態：完成
@@ -301,7 +1054,7 @@
 - 需求來源：需求方要求繼續；目前最大可本機驗證缺口是實際長中文音訊、bundled Whisper runtime 的執行時間與輸出完整性，不能只依 1 秒靜音或 deterministic fixture 推論。
 - 關聯需求／缺陷：`BUG-WHISPER-METAL-139`、`FR-020`、`NFR-005`、`NFR-006`
 - 變更等級：中（新增隔離 acceptance probe 並讀取需求方已提供的本機影片；不修改產品 server、fallback policy、原始影片、原始 SRT、字幕交付檔，不呼叫外部服務、不執行 LM Studio、不發布）
-- 目標與成功條件：以 `/Users/nycu/Downloads/20260909.mp4` 作為明確本機輸入，使用 bundled FFmpeg 與 Whisper.cpp Small，保存輸入／runtime／model hash、音訊 duration、CLI exit／signal、輸出存在性、cue／segment／文字長度與清理結果；若 runtime 失敗，保存可診斷但不含完整字幕內容的 evidence，不能把失敗誤標為品質通過。
+- 目標與成功條件：以 `<user-home>/Downloads/20260909.mp4` 作為明確本機輸入，使用 bundled FFmpeg 與 Whisper.cpp Small，保存輸入／runtime／model hash、音訊 duration、CLI exit／signal、輸出存在性、cue／segment／文字長度與清理結果；若 runtime 失敗，保存可診斷但不含完整字幕內容的 evidence，不能把失敗誤標為品質通過。
 - 不在範圍：不以既有 SRT 當成語音品質 ground truth；不自動修改或覆寫字幕；不宣稱中文翻譯／辨識品質、Metal crash→CPU fallback、跨平台、長音訊效能門檻或正式發布已完成。
 - 預計影響檔案／模組：`scripts/verify-whisper-long-media.mjs`、本文件、`00-CURRENT-STATUS.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、新 evidence 與獨立審查報告。
 - 風險與回復方式：影片只在本機讀取；輸出與抽取音訊放入隔離暫存目錄並於 finally 清理；evidence 使用新檔 exclusive create，只保存摘要／hash／統計，不保存完整轉錄內容。若耗時、磁碟或 runtime 邊界無法安全完成，停止並保留失敗 evidence，不修改既有交付檔。
@@ -909,12 +1662,12 @@
 - 關聯需求／缺陷：`SUB-001`
 - 變更等級：中（1,129 段字幕的文字修正、翻譯與輸出；不修改影片與原始附件）
 - 執行前已讀：`npm run project:preflight -- --type=general` 列出的固定核心與 general 路由文件（是）
-- 來源基準：`/Users/nycu/Downloads/20260909.mp4.edited.srt`；專名詞參考為 `/Users/nycu/Downloads/rule.txt`
+- 來源基準：`<user-home>/Downloads/20260909.mp4.edited.srt`；專名詞參考為 `<user-home>/Downloads/rule.txt`
 - 目標與成功條件：保留原字幕 1,129 段的序號與時間碼；只修正字幕中的明顯錯別字／ASR 誤植，採用附件列出的專名詞標準，產生中文修正版、中文／英文合併版與獨立英文版。
 - 不在範圍：不依附件中未被本次需求明確要求的口語刪除、標點重排或其他內容改寫；不覆寫原始 SRT；不修改影片。
 - 風險與回復方式：ASR 文字存在語意不完整與疑似專名誤聽；保留原文來源與時間碼，所有交付檔另存於專案輸出目錄，可刪除交付副本而不影響原始附件。
 - 驗證計畫：逐段核對序號／時間碼／字幕數量，檢查 SRT 空白行與編碼，核對中英合併版與英文版的 cue 對齊，執行 `git diff --check` 與 `npm run docs:check:final`，再由獨立只讀審查上下文依六面向檢查。
-- 實際修改：在 `/Users/nycu/Documents/離線字幕工廠/subtitle-outputs/` 產生 `20260909.mp4.edited.corrected.zh-TW.srt`、`20260909.mp4.edited.bilingual.zh-en.srt` 與 `20260909.mp4.edited.en.srt`；以 `subtitle-work/generate-20260909-subtitles.mjs` 與四份英文 cue 資料重現產出；原始 `/Users/nycu/Downloads/20260909.mp4.edited.srt` 未覆寫。
+- 實際修改：在 `<user-home>/Documents/離線字幕工廠/subtitle-outputs/` 產生 `20260909.mp4.edited.corrected.zh-TW.srt`、`20260909.mp4.edited.bilingual.zh-en.srt` 與 `20260909.mp4.edited.en.srt`；以 `subtitle-work/generate-20260909-subtitles.mjs` 與四份英文 cue 資料重現產出；原始 `<user-home>/Downloads/20260909.mp4.edited.srt` 未覆寫。
 - 開發驗證結果：`node subtitle-work/generate-20260909-subtitles.mjs`、`node --check subtitle-work/generate-20260909-subtitles.mjs`、獨立 SRT 解析／數量／ID／時間碼／中英對齊檢查均通過（1,129 cue、`issues: []`）；`node scripts/test-bilingual-subtitles.mjs` 通過；`git diff --check` 通過；四份 TSV 與英文輸出逐 cue 一致。最終 SHA-256：中文修正版 `996ebdcc5559ff9f77a78c425e4a7b5523bce54ff1ff9ea94e1a63e8c742ac7c`、中英合併版 `ab21f4a36de50b9c8131641003b6c948c07b6104ae0c53aef725d44036c6eb86`、英文版 `e3b0f810ac77c74bf02e7ddd1841147c2a1fe55635f0aa3b9fcbc3597974e5f3`。
 - 獨立審查是否執行：是（round1 有條件通過；主代理同步修正 TSV 專名大小寫；round2 針對性複審通過；round3 最終獨立治理複審通過）
 - 獨立審查結論：round1 六面向審查無阻擋問題，指出 TSV 的 15 個 `Evercam`／最終輸出 `EVERCAM` 大小寫差異及未做影音品質驗收；round2 確認 TSV 與英文 SRT 逐 cue 差異為 0、三份 SRT 時間碼零差異對齊；round3 確認無阻擋問題、結構驗收通過，並明確保留未做播放器／原影片影音品質複核的限制。
@@ -923,7 +1676,7 @@
 - 審查檔案：`docs/project-management/reviews/2026-09-10-sub-001-round3.md`
 - 判定（逐字引用審查報告「完整單句結論」）：**SUB-001 round3 最終獨立治理複審判定：無阻擋問題，1,129 cue、三份 SRT 時間碼零差異、四份 TSV 與英文 SRT 逐 cue 差異 0，中文僅做已核對的明顯修正與專名正規化，結構驗收通過；但本輪未做播放器／原影片影音品質複核，因此不宣稱完成最終影音品質驗收。**
 - 發布授權：不適用；本輪只產生本機字幕檔，不發布產品或外部資產。
-- 部署／發布結果：不適用產品發布；三份本機交付檔已定位於 `/Users/nycu/Documents/離線字幕工廠/subtitle-outputs/`。
+- 部署／發布結果：不適用產品發布；三份本機交付檔已定位於 `<user-home>/Documents/離線字幕工廠/subtitle-outputs/`。
 - 遺留風險與後續事項：未使用播放器或原影片語音／畫面逐段複核，因此個別 ASR 不完整片段、英文閱讀速度與翻譯細節仍可能需要人工影音確認。
 
 ## 2026-09-02 — GitHub 遠端資料再次同步至本機（SYNC-027）
@@ -1023,7 +1776,7 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-27（本輪指示「請繼續」）
   - 核准範圍：明確核准並同意執行 macOS arm64 DMG／ZIP 打包、建立候選資產並交付／共享作隔離測試；接受 ad-hoc／未公證、未完成乾淨安裝與真實 runtime 限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
-- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-0.51.0-macos-88da220/`；未建立 tag、package release 或 GitHub Release。
+- 部署／發布結果：候選位於 `<user-home>/Documents/離線字幕工廠/dist/test-build-0.51.0-macos-88da220/`；未建立 tag、package release 或 GitHub Release。
 - 遺留風險與後續事項：真實 Anthropic／Breeze／Whisper runtime、長音訊效能、DMG 拖曳安裝、Gatekeeper／公證、Windows／跨平台實機與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
 
 ## 2026-08-27 — 0.51.0 Windows unsigned Setup／Portable 測試包可行性（REL-045）
@@ -1053,7 +1806,7 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-27（本輪指示「請繼續」）
   - 核准範圍：明確核准並同意執行 Windows x64 unsigned installer 打包、建立候選資產並交付／共享作隔離測試；接受未簽章、未實機、未驗收模型／runtime／跨平台限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
-- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-0.51.0-91eca2b/`；未建立 tag、package release 或 GitHub Release。
+- 部署／發布結果：候選位於 `<user-home>/Documents/離線字幕工廠/dist/test-build-0.51.0-91eca2b/`；未建立 tag、package release 或 GitHub Release。
 - 遺留風險與後續事項：Windows host／Wine、NSIS／Portable、Authenticode、SmartScreen、實機 renderer／安裝／解除安裝、真實 Anthropic／Breeze／Whisper runtime、長音訊效能與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
 
 ## 2026-08-27 — 0.51.0 Windows x64 測試候選建置可行性（REL-044）
@@ -1083,7 +1836,7 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-27（本輪指示「請繼續」）
   - 核准範圍：明確核准並同意由 `e4bc931` 執行 Windows x64 cross-build 打包、建立候選資產並交付／共享至 Windows 10／11 x64 作隔離測試；接受未簽章、未實機、未驗收模型／runtime／跨平台限制；不涵蓋公開 0.51.0、tag、GitHub Release 或外部 API 呼叫。
-- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`；未建立 tag、package release 或 GitHub Release。
+- 部署／發布結果：候選位於 `<user-home>/Documents/離線字幕工廠/dist/win-unpacked/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`；未建立 tag、package release 或 GitHub Release。
 - 遺留風險與後續事項：Windows cross-build／Wine、Windows renderer／安裝／解除安裝、真實 Anthropic／Breeze／Whisper runtime、長音訊效能、簽章／公證與公開發布仍需另行驗收；待確認項目由後續 release 工作條目追蹤。
 
 ## 2026-08-27 — 0.51.0 macOS arm64 測試候選建置與封裝驗證（REL-043）
@@ -1113,7 +1866,7 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-27（本輪指示「請繼續」）
   - 核准範圍：同意依 `97191ec` 建置並交付 `../dist/mac-arm64/` 作隔離測試；接受 ad-hoc／未公證、真實 Anthropic／Breeze／Whisper runtime、長音訊、乾淨安裝與跨平台尚未驗收；不涵蓋建立或推送 tag、GitHub Release、Windows 資產或公開 0.51.0。此範圍引用常設授權 `AUTH-2026-07-23-01` 對未公證狀態的接受，但不擴張為公開發布授權。
-- 部署／發布結果：候選位於 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`；未建立 tag、package release 或 GitHub Release。
+- 部署／發布結果：候選位於 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/`；附 `TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`；未建立 tag、package release 或 GitHub Release。
 - 遺留風險與後續事項：真實 Anthropic API／模型品質／rate-limit／proxy、長字幕效能、Apple Metal／Breeze runtime、Windows 封裝、乾淨環境、正式簽章／公證與公開發布仍需另行驗收；任何待確認項目由後續 release 工作條目追蹤，不影響本輪僅限本機候選的結案範圍。
 
 ## 2026-08-26 — Anthropic 連線測試低成本化（DEV-028）
@@ -1494,7 +2247,7 @@
   - 核准人／角色：需求提出者／產品負責人
   - 核准時間：2026-08-17（本輪延續需求方「請繼續」與先前「產生測試軟體」指示）
   - 核准範圍：同意由 `c5e8bbe` 打包、提交並在本機工作區交付 macOS arm64 DMG／ZIP 測試候選；接受 macOS ad-hoc／未公證與真實 Breeze runtime／品質／乾淨實機未驗收風險；不授權建立 tag、公開 Release、替換正式資產或對外擴大共享。
-- 部署／發布結果：完成；候選檔案與核對資訊位於 repo 外 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`；未建立 tag／公開 Release，未替換既有 v0.49.0 資產。
+- 部署／發布結果：完成；候選檔案與核對資訊位於 repo 外 `<user-home>/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`；未建立 tag／公開 Release，未替換既有 v0.49.0 資產。
 - 遺留風險與後續事項：macOS ad-hoc／未 Developer ID／未公證；獨立審查未重跑 renderer smoke，且 DMG attach 在審查環境受限但 checksum 已驗證；真實 patched runtime／checkpoint／音訊品質／效能／長音訊／取消、macOS 乾淨安裝與 Gatekeeper、Windows 跨平台行為仍未由本輪覆蓋；使用者若未安裝 runtime，App 仍會顯示可操作缺件引導。
 
 ## 2026-08-13 — Breeze macOS runtime 狀態與首頁健康卡修正（BUG-022）
@@ -2132,7 +2885,7 @@
 - 關聯需求／缺陷：`FR-021`、`BUG-018`、`BUG-019`、`NFR-003`
 - 變更等級：高（本機 LLM 回應契約、strict validation 與批次續跑）
 - 執行前已讀：`project:preflight -- --type=debug` 列出的固定核心與任務路由（是）
-- 基準證據：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`status=failed`、`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue `344` 原文為「如果老師選擇Excel的話」，錯誤為「cue 344 的 AI 文字長度異常」；未保存 raw model response，且本機 Ollama `127.0.0.1:11434` 目前連線拒絕。
+- 基準證據：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`status=failed`、`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue `344` 原文為「如果老師選擇Excel的話」，錯誤為「cue 344 的 AI 文字長度異常」；未保存 raw model response，且本機 Ollama `127.0.0.1:11434` 目前連線拒絕。
 - 目標與成功條件：保留 cue ID／數量／順序與 strict 長度上限；若 Ollama 只回傳過長解說或重複內容，最多要求一次帶明確長度上限的 JSON repair；修復後仍過長時安全拒絕，不截斷、不把原文偽裝成 AI 建議、不寫入未完成批次 checkpoint。
 - 不在範圍：不把長度上限無限制放寬、不處理 LM Studio、不修改字幕時間碼、不發布正式 Release。
 - 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`public/review.js`、`scripts/test-ai-optimizer.mjs`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與兩平台測試包來源同步。
@@ -2162,7 +2915,7 @@
 - 關聯需求／缺陷：`FR-021`、`BUG-017`、`BUG-018`、`NFR-003`
 - 變更等級：高（本機 LLM 回應解析、strict validation 與批次續跑）
 - 執行前已讀：`project:preflight -- --type=debug` 列出的固定核心與任務路由（是）
-- 基準證據：最近 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 更新後為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`checkpoint.nextBatchIndex=2`、`suggestions=2`、`error=AI 回傳內容不是有效 JSON`；`request.mode=proofread`、`request.language=ja`；本機 Ollama `127.0.0.1:11434` 目前連線拒絕，沒有 raw response 可直接保存。
+- 基準證據：最近 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 更新後為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`checkpoint.nextBatchIndex=2`、`suggestions=2`、`error=AI 回傳內容不是有效 JSON`；`request.mode=proofread`、`request.language=ja`；本機 Ollama `127.0.0.1:11434` 目前連線拒絕，沒有 raw response 可直接保存。
 - 目標與成功條件：Ollama 若回傳 Markdown 包裝或可安全擷取的 JSON，應在 strict cue validation 前正規化；若內容確實 malformed，應只觸發一次明確 JSON repair，不接受不完整／錯誤 cue；既有 checkpoint 不得遺失。
 - 不在範圍：不放寬 cue ID／數量／順序／文字驗證、不把原文當 AI 建議、不處理 LM Studio、不發布正式 Release。
 - 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`public/review.js`、`scripts/test-ai-optimizer.mjs`、`docs/project-management/07-DEBUG-AND-FIX-HISTORY.md`、本文件與兩平台測試包來源同步。
@@ -2544,7 +3297,7 @@
   - 條件是否已被需求方接受：是
 - 發布授權：不適用；本輪不發布。
 - 部署／發布結果：不適用。
-- 遺留風險與後續事項：逐項外部結果與證據仍需依 [外部驗收結果模板](/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/docs/project-management/EXTERNAL-ACCEPTANCE-RESULT-TEMPLATE.md) 歸檔；LM Studio 仍依先前決定暫緩。
+- 遺留風險與後續事項：逐項外部結果與證據仍需依 [外部驗收結果模板](<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app/docs/project-management/EXTERNAL-ACCEPTANCE-RESULT-TEMPLATE.md) 歸檔；LM Studio 仍依先前決定暫緩。
 
 ---
 

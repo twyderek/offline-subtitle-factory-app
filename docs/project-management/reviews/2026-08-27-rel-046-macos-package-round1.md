@@ -2,7 +2,7 @@
 
 審查日期：2026-08-27（Asia/Taipei）  
 審查範圍：`codex/0.51-anthropic-claude@88da220` 產生的本機隔離 macOS arm64 DMG／ZIP 候選  
-候選目錄：`/Users/nycu/Documents/離線字幕工廠/dist/test-build-0.51.0-macos-88da220/`
+候選目錄：`<user-home>/Documents/離線字幕工廠/dist/test-build-0.51.0-macos-88da220/`
 
 ## 1. 需求完整性
 

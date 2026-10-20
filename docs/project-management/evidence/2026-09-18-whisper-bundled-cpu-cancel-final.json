@@ -13,9 +13,9 @@
     "fixturePath": null,
     "bundledRuntimeUsed": true,
     "bundledRuntimeUsedForCpu": true,
-    "bundledRuntimePath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-cpp/whisper-cli",
+    "bundledRuntimePath": "<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-cpp/whisper-cli",
     "bundledRuntimeSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
-    "bundledModelPath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
+    "bundledModelPath": "<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
     "bundledModelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
     "wrapperCreatesMetalExit139": true,
     "bundledMetalCrashObserved": false
@@ -29,7 +29,7 @@
   },
   "scenario": "normal",
   "replay": {
-    "workingDirectory": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app",
+    "workingDirectory": "<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app",
     "command": "npm run acceptance:whisper:bundled-cpu-cancel -- \"/private/tmp/osf-whisper-cpu-cancel-$(uuidgen).json\"",
     "prerequisites": [
       "macOS arm64",

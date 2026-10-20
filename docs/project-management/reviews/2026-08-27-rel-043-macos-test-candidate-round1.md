@@ -1,7 +1,7 @@
 # 獨立審查報告：REL-043 0.51.0 macOS arm64 directory 測試候選
 
 - 審查對象 commit／版本：`codex/0.51-anthropic-claude@97191ec`；版本 `0.51.0`。
-- 候選目錄：`/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/`。
+- 候選目錄：`<user-home>/Documents/離線字幕工廠/dist/mac-arm64/`。
 - 對應 08-CHANGE-LOG 條目：`2026-08-27 — 0.51.0 macOS arm64 測試候選建置與封裝驗證（REL-043）`。
 - 審查輪次：round1。
 - 審查代理啟動時間、上下文來源：2026-08-27（Asia/Taipei）；獨立上下文重新讀取 REL-043 工作紀錄、目前狀態、測試稽核、0.51.0 Release notes、候選資產與 source，未沿用主要代理的評價性結論。
@@ -12,7 +12,7 @@
 
 - 判定：通過（限 REL-043 定義的本機 macOS arm64 隔離測試候選）。
 - 證據：`docs/project-management/08-CHANGE-LOG.md:3-18` 將目標限定為由 `97191ec` 建立 macOS arm64 Electron directory candidate，要求 bundled runtime verify、packaged renderer smoke 與可定位／重現的候選資產；同一條目明確排除真實 Anthropic API、外部 provider smoke、公開 tag／GitHub Release、正式公證、跨平台與真實 Breeze／Whisper runtime 完整驗收。
-- 證據：候選 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/PROVENANCE.txt` 與 `TEST-CANDIDATE-README.md` 明確標示 `0.51.0`、`darwin-arm64`、來源 branch／commit、local isolated testing only、ad-hoc／未公證與不含真實模型／runtime；沒有把候選寫成正式發布或 Breeze 已可直接使用。
+- 證據：候選 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/PROVENANCE.txt` 與 `TEST-CANDIDATE-README.md` 明確標示 `0.51.0`、`darwin-arm64`、來源 branch／commit、local isolated testing only、ad-hoc／未公證與不含真實模型／runtime；沒有把候選寫成正式發布或 Breeze 已可直接使用。
 - 證據：候選 App 的 `Contents/Info.plist` 顯示版本 `0.51.0`、最低 macOS `12.0`；主 executable、Whisper.cpp 與 FFmpeg 均為 arm64 Mach-O。
 - 證據：REL-043 已記錄核准範圍為僅交付 `../dist/mac-arm64/` 隔離測試，明確不涵蓋 tag、推送、GitHub Release、Windows 資產或公開 0.51.0；本輪沒有越權擴張。
 
@@ -28,7 +28,7 @@
 
 - 判定：部分通過；本輪候選邊界已覆蓋，真實模型／跨平台邊界仍未覆蓋。
 - 證據：renderer smoke 在隔離 user-data 下選取 Breeze，確認缺件提示、modal 開啟、取消後關閉，再切回 `whisper-cpp`；未下載模型或建立 Breeze 任務。上傳流程同時驗證 settings／health、manual SRT 任務與輸出清理。
-- 證據：候選 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/SHA256SUMS-macos-arm64.txt` 以 `shasum -a 256 -c` 重放，App executable、packaged `package.json`、packaged runtime manifest 三項均為 `OK`。候選 manifest 列出 FFmpeg、Whisper.cpp、Tiny 的固定路徑、大小與 SHA-256。
+- 證據：候選 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/SHA256SUMS-macos-arm64.txt` 以 `shasum -a 256 -c` 重放，App executable、packaged `package.json`、packaged runtime manifest 三項均為 `OK`。候選 manifest 列出 FFmpeg、Whisper.cpp、Tiny 的固定路徑、大小與 SHA-256。
 - 證據：已獨立執行 `npm run runtime:verify:mac`，FFmpeg、Whisper.cpp 與預設 Tiny 路徑均通過；已獨立執行受控權限 `node scripts/verify-electron-renderer.mjs`，同一候選完整通過 packaged UI／API smoke。
 - 未覆蓋：第一次沙盒 renderer smoke 因 Electron target 未出現而逾時；取得受控權限後同一候選以隔離 user-data 重跑 exit 0。仍未覆蓋乾淨帳號／Gatekeeper／DMG 拖曳安裝、Windows、跨平台、真實 Small／Breeze checkpoint、1:46 長音訊品質／效能、取消與外部 Anthropic endpoint。
 
@@ -51,7 +51,7 @@
 ## 6. 實際運行結果
 
 - 判定：部分通過（僅限 macOS arm64 本機隔離 directory candidate；交付結論仍為有條件通過）。
-- 證據：受控 renderer smoke 實際啟動 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠`，標題為「本機離線字幕工廠｜字幕生成任務」，而非僅靜態檔案掃描；manual SRT job 完成且 cleaned SRT 存在。
+- 證據：受控 renderer smoke 實際啟動 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠`，標題為「本機離線字幕工廠｜字幕生成任務」，而非僅靜態檔案掃描；manual SRT job 完成且 cleaned SRT 存在。
 - 證據：候選 `mac-renderer-smoke.json` 是去敏摘要，記錄 `sourceCommit=97191ec`、0.51.0 candidate、Breeze 缺件 modal 流程、AI review provider IDs 與 scope；本輪未發現金鑰或受控暫存路徑被寫入該證據。
 - 證據：`PROVENANCE.txt` 將 release scope 限定為 local isolated testing only、簽章限 ad-hoc、模型範圍限 Tiny；候選 README 明確說明不含公開 Release、真實 API smoke 或 Breeze patched runtime。
 
@@ -63,7 +63,7 @@
   1. 主代理必須在結案前將 REL-043 的狀態改為「完成」、填入本報告路徑與上方逐字結論，再重跑 `npm run docs:check:final`；未完成前，治理結案不得判定通過。
   2. 若要升格為公開 0.51.0 Release，需另取得涵蓋公開發布的授權，完成真實 Anthropic／模型品質／效能、Breeze runtime、跨平台與乾淨安裝驗收；本報告不提供該授權。
 - 剩餘風險：真實 Anthropic endpoint／proxy／TLS／rate-limit／計費、Claude 模型輸出品質與長字幕、真實 Whisper Small／Breeze checkpoint／MediaTek patched runtime、Mac／Windows 乾淨安裝與簽章／公證、1:46 長音訊效能、取消與跨平台實機仍未驗收。受控 renderer 成功不能消除沙盒環境的 listener／GUI 權限差異。
-- 給主要開發代理的具體修正要求：保留本報告不覆寫；完成 REL-043 治理欄位並重跑 `npm run docs:check:final`、`git diff --check`；交付候選時同時提供 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`。未完成真實／跨平台驗收前，不得建立公開 tag／GitHub Release 或把 Breeze／Anthropic 宣稱為正式品質通過。
+- 給主要開發代理的具體修正要求：保留本報告不覆寫；完成 REL-043 治理欄位並重跑 `npm run docs:check:final`、`git diff --check`；交付候選時同時提供 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/TEST-CANDIDATE-README.md`、`PROVENANCE.txt`、`SHA256SUMS-macos-arm64.txt` 與 `mac-renderer-smoke.json`。未完成真實／跨平台驗收前，不得建立公開 tag／GitHub Release 或把 Breeze／Anthropic 宣稱為正式品質通過。
 
 ## 審查代理聲明
 

@@ -8,7 +8,7 @@
     "arch": "arm64",
     "node": "v22.22.3"
   },
-  "executable": "/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+  "executable": "<user-home>/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
   "provider": "ollama",
   "baseUrl": "http://127.0.0.1:11434/v1",
   "endpointPrivacy": "local",

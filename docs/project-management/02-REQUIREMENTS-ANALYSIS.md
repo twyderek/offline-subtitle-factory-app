@@ -41,6 +41,10 @@
 | FR-025 | Breeze 效能透明化與首次選擇提醒 | `/api/breeze-asr` 提供固定、可追溯且標示單機觀察範圍的效能參考；選擇 Breeze 後在產品名稱外顯示低資源裝置可能較慢、MacBook Air 參考值與 Whisper.cpp 回退建議；不把參考值宣稱為跨機型保證或真實模型驗收 |
 | FR-026 | Anthropic Claude provider | 設定介面可選 Anthropic；後端使用 Messages API `/v1/messages` 與 `/v1/models`，`x-api-key`、`anthropic-version` 與 `max_tokens` 契約正確；Models API 必須依 `has_more`／`last_id`／`after_id` 讀完分頁，後頁指定模型不可誤判為不可用，異常或無法前進的游標須明確失敗；system／user／assistant 訊息與回應正規化為既有 optimizer contract；profile／runtime key 隔離，內部 cue metadata 不外送；不得將共用 optimizer 的 `temperature`／`top_p`／`top_k` 傳給 Anthropic，以相容會拒絕非預設取樣參數的新模型；非法 provider 仍明確拒絕 |
 
+### FR-027 YouTube 私人上傳 MVP（2026-10-16）
+
+來源為需求方核准 YouTube 整合開發。Electron 校閱頁可匯入 Google Desktop OAuth client JSON，經系統瀏覽器與 loopback／PKCE 授權，顯示實際授權頻道；使用者明確同意後將既有輸出 MP4 與已保存 UTF-8 SRT 上傳。影片明確設為 private；顯示影片 ID、字幕狀態、進度、取消、部分成功及只重試字幕。憑證以 safeStorage 加密，不回傳 renderer，不自動上傳或重複建立影片；重啟後未知上傳結果須揭露。此階段不含公開／排程、跨重啟 byte-level 續傳、多頻道與縮圖，真實 Google／封裝驗收另追蹤。NFR-001 的預設 local-first 不變，此功能為使用者明確選用的影音外送例外。
+
 ### FR-021 驗收範圍例外（2026-09-15）
 
 需求方已明確告知 LM Studio 已刪除，本輪不執行 LM Studio 實機模型、UI、取消／續跑或真正斷網驗收。這是針對目前驗收環境的範圍例外，不移除 `lm-studio` provider 的產品支援、deterministic tests 或原始 FR-021 要求；若日後恢復驗收，仍須重新依 FR-021 建立實機證據。本輪已完成可執行的 Ollama loopback 產品流程，但未取得真正網路隔離證據前不得宣稱 FR-021 整體完成。

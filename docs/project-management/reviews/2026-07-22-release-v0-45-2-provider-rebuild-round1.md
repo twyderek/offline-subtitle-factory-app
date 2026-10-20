@@ -11,7 +11,7 @@
 - 證據：
   - `docs/project-management/02-REQUIREMENTS-ANALYSIS.md` 的 FR-009／NFR-003／NFR-004／NFR-008 要求供應商整合、Apple Silicon 相容、封裝 runtime 與發布資產一致。
   - `docs/project-management/05-DEVELOPMENT-AND-DEPLOYMENT.md` 要求 macOS 的 `.app`、DMG、ZIP、bundled runtime、SHA 及 updater metadata 一致，並要求穩定 ASCII 發布檔名。
-  - macOS arm64 `.app`、DMG、ZIP 已產生，App 版本為 `0.45.2`，且內含 provider、手冊與 runtime；但 `/Users/nycu/Documents/離線字幕工廠/dist/latest-mac.yml` 參照的 `offline-subtitle-factory-0.45.2-arm64-mac.zip` 與 `offline-subtitle-factory-0.45.2.dmg` 均不存在，實際產物為 `離線字幕工廠 0.45.2 macOS-arm64.zip` 與 `離線字幕工廠 0.45.2 macOS-arm64.dmg`。
+  - macOS arm64 `.app`、DMG、ZIP 已產生，App 版本為 `0.45.2`，且內含 provider、手冊與 runtime；但 `<user-home>/Documents/離線字幕工廠/dist/latest-mac.yml` 參照的 `offline-subtitle-factory-0.45.2-arm64-mac.zip` 與 `offline-subtitle-factory-0.45.2.dmg` 均不存在，實際產物為 `離線字幕工廠 0.45.2 macOS-arm64.zip` 與 `離線字幕工廠 0.45.2 macOS-arm64.dmg`。
   - `docs/project-management/00-CURRENT-STATUS.md` 已記錄 Windows 候選仍為 2026-07-20 CI 資產，落後 2026-07-22 provider 修正；因此兩平台候選尚未同時代表目前來源。
 
 ## 2. 邏輯正確性
@@ -53,7 +53,7 @@
 
 - 判定：不通過
 - 證據：
-  - 實際檢查 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app` 的 Info.plist 得到版本 `0.45.2`、bundle identifier `com.offline-subtitle-factory.app`。
+  - 實際檢查 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app` 的 Info.plist 得到版本 `0.45.2`、bundle identifier `com.offline-subtitle-factory.app`。
   - 實際 `codesign` 驗證 App 成功；實際檢查 bundled FFmpeg／Whisper／model／manifest／手冊及 ZIP listing 成功；實際 DMG verify 與 ZIP test 成功。
   - 實際讀取 `latest-mac.yml` 得到：`offline-subtitle-factory-0.45.2-arm64-mac.zip` 與 `offline-subtitle-factory-0.45.2.dmg`；實際列出 `dist` 得到：`離線字幕工廠 0.45.2 macOS-arm64.zip` 與 `離線字幕工廠 0.45.2 macOS-arm64.dmg`。兩者不一致且 metadata 指向的檔案不存在。
   - 因此可以證明「封裝檔本身可驗證」，但不能證明「依 updater metadata 可下載／更新」；也沒有乾淨實機啟動與完整操作證據。

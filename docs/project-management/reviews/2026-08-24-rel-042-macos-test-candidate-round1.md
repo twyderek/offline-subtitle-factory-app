@@ -1,7 +1,7 @@
 # 獨立審查報告：REL-042 0.50.0 macOS arm64 測試候選重建
 
 - 審查對象 commit／版本：`codex/0.50-whisper-small-long-cues@bb127c78295d378bba308d2fb39e1f3bb0286a60`；產品來源 `6beee985f50e2045fb9520630e4fde8d67b61bb7`；版本 `0.50.0`。
-- 候選目錄：`/Users/nycu/Documents/離線字幕工廠/dist/test-build-bb127c7/`。
+- 候選目錄：`<user-home>/Documents/離線字幕工廠/dist/test-build-bb127c7/`。
 - 對應 08-CHANGE-LOG 條目：`2026-08-24 — 0.50.0 macOS 測試候選重建（REL-042）`。
 - 審查輪次：round1。
 - 審查代理啟動時間、上下文來源：2026-08-24 08:27（+0800）前後；獨立審查上下文，只接收本輪候選、來源 commit、治理路由與驗證範圍，未沿用主要開發代理的評價性結論。
@@ -56,7 +56,7 @@
 ## 6. 實際運行結果
 
 - 判定：通過（限 macOS arm64 目錄版／本機隔離 smoke，不代表 DMG 拖曳安裝或真實模型運行）。
-- 證據：受控 `verify-electron-renderer.mjs` 實際啟動 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-bb127c7/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠`；輸出標題為「本機離線字幕工廠｜字幕生成任務」，`hasHomeDashboard=true`、`hasElectronApi=true`、`hasSafeAiKeyApi=true`，不是僅靜態檔案檢查。
+- 證據：受控 `verify-electron-renderer.mjs` 實際啟動 `<user-home>/Documents/離線字幕工廠/dist/test-build-bb127c7/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠`；輸出標題為「本機離線字幕工廠｜字幕生成任務」，`hasHomeDashboard=true`、`hasElectronApi=true`、`hasSafeAiKeyApi=true`，不是僅靜態檔案檢查。
 - 證據：受控 smoke 的 `uploadFlow` 回傳 `createStatus=201`、`startStatus=202`、`finalStatus=completed`、`hasCleanedSrt=true`；`aiReviewAssets` 回傳 `saveStatus=200`、glossary round-trip true，provider IDs 為 openai、openai-compatible、azure、groq、gemini、ollama、lm-studio。
 - 證據：候選 `mac-renderer-smoke.json` 是已去敏的確定性 smoke 摘要，沒有保存受控執行期間的 API token 或暫存路徑；其 `breezeSelectionFlow.opened／closed`、上傳完成、trim、review、七 provider 與 `scope` 欄位與本輪受控輸出一致。
 - 證據：`find mac-arm64 -type f` 的模型／機密排除檢查未找到 `.pt`、`.pth`、`ggml-base.bin`、`ggml-small.bin`、checkpoint、PFX、P12、PEM 或 key；App 內只有 `ggml-tiny.bin`（77,691,713 bytes），沒有大於 1 GiB 的檔案。Breeze source probe／UI 仍存在是功能程式，不是 checkpoint 或 runtime 被內建。

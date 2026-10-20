@@ -1,5 +1,142 @@
 # 偵錯與修改歷程
 
+### BUG-050：YouTube safeStorage 權限測試誤用 Unix mode bits 阻擋 Windows CI（2026-10-20；已修正，待 Windows CI 複驗）
+
+- 現象／基準：Windows exact-source CI run `39308587730` 在 `npm run test:youtube` 的 `scripts/test-youtube.mjs:93` 失敗；`fs.stat(...).mode & 0o777` 實際為 438（`0666`），測試硬編碼預期 384（`0600`）。同一 source SHA `80a46a203dbfca34f26dc7c9545f9d9dac138e93` 的 Windows `docs:check` 與 `npm test` 中其餘 test scripts 均通過；此 failure 發生於 YouTube suite，workflow 後續 package／artifact 步驟 skipped。
+- 近因／根因：測試將 POSIX `0600` mode 位元斷言無條件套用到 Windows。Windows `fs.stat().mode` 不提供等價的 POSIX ACL 判斷，`0666` 回報不能直接推論 Windows ACL 是否向其他使用者開放；不能據此將安全功能缺陷或安全通過下結論。產品程式 `lib/youtube/publisher.mjs:68-76` 仍先以 Electron `safeStorage.encryptString` 取得資料，再寫入含 `mode: 0o600` 的臨時檔並原子 rename。
+- 修正：commit `1c045e7fff77049ff084126e3dc59e602fc60918` 僅修改 `scripts/test-youtube.mjs`：fake safeStorage 以不透明 fixture token map 供解密 round-trip；所有平台確認檔案是 opaque ciphertext、不包含 secret marker；僅 POSIX platform 精確驗證 `0600`，Windows 不把 `stat().mode` 誤當 POSIX ACL。產品 runtime 未改。
+- 本機驗證：`node --check scripts/test-youtube.mjs`、`node scripts/test-youtube.mjs`、`npm run test:youtube` 及完整 `npm run check` 均 exit 0；完整回歸包含四組 YouTube posttest suites。Windows-specific branch 尚未由 Windows runner 執行。修正提交尚未推送，尚無同 SHA CI run／artifact；需獨立複審後推送驗證。
+
+### BUG-049：1100×700校閱工作區子欄溢出／遮擋（2026-10-19；source修正，獨立審查見最新08）
+
+- 本輪修正：workspace可收縮fr欄／窄工具列換行；主grid與sidebar/viewer/stage高度及獨立捲動；viewer rows改max-content，避免影片蓋住下一列播放鍵；長字幕focus不捲走header。
+- 本輪驗證：source原生outer1100×700（content1100×668），editor.right1088，22控制可達及hit-test；另8尺寸、AI展開／長文字、root scrollY0通過。最終v10 evidence及06最新條目留證，僅source缺陷修復，不代表真實YT或安裝包驗收。
+
+- 下列為修正前診斷基準，保留原始失敗及歸因界線：
+
+- 重現：`verify-youtube-ui.mjs <新截圖路徑> --compare-installed --validate-usability`；以本機已安裝0.51.0前端與source，同source殼/API fixture與viewport。v3 comparison.json及source／installed-review-1100.png留證。
+- 觀察：source editor.right1189、cueList.right1187超出1100；viewer/editor.bottom771超出700，左側video還覆蓋右側部分內容。已安裝前端同場editor.right同為1189，不能描述成YT新增獨有回歸。
+- 近因：workspace兩欄最小寬度、viewer/video最小尺寸與可用寬度不相容；頂列grid可收縮不等於children可收縮。未獨立窮盡所有media query與原生resize，根因範圍以當前CSS及量測為限。
+- 處置：本輪只診斷，未改產品。建議後續先保留現有外觀，針對窄視窗降低欄位min-width／切換單欄，新增全workspace與關鍵控制可視性驗收；未取得修正要求前不實作。BUG-048只代表頂列修正，BUG-049另列未完成。
+
+## 2026-10-19 BUG-046／047／048 source 修正
+
+- BUG-046：沿用現行 review-button；dialog 改固定 header／footer、獨立捲動 body，主要操作不再位於長表單最下方。支援尺寸、Tab／Escape／焦點／Enter 已由隔離 Electron 驗證。
+- BUG-047：錯誤與進度分離，不隨 poll 清除；generation／revision 拒絕過時結果；受控 IPC 與缺 OAuth 錯誤跨 poll 保留。
+- BUG-048：兩處 body min-width1180 改1100；main 明確 minmax(0,1fr) column，避免 workspace implicit min-content 撐大頂列。1100寬入口right1076；不能把原始缺陷單獨歸因 YouTube。
+- 驗證證據：06 本日條目與 fixed-v7 PNG／JSON。下方2026-10-16「未修正」是歷史診斷，非本日狀態；source修正不代表安裝包或真實Google驗收。
+
+### BUG-046：YouTube modal 介面一致性與主要操作可發現性（2026-10-16；未修正）
+
+- 可用性 audit v2：既有匯出按鈕為 14px／700／8px 圓角，新 modal 為 16px／一般字重／0px 圓角。`youtube-publish.mjs` 未沿用 review-button／既有 dialog 視覺樣式；本機 v0.51.0 bundle 與 source styles.css hash 相同，review.html 僅新增入口／module。
+- 1400／1280／1100×800 下 modal clientHeight=678、scrollHeight=1098，初始 primary top=1007.83、關閉 top=1090.83，須捲動才可見。不是按鈕不能點，而是初次使用缺少持續可見的主要操作與關閉入口。
+- 建議：沿用既有 modal／button styles，精簡或摺疊開發者設定說明，固定 header／footer；本輪只診斷，產品未改。
+
+### BUG-047：YouTube 操作錯誤被輪詢覆蓋（2026-10-16；未修正）
+
+- 在未匯入 OAuth 的隔離 profile 點連結，main 拒絕且不開瀏覽器／不送 Google；UI 先顯示通用錯誤，1.9 秒後顯示「準備上傳。」。根因為 refresh 無條件覆寫 progress，無獨立保留操作錯誤狀態。
+- 證據：`evidence/2026-10-16-youtube-usability-audit-v2.png.json` 的 errorImmediately／errorAfterPolling。建議以固定錯誤分類及持續錯誤狀態呈現，直到下一次使用者操作／實際狀態改變；本輪未修正。
+
+### BUG-048：最小視窗寬度下校閱頂列溢出（2026-10-16；歸因未定／未修正）
+
+- Electron minWidth=1100；audit 在1100下測得YT入口right=1177，超出視窗77px。測試同一DOM暫隱藏YT入口後舊匯出right仍1177，故不能歸因為新增YT按鈕的獨有回歸；1024亦測但低於支援最小寬度，僅壓力證據。
+- 建議後續比對同一viewport的正式版實際畫面並修正既有頂列responsive，不把本輪量測誇稱為完整安裝版對照；本輪不修改舊版介面。
+- 歸因限制：隱藏YT仍溢出只證明不是YT入口的獨有問題；未同場啟動正式bundle重播，不能斷言使用者現行版本也必然有相同溢出。量測採CDP renderer viewport模擬，非原生BrowserWindow resize／OS縮放驗收。
+
+2026-10-16：本輪 BUG-043／044／045 已由 `reviews/2026-10-16-fr-027-youtube-private-upload-round2.md` 六面向複審確認原阻擋解除，final docs gate 通過；結論限 source MVP 與本地驗證，不代表真實 Google／Keychain／封裝／Windows 驗收。
+
+### BUG-043：FR-027 上傳與專案刪除生命週期未協調（2026-10-16）
+
+- 現象／基準：round1 獨立報告 B1 重現影片回應等待期間移除 job，原 persist 的 recursive mkdir 重建已刪目錄。
+- 根因：publisher 屬 Electron main，server deleteJob 僅管理 server 內的工作；跨行程沒有共同 lease，且 persist 具建立根目錄副作用。
+- 修正：main 透過具 token 的 API 取得／釋放 server lease，server DELETE active job 回 409；persist 不 mkdir job，config 層發布 history 保留遠端 ID／未知結果。初次紀錄 exclusive-create；強制外部刪除後不續傳字幕、不重建目錄。
+- 回歸：`scripts/test-youtube-lifecycle.mjs` 真實隔離 server HTTP 測試 acquire／重複 acquire／錯誤 release／DELETE 409／完成 release 後 DELETE 200；另受控外部刪除確認 root 不復活、字幕呼叫不增加、history 留下 videoId。與完整 `npm run check` 通過；不代表真實 Google 驗收。
+
+### BUG-044：FR-027 SDK multipart 未轉送來源 stream error（2026-10-16）
+
+- 現象／基準：round1 B2 以實際 SDK＋不存在 snapshot 重現 Node unhandled error／exit 1；不是已實測的 Electron crash。
+- 根因：官方 multipart 使用 pipe，來源 ReadStream error 不會自動 reject 外層請求；原實作未自行接管來源錯誤。
+- 修正：requestWithMedia 先註冊 source error／abort，錯誤時中止請求，等待 source 關閉並有界觀察 transport rejection，去除原始錯誤；已取得影片 ID 保留為 partial，不建立新影片。
+- 回歸：`scripts/test-youtube-streams.mjs` 以實際 SDK 本地 transport 測影片／字幕 ENOENT 與 mid-read 四案，確認無未處理事件且 source／transport 關閉；lifecycle suite 驗證 partial／videoId／解鎖／字幕重試。
+
+### BUG-045：FR-027 缺少影片 ID／字幕狀態直接呈現（2026-10-16）
+
+- 基準：round1 B3 指出工作 completed 無法區分 insert 回應 syncing／serving，且沒有直接顯示 videoId。
+- 修正／驗證：新增 textContent identifiers，顯示 videoId、captionId、captionStatus；隔離 Electron UI verifier 實測 completed＋syncing 與 partial＋failed，並改用 owned dynamic debugger。v3 screenshot 與本輪獨立複審追蹤於 08。
+
+### BUG-037：deny-network 外層 Seatbelt 阻斷 Chromium 子 profile 載入（2026-10-01；驗收環境相容性）
+
+- 現象與證據：既有 packaged UI offline replay11 在 Electron 啟動階段以 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED` 失敗。`scripts/accept-macos-seatbelt-nested-profile-canary.mjs` 將 parent／child profile 與 argv 明列，replay3 四案通過：strict／strict exit 0；strict parent 拒絕 network-service-shape child（71／EPERM）；加明示 TCP／UDP 的窄 parent 仍拒絕（71／EPERM）；`allow default` parent 接受（0）。replay2 窄 parent 預期成功但實際拒絕的原始 fail evidence 保留。
+- 根因判定邊界：canary 只執行 `/usr/bin/true`，並非 Chromium exact generated profile。2026-10-02 追加核對以 replay11 executable SHA-256、稽核所記的 v0.51.0 候選 source commit 及該 commit lockfile，將候選版本鏈結至 Electron 43.3.0／Chromium 150.0.7871.212；round3 確認此為依候選稽核紀錄建立的靜態版本關聯，不是 replay11 JSON 內含的 source commit 或可驗證 binary provenance。同版 Chromium `network.sb` 的 remote TCP／UDP policy fragment 與 synthetic child shape 相符。2026-10-12 在保留 bundle 中找到與 replay11 executable SHA 完全相同的主程式，並量得同 bundle Electron Framework 43.3.0 binary SHA-256 `a6763870b706a065d621935435d82ea206747192b3948c8b17b7f5e2930c758a`；因 replay11 未保存 bundle path／framework SHA，這仍非 replay-time framework provenance。未保存整份 generated profile 及動態參數，故 source／policy 關聯與目前 framework hash 都不足以證明唯一根因；不代表 UI acceptance。本條是 acceptance isolation compatibility，不是已確認產品 runtime defect。
+- 修正／處置：只新增可重播診斷腳本／證據與 Apple／Electron／Chromium source links；不改產品程式或 OS policy。允許 parent `(allow default)` 的 canary case 僅執行不連網 `/usr/bin/true`，不能用於 packaged UI 外連封鎖驗收；停用 Chromium sandbox 不接受。
+- 來源引用邊界：canary script 的 Chromium `network.sb` reference 已固定到 `150.0.7871.212` versioned tag；mutable `HEAD` 只存在於既有歷史 evidence，保留原件但不再作新 evidence source。固定 source reference 不等於 replay-time binary provenance，也不改變 synthetic profile 非 exact generated profile 的判定。
+- 驗證與後續：canary `node --check`、replay3、主代理完整 `npm run check` 通過；round2 reviewer 親自執行 canary `node --check`（2026-10-01 09:21:22 UTC，exit 0），未重跑 tests／canary／app。2026-10-02 06:10 UTC 只讀核驗候選 commit lockfile、replay11 failure identity 與 Chromium versioned source；Chromium tag `150.0.7871.212` 固定至 commit `69bf1c67cb894365d151bd020bb0171fd583633a6`，`network.sb` blob SHA-1 `58477d8d17902258b3f361d72751a32c034e0645`。2026-10-12 靜態 bundle identity evidence `docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json` 記錄目前 executable-hash-matching bundle 內 framework hash、version、mtime 與 codesign 驗證；未證明 replay-time framework identity。round3 獨立報告 `docs/project-management/reviews/2026-10-12-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round3.md` 第 37 行有條件通過，範圍限靜態版本／policy fragment 關聯，並確認 replay11 JSON 未含 build provenance；round3 未執行 app、canary、Ollama 或 OS network probes。Apple `NEFilterDataProvider`／Xcode docs 將 system content filter 列為需 Network Extensions／Content Filter capability 的途徑；本輪未配置該 capability／filter。source pin 不解除 exact generated profile／實際 egress UI acceptance 阻擋，本輪 static bundle identity 補記已完成。若要真實 UI egress 驗收，須另行取得 per-app egress control 與 rollback 的明確授權；`FR-021` 仍未完成。
+
+### BUG-038：macOS Seatbelt canary 無參數時延後至 evidence write 才失敗（2026-10-14；診斷工具可維運性）
+
+- 現象與證據：canary 未提供輸出路徑時預設使用既有 `2026-10-01-macos-seatbelt-nested-profile-canary-replay2.json`；2026-10-14 基準執行仍先完成 sandbox case，最後因 exclusive-create 回報 `Evidence file already exists; refusing to overwrite.`、exit 2。
+- 根因：輸出路徑 fallback 指向歷史 evidence，路徑／檔案存在檢查位於四案執行之後；無參數呼叫沒有先明確拒絕。
+- 最小修正：移除歷史 replay2 fallback，要求呼叫者提供新的 `.json` 路徑；在任何 macOS／sandbox／case 檢查或執行前，缺少路徑即固定錯誤訊息並 exit 2。明確路徑仍經 evidence directory／`.json` 檢查，寫入仍採 exclusive-create。
+- 防回歸：無參數命令應在不新增 evidence、不中止／啟動任何 sandbox case 前 exit 2；明確新路徑 replay4／後續 replay 維持四案結果、pinned source references 與 scope flags。此項只修診斷工具，不是產品 runtime 或 FR-021 acceptance 修正。
+
+### BUG-039：replay11 未保存 Chromium exact generated profile（2026-10-14；證據完整性／驗收環境）
+
+- 現象與證據：唯讀 audit `docs/project-management/evidence/2026-10-14-fr-021-replay11-exact-profile-feasibility-audit.json` 核對 replay11、offline／packaged UI runner source 與既有 static bundle identity。replay11 有 startup failure／cleanup／candidate executable hash／outer profile ID，但沒有 serialized Chromium child policy、generated child argv、Framework hash、source commit 或 build provenance。
+- 判定邊界：runner source 只建立外層 Seatbelt profile 與 synthetic launch argument；既有 replay3／replay4／replay5 的 profile strings 是 `/usr/bin/true` synthetic canary，pinned Chromium `network.sb` 只是來源對照，均不能當作 replay11 的 exact generated profile。目前 hash-matching bundle 的 Framework 測量也不能倒推 replay-time bytes。
+- 處置：不修改產品 runtime、Electron、Chromium、OS policy 或既有 evidence；新增非敏感 audit evidence，將「在 audited artifacts 中不存在且不可重建」固定為 FR-021 packaged UI offline acceptance 的 evidence blocker。這不是已確認產品 runtime defect 修正，也不代表唯一 root cause 已確定。
+- 防誤判：本 audit 沒有啟動 packaged Electron／Ollama、沒有 network probe、沒有使用 `--no-sandbox`、沒有修改 OS network；後續若要取得 exact profile／replay-time provenance，需另行授權 instrumented packaged run 或等價的保存 trace。
+
+### BUG-040：instrumented packaged-run evidence contract 尚未具備（2026-10-14；驗收工具／證據準備度）
+
+- 現象與證據：`docs/project-management/evidence/2026-10-14-fr-021-instrumented-packaged-run-readiness-audit.json` 唯讀核對兩支 UI runner、`electron/main.mjs`、package metadata 與 replay11。packaged runner 只在記憶體建立 outer sandbox／launch argv，child stdout／stderr 暫存後只轉成固定 diagnostic categories；offline wrapper 也未保存 raw UI runner output。replay11／既有 static identity 沒有 outer argv、Framework hash／build provenance 或 exact generated profile。
+- 近因與根因邊界：目前可增加的是 runner-level candidate identity、redacted argv、bounded diagnostics 與 evidence schema；Chromium runtime-generated child profile 不在目前 app-level capture contract 內，不能由現有 source／evidence 推導。這是驗收證據準備度缺口，不是已確認產品 runtime defect。
+- 處置：不修改產品 runtime、Electron、runner、Chromium 或 OS policy；新增 readiness audit evidence，列出未來若取得授權所需的 fixed candidate、Framework／build provenance、redacted argv／diagnostics、exact profile or equivalent trace、exclusive evidence、cleanup 與 rollback 條件。
+- 防誤判：本輪未啟動 packaged Electron／Ollama、未重跑 canary、未建立 network probe、未使用 `--no-sandbox`、未修改 OS network；readiness `partial` 不代表 packaged UI offline acceptance 或 FR-021 結案。
+
+### BUG-041：acceptance runner 缺少可持久化 outer provenance fingerprint（2026-10-14；驗收工具）
+
+- 現象與證據：BUG-040 readiness audit 顯示 runner 僅在記憶體建立 outer command／argv，保存 executable hash，child stdout／stderr 只降為固定類別，沒有把 runner-level provenance 以 evidence schema 欄位保存。
+- 最小修正：live runner evidence 升為 v4，加入去敏 `launch` summary、outer sandbox 套用旗標、candidate Electron Framework pre-launch SHA-256，以及 capped child-output SHA-256／byte length／固定 categories；offline wrapper 加入格式白名單後的 `runnerProvenance` projection。raw child output、secret-shaped env、使用者／暫存路徑均不保存，且不加入 `--no-sandbox`。
+- 判定邊界：這只補 runner-level pre-launch／bounded diagnostic trace，不能倒推出 replay-time loaded bytes、Chromium exact generated profile、build provenance、唯一 root cause 或 packaged UI acceptance；既有 replay／evidence 不覆寫。
+- 防回歸與驗證：source-contract assertions 覆蓋 schema v4、Framework／diagnostic／sandbox 欄位、raw output exclusion 與 wrapper projection；三支相關 MJS `node --check`、focused offline UI test、完整 `npm run check`、`git diff --check` 與 final docs gate 應全部通過。本輪不啟動 packaged Electron／Ollama acceptance、不建立 network probe、不修改 OS policy。
+- round1／round2 複審修正：candidate artifact read failure 不再把 `EACCES` 等底層可變 code 當成 evidence 契約，固定以 `CANDIDATE_ARTIFACT_READ_FAILED` 同時作為 `error.code`／`failureCategory`；VM regression 改驗證固定值，cleanup 與 raw-path 不洩漏邊界維持。
+
+### BUG-042：offline wrapper argv projection 未在保存邊界重新驗證去敏格式（2026-10-14；驗收證據契約）
+
+- 現象與風險：BUG-041 完成後，offline wrapper 對 live runner `launch.argv` 只做字串型別／長度／數量限制；若未來 runner argv 組成改變，使用者／暫存路徑或 secret-shaped value 可能在 projection 邊界重新進入 evidence。
+- 最小修正：新增 `lib/runner-provenance.mjs` 純函式 allowlist re-sanitizer，offline evidence schema 升為 v5；只保存固定去敏旗標、受限 debug port、已知環境名稱的 `<redacted>` token 與受限 candidate basename。未知 item、超長 item 與超過 32 項的尾端只增加 `argvDroppedCount`，不保存原值；`argvRedactionValidated` 只有所有輸入都通過且未截斷時為 true。
+- 防回歸與界線：focused test 直接驗證合法投影、private path、secret-shaped value、未知 flag、缺少 argv 與不洩漏 raw value；source contract 驗證 schema v5 與欄位存在。這只強化 wrapper 保存邊界，不代表 live runner replay-time argv、exact Chromium generated profile、binary provenance 或 packaged UI acceptance；本輪不啟動 packaged Electron／Ollama／network probe、不修改 OS policy。
+
+### BUG-036：UI acceptance artifact 讀取逃逸清理與 daemon 啟動總期限缺口（2026-10-01）
+
+- 獨立重現：round1 reviewer 的 actual runner VM 在 spawn／temp 後令 artifact read 拋 EACCES，觀察 cleanupCalls=0；local HTTP trickle fixture（20ms 傳一段）令 timeoutMs=50 的 daemon gate 在 259ms 成功，超過總期限。
+- 修正：artifact hash 讀取移入主 try/finally，固定 artifact_preflight stage，失敗仍保存去敏 evidence、停止 group、刪除並確認 temp；tags 使用剩餘 startup deadline 的 absolute timer、不因 body 流量延長，成功後再核對期限，body 限 1 MiB。
+- 防回歸：`test-ollama-ui-offline.mjs` 在記憶體執行完整 actual runner，斷言 artifact EACCES 仍清理 app／temp、保存 fail 與 stage／code、不保存 path canary；actual helper 搭 local HTTP trickle fixture，斷言 deadline fail closed。原始 round1 報告及所有 replay 不改寫。
+
+### BUG-035：AI 取消後 checkpoint 恢復按鈕可能被舊輪詢回應隱藏（2026-10-01）
+
+- 重現：`node scripts/test-review-ui.mjs` 的實際 UI 函式 VM 回歸先安排 GET in-flight，再完成 cancel POST，最後釋出舊 `running` 回應；修補前 assert `resumeAiOptimize.hidden === false` 失敗（actual true）。這是受控競速重現，不宣稱每次實機取消都會發生。
+- 根因：成功取消只呼叫 `setAiRunning(false)`，使舊 poll 在收到 stale running 後退出；原 cancel handler 未重新讀取終態／retryable，因此恢復按鈕可能保留啟動時的 hidden。
+- 最小修正：成功取消後以既有 `restoreAiOptimizationStatus({ silent: true })` 確認伺服器 checkpoint／retryable 控制，不依賴舊 poll 終態分支；不修改 server、checkpoint 結構、模型驗證或來源字幕。
+- 防回歸：實際執行 `setAiRunning`、poll、restore、cancel 四函式，涵蓋可續跑 checkpoint、零 checkpoint 與 cancel HTTP 拒絕；拒絕取消不停止現有輪詢、不隱藏 cancel。另建立當前 dirty worktree 的隔離 macOS 目錄候選進行真實 Ollama UI 驗收，與舊 `53956cc` candidate 證據分開。
+- round1 延伸修正：reviewer 重現成功 resume 後才抵達的 stale cancelled 會停止新 poll；新增 `aiPollingGeneration`，每次 running 狀態切換使旧 token 失效，poll 在等待前後核對 generation，旧終態不得覆寫新任務。持久 VM regression 另測 stale cancelled／failed／completed，確認新 polling／cancel 控制保持 running，並可完成新 Session；既有三案保留。
+- round2 延伸修正：restore GET 成功與失敗均核對 generation；superseded cancel 跳過舊訊息。Actual UI regression 在 cancel restore pending 時從真實 `runAiOptimize` 啟動新任務，晚到成功／失敗 restore 不影響控制、訊息及既有 Session，釋出新 poll 後新 Session 正常 completed。另重現 stale GET rejection 並補 guard；對 superseded start rejection 與目前任務 start／poll failure 分別測試，保留現任務錯誤回報。
+
+### BUG-034：Ollama UI acceptance 誤選啟動畫面及缺少 socket validator binding（2026-10-01）
+
+- 現象與證據：`2026-10-01-ollama-ui-cancel-resume-replay1.json` 在 UI flow 前以 `DEVTOOLS_TARGET_URL_REJECTED` 失敗，完整 cleanup 成功；packaged app 的 file:// splash 與首頁均含「字幕」標題，原 runner 先按標題選擇而命中 splash。另程式檢視發現 runner 使用 `isTrustedDevToolsWebSocketUrl` 卻未 import，真正首頁路徑會 ReferenceError 並被啟動重試 catch 吞掉。
+- 最小修正：共用 `selectTrustedElectronPageTarget()` 只選取符合既有 `127.0.0.1` HTTP policy 的 app page，再驗證 exact-port loopback WebSocket；file://／remote pages 不會連線，沒有 main page 時繼續有界等待；不放寬 URL 或 socket whitelist。
+- 防回歸：實際執行 selector，涵蓋 splash-only、splash 在首頁前、remote page 與錯誤 WebSocket port；保留原 connection-construction 拒絕測試，並以唯一 replay2 重做實機流程。此項為 acceptance tooling 缺陷，不是產品 UI 缺陷。
+
+### BUG-033：Ollama 離線 acceptance daemon spawn error 未進入清理流程（2026-09-29）
+
+- 日期／版本：2026-09-29／0.51.0 開發中。
+- 現象與影響：round1 獨立審查指出，sandbox daemon child 的非同步 `error` event 未受控時，Node 可能在 wrapper cleanup／evidence 寫入前終止；屬 acceptance tooling 的啟動失敗邊界，沒有修改或證實產品 Ollama runtime 故障。
+- 根因：`spawn()` 回傳後若 executable 啟動失敗，錯誤透過 ChildProcess `error` event 非同步發出；原 wrapper 只等待 `/api/tags`，沒有共用的 spawn／close lifecycle observer。
+- 最小修正：新增 `lib/ai/managed-child-process.mjs`，保存 `spawn`、固定化 `error.code` 與 `close` 狀態；`stopManagedChild` 對 spawn failure 等待 close，正常啟動則有界 SIGTERM／SIGKILL 並等待 close。offline acceptance wrapper 使用該 helper，spawn failure 進入既有 failure／evidence／finally cleanup。
+- 防回歸與驗證：`scripts/test-ollama-offline-process.mjs` 先使用確定不存在的 executable 驗證 helper 的 `started=false`、`ENOENT`、close 與 cleanup；再在 macOS 且 Seatbelt／Ollama／模型 store 可用時，以僅限 `NODE_ENV=test` 的 spawn-command seam 執行完整 wrapper subprocess，斷言 `SANDBOXED_OLLAMA_SPAWN_FAILED`、`ollama_start`、exit 1、daemon 未啟動與 evidence／port／temp cleanup。focused test、provider source-contract test、三項相關 `node --check`、完整 `npm run check` 與 `git diff --check` 均通過。post-fix 3B sandbox product replay 通過；post-fix 1B replay8／9 因輸出契約失敗，但兩案 sandbox 與完整 cleanup 均確認。
+- 剩餘風險：fault injection 使用 test-only missing executable，不模擬真實 sandbox-exec 的 EACCES／Seatbelt policy launch failure；跨平台 runner 無 macOS prerequisites 時會保留 helper regression 並略過 wrapper integration 部分。本項只修 acceptance wrapper，不代表 FR-021 整體、全機斷網、Electron UI、cancel／resume、Windows 實機或模型品質已驗收。
+
 ### BUG-032：Windows CRLF 造成 Breeze 效能提示契約測試誤判（2026-09-23）
 
 - 現象：GitHub Windows preview 的 `npm run check` 在 `scripts/test-breeze-asr.mjs:176` 失敗，錯誤為「應存在可測試的 Breeze 效能提示更新函式」；同一來源在 macOS LF checkout 可找到 `updateBreezePerformanceNotice` 並通過。
@@ -10,11 +147,43 @@
 - 防回歸：保留 CRLF fixture 重放，並以共用 `extractNoticeFunction` 直接驗證正規化後 CRLF source 可擷取 Breeze 函式；Breeze focused test、完整回歸與 Windows runner 均通過。Windows runner 成功不等同 Windows 實機驗收。
 - 剩餘風險：本輪不執行 Windows 實機驗收、不驗證 Breeze 真實 runtime／模型品質；修正只涵蓋 source-contract 測試的換行可攜性。
 
+### FR-020／NFR-006：長音訊來源完整性 probe 缺少輸入影片 hash 與故障注入（2026-09-23）
+
+- 缺口：既有 evidence v3 只保存輸入影片 before hash，來源 SRT 雖有 before／after hash，卻沒有對 hash mismatch 或來源檔消失做故障注入。
+- 最小修正：新增串流 snapshot helper；evidence v4 記錄影片與可選來源 SRT before／after SHA-256 及大小，將內容變更／after missing 與 hash check failure 分別列為失敗，保留不寫字幕內容的契約。
+- 防回歸：`node scripts/test-whisper-long-media-integrity.mjs` 對 input-video／source-subtitles 各驗證 unchanged、同大小 hash mismatch、missing-after；`npm run acceptance:whisper:integrity-fault-injection` 再於實際 probe 邊界注入影片與 SRT 的修改／消失並核對 failure code、scope flags 與 temp cleanup。短合成 MP4 已重播 bundled probe v4 正常路徑，不重跑原始長片。evidence 分別見 `docs/project-management/evidence/2026-09-23-whisper-long-media-integrity-fault-injection.json`、`docs/project-management/evidence/2026-09-23-whisper-long-media-integrity-short-replay.json`。
+- 剩餘風險：before／after hash 仍不能偵測期間發生後又恢復原內容的瞬態改寫；hash 相同也不代表來源字幕／Whisper 文字正確。長音訊語意品質、人工校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows 與 Release 不由本項結案。
+
+### FR-020／NFR-006：probe stderr evidence 隱私邊界補強（2026-09-23）
+
+- 觸發觀察：round1 報告指出舊版保存 Whisper stderr tail 原文，缺少測試證明錯誤路徑不會把字幕內容寫入 evidence；報告同時明載其非獨立上下文且未重跑測試，因此僅作為待驗證的邊界觀察，不代表已證實實際 stderr 含字幕。
+- 修正：新增 `whisper-long-media-evidence.mjs`，將 stderr 降為行數／診斷行數摘要，將 FFprobe／FFmpeg／Whisper process 啟動失敗及 exit 結果轉成不含原始錯誤文字的固定化 outcome；probe evidence schema 升為 v5，移除 `stderrTail` 欄位及子程序失敗時直接輸出原始 stderr／Whisper error 的路徑。
+- 防回歸：`test-whisper-long-media-evidence.mjs` 把 transcript-like canary 放入 stderr 與 Error，驗證摘要及安全結果 JSON 不包含原字串；v5 bundled Tiny replay 與四案 probe-level fault injection 作為正常／失敗路徑驗證。
+- 後續處理：round2 發現外層 catch 路徑與 cleanup fail-closed 缺口，已在下節補強固定化錯誤及刪除確認；round3 獨立複審與 final docs gate 仍待完成。
+
+### FR-020／NFR-006：round2 發現自訂路徑洩漏與 cleanup fail-closed 缺口（2026-09-23）
+
+- 獨立發現：round2 報告指出 catch 仍持久化 `error.message`，對 `/Volumes/...` 等自訂來源 SRT 路徑遮罩不完整；另 `tempRootRemoved=false` 未改成失敗狀態。報告把此列為可達風險，未宣稱已端到端重現。
+- 修正：probe catch 改寫固定化 `PROBE_FAILED` 訊息，不再序列化 exception message／code；暫存移除後以 `lstat` 確認只有 `ENOENT` 才代表成功，其他狀態均令 evidence fail 並以 `TEMP_ROOT_CLEANUP_FAILED`／`FINALIZATION_FAILED` 回報。
+- 防回歸：helper 測試注入 transcript-like custom path、`rmSync` throw、路徑仍存在及 `lstat` 權限錯誤；當時 probe-level harness 為 v8 五案，後續 basename／cleanup probe-level 補強詳見下節。
+- 剩餘風險：驗收只能證明模擬 filesystem cleanup 結果與自訂路徑 fixture；不代表所有 OS 檔案系統故障皆可重現，也不涵蓋字幕品質、Windows 實機、真實 Metal fallback 或長片重播。
+
+### FR-020／NFR-006：round3 隱私／cleanup 複審建議補強（2026-09-24）
+
+- round3 結論：有條件通過；round2 兩項程式阻擋已修正。剩餘建議為來源 SRT basename 仍寫入 evidence，且 cleanup helper 未由 probe 子程序端到端 fault-inject。
+- 修正：來源 SRT evidence 一律使用固定標籤 `source.srt`，不保存指定 basename；probe acceptance 增加 basename canary 與 Node preload cleanup failure 案。preload 先實際移除合成 temp root，再讓 lstat 回 EACCES，驗證 probe evidence／exit fail closed 且不殘留測試資料。
+- 驗證：2026-09-24 v9 七案包含媒體／SRT 四種 integrity failure、自訂路徑 canary、basename canary、cleanup-unverifiable；各案及完整 `npm run check`、`git diff --check` 通過。round4 獨立審查代理未產出報告而停止，最新差異的複審與 final docs gate 尚未完成。
+- round4 複審：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round4.md` 判定有條件通過；條件是舊 preload 先刪除 temp root 再模擬錯誤，尚未驗證實際刪除失敗且目錄殘留的 probe 行為。
+- round4 條件補強：harness preload 現在於刪除前讓 `rmSync` 真正拋出 EACCES，保留真實目錄供父 harness 以原生 `lstat` 驗證；確認後才清理並斷言 ENOENT。新 v10 evidence 記錄七案通過，cleanup 案為 evidence fail、`tempRootRemoved=false`、`TEMP_ROOT_CLEANUP_FAILED`、probe exit 1，並確認父 harness 已移除故障注入留下的目錄。兩個 focused tests、完整 `npm run check`、`git diff --check` 通過；新一輪獨立複審待完成。
+- round5 複審：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round5.md` 為有條件通過，指出 marker prefix 判斷不夠精確且 marker 無效／缺失時 harness 不一定能回收 temp root。
+- round5 條件補強：移除 marker，將 probe temp-root 預先固定為隔離 cleanup case 的直接子目錄；preload 只攔截 `path.resolve(target) === path.resolve(OSF_CLEANUP_TARGET_ROOT)`，父 finally 直接清除確切目標並核對 ENOENT。v11 repo 外 replay 與持久 evidence replay 都七案通過，實際 root 在父清理前存在，probe failure evidence／exit 1 如預期；兩個 focused tests、完整 `npm run check`、`git diff --check` 通過。round6 原件因 final validator 格式錯誤保留；round7 獨立複審 `docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round7.md` 有條件通過，重跑 focused tests、repo 外七案與文件檢查。工作紀錄已加入 round7 原句引用，`npm run docs:check:final` 通過並確認最新紀錄結案。未驗的原片品質、原生 OS 權限、Windows 實機、真實 Metal fallback 與 Release 仍不在本修正範圍。
+- 剩餘風險：本輪只驗證受控 Node/macOS temp-root EACCES 注入，不涵蓋所有 OS／檔案系統故障模式；未重跑 5,416 秒原片、Windows 實機、真實 Metal fallback 或 Release。
+
 ### FR-020／NFR-006：bundled Whisper 長音訊來源 SRT hash 完整性補強（2026-09-21）
 
 - 缺口：長音訊 evidence 原先以 `originalSrtModified=false` 宣告來源 SRT 未修改，但沒有保存 before／after hash，無法提供完整的檔案完整性比對。
 - 最小修正：`verify-whisper-long-media.mjs` 接受明確來源 SRT 路徑，未提供時只在相鄰 `.edited.srt` 存在時採用；schema 升為 v3，保存來源 SRT basename／大小／before／after SHA-256 與檢查旗標，hash 不一致或檔案消失時回報 `SOURCE_SRT_MODIFIED`。
-- 實測：短音訊與完整 `/Users/nycu/Downloads/20260909.mp4` replay 均 exit 0；完整 evidence 記錄來源 SRT before／after 均為 `4d5f5a53bb4eea7f5de5b428caefb38871771655166b12fccc613f3600f16482`、`sourceSrtHashChecked=true`、`originalSrtModified=false`，2,509 segments、非空 SRT／JSON、temp cleanup 通過。
+- 實測：短音訊與完整 `<user-home>/Downloads/20260909.mp4` replay 均 exit 0；完整 evidence 記錄來源 SRT before／after 均為 `4d5f5a53bb4eea7f5de5b428caefb38871771655166b12fccc613f3600f16482`、`sourceSrtHashChecked=true`、`originalSrtModified=false`，2,509 segments、非空 SRT／JSON、temp cleanup 通過。
 - 剩餘風險：hash 完整性不代表字幕語意品質或 Whisper 與來源 SRT 的正確性；中文音訊品質、人工校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows、乾淨安裝與發布仍未驗收。
 
 ### FR-020／BUG-WHISPER-METAL-139：bundled Whisper 長音訊 probe 摘要與隱私修正（2026-09-21）
@@ -324,7 +493,7 @@
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：載入校閱時回報「字幕第 703 段時間碼無效」。
 - 影響：Whisper.cpp Small 已完成轉錄但無法進入字幕校閱；同一輸出另有第 704、707 段零長度時間碼。
-- 重現：讀取本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt`，第 703 段為 `00:23:53,560 --> 00:23:53,560`，第 704 段相同，第 707 段為 `00:23:54,160 --> 00:23:54,160`；`public/bilingual-subtitles.mjs` 的 `normalizeBilingualCue` 對 `end <= start` 拋出載入錯誤。
+- 重現：讀取本機 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt`，第 703 段為 `00:23:53,560 --> 00:23:53,560`，第 704 段相同，第 707 段為 `00:23:54,160 --> 00:23:54,160`；`public/bilingual-subtitles.mjs` 的 `normalizeBilingualCue` 對 `end <= start` 拋出載入錯誤。
 - 根因：Whisper.cpp 原始 SRT 可產生開始與結束相同的零長度 cue；`runWhisperCpp` 直接把原始檔複製成 `draft.srt`，未在寫入前套用與校閱解析器一致的嚴格時間碼驗證。
 - 修正：新增純函式 SRT 清理器，嚴格解析時間碼、捨棄格式錯誤或 `end <= start` 的 cue、保留有效 cue 並重新編號；Whisper／Whisper.cpp 寫入 `draft.srt` 前套用，既有任務進入校閱資料 API 時也以同一清理器相容載入，全部無效時以可採取行動的錯誤結束；保留原始 Whisper 輸出供診斷。
 - 驗證：focused 清理器與實際 job 703／704／707 回歸、`parseSrtBilingual` 載入、完整 `npm run check`、兩平台封裝與 ZIP 完整性、獨立審查及文件結案檢查。
@@ -336,7 +505,7 @@
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：使用 Ollama 進行多筆 AI 優化時回報「AI 優化失敗：AI 請求逾時」。
 - 影響：已完成的批次仍保存於 checkpoint，但整個 AI 任務在單一批次逾時後變成 failed；使用者需要手動恢復，且容易誤以為所有批次遺失。
-- 重現：本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；provider=`ollama`、model=`llama3.2:3b`、55 cues、55 batches、`timeoutSeconds=120`、`maxRetries=1`；第 1／2 批完成後第 3 批逾時，記錄 `progress.completedBatches=2`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`、`retryable=true`。
+- 重現：本機 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；provider=`ollama`、model=`llama3.2:3b`、55 cues、55 batches、`timeoutSeconds=120`、`maxRetries=1`；第 1／2 批完成後第 3 批逾時，記錄 `progress.completedBatches=2`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`、`retryable=true`。
 - 根因初判：Ollama 原生 `/api/chat` 請求使用 `stream:false` 並套用單次絕對 fetch timeout；本機低資源模型對特定 cue 可能超過 timeout，既有批次雖有 checkpoint，但 timeout 錯誤沒有提供更細緻的本機長生成處理與恢復提示。
 - 修正：Ollama 原生 `/api/chat` 改用 `stream:true`；新增 NDJSON fragment 組裝，並將 timeout 重設為每片段的 idle timeout；保留 strict JSON／cue 驗證與 checkpoint，timeout 且已有完成批次時明確提示可恢復，不以無限延長 timeout 或靜默接受部分結果取代修正。
 - 驗證：`test-ai-providers.mjs`、`test-ai-optimizer.mjs`、`test-ollama-batch-stream.mjs` 與完整 `npm run check` 通過；deterministic 三批次 streaming 在 100ms idle timeout 下完成，timeout checkpoint 續跑只送未完成批次；本機 Ollama `127.0.0.1:11434` 未啟動，真實模型 smoke 待外部驗收。
@@ -347,7 +516,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：BUG-016 的 streaming 修正封裝於第 3 批仍顯示「受限或失敗，第 1 次重試，等待 2 秒」，重試後再次回報「AI 優化失敗：AI 請求逾時」。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 更新至 2026-08-05 11:27；`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`activeBatch=3`、`retryAttempt=1`、`retryable=true`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`。本機 Ollama `127.0.0.1:11434` 目前連線拒絕，無法取得同一 cue 的真模型 response。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 更新至 2026-08-05 11:27；`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`activeBatch=3`、`retryAttempt=1`、`retryable=true`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`。本機 Ollama `127.0.0.1:11434` 目前連線拒絕，無法取得同一 cue 的真模型 response。
 - 症狀與根因區分：症狀是串流重試仍逾時；已確認原 transport 在 `fetch` 收到 response headers 後沒有重新開始 body idle timeout，若 Ollama 在 headers 後才產生第一個 NDJSON chunk，仍會沿用 request 起始計時器；此外 timeout 重試沿用相同 120 秒上限，沒有為低資源模型增加可控的第二次等待窗口。
 - 修正：`requestAiJson` 在 `fetch` 完成後重新 arm timeout；Ollama native request 增加 `num_predict=512`、`keep_alive=10m`，避免無界生成與每批重新載入；optimizer 對 Ollama timeout 的下一次 retry 自動將 timeout 加倍（120→240 秒，最高 600 秒），並把延長值寫入 retry progress；UI 重試訊息顯示本次 timeout 上限；checkpoint／strict cue validation 保持不變。
 - 驗證：`test-ai-providers.mjs` 覆蓋 Ollama streaming、chunk idle reset、headers 後延遲第一 chunk、`num_predict`／`keep_alive` contract；`test-ai-optimizer.mjs` 覆蓋 Ollama timeout retry 延長至 240 秒與進度 telemetry、既有 checkpoint resume；`test-ollama-batch-stream.mjs` 三批次 streaming 通過。完整回歸、兩平台封裝與真實 Ollama smoke 待本輪結案補記。
@@ -358,7 +527,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：Ollama 第 3 批不再 timeout，但回報「AI 優化失敗：AI 回傳內容不是有效 JSON」。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`nextBatchIndex=2`、`suggestions=2`、`mode=proofread`、`language=ja`；本機 Ollama `127.0.0.1:11434` 連線拒絕，未保存 raw model response。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`nextBatchIndex=2`、`suggestions=2`、`mode=proofread`、`language=ja`；本機 Ollama `127.0.0.1:11434` 連線拒絕，未保存 raw model response。
 - 根因判定：`parseCompletionContent` 原先只接受完整 JSON 或單純 code fence，沒有安全處理模型在 JSON 前後附加說明；對真正 malformed／截斷 JSON 也沒有 Ollama 專用一次性 repair，因此 strict parser 直接讓批次失敗。無 raw response 時不能把本次錯誤進一步歸因為 wrapper、截斷或模型 schema 失守其中一項。
 - 修正：解析前保留 strict JSON 契約，但可從前後包裝文字中擷取完整 `{...}`／`[...]` JSON 再驗證；Ollama malformed JSON 只觸發一次簡化 repair prompt，第二次仍無效則拒絕，不接受原文或不完整 cue；UI 顯示「正在要求 Ollama 重新輸出 JSON」；既有 checkpoint／cue ID／數量／順序驗證不變。
 - 驗證：`test-ai-optimizer.mjs` 覆蓋 wrapper extraction、Ollama proofread malformed→repair、repair 第二次仍 malformed 的拒絕與最多兩次請求；既有 provider／timeout／stream tests 與完整受控權限 `npm run check` 通過；兩平台 ZIP `unzip -t`、source markers／Small manifest 核對通過；真實 Ollama raw response／同一 job 修正後重跑與 Windows 實機仍待外部驗收。
@@ -369,7 +538,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：Ollama AI 優化在 cue 344 回報「AI 文字長度異常」；該批未完成，既有 checkpoint 仍可續跑。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue 344 原文為「如果老師選擇Excel的話」，本機未保存 raw model response，Ollama 目前連線拒絕。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue 344 原文為「如果老師選擇Excel的話」，本機未保存 raw model response，Ollama 目前連線拒絕。
 - 根因判定：strict validator 對 cue 文字使用 `Math.max(500, original.length * 6)` 上限；本次模型回應已超過安全上限，可能含解說、重複內容或無界生成。因沒有 raw response，不能把具體內容形式宣稱為已證實的單一原因；放寬上限或截斷都會讓錯誤內容進入字幕。
 - 修正：抽出一致的 cue 長度上限計算；原始 prompt 明確列出每個 cue 的字元上限並禁止解說／重複／Markdown；Ollama 遇到 length validation failure 只執行一次專用 JSON repair，repair 仍超長即拒絕；UI 顯示「回應文字過長，正在要求 Ollama 重新輸出」；ID／數量／順序／strict validation／checkpoint 保持不變。
 - 驗證：`test-ai-optimizer.mjs` 覆蓋 cue 344 過長→一次 repair 成功、第二次仍過長拒絕、`validationRepairReason=length` telemetry，以及非 Ollama provider 仍嚴格拒絕；provider／stream 回歸與完整 `npm run check`、兩平台測試包與 ZIP 完整性待本輪結案補記。

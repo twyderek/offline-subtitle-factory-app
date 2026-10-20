@@ -1,7 +1,7 @@
 # 獨立審查報告：REL-044 0.51.0 Windows x64 cross-build 測試候選
 
 - 審查對象 commit／版本：`codex/0.51-anthropic-claude@e4bc931`；版本 `0.51.0`。
-- 候選目錄：`/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/`。
+- 候選目錄：`<user-home>/Documents/離線字幕工廠/dist/win-unpacked/`。
 - 對應 08-CHANGE-LOG 條目：`2026-08-27 — 0.51.0 Windows x64 測試候選建置可行性（REL-044）`。
 - 審查輪次：round1。
 - 審查代理啟動時間、上下文來源：2026-08-27（Asia/Taipei）；獨立上下文重新讀取 REL-044 工作紀錄、目前狀態、測試稽核、0.51.0 Release notes、候選目錄與 source，未沿用主要代理的評價性結論。
@@ -21,7 +21,7 @@
 - 判定：部分通過（source／封裝內容與固定 runtime contract 通過；Windows runtime 行為未驗證）。
 - 證據：候選 `resources/app/lib/ai/anthropic.mjs`、`resources/app/lib/ai/providers.mjs`、`resources/app/public/review.js` 與 source 對應檔案內容核對一致；候選 provider registry 含 `anthropic`、預設 `https://api.anthropic.com`、`/v1/models` 與 `/v1/messages` adapter marker。
 - 證據：`resources/app/docs/BREEZE-ASR-25.md` 存在，runtime manifest 的固定元件與路徑指向 FFmpeg、Whisper.cpp、Tiny；沒有將 Breeze patched runtime 或 checkpoint 偽裝成 bundled ready。
-- 證據：`OFFLINE_SUBTITLE_TOOLS_DIR=/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/resources/tools node scripts/verify-runtime-package.mjs --target=win32-x64` exit 0，輸出 `OK: win32-x64`，並通過 FFmpeg、Whisper.cpp 與 Tiny 的 manifest／hash 檢查。
+- 證據：`OFFLINE_SUBTITLE_TOOLS_DIR=<user-home>/Documents/離線字幕工廠/dist/win-unpacked/resources/tools node scripts/verify-runtime-package.mjs --target=win32-x64` exit 0，輸出 `OK: win32-x64`，並通過 FFmpeg、Whisper.cpp 與 Tiny 的 manifest／hash 檢查。
 - 未覆蓋：macOS 上不能執行候選 Windows PE，因此無法證明 Electron 主程序、FFmpeg、Whisper.cpp、AI provider 或 Breeze 流程在 Windows loader／DLL 環境實際工作。
 
 ## 3. 邊界情況
@@ -51,7 +51,7 @@
 ## 6. 實際運行結果
 
 - 判定：部分通過（只能判定 cross-build directory candidate 已產生並可靜態交付；不能判定 Windows 實機可運行）。
-- 證據：`/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/離線字幕工廠.exe` 為存在且具 executable bit 的 PE32+ x86-64 GUI executable；同一目錄含完整 Electron runtime、`resources/app`、`resources/tools`、Tiny model、Breeze guide、Anthropic adapter 與候選證據檔。
+- 證據：`<user-home>/Documents/離線字幕工廠/dist/win-unpacked/離線字幕工廠.exe` 為存在且具 executable bit 的 PE32+ x86-64 GUI executable；同一目錄含完整 Electron runtime、`resources/app`、`resources/tools`、Tiny model、Breeze guide、Anthropic adapter 與候選證據檔。
 - 證據：候選目錄約 687 MB，runtime 約 315 MB，Tiny model 約 80 MB；核心候選 SHA-256、manifest size／hash 與 file format 已重放通過，未發現憑證或高階 checkpoint 被意外打包。
 - 限制：macOS 主機沒有 Wine，不能執行 `verify-electron-renderer.mjs` 對 Windows executable 做 bridge／UI／手動 SRT／AI review smoke；也不能執行 Setup、解除安裝或 Windows process tree 驗證。因此本節不能升格為 Windows renderer／安裝／實機通過。
 - 目前文件有一致的風險揭露：候選 README、PROVENANCE、Release notes、00-CURRENT-STATUS 與 06-TEST-AND-PROCESS-AUDIT 都將它限定為 cross-build candidate，並列出未驗證項目；候選目錄內的 Release notes 仍是 `e4bc931` 建置版本，新增的 REL-044 文件證據則保留在 repo。
@@ -64,7 +64,7 @@
   1. 主要代理須將 REL-044 工作紀錄補入本報告路徑與上方逐字結論，將狀態／結案欄位完成，並重新執行 `npm run docs:check:final`；完成前治理文件不能結案。
   2. 若要宣稱 Windows 使用者可運行或建立公開 0.51.0 Release，需在 Windows 10／11 x64 完成 packaged renderer、Setup／Portable 安裝與解除安裝、FFmpeg／Whisper 任務、SmartScreen／簽章狀態與乾淨環境驗收，並另行取得對應發布授權；本報告不提供該授權。
 - 剩餘風險：cross-build 不能排除 Windows loader／DLL／GPU／檔案權限問題；Authenticode、SmartScreen、Setup／Portable、更新 metadata、Windows 實機 renderer、Whisper／Breeze 真實 runtime、Anthropic endpoint／proxy／rate-limit／計費、模型品質、1:46 長音訊效能與跨平台差異仍未驗收。
-- 給主要開發代理的具體修正要求：保留本報告不覆寫；完成 REL-044 的治理欄位後重跑 `npm run docs:check:final` 與 `git diff --check`；交付候選時同時提供 `/Users/nycu/Documents/離線字幕工廠/dist/win-unpacked/TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`，並把 cross-build candidate 與 Windows 實機驗收分開標示。
+- 給主要開發代理的具體修正要求：保留本報告不覆寫；完成 REL-044 的治理欄位後重跑 `npm run docs:check:final` 與 `git diff --check`；交付候選時同時提供 `<user-home>/Documents/離線字幕工廠/dist/win-unpacked/TEST-CANDIDATE-README.md`、`PROVENANCE.txt` 與 `SHA256SUMS-win32-x64.txt`，並把 cross-build candidate 與 Windows 實機驗收分開標示。
 
 ## 審查代理聲明
 

@@ -10,9 +10,9 @@
   },
   "controlledRuntime": {
     "type": "deterministic-whisper-cpp-wrapper",
-    "fixturePath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/scripts/fixtures/mock-whisper-cpp-runtime.mjs",
+    "fixturePath": "<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app/scripts/fixtures/mock-whisper-cpp-runtime.mjs",
     "bundledRuntimeUsed": false,
-    "bundledModelPath": "/Users/nycu/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
+    "bundledModelPath": "<user-home>/Documents/離線字幕工廠/offline-subtitle-factory-app/tools/whisper-models/ggml-tiny.bin",
     "bundledModelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
     "wrapperCreatesMetalExit139": true
   },
