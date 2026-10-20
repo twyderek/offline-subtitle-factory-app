@@ -1,5 +1,14 @@
 # 功能測試與流程稽核
 
+## 2026-10-20 FR-027 v0.52.0 round15 BLOCK：治理狀態與已完成證據不一致
+
+- round15 審查對象 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f`。round14 的個人 Windows user-profile blocker 已修正；round15 確認 source、macOS arm64 candidate、exact-source Windows CI/hash gate 於其聲明範圍通過，但因 `00`／`05`／`06`／`08` 仍標示上述修正及 b2b942e 驗證待完成而判 BLOCK。獨立報告：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md`，其餘六面向證據與 P1 請查原報告。
+- b2b942e source `npm run check` exit 0（19 份治理文件、完整核心回歸與 YouTube suites）；`npm audit --omit=dev` 0 vulnerabilities。對 tracked files 的 POSIX／Windows user-profile scan 排除 round12 明確授權原件後，僅在 `scripts/test-breeze-asr.mjs`、`scripts/test-ollama-ui-offline.mjs`、`scripts/test-report-optimizations.mjs` 命中通用合成測試 fixture；round15 逐項判斷非機器專屬個資，未發現其他未授權個人路徑。Round12 原件唯一例外依 README／Release notes 持續揭露。
+- macOS arm64 候選 `../dist/release-0.52.0-macos-b2b942e-normal/`：DMG 246,876,207 bytes／SHA-256 `d503f44a76b066ead4298eb7c7f63066b79cfb18e271f17a1b6384d379396b22`；ZIP 255,845,260 bytes／SHA-256 `68fc2bb6c8d50ffe19c39a3750083348d4f8df50e80a1b88e42ce336f37b7c2b`。四項 DMG／ZIP／blockmap SHA-256 sidecar、`latest-mac.yml` size／SHA-512、DMG `hdiutil verify`、ZIP `unzip -tq`、strict deep codesign、0.52.0／arm64、packaged runtime verifier 均通過。Candidate 為 ad-hoc signature，無 Developer ID／公證，Gatekeeper 未驗收。
+- Packaged UI/layout/usability smoke 通過，`googleRequests=false`，cleanup 成功；3 秒合成影片主 smoke `currentTime=0.000176`、`paused=true`，不證明有效播放／完整轉錄／字幕品質；未驗收真實 Google OAuth／Keychain／頻道授權、影片或字幕上傳。
+- exact-source Windows run `39380574427` success，head SHA 與 b2b942e 相同；artifact `12244799752`／`offline-subtitle-factory-0.52.0-windows-x64`／504,801,641 bytes，GitHub API digest `sha256:626b3a708d6eb073c72de1cdaff842dcd80dd53a94be33812bef0ddf3d8ab52c`。單一 authenticated 500,000-byte ZIP tail range 的所選 manifest／checksum entries CRC／size 有效，manifest SHA-256 與 sidecar 相符，73/73 shared app raw hashes 相同。完整 Windows ZIP 未下載，無 whole-archive integrity claim；該 unsigned artifact 是 preview，不是本次公開資產或實機驗收。
+- round15 P1 已由本輪建立的新 08 工作項目承接：本文件及 `00`／`05`／`08` 同步實際 round14 修正與 b2b942e gates；source SHA 將因此改變，新 SHA 的完整 source check、macOS candidate、exact-source Windows CI/hash gate 與 round16 尚未完成。`docs:check:final` 按 `workflows/06-BUILD-RELEASE.md`／`07-DOCUMENT-CLOSEOUT.md` 留至發布及資產核對後執行。GitHub 仍無 v0.52.0 tag／Release／assets，Latest 為 v0.51.0。
+
 ## 2026-10-20 FR-027 v0.52.0 round14 BLOCK：額外 Windows profile 路徑未授權
 
 - round14 對 source `3312c373f688b425bfb51d5dee8c65bdc53c7954` 的 macOS candidate、exact-source Windows CI／73/73 hashes 及 round13 blockers closure 判定通過，但整體 BLOCK。Tracked-source scan 在 `NEXT-VERSION-FIX-LOG.md:27` 發現一處具名 Windows user-profile 絕對路徑；`git ls-tree` 證明檔案受追蹤，`git archive HEAD` 會將它包含於公開 source archive。該路徑不在需求方對 round12 報告內一處路徑的限縮授權範圍。
