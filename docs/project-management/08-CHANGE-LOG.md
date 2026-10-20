@@ -1,5 +1,28 @@
 # 改版與工作紀錄
 
+## 2026-10-20 — FR-027 v0.52.0 round11 blocker 修正與發布前就緒複核
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：承接 FR-027 GitHub 公開發布工作；round11 獨立審查要求同步 tracked 發布狀態，再確認候選與 exact-source CI 指向最終來源後才可進 tag／Release。
+- 關聯需求／缺陷：`FR-027`、`BUG-050`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`。
+- 變更等級：發布。
+- 執行前已讀：`npm run project:preflight -- --type=release` 固定核心與 release 路由；保留所有既有未追蹤 evidence，不整批加入提交。
+- 目標與成功條件：使 `00`／`05`／`06`／`08` 與 round11 的實際證據一致；建立新的治理來源 SHA，以該 SHA 重跑完整 source checks、macOS arm64 候選、Windows exact-source CI／73-file shared-hash gate 及獨立六面向 round12 review。此工作項目只完成發布前就緒驗證，不建立 tag／Release 或上傳資產；獨立 GitHub 公開發布工作仍保持進行中。round12 無阻擋且本就緒項目 `npm run docs:check:final` 通過後，才可進入公開發布階段。
+- 不在範圍：不改產品 runtime、不發布 Windows preview、不將 UI smoke 宣稱為有效播放／完整轉錄、不宣稱 Google OAuth／Keychain／頻道影片與字幕上傳或完整 Windows ZIP 已驗收、不覆寫既有 tag／Release。
+- 可執行計畫：1. 記錄 round11 BLOCK 及目前 source／candidate／run 的真實狀態，修正 `00`／`05`／`06` 與發布工作紀錄中的舊 SHA／待驗證文字。2. 僅提交明確列出的必要治理文件與 round11 獨立報告；執行 `npm run check`、production audit、敏感路徑掃描與 `git diff --check`。3. push 明確治理 source SHA，重建 arm64 候選並觸發 exact-source Windows CI，核候選 assets／metadata／checksum／runtime 及 73/73 shared-file hashes。4. 獨立 reviewer 僅新增 round12 報告，六面向審查新 SHA、證據、授權、狀態與未驗收風險。5. 若通過，完成本就緒項目、執行 `npm run docs:check:final` 並核對遠端 SHA；之後才執行既有公開發布工作項目的 tag／Release／assets 流程。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`08-CHANGE-LOG.md`、round11 審查報告及新增 round12 獨立報告；重新產生於 repo 外的 macOS arm64 候選／provenance 與 CI manifest 證據。產品 runtime 不變。
+- 風險與回復方式：任何 candidate／CI／review／source SHA 不一致、checksum／manifest 不符、隱私掃描命中或文件 gate 失敗，均停止進入公開 Release；只修正明確範圍並以新 SHA 重驗，保留舊候選及報告。Google／Keychain／上傳、GHSA、ad-hoc／公證、有效播放與 Windows 實機等已接受或已揭露風險仍須原樣保留，不因文件修正而降低。
+- 實際修改：待本階段執行後補記。
+- 開發驗證結果：round11 審查已確認目前 HEAD／origin 為 `871ce1c02363dafcc13a441464467234613778ab`，macOS candidate 與 run `39364278830` 的 73/73 shared hashes 通過；round11 BLOCK 的 P1 是 `00`／`05`／`06`／`08` 仍記載舊 SHA 及待重建／待 CI。新 SHA 尚未建立；本階段完整回歸、candidate 與 exact-source CI 尚未執行。
+- 獨立審查是否執行：是；round11 報告已獨立完成並指出治理同步 blocker。文件修正、新 exact-source 候選／CI 完成後需 round12 複審。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round11.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 0.52.0 GitHub 公開發布前 round11 審查不通過：round10 的隱私措辭與 smoke provenance 問題已解除，指定 SHA 的 macOS 候選及 exact-source Windows 73/73 shared-file gate 亦通過；但 tracked 發布狀態仍記載舊 SHA 與待完成的候選／CI 工作，文件 closeout 尚未完成，故先同步治理紀錄、完成 `docs:check:final` 並確認最終 tag source 與候選／CI 一致，再進入 tag／Release／上傳階段。**（round11 報告「綜合判定」）
+- 發布授權：引用本次公開發布工作紀錄中 2026-10-19 的需求方核准，及 `AUTH-2026-07-23-01`（未 Developer ID／未公證風險）；該授權允許在所有 gate 通過後發布 macOS arm64 資產，不代表本就緒階段已發布。
+- 部署／發布結果：本就緒階段不建立 tag／Release、不上傳資產；GitHub `v0.52.0` 仍未公開，該結論需於本階段完成及每次外部狀態核對後更新。
+- 遺留風險與後續事項：候選／CI 新 SHA 與 round12 尚未完成；round12 通過及 final docs gate 完成前不得 tag／Release。公開發布工作條目仍進行中，需在實際上傳後核 GitHub asset 名稱、大小、digest、URL、Release 說明並結案。已接受但未實測事項維持公開揭露。
+
 ## 2026-10-20 — FR-027 v0.52.0 GitHub 公開發布（macOS arm64）
 
 - 狀態：進行中
@@ -10,24 +33,26 @@
 - 執行前已讀：`npm run project:preflight -- --type=release` 固定核心及 release 路由（是）；候選 readiness 紀錄與 round8 報告已結案；既有 dirty worktree 不會被整批提交或覆寫。
 - 目標與成功條件：先將 GitHub auto-generated source archive 所含、60 份治理文件中的 145 行個人 home 絕對路徑改為中性佔位符，並在 README／Release notes 揭露歷史路徑已去識別及 UI smoke 不構成有效播放／轉錄驗收；以清理後的新 exact source SHA 重建 macOS arm64 候選並完成同源 CI、候選驗證與獨立複審。全部通過後建立 immutable tag `v0.52.0` 與 macOS arm64-only GitHub Release，上傳 DMG／ZIP、blockmaps、`latest-mac.yml`、SHA-256 sidecar、signing status；發布後核對 GitHub 資產名稱、大小、digest、URL 與說明。不得發布 Windows preview artifact。
 - 不在範圍：不改產品 runtime、不刪除歷史治理記錄或任意證據（只以 `<user-home>` 取代歷史個人 home prefix）、不替換 `/Applications` 中 v0.51.0、不覆寫既有 tag／Release／資產，不將完整 Windows preview ZIP integrity 或真實 Google／Keychain／影片播放／字幕上傳說成已驗收。
-- 可執行計畫：1. 重核 remote tag/release 為空及本機／remote source SHA；核定清理範圍為 `docs/project-management/` 60 文件／145 行與 `NEXT-VERSION-FIX-LOG.md` 1 行，並移除 round10 指出的三處個人目錄／暫存遮罩路徑片語；保留測試程式中明確合成的 fixture。2. 將所有能與個人 home 位置混淆的字面路徑改為中性描述，更新 README／Release notes 與候選 provenance，重核 exact tracked source；完整回歸、提交並 fast-forward push 新 source SHA。3. 以新 SHA 重建 macOS arm64 candidate 並觸發同 SHA Windows preview CI，核 manifest／共享檔 hashes、候選封裝／metadata／checksums／runtime／signature，並區分主 smoke JSON 與比較 smoke JSON 的不同量測。4. 由獨立上下文完成 round11 六面向發布前複審；通過後依既有授權建立 tag／Release 並上傳限定 macOS 資產。5. 唯讀核對 GitHub 實際 asset IDs、名稱、大小、digest、下載 URL 與 Release notes，更新文件並執行完整測試／`npm run docs:check:final`。任一步不符即停止後續寫入並修正／再審，不覆寫已存在版本。
+- 可執行計畫：1. 重核 remote tag/release 為空及本機／remote source SHA；核定清理範圍為 `docs/project-management/` 60 文件／145 行與 `NEXT-VERSION-FIX-LOG.md` 1 行，移除 round10 指出的三處易混淆路徑措辭並保留合成測試 fixture。2. 更新 README／Release notes 與候選 provenance，重核 tracked source；完整回歸、提交並 fast-forward push。3. 以精確 source SHA 建置 macOS arm64 candidate 並觸發同 SHA Windows preview CI，核候選封裝／metadata／checksums／runtime／signature 與 manifest/shared hashes。4. 獨立 round9、round10、round11 審查均保留；round11 的治理文件 BLOCK 由新增的發布前就緒工作項目處理，文件修正後重建候選／CI並完成 round12 六面向複審。5. round12 與就緒階段文件 gate 通過後，依授權建立 tag／Release 並上傳限定 macOS 資產；唯讀核對 GitHub 實際 asset IDs、名稱、大小、digest、下載 URL 與 Release notes，更新本工作紀錄並執行 `npm run docs:check:final`。任一步不符即停止、不覆寫既有版本，修正後以新 SHA 重驗。
 - 預計影響檔案／模組：包含 60 份 `docs/project-management/` tracked 文件及 `NEXT-VERSION-FIX-LOG.md` 的歷史路徑 prefix 去識別、`README.md`、`RELEASE-NOTES-0.52.0.md`、本工作紀錄、`00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`；新 source commit 對應的新 macOS arm64 candidate／Windows preview CI 證據；最終 GitHub tag／Release assets。產品 runtime 不變。
 - 風險與回復方式：round9 發現舊候選 source archive 將公開 60 份治理文件／145 行個人 home 絕對路徑，且 Release notes 未說明 packaged UI smoke 沒有有效媒體播放；不沿用舊候選或宣稱已取得原風險接受，改採路徑前綴去識別、明示 source archive 與 playback 限制，再以新 source SHA 重跑所有來源／建置／審查 gate。公開範圍限 macOS arm64。真實 Google OAuth／Keychain／頻道授權／影片及字幕上傳未實帳號驗收；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory（production audit 0）；ad-hoc、未 Developer ID／公證、Gatekeeper 未驗收；有效影片播放／轉錄未驗收；完整 Windows preview ZIP 未下載。以上限制不因發布授權或候選檢查而消失。若任何新 SHA／manifest／candidate／asset digest／URL／名稱不符，停止宣告完成、不覆寫 tag／Release，保留證據後修正並複審。
-- 實際修改：已將 60 份 `docs/project-management/` 中 145 行，以及 `NEXT-VERSION-FIX-LOG.md` 1 行的 home prefix 去識別；保留測試程式中的合成 fixture。round10 指出 `08-CHANGE-LOG.md` 及兩份歷史 whisper probe 審查報告的三處路徑遮罩描述易與個人位置混淆，已改成不含 home／private 絕對路徑的中性措辭。README／Release notes 已增補 source archive 與 UI playback 限制；不再使用不穩定的毫秒門檻。尚未將本輪修改提交／推送；未建立 tag／Release、未上傳 assets。
-- 開發驗證結果：round9 發現的 60 文件／145 行個人 home path disclosure 已去識別；保留中性合成 fixture。前一 SHA `aaee1d9f1996eea3b84723a42f47d3a9adaaf9e2` macOS arm64 candidate 通過 DMG checksum、ZIP、strict deep codesign、packaged runtime、版本／arm64、updater metadata size／SHA-512 與四項 SHA-256 sidecar。UI layout／usability smoke 通過但未驗證有效播放；主 `youtube-ui-smoke.png.json` 記錄 3 秒測試片 `currentTime=0.000484`／paused=true，獨立 comparison JSON 記錄 0.000847。exact-SHA Windows CI run `39360760582` success，artifact `12236898325`；HTTP range 僅取回 436126 bytes，manifest 與 checksum entry CRC／size 通過、73/73 shared raw hashes 一致；完整 Windows ZIP 未下載，不主張 whole-archive integrity。round10 發布審查 BLOCK，要求修正三處路徑遮罩措辭、區分兩個 smoke 量測，並以新 SHA 重做候選／CI 後 round11 複審。round10 前 `npm run check` exit 0（docs 19 files、完整回歸及四組 YouTube suites），`npm audit --omit=dev` 0 vulnerabilities；這輪文案修正後仍須重跑完整 check 與 exact-SHA gates。
-- 獨立審查是否執行：是，round9 與 round10 均已執行且 BLOCK；round10 指出的路徑措辭及 provenance 差異修正後，以新 exact source SHA 完成 gate 後須 round11 複審。
+- 實際修改：已將 60 份 `docs/project-management/` 中 145 行，以及 `NEXT-VERSION-FIX-LOG.md` 1 行的個人 home prefix 去識別，保留合成測試 fixture；round10 指出的 `08-CHANGE-LOG.md` 與兩份歷史 review 之路徑措辭已改為中性文字。README／Release notes 已揭露 source archive 與 playback limitation。上述 source 修正已推送至 `871ce1c02363dafcc13a441464467234613778ab`；round11 後新增的狀態同步與本階段記錄另見最新「round11 blocker 修正與發布前就緒複核」工作項目。尚未建立 tag／Release、未上傳 assets。
+- 開發驗證結果：round11 review 核對 source SHA `871ce1c02363dafcc13a441464467234613778ab` 的 macOS arm64 candidate `../dist/release-0.52.0-macos-871ce1c-normal/` 與 exact-source Windows CI run `39364278830`／artifact `12238252981`。候選 DMG checksum VALID、ZIP clean、strict deep codesign 與 packaged runtime 通過，版本／架構為 0.52.0／arm64，updater metadata 的大小／SHA-512 及 SHA-256 sidecar 相符；主 smoke JSON `currentTime=0.000180` 秒、comparison JSON `0.001002` 秒，均不證明有效播放。Windows artifact byte-range 讀取 436,082 bytes，manifest／sidecar 核對通過，73/73 shared raw hashes 相符；完整 ZIP 未下載。該 SHA 的 `npm run check` exit 0、production audit 0 vulnerabilities；round11 reviewer 未重跑完整回歸或 UI smoke。round11 因狀態文件仍稱 candidate／CI pending 而 BLOCK；新的治理文件 source SHA、完整回歸、candidate、CI／hash gate 與 round12 尚未執行。
+- 獨立審查是否執行：是，round9 至 round11 均有獨立報告並判 BLOCK；round10 的隱私措辭／provenance findings 已解除，round11 唯一 P1 是治理狀態落後。新文件 source SHA 的 gates 完成後仍需 round12 複審。
 - 獨立審查結論：
   - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round9.md`
   - 判定（逐字引用審查檔案結論句）：**本輪 0.52.0 GitHub 公開發布前審查不通過：Release notes 未揭露 source archive 既有本機絕對路徑及 UI smoke 未驗證有效播放，補齊揭露並取得相應風險接受或移除路徑後，才可繼續發布。**
 - round10 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round10.md`
 - round10 判定（逐字引用完整結論句）：**本輪 0.52.0 GitHub 公開發布前審查不通過：指定 source 仍有 3 個非中性的歷史 home-directory 引用會進入公開原始碼封存，且清理與 provenance 宣稱不符；先去識別並以新 SHA 重建、重核候選及同源 CI，才可進入 tag／Release 階段。**
+- round11 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round11.md`
+- round11 判定（逐字引用完整結論句）：**本輪 0.52.0 GitHub 公開發布前 round11 審查不通過：round10 的隱私措辭與 smoke provenance 問題已解除，指定 SHA 的 macOS 候選及 exact-source Windows 73/73 shared-file gate 亦通過；但 tracked 發布狀態仍記載舊 SHA 與待完成的候選／CI 工作，文件 closeout 尚未完成，故先同步治理紀錄、完成 `docs:check:final` 並確認最終 tag source 與候選／CI 一致，再進入 tag／Release／上傳階段。**
 - 發布授權：
   - 是否需要：是（建立 `v0.52.0` Git tag／GitHub Release，公開並共享 macOS arm64 assets）。
   - 核准人／角色：需求提出者／產品負責人。
   - 核准時間：2026-10-19（需求方明確要求完成至 GitHub 發布，並回覆接受風險清楚揭露後公開 MVP）。
   - 核准範圍：明確同意並核准在候選／CI／hash／獨立審查／文件結案門檻通過後，打包、提交／推送所需 source、建立 tag／Release、公開及共享本版 macOS arm64 資產；接受真實 Google OAuth／Keychain／頻道影片字幕上傳未驗收、`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、ad-hoc／未公證等條件需於 README／Release notes 清楚揭露。授權不涵蓋略過 checksum／review／gate、Windows 發行資產、機密洩漏或覆寫既有公開版本。
-- 部署／發布結果：尚未公開；round10 BLOCK 後三處路徑措辭修正尚待提交，需以新 source SHA 重建候選／同源 CI 並通過 round11 才可建立 tag／Release。
-- 遺留風險與後續事項：新 source commit、CI／candidate 檢查、round10 審查尚未完成。Release assets 上傳後逐項確認 GitHub API digest、size、名稱、URL 與說明；若官方回傳缺 digest，須以可信下載 bytes 的 hash 證據補足，並保留「完整 Windows preview artifact ZIP 未核」與本版未驗收風險。沒有 round10 通過及所有發行後核對前，不將本工作標示完成。
+- 部署／發布結果：尚未公開，`v0.52.0` tag／GitHub Release／assets 均不存在。round11 指定 SHA 的 macOS candidate 與 same-source CI/hash gate 通過，但審查 BLOCK 因狀態文件不同步；目前由新的 round11 blocker readiness 工作項目同步治理文件，並將新 source SHA 的候選與 CI 重新跑完後申請 round12 複審。
+- 遺留風險與後續事項：新治理 source SHA、完整 `npm run check`、production audit、exact-SHA candidate／CI hash gate、round12 及就緒項目 `docs:check:final` 尚未完成。只有上述全部通過後才建立 tag／Release。其後逐項核對 GitHub API 的 asset digest、size、名稱、URL 與說明；若官方無 digest，補可信下載 bytes hash。完整 Windows preview ZIP 未核；真實 Google／Keychain／影片及字幕上傳、有效播放／轉錄、Developer ID／公證／Gatekeeper 與 Windows 實機仍未驗收，且需於公開資訊揭露。
 
 ## 2026-10-20 — FR-027 v0.52.0 發布候選與同源 CI 驗證
 

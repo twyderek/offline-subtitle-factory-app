@@ -1,5 +1,11 @@
 # 功能測試與流程稽核
 
+## 2026-10-20 FR-027 v0.52.0 round11 blocker 狀態同步（重驗進行中）
+
+- round11 審查對象為 source SHA `871ce1c02363dafcc13a441464467234613778ab`；本機與 origin 當時相同。該 SHA 的 macOS arm64 candidate 位於 `../dist/release-0.52.0-macos-871ce1c-normal/`，Windows exact-source CI run `39364278830` 成功，artifact `12238252981`，73/73 個跨平台共用 app 檔案 raw hashes 相符。審查報告重核 SHA-256 sidecar、DMG／ZIP、metadata、codesign、runtime 與版本／架構；完整 Windows ZIP 未下載，僅以 HTTP range 檢查 manifest／checksum，不主張 whole-archive integrity。
+- round11 報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round11.md` 判定 BLOCK，唯一 P1 為 `00`／`05`／`06`／`08` 仍稱新 SHA、candidate、CI 尚待完成，未反映前述成功證據；該 SHA 尚無 tag／Release。round10 的 source path 措辭與 candidate provenance 問題已解除。此輪同步文件會產生新 source SHA，因此舊 candidate／run 只作歷史證據；需對新 SHA 重跑完整 `npm run check`、production audit、macOS arm64 package／metadata／checksum／runtime checks、exact-source Windows CI／73-file hash gate，並完成 round12 獨立複審後才可進入公開發布。
+- 原 `871ce1c` source 的完整 `npm run check` exit 0、`npm audit --omit=dev` 為 0 vulnerabilities；新文件變更後尚未重跑。主 smoke JSON 記錄 `currentTime=0.000180` 秒及 `paused=true`，獨立 comparison JSON 記錄 `0.001002` 秒；兩者均非有效播放／完整轉錄證據。真實 Google OAuth／Keychain／頻道影片字幕上傳、Developer ID／公證／Gatekeeper、Windows 實機與完整 Windows ZIP 均未驗收。
+
 ## 2026-10-20 FR-027 v0.52.0 line-ending 修正候選（歷史候選，未發布）
 
 - 來源：本機 `codex/0.51-anthropic-claude@a8e839f3321ac1ea06525261baa8a2da7fe7637b`；唯一 source delta 是 `.github/workflows/windows-preview.yml`：checkout 前設定 `core.autocrlf=false`、checkout action 使用 `GIT_CONFIG_COUNT` override、checkout 後斷言設定值。此 workflow-only change 尚未由 CI 執行。此前 `1c045e7` run `39342333188` 的 73 個共享檔案 raw hash 只有 6 個相同、67 個 Windows CRLF／macOS LF 不同；這是未通過的舊 gate，不可外推至新 SHA。

@@ -3,7 +3,7 @@
 ## 支援環境
 
 - Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。
-- 0.51.0 公開版使用 Electron 43.3.0／electron-builder 26.15.7；0.52.0 round10 候選 SHA `aaee1d9f1996eea3b84723a42f47d3a9adaaf9e2` 使用 Electron 43.8.0／electron-builder 26.17.0，macOS arm64 package checks 與 same-source Windows CI run `39360760582` 通過，73/73 shared app hashes 相符；range 檢查未下載完整 Windows artifact，無 whole-archive integrity claim。該候選被 round10 BLOCK，原因為三處歷史路徑描述未完全中性及兩個 UI smoke JSON 量測值未於 provenance 區分。三處文字目前已修正但尚未提交；須產生新 source SHA、重建 macOS arm64 candidate、重跑同源 CI/hash gate，並通過 round11 後方可發布。此版不含 Windows assets；production audit 為 0，`GHSA-hp3w-g68c-fv3c`、ad-hoc／未公證與 Google 流程未驗收均已接受但須持續揭露。GitHub Latest 仍 0.51.0；不得覆寫既有 tag／Release。
+- 0.51.0 公開版使用 Electron 43.3.0／electron-builder 26.15.7。0.52.0 的 round11 reviewed source `871ce1c02363dafcc13a441464467234613778ab` 使用 Electron 43.8.0／electron-builder 26.17.0；該 SHA 的 macOS arm64 candidate package checks 與 exact-source Windows CI run `39364278830` 通過，73/73 shared app hashes 相符。Windows artifact 只檢查 ZIP byte ranges，未下載完整 archive，無 whole-archive integrity claim。round11 因 `00`／`05`／`06`／`08` 狀態文件落後於此實際結果而 BLOCK；現以 round11 blocker 修正建立新發布前就緒工作項目。文件同步後的 source SHA 尚未建立，必須重建 macOS arm64 candidate、重跑 same-source CI/hash gate 並通過 round12 和就緒階段文件 gate，才可發布。此版不含 Windows assets；production audit 為 0，`GHSA-hp3w-g68c-fv3c`、ad-hoc／未公證與 Google 流程未驗收仍須於公開資訊揭露。GitHub Latest 仍 0.51.0；不得覆寫既有 tag／Release。
 - 0.50.0 開發分支目前只變更 Breeze 效能參考 payload、選取後提醒與版本識別；尚未建立 tag／Release。若進入發布流程，需以 `v0.50.0` 重新建置並重新核對雙平台資產。
 - Windows 10/11 x64；封裝由 `windows-2022` runner 執行。
 - Apple Silicon macOS 12 以上。
