@@ -1,5 +1,28 @@
 # 改版與工作紀錄
 
+## 2026-10-20 — FR-027 v0.52.0 round14 隱私 blocker 修正與 final-source 複審
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：承接需求方已核准之 FR-027 macOS arm64 GitHub 發布；round14 獨立審查對 source `3312c373f688b425bfb51d5dee8c65bdc53c7954` 判 BLOCK，發現一處位於舊 Windows 使用者 profile 範例的額外 tracked 個人絕對路徑，超出需求方對 round12 報告的單一路徑公開授權。
+- 關聯需求／缺陷：`FR-027`、`BUG-050`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`、`NFR-008`。
+- 變更等級：發布／隱私修正。
+- 執行前已讀：`npm run project:preflight -- --type=release` 固定核心與 release 路由；round14 完整原件及六面向結論已讀。保留所有既有未追蹤 evidence；round12／round13／round14 reviewer 原件不可修改。
+- 目標與成功條件：只移除 `NEXT-VERSION-FIX-LOG.md` 的額外具名使用者路徑，保留其技術背景並改用不含個資的中性佔位符；同步 README／Release notes 的 source archive 隱私揭露，讓 round12 報告一處已授權路徑為唯一例外；以新來源 SHA 通過完整 `npm run check`、production audit、個人路徑／secret-pattern scan、macOS arm64 candidate、exact-source Windows CI／73 shared-file hash gate，並完成 round15 無發布阻擋獨立審查。round14 的 3312c37 candidate／CI 不作修正後來源的 gate 證據。全部發布前 gate 通過才可依既有授權建立 `v0.52.0` tag／Release、上傳限定 macOS arm64 資產；發布及 asset 核對後執行 `npm run docs:check:final`。
+- 不在範圍：不修改任何審查原件、不擴張使用者對 round12 單一路徑的限縮公開授權、不重寫 Git 歷史、不改產品 runtime、不發布 Windows preview、不覆寫既有 tag／Release、不把 smoke 說成有效播放／轉錄或實帳號 Google 驗收。
+- 可執行計畫：1. 檢視 round14 報告指認行及 tracked-source 命中，建立本工作項目後只以中性佔位符替換額外個人路徑。2. 更新 README／Release notes，準確說明歷史 home／Windows user-profile 路徑已去識別，僅 round12 原件內一處為使用者明確接受例外；同步 00／05／06，明確記錄 round14 BLOCK、3312c37 gate 已通過但因隱私 blocker 不可沿用，以及新 SHA 待重驗。3. 執行完整 `npm run check`、`npm audit --omit=dev`、source privacy／secret scans、`git diff --check`；僅 stage 此工作明確列出的受控文件與已存在的 round14 報告不變。4. 推送新的 source SHA，於獨立 candidate 目錄重建並核對 macOS app／DMG／ZIP／blockmaps／metadata／checksums／runtime／codesign／UI smoke；等待 exact-source Windows run，核 artifact manifest sidecar／CRC／size 與 73 個共享 raw hashes。5. 由新獨立上下文執行 round15 六面向複審；reviewer 唯一可寫入新 round15 報告且不得輸出任何本機絕對路徑。僅 round15 無發布 blocker 且全部證據一致時才可公開；修正後 gate 尚未完成前不得建立 tag／Release／assets。
+- 預計影響檔案／模組：`NEXT-VERSION-FIX-LOG.md`、`README.md`、`RELEASE-NOTES-0.52.0.md`、`docs/project-management/00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`08-CHANGE-LOG.md`、round15 新報告，以及 repo 外新 SHA 命名 macOS candidate／Windows manifest-range evidence。Round14 報告只讀保留。
+- 風險與回復方式：round14 確認 source `3312c37` 中有一處未獲授權的具名 Windows 使用者路徑，且先前對 source 路徑的結論漏掉該格式；round14 candidate／CI 雖技術 gate 通過，均因 source 隱私 blocker 而不可代表修正後來源。需求方只接受 round12 原件中的一處路徑，未授權 `NEXT-VERSION-FIX-LOG.md` 或其他本機識別資訊公開。若任何掃描仍命中非合成、非該限縮例外的個人路徑，或新 SHA／candidate／CI／hash／review 不一致，立即停止公開操作並再修正／重驗。完整 Windows ZIP／實機、真實 Google／Keychain／頻道上傳、有效播放／轉錄、Developer ID／公證／Gatekeeper 仍未驗收；advisory 依已接受範圍揭露。
+- 實際修改：已將 `NEXT-VERSION-FIX-LOG.md` 中一處個人 Windows user-profile 範例替換為 `<developer-machine-python-install-path>`；README／Release notes 現明確涵蓋歷史 home 與 Windows user-profile 路徑去識別、並將 round12 報告單一路徑列為唯一授權例外；00／05／06 同步 round14 BLOCK 與新來源待驗狀態。本輪未改產品 runtime，round12／round13／round14 reviewer 原件均保持原樣。
+- 開發驗證結果：修正後工作樹 `npm run check` exit 0（治理 docs、完整 tests 與 YouTube suites），`npm audit --omit=dev` 0 vulnerabilities，`git diff --check` 通過。Tracked scan 對 Windows user-profile 路徑樣式無命中；POSIX home-path 掃描排除 round12 已授權報告及中性合成 fixture 後無命中。來源仍待明確 commit/push；其新 SHA 的 check／candidate／CI／hash gate 尚未執行。round14 的 3312c37 候選與 CI 僅作上一輪歷史 evidence，不可沿用。
+- 獨立審查是否執行：是；round14 對 3312c37 判 BLOCK，原因與具體證據見下列原報告。本輪修正後來源須交 round15 複審。
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round14.md`
+  - 判定（逐字引用審查檔案「阻擋問題」）：**在建立 `v0.52.0` tag／Release 或上傳資產前，去識別 `NEXT-VERSION-FIX-LOG.md:27` 的額外 tracked personal path，更新 source archive privacy disclosure／provenance，以新 SHA 重跑完整 source check、macOS candidate、exact-source Windows CI／hash gate，並完成下一輪獨立複審。不得沿用本輪 3312c37 evidence 代表修改後的 source。**
+- 發布授權：依 2026-10-19 使用者對 macOS arm64 v0.52.0 發布的明確核准，及 2026-10-20 對 round12 審查原件單一路徑原樣公開的限縮核准。該例外不涵蓋任何其他個人路徑；已接受的 Google／Keychain、build-time GHSA、ad-hoc／未公證風險仍須揭露，不豁免 source／checksum／privacy／review gates。
+- 部署／發布結果：尚未公開；round14 已確認 GitHub Latest `v0.51.0` 且沒有 `v0.52.0` tag／Release／assets。不得沿用 3312c37 直接發布。
+- 遺留風險與後續事項：該額外路徑匿名化、privacy disclosure 修正、新 source 完整 check／macOS candidate／Windows CI hash gate 及 round15 均未完成；在 round15 無發布 blocker 前不建立 tag／Release。Release 後依既定流程核對 assets，再執行 `npm run docs:check:final`。
+
 ## 2026-10-20 — FR-027 v0.52.0 round13 blocker 修正與 final-source 複審
 
 - 狀態：進行中

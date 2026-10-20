@@ -24,7 +24,7 @@
 
 ## 已知根因
 
-目前 0.20.0 打包版使用 `tools/python-venv`。此 venv 內的 `pyvenv.cfg` 會記錄開發機 Python 絕對路徑，例如 `C:\Users\derek\AppData\Local\Programs\Python\Python313`。換到其他電腦後，此路徑通常不存在，因此安裝版 / 免安裝版會判定 Python 或 Whisper 未正確安裝。
+目前 0.20.0 打包版使用 `tools/python-venv`。此 venv 內的 `pyvenv.cfg` 會記錄開發機 Python 絕對路徑，例如 `<developer-machine-python-install-path>`。換到其他電腦後，此路徑通常不存在，因此安裝版 / 免安裝版會判定 Python 或 Whisper 未正確安裝。
 
 下一版需避免依賴 `whisper.exe` launcher 與開發機 venv 路徑，改為可解析多種工具來源，並使用 `python -m whisper` 或模組匯入方式執行。
 

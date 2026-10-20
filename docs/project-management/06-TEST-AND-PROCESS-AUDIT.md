@@ -1,5 +1,12 @@
 # 功能測試與流程稽核
 
+## 2026-10-20 FR-027 v0.52.0 round14 BLOCK：額外 Windows profile 路徑未授權
+
+- round14 對 source `3312c373f688b425bfb51d5dee8c65bdc53c7954` 的 macOS candidate、exact-source Windows CI／73/73 hashes 及 round13 blockers closure 判定通過，但整體 BLOCK。Tracked-source scan 在 `NEXT-VERSION-FIX-LOG.md:27` 發現一處具名 Windows user-profile 絕對路徑；`git ls-tree` 證明檔案受追蹤，`git archive HEAD` 會將它包含於公開 source archive。該路徑不在需求方對 round12 報告內一處路徑的限縮授權範圍。
+- 先前清理將 60 份 project-management 文件的 145 處歷史 home path 及 NEXT-VERSION-FIX-LOG 中一處識別字串列為已去識別；round14 發現原掃描未覆蓋 Windows user-profile pattern，故先前「只剩 round12 例外與合成 fixture」結論不完整。round14 報告與歷史原件保留不修改；round14 所核 `3312c37` candidate provenance 不得沿用作修正後 source 的隱私證據。
+- 本輪已在 `NEXT-VERSION-FIX-LOG.md` 以 `<developer-machine-python-install-path>` 取代可識別路徑，並更新 README／Release notes 使 home／Windows user-profile 去識別與唯一 round12 例外的描述一致。新 source SHA 的完整 check、production audit、涵蓋 POSIX／Windows 個人 profile 的 tracked-source scan、macOS arm64 candidate、exact-source Windows CI／manifest sidecar／73-file hash gate、round15 獨立審查均待執行；通過前不得 tag／Release／上傳。
+- round14 run `39378546407`／artifact `12243614840` 與 candidate 只作前輪歷史技術證據；artifact 只抽查一個 500,000-byte ZIP tail range，完整 ZIP 未下載。真實 Google／Keychain／影片字幕上傳、有效播放／完整轉錄、Windows 實機／完整 archive integrity、Developer ID／公證／Gatekeeper 仍未驗收。
+
 ## 2026-10-20 FR-027 v0.52.0 round13 BLOCK 證據已同步；新來源待驗
 
 - round13 對象 source SHA `21d8b077b0bb25af02de5562e000660f6912bef3`；獨立報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round13.md` 判整體 BLOCK。技術證據為該 SHA 的 macOS arm64 candidate、exact-source Windows run `39376042653`／artifact `12243556843`、range manifest 73/73 hashes；blockers 是 `00`／`05`／`06`／`08` 未同步其實際結果，以及舊 readiness entry 仍要求發布前 `docs:check:final`。
