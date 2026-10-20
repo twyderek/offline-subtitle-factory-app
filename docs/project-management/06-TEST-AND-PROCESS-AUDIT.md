@@ -1,5 +1,25 @@
 # 功能測試與流程稽核
 
+## 2026-10-20 FR-027 v0.52.0 GitHub Release 已公開：round16 PASS
+
+- GitHub Release [v0.52.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已於 2026-10-20 公開並設為 Latest；annotated tag 指向 source `b6b1efd6b72574f9210af74729d2cb2fd869e42d`。round16 六面向獨立審查判 **PASS**，未發現發布阻擋；原報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round16.md`。round15 對 b2b942e 的 BLOCK 及本輪同步修正亦見 round15 原報告。
+- GitHub API 實際 asset 資料與本機候選 digest／size 相同，七項下載 URL 均 HEAD 200，且回傳 Content-Length 相符；Release body 與 `RELEASE-NOTES-0.52.0.md` 完全一致：
+
+| GitHub asset | 大小（bytes） | SHA-256 |
+|---|---:|---|
+| [offline-subtitle-factory-0.52.0-macos-arm64.dmg](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/offline-subtitle-factory-0.52.0-macos-arm64.dmg) | 246877219 | `1e3ebbd5fc3408128ae21b907f868390b3684eb5044af3b819a29ae5a0136142` |
+| [offline-subtitle-factory-0.52.0-macos-arm64.zip](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/offline-subtitle-factory-0.52.0-macos-arm64.zip) | 255845260 | `974e61503e6f6bf91d3714f0c9772e314873787e71d51a38fec91f0e52a1574d` |
+| [offline-subtitle-factory-0.52.0-macos-arm64.dmg.blockmap](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/offline-subtitle-factory-0.52.0-macos-arm64.dmg.blockmap) | 258016 | `d214392c2a982a6d868f266a34dd9d86768a715449c1360d8bb66c21985c5a0f` |
+| [offline-subtitle-factory-0.52.0-macos-arm64.zip.blockmap](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/offline-subtitle-factory-0.52.0-macos-arm64.zip.blockmap) | 266378 | `71b533cb356aa2610021121f1044fe55e39aef98fc81abcad100401371d246d3` |
+| [latest-mac.yml](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/latest-mac.yml) | 570 | `5b89c3bf8e0520d423073b33bb56240278f26a9bbafb827675eb186be686daf0` |
+| [SHA256SUMS-macos-arm64.txt](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/SHA256SUMS-macos-arm64.txt) | 474 | `585212385955567a5afdc0a2e231213f20f92591cabf45b9321d9db09c00c895` |
+| [SIGNING-STATUS-macos-arm64.txt](https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.52.0/SIGNING-STATUS-macos-arm64.txt) | 367 | `ef3664a2714bac93c6aa945433100c392ca7b587a9820c0a41ba5e20cf0e9f64` |
+
+- 候選 DMG `hdiutil verify` VALID、ZIP `unzip -tq` 無錯、strict deep codesign、app version／arm64 與 bundled runtime 驗證通過；signature 是 ad-hoc，無 Developer ID／公證，Gatekeeper 未驗收。`latest-mac.yml` 兩項大小及 SHA-512 與 candidate bytes 相符；本地 SHA-256 sidecar 四項全數 OK。
+- b6b1efd 的 `npm run check` 最終 exit 0（含 19 份治理文件、核心 regression 與 YouTube suites），`npm audit --omit=dev` 0 vulnerabilities，`git diff --check` 及 tracked-source 隱私／credential scan 通過。首次 `npm run check` 與 CPU-heavy ZIP 打包並行時，在 Python child-close cancellation assertion 失敗；打包結束後單獨 `node scripts/test-core.mjs` 及完整 `npm run check` 均通過，且中間沒有來源變更。round16 將首次失敗列為非阻擋的高負載時序風險。
+- 同源 Windows run `39382252222` completed/success，artifact `12246485809`／504801579 bytes／API digest `sha256:526b42de4dafc98955781905c5be6f9c4c9a827f685a8882fb382daf94d6248b`。三次相同 500,000-byte ZIP tail range read（總回傳 1,500,000 bytes、unique interval 500,000 bytes）驗證 7-entry central directory、manifest/checksum CRC／size、manifest sidecar SHA 與 73/73 shared app raw hashes。完整 Windows ZIP 未下載，無 whole-archive integrity claim；該 unsigned preview 未上傳。
+- UI smoke `googleRequests=false`、12 renderer cases／layout/usability controls 通過；3 秒合成片 `currentTime=0.000444`、`paused=true`，不證明有效播放／完整轉錄。真實 Google OAuth／Keychain／頻道影片與字幕上傳、Windows 實機、Gatekeeper 仍未驗收；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、round12 唯一限縮 source-archive 個人路徑例外均在公開說明揭露。`npm run docs:check:final` 於本次 Release／assets 核對後執行，結果記入最新 08 closeout。
+
 ## 2026-10-20 FR-027 v0.52.0 round15 BLOCK：治理狀態與已完成證據不一致
 
 - round15 審查對象 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f`。round14 的個人 Windows user-profile blocker 已修正；round15 確認 source、macOS arm64 candidate、exact-source Windows CI/hash gate 於其聲明範圍通過，但因 `00`／`05`／`06`／`08` 仍標示上述修正及 b2b942e 驗證待完成而判 BLOCK。獨立報告：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md`，其餘六面向證據與 P1 請查原報告。

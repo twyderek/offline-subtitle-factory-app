@@ -2,26 +2,31 @@
 
 ## 2026-10-20 — FR-027 v0.52.0 round15 發布狀態同步與 final-source 複審
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex
 - 需求來源：承接需求方已核准的 FR-027 macOS arm64 GitHub 發布；round15 對 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f` 判 BLOCK，要求同步實際來源檢查、macOS 候選與 Windows exact-source CI/hash 結果至受控狀態文件。
 - 關聯需求／缺陷：`FR-027`、`BUG-050`、`NFR-001`、`NFR-002`、`NFR-005`、`NFR-006`、`NFR-007`、`NFR-008`。
 - 變更等級：發布／治理文件同步。
 - 執行前已讀：`npm run project:preflight -- --type=release` 固定核心及 release 路由文件；round15 完整報告與 blocker 已讀。保留既有未追蹤 evidence，不修改 round12–round15 審查原件。
-- 目標與成功條件：同步 `00`／`05`／`06`／`08`，如實記錄 round14 個人路徑 blocker 已解除、source `b2b942e` 的完整 check／production audit／路徑 scan、macOS arm64 候選與 Windows run `39380574427`／artifact `12244799752`／73-file hash gate、round15 BLOCK 及剩餘風險；補全 provenance 對三個合成測試 fixture 的掃描範圍說明。文件同步形成新 source SHA 後，該 SHA 必須重跑完整來源檢查、macOS 候選、exact-source Windows CI／manifest/hash gate，並取得 round16 無發布阻擋複審。所有前置 gate 通過前不得建立 tag／Release／上傳資產；發布並完成資產核對後依流程執行 `npm run docs:check:final`。
-- 不在範圍：不改產品 runtime／測試行為、不修改任何既有審查報告、不擴張 round12 單一路徑的限縮公開授權、不建立或覆寫 tag／Release、不發布 Windows preview、不把 UI mock／合成媒體說成實帳號或有效播放驗收。
-- 可執行計畫：1. 以 round15 報告為準核對其 P1 原文及 `b2b942e` 證據；2. 在本條建立後同步 `00`／`05`／`06`，並於 `08` 記錄新來源驗證結果、round15 BLOCK 與 round16 門檻；3. 修正候選 `PROVENANCE.txt` 對 `/Users`／Windows profile 掃描及三個通用合成 fixture 的精確說明；4. 執行完整 `npm run check`、`npm audit --omit=dev`、tracked-source personal-path scan、`git diff --check`，明確 stage 僅本輪治理文件與 round15 原報告；5. 推送新 source SHA，以 SHA 命名目錄重建 macOS arm64 候選並驗證 package、metadata、checksums、runtime、signature 與 UI smoke；觸發 exact-source Windows CI，核 artifact manifest sidecar 與 73 個共享 raw hashes；6. 由獨立上下文完成 round16 六面向複審。僅在 round16 無阻擋且新 SHA 所有證據一致後，依既有授權公開限定 7 項 macOS arm64 assets，核對 GitHub 資產，再完成文件結案。
-- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄、round15 審查原件（只讀納入提交）；repo 外新 SHA 命名 macOS arm64 candidate／provenance／Windows CI evidence；新增 round16 獨立報告。產品 runtime 不變。
+- 目標與成功條件：已完成 round15 P1 狀態不同步與 P2 provenance 範圍 blocker 的修正；以新 source SHA `b6b1efd6b72574f9210af74729d2cb2fd869e42d` 重跑完整來源檢查、macOS arm64 候選、exact-source Windows CI／manifest/hash gate，取得 round16 無發布阻擋複審；依已核准範圍發布 v0.52.0 的 7 項 macOS arm64 assets，核對遠端資產後完成文件結案。
+- 不在範圍：未改產品 runtime／測試行為，未修改任何既有審查原件或擴張 round12 單一路徑的限縮公開授權；未發布 Windows preview；未將 UI smoke／合成媒體宣稱為真實帳號驗收、有效播放或完整轉錄。
+- 執行計畫與結果：1. 依 round15 報告核對 P1／P2 及前輪證據；2. 同步 `00`／`05`／`06`／`08`，記錄 round15 BLOCK 與新 SHA 重驗門檻；3. 修正前輪候選 `PROVENANCE.txt` 對 tracked-source 掃描範圍與三個通用合成 fixture 的精確說明；4. 在 b6 source 執行 `npm run check`、`npm audit --omit=dev`、tracked-source 路徑／credential scan 與 `git diff --check`；5. 建置並驗證 b6 macOS arm64 候選，觸發 exact-source Windows CI，核對 artifact manifest／checksum 與 73 個共享 raw hashes；6. 取得 round16 六面向 PASS；7. 建立並推送 `v0.52.0` annotated tag、公開 GitHub Release 並核對限定 7 項 macOS arm64 assets；8. 發布及資產核對後執行 `npm run docs:check:final`。
+- 實際影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md`、本工作紀錄及新增 round16 獨立報告；repo 外 b6 命名 macOS arm64 candidate／provenance／Windows CI evidence。Release source b6 未修改產品 runtime。
 - 風險與回復方式：round15 技術 gate 通過但治理狀態未同步；任何本輪文件更新都改變 source SHA，故 `b2b942e` candidate／CI 僅是被審查的前輪證據，不能代表新 SHA。若新 SHA、candidate、Windows artifact／73 hashes、掃描、審查或授權範圍任一不符，停止所有公開操作並保留證據，修正後重新驗證。完整 Windows archive／實機、真實 Google OAuth／Keychain／影片字幕上傳、有效播放／轉錄、Developer ID／公證／Gatekeeper 仍未驗收；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、production audit 0 依既有核准揭露。
-- 實際修改：已更新 `00-CURRENT-STATUS.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md` 與本條目，將 round14 blocker 修正及 b2b942e source／candidate／CI/hash 結果同步為前輪已完成 evidence，並明確記錄 round15 BLOCK 及新 SHA／round16 門檻。Round15 原件保持不變；前輪候選 provenance 已更正為精確掃描範圍，列出三個僅含通用合成值的測試 fixture，並說明未宣稱 source 不含所有合成絕對路徑。此 provenance 修訂不改變已核對的二進位候選資產。
-- 開發驗證結果：本輪文件同步工作樹 `npm run check` exit 0（19 份治理文件、完整核心回歸與 YouTube suites），`npm audit --omit=dev` 0 vulnerabilities，`git diff --check` 通過。Tracked-source scan 排除 round12 授權原件及三個已確認的通用合成測試 fixture 後，POSIX／Windows profile 路徑 pattern 與常見高熵 credential pattern 均無其他命中。b2b942e 的 macOS candidate checks 與 exact-source Windows run `39380574427`／artifact `12244799752`／73/73 shared hashes 由 round15 獨立確認於聲明範圍通過，細節與四項資產 SHA-256 見 round15 報告及 candidate provenance／manifest-range JSON。上述候選與 CI 為前輪 b2b942e evidence；本輪文件 commit SHA、其 exact-SHA checks、candidate、CI/hash gate 與 round16 尚未完成。
-- 獨立審查是否執行：是，round15 對前一 SHA 的獨立報告已完成；本輪文件同步及新 source 必須取得 round16 複審。
+- 實際修改：已更新 `00-CURRENT-STATUS.md`、`04-DEVELOPMENT-HISTORY.md`、`05-DEVELOPMENT-AND-DEPLOYMENT.md`、`06-TEST-AND-PROCESS-AUDIT.md` 與本條目，記錄 round14 blocker 修正、b2b942e 前輪證據、round15 BLOCK、b6 source gates、round16 PASS 及正式發布結果。Round15 原件保持不變；前輪候選 provenance 已精確列出三個含通用合成值的 fixture，沒有宣稱 source 不含任何合成絕對路徑。新增 round16 獨立報告。已公開 v0.52.0 Release，tag 綁定 b6 source，僅上傳核准的 7 項 macOS arm64 assets；Windows preview 未公開。
+- 開發驗證結果：b6 上 `npm run check` 最終 exit 0（19 份治理文件、完整核心回歸與 YouTube suites）；在 Mac ZIP 高負載期間首次執行曾於 `scripts/test-core.mjs:808` child-close cancellation assertion 失敗，負載結束後獨立 `node scripts/test-core.mjs` 及完整 `npm run check` 均通過、期間無來源變更，故保留為非阻擋時序敏感風險。`npm audit --omit=dev` 為 0 vulnerabilities；tracked-source scan 排除已核准 round12 報告與三個已辨識通用合成 fixture 後，POSIX／Windows profile path 及常見 credential patterns 無其他命中；`git diff --check` 通過。b6 macOS 候選 DMG `hdiutil verify` VALID、ZIP `unzip -tq` clean、strict deep codesign、版本／arm64、runtime、updater metadata／SHA-512 與 SHA-256 sidecar 均通過；UI smoke cleanup 成功且 `googleRequests=false`，但 3 秒合成影片只到 `currentTime=0.000444` 且 `paused=true`。Exact-source Windows run `39382252222`／artifact `12246485809` success；有限 range manifest／sidecar 驗證及 73/73 shared raw hashes 通過其聲明範圍，未下載完整 ZIP。GitHub Release 七項 assets 的 API digest／size 與候選一致、直接下載 URL 回 200，Release notes 與本地檔一致。production audit 0；`GHSA-hp3w-g68c-fv3c` 為揭露之 moderate build-time advisory。
+- 獨立審查是否執行：是；round15 對 b2b942e 的 BLOCK 報告保留，round16 對最終發行 source b6b1efd 與對應候選完成六面向審查並 PASS。
 - 獨立審查結論：
-  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md`
-  - 判定（逐字引用「綜合判定」及 P1）：**結論：BLOCK。**「受控狀態與測試文件仍描述 round14 的 blocker 尚未修正，並稱 b2b942e source check、候選及 Windows CI 尚未執行。此狀態與本輪實際證據互相矛盾；發布前須同步紀錄。若同步造成新 source SHA，該 SHA 必須重新取得相符的來源、候選、CI/hash 及獨立審查證據。」（round15 報告第 13–15 行、第 68 行）
-- 發布授權：沿用需求方 2026-10-19 明確核准之 macOS arm64 v0.52.0 發布，及 2026-10-20 限縮核准 round12 原件內單一路徑原樣公開；另引用有效常設授權 `AUTH-2026-07-23-01`。接受真實 Google／Keychain／頻道影片與字幕上傳未驗收、`GHSA-hp3w-g68c-fv3c` moderate build-time advisory、macOS ad-hoc／未公證等明確揭露風險；不豁免來源、隱私、checksum、測試、審查或資產核對門檻。
-- 部署／發布結果：尚未發布；round15 查得 GitHub Latest `v0.51.0`，`v0.52.0` tag／Release／assets 不存在。不得以 round15 的 BLOCK 報告作為發布通過依據。
-- 遺留風險與後續事項：治理狀態同步、候選 provenance 掃描範圍說明、新 source SHA 的完整 gates、round16 與發布後 asset 核對／`docs:check:final` 均未完成；完成前不建立 tag／Release。
+  - round15 歷史報告：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md`，判定 BLOCK；狀態文件與 provenance 修正後以新 SHA 重驗。
+  - 審查檔案：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round16.md`
+  - 判定（逐字引用審查檔案完整結論句）：**PASS — 可依已核准範圍發布此 b6b1efd macOS arm64 候選。**
+- 發布授權：
+  - 是否需要：是（建立並公開 `v0.52.0` GitHub Release、打包及共享核准範圍內的 macOS arm64 assets）。
+  - 核准人／角色：需求提出者／產品負責人。
+  - 核准時間：2026-10-19（明確要求完成至 GitHub 發布並接受風險揭露後發布）；2026-10-20（限縮核准 round12 審查原件內唯一絕對路徑照原樣公開）。
+  - 核准範圍：需求方明確同意打包 macOS arm64 候選、提交／推送所需 source、建立 `v0.52.0` tag／GitHub Release 並公開共享 7 項 macOS arm64 assets；接受 ad-hoc／未簽章、未公證、未實機測試、真實 Google OAuth／Keychain／頻道影片與字幕上傳未驗收及 `GHSA-hp3w-g68c-fv3c` moderate build-time advisory 等風險，均須在公開說明揭露。2026-10-20「照原樣公開報告」僅授權 round12 原件內一處路徑，不擴及其他本機路徑。此核准不涵蓋略過來源／checksum／測試／審查門檻或發布 Windows preview；另遵守 `AUTH-2026-07-23-01`。
+- 部署／發布結果：已於 2026-10-20 公開 GitHub Latest [v0.52.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)，annotated tag `v0.52.0` 指向 `b6b1efd6b72574f9210af74729d2cb2fd869e42d`；7 項已核准 macOS arm64 assets 的名稱、大小、API SHA-256 digest 與 URL 均核對相符。Release notes 與 repo `RELEASE-NOTES-0.52.0.md` 一致，沒有發布 Windows preview。文件結案 gate 為本次剩餘工作。
+- 遺留風險與後續事項：Google OAuth／Keychain／真實頻道影片與字幕上傳尚未驗收；UI smoke 未證明有效播放／完整轉錄；Windows 完整 ZIP／實機、Developer ID／公證／Gatekeeper 未驗收；`GHSA-hp3w-g68c-fv3c` moderate build-time advisory 已揭露且 production audit 為 0；測試於高 CPU 負載時曾出現一次時序敏感失敗，後續重跑通過。需求方接受上述發布揭露；唯一原樣保留的本機路徑在 round12 原件，依需求方限縮授權公開。`npm run docs:check:final` 首次因 round16 報告格式不符 validator 而失敗；審查者僅修整其報告格式後，第二次通過（19 個文件、版本 0.52.0、最新紀錄已結案）。此後只提交本次結案文件，不移動或重建 v0.52.0 tag／Release。
 
 ## 2026-10-20 — FR-027 v0.52.0 round14 隱私 blocker 修正與 final-source 複審
 

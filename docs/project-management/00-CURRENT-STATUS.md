@@ -2,15 +2,15 @@
 
 > 最後查證日期：2026-10-20
 
-> 現行版本：0.52.0（round15 發布狀態同步；新 source SHA 驗證中）
-> 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
-> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release／assets。round14 個人 Windows profile 路徑 blocker 已在 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f` 去識別；該 SHA 的完整 `npm run check`、production audit（0）、macOS arm64 candidate／checksums／runtime／signature/UI smoke，以及 exact-source Windows run `39380574427`／artifact `12244799752`／73/73 shared app hashes 均已通過各自聲明範圍。round15 對 b2b942e 判 BLOCK 的原因是 `00`／`05`／`06`／`08` 仍描述 round14 blocker 與新 SHA 驗證待完成，未同步實際結果；其原報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md` 已保留。當前 round15 文件同步會形成新 source SHA，必須重跑該 SHA 的完整來源檢查、macOS arm64 candidate、exact-source Windows CI／hash gate 並取得 round16 無阻擋複審，才可建立 tag／Release。候選 smoke 不代表有效播放／完整轉錄；Windows artifact 僅抽取 ZIP byte range，完整 archive 未下載且 Windows preview 不屬本次公開資產。
-> 發布 tag／commit：`v0.51.0` → `53956ccdee6e16e4c0413f09312a419613b27da6`
+> 現行版本：0.52.0（已發布；macOS arm64-only）
+> 現行公開版本：0.52.0（GitHub Latest）
+> 發布狀態：GitHub Release [`v0.52.0`](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已公開，annotated tag 指向 source `b6b1efd6b72574f9210af74729d2cb2fd869e42d`。round16 六面向獨立審查 PASS；七項 macOS arm64 assets 的名稱、大小、GitHub SHA-256 digest 與下載 URL 已核對，Release notes 與本地 `RELEASE-NOTES-0.52.0.md` 一致；未發布 Windows preview。round14 的 Windows user-profile 路徑 blocker 已匿名化，round15 的狀態文件同步 blocker 已解除，詳見 `06-TEST-AND-PROCESS-AUDIT.md` 最新條目與 round15／round16 獨立報告。真實播放／完整轉錄、Google／Keychain／上傳、Windows 完整 archive／實機及 macOS Developer ID／公證／Gatekeeper 仍未驗收；`GHSA-hp3w-g68c-fv3c` build-time advisory 依 Release notes 揭露。
+> 發布 tag／commit：`v0.52.0` → `b6b1efd6b72574f9210af74729d2cb2fd869e42d`
 > 主分支：`main`
 
 ## 2026-10-20 0.52.0 發布狀態
 
-round9／round10 指出的 source archive 個人路徑與 smoke provenance 問題已依範圍處理；round14 發現的額外 Windows user-profile 路徑已在 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f` 以中性佔位符取代。需求方於 2026-10-20 明確核准 round12 reviewer 報告原樣公開，知情接受該原件含一處本機絕對候選路徑；README／Release notes 持續揭露這項唯一限縮例外。round15 對 b2b942e 的 source check、macOS arm64 candidate、exact-source Windows run `39380574427`／artifact `12244799752` 與 73/73 shared-file hashes 判定各技術 gate 於聲明範圍通過，但整體 BLOCK，因 `00`／`05`／`06`／`08` 尚未同步實際結果；具體狀態、摘要與修正計畫見最新 08 條目及 round15 原報告。現在正同步受控文件，形成的新 source SHA 必須重跑完整 check、macOS candidate、exact-source Windows CI／hash gate 並取得 round16 無發布阻擋後才可發布。`docs:check:final` 依 workflows 06／07 於正式發布及資產核對後執行。候選 smoke 不代表有效播放／完整轉錄；Windows artifact 僅抽取 ZIP byte range、完整 archive 未下載，且 Windows preview 不屬本次公開資產。此刻尚無 v0.52.0 tag／Release／資產，GitHub Latest 仍為 0.51.0。
+round9／round10 指出的 source archive 個人路徑與 smoke provenance 問題已依範圍處理；round14 發現的額外 Windows user-profile 路徑已匿名化，round12 審查報告內唯一個人絕對候選路徑則依需求方 2026-10-20 限縮核准原樣公開，並已在 README／Release notes 揭露。round15 曾對 b2b942e 判 BLOCK，要求同步實際證據；該狀態同步形成 b6b1efd，round16 對 b6b1efd 的 macOS arm64 候選、同源 Windows CI/hash、治理文件與風險揭露判定 PASS。2026-10-20 已公開 GitHub Release v0.52.0，tag 指向 b6b1efd；七項 macOS arm64 assets 的 GitHub digest／size／URL 與本機候選核對一致，完整結果見 06 最新條目與 [Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)。使用者已接受的 Google／Keychain／頻道上傳未實帳號驗收、`GHSA-hp3w-g68c-fv3c` build-time advisory、ad-hoc／未公證風險仍須持續揭露；UI smoke 未證明有效播放／完整轉錄，Windows preview 未作公開資產。
 
 使用者已明確接受並要求於 Release notes 揭露兩項獨立風險後發布 MVP：真實 Google OAuth／Keychain／頻道影片與字幕上傳尚未實帳號端到端驗收；完整 dependency audit 有 8 個 moderate paths（`GHSA-hp3w-g68c-fv3c`，位於 electron-builder build-time chain；production audit 為 0，公告目前無上游修補版）。Release notes 也標明本版僅 macOS arm64、ad-hoc／未 Developer ID／未公證；Windows 不屬本次發行範圍。以上接受不豁免來源、checksum、機密、審查或其他發版門檻。
 
