@@ -4,13 +4,13 @@
 
 > 現行版本：0.52.0（round11 blocker 修正與發布前就緒複核中）
 > 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
-> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release／assets。round11 審查對已推送 source `871ce1c02363dafcc13a441464467234613778ab` 的 macOS arm64 candidate 與 exact-source Windows CI／73/73 shared-file hashes 判定通過；其 BLOCK 僅因本組 tracked 狀態文件仍落後於實際證據。現正同步狀態與工作紀錄，將產生新 source SHA，並重新執行完整檢查、macOS arm64 候選、同源 Windows CI／manifest 與 round12 複審。候選 smoke 不是有效播放證據；Windows artifact 僅抽取 ZIP byte ranges，未驗證完整 archive。只有新 SHA 的 gate 與文件 closeout 通過後才會建立 tag／Release；Windows preview 不屬本次公開資產。
+> 發布狀態：0.52.0 尚未公開，GitHub 仍無 `v0.52.0` tag／Release／assets。round11 審查對已推送 source `871ce1c02363dafcc13a441464467234613778ab` 的 macOS arm64 candidate 與 exact-source Windows CI／73/73 shared-file hashes 判定通過；其 BLOCK 僅因當時 tracked 狀態文件仍落後於實際證據。狀態已在後續 source `1f6b2077912c44bd4ceeed7d756bbe83fdbfa33e` 同步；此 SHA 的完整 check、macOS arm64 package checks、Windows CI run `39366360693` 與 73/73 shared-file hash gate 已通過。現在將這批結果寫入追蹤紀錄，會再次改變 source SHA，因此該文件提交後還需以新 SHA 重建候選、重跑同源 CI/hash gate，並完成 round12 獨立複審才可建立 tag／Release。候選 smoke 不是有效播放證據；Windows artifact 僅抽取 ZIP byte ranges，未驗證完整 archive。Windows preview 不屬本次公開資產。
 > 發布 tag／commit：`v0.51.0` → `53956ccdee6e16e4c0413f09312a419613b27da6`
 > 主分支：`main`
 
 ## 2026-10-20 0.52.0 發布狀態
 
-round9／round10 指出的 source archive 個人路徑與 smoke provenance 問題已修正。round11 報告核對來源／遠端 SHA `871ce1c02363dafcc13a441464467234613778ab`，候選 `../dist/release-0.52.0-macos-871ce1c-normal/` 與 Windows CI run `39364278830`；macOS 封裝及 73/73 shared-file raw hashes 通過。round11 仍因 `00`／`05`／`06`／`08` 過時，誤稱候選及 CI 尚待完成而判 BLOCK。這些文件現正同步；改動會形成新的發布來源，因此舊候選不會沿用，需以新 SHA 重建候選、重跑 exact-source CI/hash gate 並完成 round12。此刻尚無 tag／Release／資產，GitHub Latest 仍是 0.51.0。
+round9／round10 指出的 source archive 個人路徑與 smoke provenance 問題已修正。round11 報告核對來源／遠端 SHA `871ce1c02363dafcc13a441464467234613778ab`，其候選與 CI run `39364278830` 的 73/73 shared-file hashes 通過；round11 因當時 `00`／`05`／`06`／`08` 未反映該實況而 BLOCK。此狀態已同步於 `1f6b2077912c44bd4ceeed7d756bbe83fdbfa33e`；該 SHA 的完整 `npm run check`、production audit（0）、macOS arm64 DMG／ZIP／runtime／metadata／checksums、UI/layout smoke、Windows exact-source run `39366360693` 與 73/73 manifest hash gate均通過，manifest evidence 為 `../dist/release-0.52.0-macos-1f6b207-normal/windows-ci-source-manifest-range-check-39366360693.json`。本段工作紀錄更新會形成下一個 source SHA，必須以該 SHA 重建候選／CI 並完成 round12。此刻尚無 tag／Release／資產，GitHub Latest 仍是 0.51.0。
 
 使用者已明確接受並要求於 Release notes 揭露兩項獨立風險後發布 MVP：真實 Google OAuth／Keychain／頻道影片與字幕上傳尚未實帳號端到端驗收；完整 dependency audit 有 8 個 moderate paths（`GHSA-hp3w-g68c-fv3c`，位於 electron-builder build-time chain；production audit 為 0，公告目前無上游修補版）。Release notes 也標明本版僅 macOS arm64、ad-hoc／未 Developer ID／未公證；Windows 不屬本次發行範圍。以上接受不豁免來源、checksum、機密、審查或其他發版門檻。
 
