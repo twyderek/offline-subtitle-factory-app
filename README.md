@@ -14,7 +14,7 @@ Electron 校閱頁新增「上傳 YouTube」。先儲存校閱字幕、匯出 MP
 
 此功能是使用者選用的影音外送例外；離線轉錄與校閱不會自動啟用。真實 Google client／頻道授權、Keychain 與實際影片／字幕上傳尚未驗收。開發驗證：`npm run test:youtube`；隔離桌面 UI：`node scripts/verify-youtube-ui.mjs <新的截圖路徑.png>`。首次 OAuth 設定及上傳限制見 [0.52.0 發布說明](RELEASE-NOTES-0.52.0.md)。
 
-本版 packaged UI smoke 僅驗證介面與互動；合成影片只前進 0.000525 秒，不代表有效播放、完整轉錄或 Google 上傳驗收。GitHub 自動產生的原始碼封存包含追蹤中的歷史治理文件；其中個人 home 路徑前綴已改為 `<user-home>`。封存不包含本機建置產物。
+本版 packaged UI smoke 僅驗證介面與互動；3 秒合成影片前進不到 1 毫秒，不代表有效播放、完整轉錄或 Google 上傳驗收。GitHub 自動產生的原始碼封存包含追蹤中的歷史治理文件；其中個人 home 路徑前綴已改為 `<user-home>`。封存不包含本機建置產物。
 
 上傳中無法刪除專案，須先停止傳送並等待工作結束。發布摘要另存於使用者 config 的 `youtube-publish-history`，刪除本機專案或移除授權不會刪除 YouTube 遠端影片，也不會清除這份摘要。若本機鎖定請求的回應遺失，可能需要重啟 App，再到 Studio 核對遠端結果。
 
