@@ -17,7 +17,7 @@
 - 驗證計畫：先執行 `node --check` 與 AI optimizer／provider／Ollama focused tests，再執行完整 `npm run check`、`git diff --check`；由獨立上下文依六面向審查本輪差異，最後執行 `npm run docs:check:final`。deterministic LM Studio compatibility cases 不視為實機／active acceptance 證據。
 - 實際修改：保留既有 dirty evidence／reviews，整理 `lib/ai/subtitle-optimizer.mjs` 的 JSON candidate extraction、root／explicit `cues` 邊界、Ollama active 一次性 repair、非本機 strict failure 與 JSON Schema response format；整理 `scripts/test-ai-optimizer.mjs` 的正負向 parser／provider／checkpoint 回歸；同步 `00`／`02`／`03`／`06`／`07`／`08` 的 LM Studio current-support policy 與 Ollama active scope；以 byte-for-byte 原件帶入 `22f7a09` 的兩份 LM Studio policy review，並新增本輪獨立審查報告。未刪除 LM Studio runtime／registry／compatibility tests，未修改既有 evidence／review 原件，未建立產品版本或公開資產。
 - 開發驗證結果：2026-10-21（Asia/Taipei）`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs` 均 exit 0；完整 `npm run check` exit 0，包含 19 份治理文件、完整核心 regression、AI provider／optimizer、Ollama offline／UI／stream 與 YouTube suites；`npm run docs:check`、`git diff --check` exit 0。round1／round2 reviewer 均重跑上述適用驗證並通過；最新 round2 link 已避開 round1 聲明格式問題，`npm run docs:check:final` 於 2026-10-21 closeout 後 exit 0。所有本輪測試為 deterministic／fixture，沒有啟動真實 LM Studio／Ollama endpoint、下載模型或發布操作。
-- 獨立審查是否執行：是（round1；獨立上下文只建立本輪報告）。
+- 獨立審查是否執行：是（round1／round2；獨立上下文只建立各輪報告）。
 - 獨立審查結論：
   - round1 原件：`docs/project-management/reviews/2026-10-21-ai-parser-policy-integration-round1.md`；其聲明格式問題保留原文，不修改。
   - 審查檔案：`docs/project-management/reviews/2026-10-21-ai-parser-policy-integration-round2.md`
