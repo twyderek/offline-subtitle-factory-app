@@ -49,6 +49,10 @@
 
 需求方已明確告知 LM Studio 已刪除，本輪不執行 LM Studio 實機模型、UI、取消／續跑或真正斷網驗收。這是針對目前驗收環境的範圍例外，不移除 `lm-studio` provider 的產品支援、deterministic tests 或原始 FR-021 要求；若日後恢復驗收，仍須重新依 FR-021 建立實機證據。本輪已完成可執行的 Ollama loopback 產品流程，但未取得真正網路隔離證據前不得宣稱 FR-021 整體完成。
 
+### FR-021 LM Studio 支援政策取代（2026-10-21）
+
+需求方已明確告知 LM Studio 終止開發；自本日後，`lm-studio` 不再是 active support、驗收、bug triage、下載／同步或新功能開發目標。後續同步 repo、下載使用或開發者工作可忽略 LM Studio 相關 provider／端點／模型／UI／取消／續跑／斷網項目，除非需求方另行明確重新啟用。原始 FR-021 row、既有 provider code、deterministic tests 與歷史紀錄保留作相容性與追溯，不代表現行支援承諾；移除殘留需另立 removal change。本政策不影響 Ollama active scope，也不把 FR-021 整體標為完成。
+
 ### FR-021-032 Ollama 本機產品級流程結果（2026-09-15）
 
 以暫存資料目錄及測試 server 透過 `127.0.0.1:11434/v1` 執行 `llama3.2:1b` 產品級流程：建立含 2 cue 的手動字幕任務、完成英文翻譯、建立 AI session、接受 2 筆建議、undo／redo 各 2 筆，並保存雙語校閱結果。最終 artifact `docs/project-management/evidence/2026-09-15-ollama-product-live-recheck-5.json` 顯示時間碼未變、原始 SRT 保存前後 SHA-256 相同、endpoint privacy 為 `local`；探針另已驗證遠端 URL 與既有 evidence 在建立暫存資料／啟動 server 前拒絕，並以 exclusive create 防止 evidence 競態覆寫。本證據只證明 loopback 產品流程，不證明系統真正斷網；`scope.systemNetworkDisabled=false`，因此 FR-021 整體仍待真正網路隔離及 LM Studio 例外之外的完整條件收斂。

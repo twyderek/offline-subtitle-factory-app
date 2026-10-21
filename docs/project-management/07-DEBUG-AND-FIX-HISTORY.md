@@ -1,5 +1,13 @@
 # 偵錯與修改歷程
 
+### BUG-051：AI 校稿回應 JSON parser 過度依賴 `cues` wrapper／巢狀 candidate 邊界（2026-10-21；Ollama active path 已修正，LM Studio 僅保留 compatibility regression；待完整 check 與獨立審查）
+
+- 現象／基準：GitHub `origin/codex/ai-cues-response-repair` 的修正指出，AI 校稿回應可能以 root JSON array、text-part、Markdown fence、周邊說明或 wrapper／巢狀 JSON 字串返回；原 parser 只接受有限的 `cues` 形狀，且 local provider 缺少 `cues` 時無法一致進入一次性修復。這會讓合法 cue payload 被錯誤判為 `invalid_json`／缺少 cues，或讓 parser 邊界不明確。
+- 根因：回應內容抽取、JSON candidate 掃描、cue list 選擇與 local repair policy 沒有分層；root array 與 nested wrapper 的合法範圍也未被明確區分，response format decision 可能在 repair 時被覆寫。
+- 修正：`lib/ai/subtitle-optimizer.mjs` 新增文字／text-part／wrapper candidate 抽取、BOM／fence／balanced JSON 掃描，以及只允許 root array 或明確 `cues` array 的 `findCueArray` 邊界；Ollama active path 與既有 LM Studio compatibility path 對缺少 `cues` 或 JSON 結構錯誤各最多 repair 一次，非 local provider 維持 strict failure，JSON Schema 保留 schema response format。`scripts/test-ai-optimizer.mjs` 增加正負向回歸與失敗 checkpoint 斷言；LM Studio 案例僅是既有相容性 regression，不是目前 active 驗收。
+- focused 驗證：`node --check`（optimizer／test）、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs` 均 exit 0；完整 `npm run check` 亦 exit 0，含 19 份治理文件、核心 regression、AI／Ollama suites 與 YouTube suites。`git diff --check` exit 0。測試通過固定 cue ID／時間碼／差異建議／進度與回應驗證，以及 nested unrelated array、nested root array、non-local strict failure 與 failed repair 不重試等 guardrails。
+- 風險與界線：本輪 deterministic mock 只證明 parser contract、repair 次數與 provider 分流，不證明真實 Ollama 模型輸出品質、網路 endpoint、FR-021 完整本機人工流程或發布產物；LM Studio compatibility cases 不構成 active support／實機驗收；`npm run docs:check:final` 與獨立六面向審查完成前不結案。
+
 ### BUG-050：YouTube safeStorage 權限測試誤用 Unix mode bits 阻擋 Windows CI（2026-10-20；已修正，待 Windows CI 複驗）
 
 - 現象／基準：Windows exact-source CI run `39308587730` 在 `npm run test:youtube` 的 `scripts/test-youtube.mjs:93` 失敗；`fs.stat(...).mode & 0o777` 實際為 438（`0666`），測試硬編碼預期 384（`0600`）。同一 source SHA `80a46a203dbfca34f26dc7c9545f9d9dac138e93` 的 Windows `docs:check` 與 `npm test` 中其餘 test scripts 均通過；此 failure 發生於 YouTube suite，workflow 後續 package／artifact 步驟 skipped。

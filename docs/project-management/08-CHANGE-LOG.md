@@ -1,5 +1,96 @@
 # 改版與工作紀錄
 
+## 2026-10-21 — AI parser 未提交變更整理與 LM Studio 政策整合（SYNC-030）
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：承接上一輪 AI 校稿 JSON parser 修正，先安全整理本機未提交的程式／測試／治理差異，再整合 GitHub `origin/codex/0.51-anthropic-claude@22f7a09` 的 LM Studio 終止開發政策；後續 active 本機 provider 聚焦 Ollama。
+- 關聯需求／缺陷：`SYNC-030`、`SYNC-028`、`SYNC-029`、`BUG-051`、`FR-008`、`FR-010`、`FR-021`。
+- 變更等級：高（AI 回應解析與本機 provider policy／治理整合；不發布、不打包、不修改既有 Release）。
+- 執行前已讀：`npm run project:preflight -- --type=full` 固定核心與完整任務路由（是）；已盤點 root 與 app repo dirty worktree，保留既有未追蹤 evidence／reviews，不 reset、checkout、pull 或整批覆蓋。
+- 來源基準：本機 `codex/0.51-anthropic-claude@72019ca`；整合遠端直接子 commit `origin/codex/0.51-anthropic-claude@22f7a09767923973c698fa817c543a1e586495f4`。本機既有 parser／測試／治理差異不先丟棄；遠端 commit 只帶入 LM Studio current-support policy、需求／設計同步與其既有獨立審查報告。
+- 目標與成功條件：保留並驗證本機 AI cue JSON parser 修正與回歸測試；將 `22f7a09` 政策完整整合至目前工作樹；明確把 LM Studio 限定為既有相容性／歷史 deterministic code／tests，不作 active implementation、support、驗收或 bug triage；Ollama 保持 active 本機 provider；完成 focused／full checks、獨立六面向審查與 final docs gate。
+- 不在範圍：不移除 LM Studio runtime／registry／deterministic compatibility tests、不新增 LM Studio 實機驗收、不修改 Ollama runtime 行為、不改無關 provider／server／UI／封裝流程、不建立／推送 tag、Release 或 PR、不覆蓋既有 evidence／review 原件。
+- 可執行計畫：1. 以現有狀態與 diff 建立基準，確認遠端 commit 與 dirty 變更的檔案交集。2. 在不覆蓋既有修改的前提下整合 `22f7a09`，並把 parser 的 LM Studio 測試敘述限定為相容性 regression。3. 執行 parser／AI／Ollama focused tests 與完整 `npm run check`。4. 啟動獨立上下文六面向審查；若有問題由主要代理修正並視影響新增 round2。5. 補齊 00／02／03／06／07／08 實際狀態、審查連結與剩餘風險，執行 `git diff --check` 與 `npm run docs:check:final`。
+- 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`scripts/test-ai-optimizer.mjs`、`docs/project-management/00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、`08-CHANGE-LOG.md`、遠端政策既有 review 原件。
+- 風險與回復方式：parser 容錯可能誤收 wrapper 無關 array，或政策文字把歷史 LM Studio 相容性誤寫成 active；以 root／explicit `cues` 邊界、nested negative tests、local repair 上限、Ollama active scope、遠端 diff／檔案清單與既有原件 hash／內容核對防護。若整合衝突、回歸失敗、秘密／個資或文件與實作不一致，停止結案並僅修正本輪差異，保留原始 evidence。
+- 驗證計畫：先執行 `node --check` 與 AI optimizer／provider／Ollama focused tests，再執行完整 `npm run check`、`git diff --check`；由獨立上下文依六面向審查本輪差異，最後執行 `npm run docs:check:final`。deterministic LM Studio compatibility cases 不視為實機／active acceptance 證據。
+- 實際修改：保留既有 dirty evidence／reviews，整理 `lib/ai/subtitle-optimizer.mjs` 的 JSON candidate extraction、root／explicit `cues` 邊界、Ollama active 一次性 repair、非本機 strict failure 與 JSON Schema response format；整理 `scripts/test-ai-optimizer.mjs` 的正負向 parser／provider／checkpoint 回歸；同步 `00`／`02`／`03`／`06`／`07`／`08` 的 LM Studio current-support policy 與 Ollama active scope；以 byte-for-byte 原件帶入 `22f7a09` 的兩份 LM Studio policy review，並新增本輪獨立審查報告。未刪除 LM Studio runtime／registry／compatibility tests，未修改既有 evidence／review 原件，未建立產品版本或公開資產。
+- 開發驗證結果：2026-10-21（Asia/Taipei）`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs` 均 exit 0；完整 `npm run check` exit 0，包含 19 份治理文件、完整核心 regression、AI provider／optimizer、Ollama offline／UI／stream 與 YouTube suites；`npm run docs:check`、`git diff --check` exit 0。round1／round2 reviewer 均重跑上述適用驗證並通過；最新 round2 link 已避開 round1 聲明格式問題，`npm run docs:check:final` 於 2026-10-21 closeout 後 exit 0。所有本輪測試為 deterministic／fixture，沒有啟動真實 LM Studio／Ollama endpoint、下載模型或發布操作。
+- 獨立審查是否執行：是（round1；獨立上下文只建立本輪報告）。
+- 獨立審查結論：
+  - round1 原件：`docs/project-management/reviews/2026-10-21-ai-parser-policy-integration-round1.md`；其聲明格式問題保留原文，不修改。
+  - 審查檔案：`docs/project-management/reviews/2026-10-21-ai-parser-policy-integration-round2.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 SYNC-030 round2 獨立複審結論為有條件通過：AI parser 的 root array／explicit cues／text-part／Markdown fence／wrapper candidate 邊界、nested unrelated array 負向案例、Ollama active 一次性 repair、非 local strict failure、JSON Schema 保留、failed repair checkpoint、LM Studio compatibility-only policy、dirty evidence 保留與 focused／full deterministic checks 均已重核通過；但最新 SYNC-030 尚未連結本 round2 報告，且 `npm run docs:check:final` 於 2026-10-21T03:51:28Z 因既有 round1 聲明格式不完整而 exit 1，因此在主要代理完成 round2 連結並重新取得 final gate exit 0 前，不得宣稱本工作已完成。**
+  - 本輪條件是否已被需求方接受：是；需求方已明確要求完成 parser 整理、政策整合、驗證、獨立審查與文件結案，接受 deterministic-only scope、LM Studio compatibility-only、Ollama active 的界線；未授權發布或 live provider 驗收。
+- 發布授權：不適用；本輪不打包、不建立／推送 tag、Release 或 PR，不修改既有 `v0.52.0` 公開資產。
+- 部署／發布結果：不適用；本輪未打包、未建立／推送 tag、Release 或 PR，未修改既有 `v0.52.0` 公開資產。
+- 遺留風險與後續事項：LM Studio 既有 runtime／registry／compatibility tests／歷史文件會保留，僅供相容性與追溯；Ollama active scope、真實模型品質、endpoint、取消／續跑與 FR-021 完整本機流程不因本輪 deterministic tests 而自動完成。空字串 `message.content` 目前分類為 `invalid_json` 而非「未回傳字幕內容」，未被本輪回歸固定；若未來需要區分兩者，另立小範圍修正與測試。`22f7a09` policy 內容會以本輪整合 commit 的祖先／父系保留，未推送新的產品發布內容。
+
+## 2026-10-21 — LM Studio 終止開發政策同步至 GitHub（SYNC-029）
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方明確告知 LM Studio 已終止開發，要求同步 GitHub 備註，讓後續同步、下載使用或開發者可忽略相關內容。
+- 關聯需求／缺陷：`SYNC-029`、`FR-021`、`NFR-001`。
+- 變更等級：一般（支援範圍／治理文件政策同步；不修改 runtime、不移除既有 code／tests、不發布新版本）。
+- 執行前已讀：`npm run project:preflight -- --type=full` 固定核心與完整任務路由（是）；本機既有 dirty worktree 未納入本政策 commit。
+- 目標與成功條件：GitHub current branch 的 `00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md` 與本工作紀錄明確寫出 LM Studio 已終止開發；後續 sync／download／development 可忽略 `lm-studio`，Ollama 保持 active；既有 code／tests／歷史只保留相容性與追溯，不被誤解為目前支援承諾。
+- 不在範圍：不刪除 `lm-studio` provider、runtime code、deterministic tests 或歷史紀錄；不修改 Ollama、其他 provider、UI、封裝、既有 Release、tag 或模型檔案；不建立新版本或發布資產。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md`、本文件，以及本輪獨立審查報告。
+- 風險與回復方式：若政策文字與現行需求／程式不一致，停止推送並修正；既有 LM Studio 殘留不在本輪移除，避免相容性或歷史追溯突然破壞。日後若要恢復或移除，需另立明確需求與變更。
+- 驗證計畫：執行治理文件檢查、`git diff --check`、獨立六面向文件審查；結案後以獨立 commit 推送目前 `codex/0.51-anthropic-claude` branch，不推送既有 dirty worktree 變更。
+- 實際修改：已更新 `00-CURRENT-STATUS.md` 的 current support policy、`02-REQUIREMENTS-ANALYSIS.md` 的 FR-021 dated replacement、`03-FUNCTIONAL-DESIGN.md` 的本機 provider policy 與本條目；明確標示 LM Studio 終止開發、後續 sync／download／development 可忽略，Ollama 仍 active。未刪除或修改 runtime、provider code、tests、模型、Release 或其他既有 dirty worktree 內容。
+- 開發驗證結果：本輪文件-only diff 的 `npm run docs:check`、`node scripts/test-project-docs-validator.mjs`、`git diff --check` 均 exit 0；round2 獨立複核確認四份治理文件與 scope policy 一致。round2 報告連結與結案欄位補正後，`npm run docs:check:final` exit 0（19 份文件、版本 0.52.0、最新紀錄已結案）。
+- 獨立審查是否執行：是；round1／round2 已完成獨立六面向文件審查。
+- 獨立審查結論：
+  - round1 歷史報告：`docs/project-management/reviews/2026-10-21-lm-studio-policy-round1.md`；其政策內容有條件通過，唯一缺口是報告格式，原件保持不變。
+  - 審查檔案：`docs/project-management/reviews/2026-10-21-lm-studio-policy-round2.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 LM Studio 支援政策文件同步內容與範圍均通過獨立複核；LM Studio 已明確標示終止開發且後續可忽略，Ollama 仍 active，既有 code/tests/history 僅保留相容性與追溯，本輪沒有 runtime、依賴、發布或隱私變更；round1 的報告格式問題已由本 round2 報告補正。**
+- 發布授權：不適用；本輪只同步支援範圍／治理文件，不建立 Release、tag、模型資產或新版本，不修改既有公開資產；本次 GitHub branch push 僅為文件政策 commit，不是產品發布。
+- 部署／發布結果：已將文件政策以獨立 commit 推送至目前 `codex/0.51-anthropic-claude` branch；未建立或修改 tag／Release／PR，未發布新產品資產。
+- 遺留風險與後續事項：全文仍會保留歷史 FR-021 row、舊 LM Studio design 與既有 code／tests；後續維護應以本條 dated current-policy 為準，不再把 LM Studio 寫成 active support。若需求方未來重新啟用或要求移除，需另立明確需求與變更；Ollama 仍為 active 本機 provider。
+
+## 2026-10-21 — GitHub AI 校稿回應修正同步與現行版本整合（SYNC-028）
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方要求同步 GitHub 上針對 AI 校稿回應的修正，並合併至目前 `0.52.0` 現行版本。
+- 關聯需求／缺陷：`SYNC-028`、`BUG-051`、`FR-008`、`FR-010`、`FR-021`。
+- 變更等級：一般（AI 回應解析／本機模型格式修復／自動測試與治理文件；不發布、不打包、不修改既有 Release）。
+- 執行前已讀：`npm run project:preflight -- --type=full` 固定核心與完整任務路由（是）；既有工作樹變更已盤點並保留，不整批加入本輪。
+- 來源基準：目前分支 `codex/0.51-anthropic-claude@72019ca`；GitHub 遠端 `origin/codex/ai-cues-response-repair@056d2ad71d8b3ea982be9ccbceba19b9e98760b3`，包含 `d0aeddb`、`3f8df97`、`e3c3f86`、`056d2ad`；本輪只整合與 AI parser／測試／設計／審查直接相關的差異，不將遠端舊分支歷史或無關 `main` 合併內容帶入。
+- 目標與成功條件：保留目前 `0.52.0` 產品基線，整合 GitHub 最新 AI cue JSON parser；支援文字／text-part／wrapper／Markdown fence／周邊說明中的合法 JSON candidate，只有根陣列或明確 `cues` 陣列可作為 cue list；Ollama active path 缺少 `cues` 時只修復一次，LM Studio 只保留既有 compatibility regression，非本機 provider 維持 strict failure；JSON Schema response format 不被 `json_object` 覆寫；新增 `BUG-051` 防回歸測試、同步設計／測試稽核／偵錯紀錄，並通過 focused tests、完整 `npm run check`、獨立六面向審查與文件結案檢查。
+- 不在範圍：不修改無關 provider／server／UI／封裝流程；不覆蓋既有工作樹 evidence；不建立／推送 tag、Release 或 PR；不把 deterministic mock 測試當作真實 Ollama／LM Studio 模型品質或 FR-021 完整驗收。
+- 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`scripts/test-ai-optimizer.mjs`、`docs/project-management/03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`、本文件及本輪獨立審查報告。
+- 風險與回復方式：parser 若過度寬鬆可能把 wrapper 中無關陣列誤當字幕；以 explicit `cues`／root-array 邊界、巢狀 wrapper 負向測試、local repair 上限、非本機 strict failure 與失敗 checkpoint 斷言防護。若整合衝突、回歸失敗或文件與實作不一致，停止結案並保留證據，僅修正本輪差異。
+- 驗證計畫：先執行 AI optimizer／provider／Ollama stream／fetch focused tests，再執行完整 `npm run check`、`git diff --check`、`npm run docs:check:final`；完成開發驗證後由獨立上下文依六面向審查，問題由主要代理修正並視影響進行 round2 複審。
+- 實際修改：保留目前 `0.52.0` 工作樹與既有 dirty evidence，從 GitHub 遠端最新 ref 選擇性整合 AI response parser／測試與功能設計差異；更新 `lib/ai/subtitle-optimizer.mjs` 的 content fragments、JSON candidate 掃描、cue array 邊界、local repair 分流與 response format decision；更新 `scripts/test-ai-optimizer.mjs` 的正負向回歸；同步 `03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、`07-DEBUG-AND-FIX-HISTORY.md`，保留兩份上游 AI repair 歷史審查報告。本輪未把遠端舊 `main` 歷史、遠端 stale changelog、無關 provider／server／UI／封裝差異或既有 evidence 帶入；未建立 commit、tag、Release、PR 或推送。
+- 開發驗證結果：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs` 均 exit 0；完整 `npm run check` exit 0，包含 19 份治理文件、完整核心回歸、AI／Ollama suites 與 YouTube suites；`git diff --check` exit 0；round2 後執行 `npm run docs:check:final` exit 0（19 份文件、版本 0.52.0、最新紀錄已結案）。Focused mock 測試不等同真實 Ollama／LM Studio 模型品質或 FR-021 完整本機人工流程。
+- 獨立審查是否執行：是；round1 的治理欄位條件已補記，round2 已完成獨立複核。
+- 獨立審查結論：
+  - round1 歷史報告：`docs/project-management/reviews/2026-10-21-ai-cues-response-repair-round1.md`，唯一 P1 為 08 文件結案欄位缺漏；本條目已補正，原件保持不變。
+  - 審查檔案：`docs/project-management/reviews/2026-10-21-ai-cues-response-repair-round2.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 round2 複核確認 SYNC-028／BUG-051 的 AI cue response parser 邊界、explicit cues、nested wrapper 負向案例、Ollama／LM Studio 一次性 local repair、非 local strict failure、JSON Schema 保留、測試、dirty tree 保護與發布／安全界線均通過，未發現產品、回歸、隱私或發布阻擋。**
+- 發布授權：不適用；本輪只同步目前工作樹的程式／測試／設計／治理紀錄，不建立或推送 commit、tag、Release、PR，不打包、不發布、不共享任何新產物；既有 `v0.52.0` Release 不在本輪修改範圍。
+- 部署／發布結果：不適用；未建立、推送或修改任何 tag／Release／PR，未變更既有 `v0.52.0` 公開資產。
+- 遺留風險與後續事項：deterministic mock 不等同真實 Ollama 模型品質、endpoint、取消／續跑或 FR-021 完整本機人工流程；LM Studio 案例僅為 compatibility regression，不是 active 開發／驗收／bug triage 目標；本輪未執行真實模型／實機驗收。parser 仍依 explicit `cues`／root-array 邊界與既有 cue ID／順序／時間碼驗證，若未來修改需重跑 focused／full checks。`npm run docs:check:final` 已通過，本輪不涉及發布授權或既有 `v0.52.0` Release 變更。
+
+## 2026-10-20 — v0.52.0 中間候選產物清理
+
+- 狀態：進行中
+- 執行者：Codex
+- 需求來源：需求方要求清除不必要的 0.52.0 檔案、保留最後定稿版本、移除中間測試版以釋放磁碟空間。
+- 關聯需求／缺陷：`REL-0520`、`NFR-001`、`NFR-005`。
+- 變更等級：高（大量本機產物刪除；不涉及 GitHub 或產品來源）。
+- 執行前已讀：`npm run project:preflight -- --type=release` 固定核心及 release 路由（是）；依 preflight 保留目前 dirty／未追蹤 evidence，不整批加入、修改或刪除。
+- 目標與成功條件：清除所有非最終 0.52.0 候選與兩個 0.52.0 test-build 中的大型封裝／app binaries；完整保留最終 `release-0.52.0-macos-b6b1efd-normal`（含 app、DMG、ZIP、metadata、checksum、provenance 與驗證 evidence）、GitHub 公開資產、來源／治理文件與小型歷史檢查 evidence。清理後精確核對目標不存在、最終候選 SHA／檔案仍完整，並記錄實際釋放空間。
+- 不在範圍：不刪除／改名最終 b6b1efd 候選、GitHub Release／tag、任何 Git-tracked source／docs、非 0.52.0 版本產物、使用者原始媒體或 evidence JSON／PNG；不修改產品 runtime、不推送遠端變更。
+- 預計影響檔案／模組：repo 外 18 個中間候選目錄 `release-0.52.0-macos-{1c045e7,1f6b207,21d8b07,3312c37,5685cdb,58ea013,58ea013-normal,685343e,80a46a2,85203c8,871ce1c,9517659,969b7f8,a8e839f,aaee1d9,b2b942e,bb74e9d,efb5883}` 中的 `mac-arm64` app／DMG／ZIP／blockmap binary outputs，以及 `test-build-0.52.0-mac-arm64-20261019`、`test-build-0.52.0-mac-arm64-20261019-r2` 內的 `mac-arm64` app。最終 `release-0.52.0-macos-b6b1efd-normal` 與中間候選中的小型 provenance、manifest-range、checksum metadata 及 UI evidence 保留，以維持審查可追溯性。
+- 風險與回復方式：目標已先以同磁碟 rename 隔離，再移入垃圾桶；目前可由 Finder 還原。只有需求方在 action-time 明確確認後，才會永久清除該唯一隔離資料夾；不清空垃圾桶、不碰其他項目。永久清除後若需重取，可從各來源 commit 重建或自 GitHub 下載最終定稿。保留 all non-final source/evidence metadata，不做寬泛遞迴刪除。
+- 驗證計畫：記錄清理前 `du`；逐項確認只針對明確列出的 18 個非最終 release candidate 及 2 個 test-build app/package binaries；檢查最終候選的 app version、SHA sidecar 與 DMG／ZIP 仍存在；永久清除後重算 `dist` 與可用空間、掃描被移除目標；更新 00／06／08，執行 `git diff --check`、`npm run docs:check:final`，由獨立上下文六面向審查。
+- 目前執行結果：精確移入 89 個大型項目（18 個非最終候選及 2 個 test-build app，含候選 DMG／ZIP／blockmap），共 19,578,652 KiB（約 18.67 GiB），Finder 垃圾桶中僅有唯一隔離資料夾 `cleanup-v0520-intermediates-20261020`。原候選目錄的小型 metadata／截圖／JSON 保留。最終 b6 候選 SHA sidecar 四項皆 OK、DMG verify VALID、ZIP integrity clean；永久清除及實際釋放容量待需求方 action-time 確認。
+
 ## 2026-10-20 — FR-027 v0.52.0 round15 發布狀態同步與 final-source 複審
 
 - 狀態：完成

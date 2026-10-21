@@ -1,5 +1,13 @@
 # 功能測試與流程稽核
 
+## 2026-10-21 SYNC-028／BUG-051 GitHub AI 校稿回應修正同步
+
+- 稽核範圍：目前 `0.52.0` 分支與 GitHub `origin/codex/ai-cues-response-repair@056d2ad71d8b3ea982be9ccbceba19b9e98760b3` 的 AI cue JSON parser／測試／功能設計差異；僅整合與本輪需求直接相關的 `d0aeddb`、`3f8df97` 內容與其必要設計／測試脈絡，未帶入遠端舊 `main` 歷史或無關治理變更。既有未追蹤 evidence 未修改；LM Studio 案例僅作 compatibility regression，Ollama 才是 active 本機 provider。
+- 程式與測試結果：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs` 均 exit 0。AI optimizer 回歸涵蓋 root array、`cues` wrapper、text-part、Markdown fence／周邊說明、巢狀 wrapper 負向界線、Ollama active path 的單次 local repair；LM Studio 案例只保留既有 compatibility regression，另驗證 JSON Schema response format 保留與非 local provider strict failure。
+- parser 邊界：只有根陣列或明確 `cues` 陣列可成為 cue list；巢狀 wrapper 的無關陣列／巢狀根陣列不被誤收；缺少 `cues` 的本機 provider 最多修復一次；JSON Schema 不被 `json_object` 覆寫。上述測試以 deterministic mock 驗證格式與狀態機，不等同真實 Ollama／LM Studio 模型品質或 FR-021 完整人工流程驗收。
+- 完整檢查：本輪 focused tests 後執行完整 `npm run check`，exit 0；包含 19 份治理文件、全套核心 regression、AI provider／optimizer、Ollama offline／UI／stream 與 YouTube publisher／SDK／stream／lifecycle suites。`git diff --check` exit 0。`npm run docs:check:final` 保留至獨立審查結論同步後執行；若文件結案或獨立審查任一失敗，維持未結案並依證據修正／複審。
+- 風險界線：本輪未修改 provider 以外的 server／UI／封裝流程，未新增真實模型 endpoint 驗收；parser 對模型回應格式的容錯擴張仍需保留 explicit cue boundary 與巢狀負向回歸。LM Studio deterministic cases 不構成 active support／實機驗收，後續本機開發與驗收聚焦 Ollama。
+
 ## 2026-10-20 FR-027 v0.52.0 GitHub Release 已公開：round16 PASS
 
 - GitHub Release [v0.52.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已於 2026-10-20 公開並設為 Latest；annotated tag 指向 source `b6b1efd6b72574f9210af74729d2cb2fd869e42d`。round16 六面向獨立審查判 **PASS**，未發現發布阻擋；原報告 `docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round16.md`。round15 對 b2b942e 的 BLOCK 及本輪同步修正亦見 round15 原報告。
