@@ -1,5 +1,29 @@
 # 改版與工作紀錄
 
+## 2026-10-21 — LM Studio 終止開發政策同步至 GitHub（SYNC-029）
+
+- 狀態：完成
+- 執行者：Codex
+- 需求來源：需求方明確告知 LM Studio 已終止開發，要求同步 GitHub 備註，讓後續同步、下載使用或開發者可忽略相關內容。
+- 關聯需求／缺陷：`SYNC-029`、`FR-021`、`NFR-001`。
+- 變更等級：一般（支援範圍／治理文件政策同步；不修改 runtime、不移除既有 code／tests、不發布新版本）。
+- 執行前已讀：`npm run project:preflight -- --type=full` 固定核心與完整任務路由（是）；本機既有 dirty worktree 未納入本政策 commit。
+- 目標與成功條件：GitHub current branch 的 `00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md` 與本工作紀錄明確寫出 LM Studio 已終止開發；後續 sync／download／development 可忽略 `lm-studio`，Ollama 保持 active；既有 code／tests／歷史只保留相容性與追溯，不被誤解為目前支援承諾。
+- 不在範圍：不刪除 `lm-studio` provider、runtime code、deterministic tests 或歷史紀錄；不修改 Ollama、其他 provider、UI、封裝、既有 Release、tag 或模型檔案；不建立新版本或發布資產。
+- 預計影響檔案／模組：`docs/project-management/00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md`、本文件，以及本輪獨立審查報告。
+- 風險與回復方式：若政策文字與現行需求／程式不一致，停止推送並修正；既有 LM Studio 殘留不在本輪移除，避免相容性或歷史追溯突然破壞。日後若要恢復或移除，需另立明確需求與變更。
+- 驗證計畫：執行治理文件檢查、`git diff --check`、獨立六面向文件審查；結案後以獨立 commit 推送目前 `codex/0.51-anthropic-claude` branch，不推送既有 dirty worktree 變更。
+- 實際修改：已更新 `00-CURRENT-STATUS.md` 的 current support policy、`02-REQUIREMENTS-ANALYSIS.md` 的 FR-021 dated replacement、`03-FUNCTIONAL-DESIGN.md` 的本機 provider policy 與本條目；明確標示 LM Studio 終止開發、後續 sync／download／development 可忽略，Ollama 仍 active。未刪除或修改 runtime、provider code、tests、模型、Release 或其他既有 dirty worktree 內容。
+- 開發驗證結果：本輪文件-only diff 的 `npm run docs:check`、`node scripts/test-project-docs-validator.mjs`、`git diff --check` 均 exit 0；round2 獨立複核確認四份治理文件與 scope policy 一致。round2 報告連結與結案欄位補正後，`npm run docs:check:final` exit 0（19 份文件、版本 0.52.0、最新紀錄已結案）。
+- 獨立審查是否執行：是；round1／round2 已完成獨立六面向文件審查。
+- 獨立審查結論：
+  - round1 歷史報告：`docs/project-management/reviews/2026-10-21-lm-studio-policy-round1.md`；其政策內容有條件通過，唯一缺口是報告格式，原件保持不變。
+  - 審查檔案：`docs/project-management/reviews/2026-10-21-lm-studio-policy-round2.md`
+  - 判定（逐字引用審查檔案完整結論句）：**本輪 LM Studio 支援政策文件同步內容與範圍均通過獨立複核；LM Studio 已明確標示終止開發且後續可忽略，Ollama 仍 active，既有 code/tests/history 僅保留相容性與追溯，本輪沒有 runtime、依賴、發布或隱私變更；round1 的報告格式問題已由本 round2 報告補正。**
+- 發布授權：不適用；本輪只同步支援範圍／治理文件，不建立 Release、tag、模型資產或新版本，不修改既有公開資產；本次 GitHub branch push 僅為文件政策 commit，不是產品發布。
+- 部署／發布結果：已將文件政策以獨立 commit 推送至目前 `codex/0.51-anthropic-claude` branch；未建立或修改 tag／Release／PR，未發布新產品資產。
+- 遺留風險與後續事項：全文仍會保留歷史 FR-021 row、舊 LM Studio design 與既有 code／tests；後續維護應以本條 dated current-policy 為準，不再把 LM Studio 寫成 active support。若未來要重新啟用或移除殘留，需另立明確需求與變更；Ollama 仍為 active 本機 provider。
+
 ## 2026-10-20 — FR-027 v0.52.0 round15 發布狀態同步與 final-source 複審
 
 - 狀態：完成

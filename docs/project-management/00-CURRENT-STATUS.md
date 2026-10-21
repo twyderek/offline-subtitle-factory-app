@@ -1,6 +1,12 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-10-20
+## 2026-10-21 AI provider 支援政策更新
+
+- LM Studio 已終止開發，今後不是本專案的 active support、驗收、bug triage、下載／同步或新功能目標。後續同步 repo、下載使用或進行開發時，可忽略 `lm-studio` provider、端點、模型、UI、取消／續跑與斷網驗收；除非需求方另行明確重新啟用。
+- 既有 `lm-studio` registry／runtime code、deterministic tests 與歷史紀錄暫予保留，僅作相容性／歷史追溯，不代表目前仍承諾支援，也不應阻擋 Ollama 或其他 active provider 的工作。若要移除既有殘留，另立明確的 removal change，不在本政策同步中處理。
+- Ollama 仍是目前 active 的本機 provider 目標。
+
+> 最後查證日期：2026-10-21
 
 > 現行版本：0.52.0（已發布；macOS arm64-only）
 > 現行公開版本：0.52.0（GitHub Latest）

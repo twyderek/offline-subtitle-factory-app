@@ -148,6 +148,8 @@ loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼�
 
 2026-09-15 驗收範圍例外：需求方已刪除本機 LM Studio，因此本輪不做 LM Studio 實機、UI、取消／續跑或斷網驗收；`lm-studio` provider 的產品支援與 deterministic tests 保留，日後若恢復服務仍須依 FR-021 重新取得實機證據。
 
+2026-10-21 current support policy：需求方已確認 LM Studio 終止開發；`lm-studio` 不再是 active implementation、support、驗收、bug triage、下載／同步或新測試目標。後續同步 repo、下載使用或開發者工作可忽略 LM Studio 相關內容，除非需求方另行明確重新啟用。既有 provider registry／runtime code、deterministic tests 與歷史文件保留作相容性／歷史追溯，不代表目前支援承諾；Ollama 仍是 active 本機 provider 目標，移除既有 LM Studio 殘留需另立 removal change。
+
 2026-09-29 macOS offline acceptance 邊界：`npm run acceptance:ollama:offline` 為 acceptance-only wrapper，不改產品 runtime。它以 macOS Seatbelt deny-network profile 啟動獨立 `ollama serve` 與既有 product probe；只允許 localhost bind／inbound／outbound，並先以 sandbox socket probe 要求 loopback 成功且外部測試位址明確回 `EPERM`。執行前須確認指定模型已存在於本機 model store；不呼叫 pull、無外網能力，server 與 probe 使用隔離 HOME／暫存資料，保存 evidence 時 exclusive-create。managed-child lifecycle 會接收 `spawn`／`error`／`close` 事件，cleanup 等待 close、停止自有 daemon 並確認 port／暫存目錄清除；`NODE_ENV=test` 下的唯一測試注入點可由 wrapper integration regression 驗證 spawn error 的 failure evidence 與清理，不影響正常 acceptance 命令。此作法只隔離驗收子程序，不停用全機網路，也不代表 Electron UI、取消／續跑或物理拔網已驗收；不能將其作為產品 runtime 的網路安全邊界或一般跨平台方案。
 
 ### 多語言 LLM 流程
