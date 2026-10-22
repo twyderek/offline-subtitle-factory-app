@@ -1,0 +1,98 @@
+{
+  "schema": "offline-subtitle-factory.whisper-signal-aware-fallback.v1",
+  "date": "2026-09-18",
+  "workItem": "BUG-WHISPER-METAL-139",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "externalNetwork": false,
+    "userMediaRead": false,
+    "lmStudioExecuted": false
+  },
+  "contract": {
+    "metalAttempt": "first Whisper.cpp attempt on macOS arm64 without --no-gpu",
+    "retryOn": [
+      "non-zero integer exit code",
+      "non-empty termination signal"
+    ],
+    "doNotRetryOn": [
+      "exit code 0",
+      "missing exit code and signal",
+      "non-numeric exit code",
+      "forceCpu=true",
+      "non-darwin or non-arm64 platform"
+    ],
+    "retryLimit": "one CPU --no-gpu attempt"
+  },
+  "verification": {
+    "policyMatrix": {
+      "command": "node scripts/test-whisper-fallback-policy.mjs",
+      "exitCode": 0,
+      "covered": [
+        "exit 1",
+        "exit 139",
+        "signal SIGSEGV",
+        "exit 0",
+        "null without signal",
+        "string exit value",
+        "forceCpu",
+        "platform and architecture",
+        "exit and signal log markers"
+      ]
+    },
+    "coreIntegration": {
+      "command": "node scripts/test-core.mjs",
+      "exitCode": 0,
+      "exit139Fallback": true,
+      "sigsegvSignalFallback": true,
+      "partialOutputsCleanedBeforeCpuRetry": true,
+      "finalStatus": "completed",
+      "finalStage": "ready-review",
+      "finalWhisperDevice": "cpu"
+    },
+    "productionControlledFallback": {
+      "command": "npm run acceptance:whisper:production-fallback -- /private/tmp/20260918-whisper-production-signal-aware.json",
+      "startedAt": "2026-09-18T01:36:15.856Z",
+      "completedAt": "2026-09-18T01:36:17.861Z",
+      "probeExitCode": 0,
+      "bundledRuntimeUsed": false,
+      "controlledExit139": true,
+      "fallbackObserved": true,
+      "finalStatus": "completed",
+      "finalStage": "ready-review",
+      "finalWhisperDevice": "cpu",
+      "outputsComplete": true,
+      "temporaryWavCleaned": true,
+      "stalePartialArtifacts": []
+    },
+    "productionBundledReplay": {
+      "command": "npm run acceptance:whisper:fallback -- /private/tmp/20260918-whisper-real-signal-aware.json",
+      "startedAt": "2026-09-18T01:36:30.372Z",
+      "completedAt": "2026-09-18T01:36:33.500Z",
+      "probeExitCode": 0,
+      "runtimeSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+      "modelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+      "metalFailureObserved": false,
+      "fallbackObserved": false,
+      "finalStatus": "completed",
+      "finalStage": "ready-review",
+      "finalWhisperDevice": "metal",
+      "outputsComplete": true,
+      "temporaryWavCleaned": true,
+      "stalePartialArtifacts": []
+    }
+  },
+  "scope": {
+    "realBundledCrashToCpuFallbackObserved": false,
+    "notValidated": [
+      "Chinese speech recognition quality",
+      "long audio",
+      "cancellation during CPU retry",
+      "CPU retry failure",
+      "other macOS architectures",
+      "Windows",
+      "clean installation"
+    ]
+  }
+}

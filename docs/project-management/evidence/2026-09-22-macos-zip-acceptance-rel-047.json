@@ -1,0 +1,75 @@
+{
+  "schema": "offline-subtitle-factory.macos-zip-acceptance.v1",
+  "recordedAt": "2026-09-22",
+  "workItem": "REL-047",
+  "packageVersion": "0.51.0",
+  "scope": {
+    "platform": "darwin-arm64",
+    "hostWasMacOSAppleSilicon": true,
+    "windowsExecuted": false,
+    "localOnly": true,
+    "externalApiUsed": false,
+    "userDataModified": false,
+    "systemNetworkDisabled": false,
+    "lmStudioExecuted": false
+  },
+  "source": {
+    "directory": "../dist/test-build-0.51.0-macos-88da220",
+    "sourceCommit": "88da220",
+    "currentHeadAtAcceptance": "17df9788abf2cf964d52df10b74f9a8fcd7a45d6",
+    "zip": "offline-subtitle-factory-0.51.0-macos-arm64.zip",
+    "zipSha256": "1d5f8ffc156abad3762f823a7e065d61ab0c711af7350107f25d7c409fb297b2",
+    "candidateIsCurrentWorktreeBuild": false
+  },
+  "zip": {
+    "integrity": "pass",
+    "extract": "pass",
+    "isolatedApplicationsLikeCopy": "pass",
+    "removedAfterTest": true
+  },
+  "installedApp": {
+    "pathShape": "/private/tmp/<acceptance>/Applications/離線字幕工廠.app",
+    "deepStrictCodesign": "pass"
+  },
+  "gatekeeper": {
+    "spctlAssessment": "rejected",
+    "accepted": false,
+    "expectedForAdHocUnsignedNotarizedCandidate": true,
+    "developerId": false,
+    "notarized": false
+  },
+  "quarantineMetadata": {
+    "xattrCommand": "pass",
+    "comAppleQuarantinePresent": false,
+    "comAppleProvenancePresent": true
+  },
+  "rendererSmoke": {
+    "status": "pass",
+    "homeBridgeSettings": true,
+    "breezeSelectionOpenedAndCancelled": true,
+    "manualSubtitleJob": "completed",
+    "cleanedSrtProduced": true,
+    "trimAssets": true,
+    "realTrim": {
+      "status": "completed",
+      "durationSeconds": 2.021333,
+      "postTrimSubtitleJob": "completed",
+      "usesTrimmedVideo": true,
+      "shiftedSubtitle": true
+    },
+    "aiReviewAssets": true,
+    "glossaryRoundTrip": true,
+    "providerDefinitions": 8,
+    "folderIconFlow": "pass",
+    "isolatedUserDataCleaned": true
+  },
+  "result": "pass-with-release-limitations",
+  "releaseReady": false,
+  "limitations": [
+    "候選 provenance 來源 commit 88da220 落後目前 HEAD，且不是目前 dirty worktree 的重建資產",
+    "spctl 因 ad-hoc、未 Developer ID、未公證而拒絕；這是簽章限制，不是本次 renderer 啟動失敗",
+    "本輪未執行 Windows；亦未取得 Developer ID／notarization、真正斷網、真實 AI API 或模型品質證據",
+    "本輪為隔離 Applications-like 路徑，不宣稱正式使用者 Applications／乾淨帳號發布驗收"
+  ],
+  "notARelease": true
+}

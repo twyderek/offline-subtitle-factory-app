@@ -21,4 +21,14 @@ assert.equal(standardSegments[0].confidence, 0.4);
 const existingPackage = attachWhisperQuality([{ id: 1, start: 0, end: 1, sourceText: '原文', translatedText: '譯文' }], [{ id: 1, start: 0, end: 1, confidence: 0.2, noSpeechProbability: 0.8 }]);
 assert.equal(existingPackage.cues[0].translatedText, '譯文');
 assert.equal(existingPackage.cues[0].confidence, 0.2);
+const partial = attachWhisperQuality([
+  { id: 1, start: 0, end: 1, text: '未拆分' },
+  { id: 2, start: 1, end: 2, text: 'Small 拆分片段' },
+], [
+  { id: 1, start: 0, end: 1, confidence: 0.3 },
+  null,
+]);
+assert.equal(partial.matched, true, 'Small 拆分時未受影響 cue 仍應保留 quality metadata');
+assert.equal(partial.cues[0].confidence, 0.3);
+assert.equal(partial.cues[1].confidence, undefined);
 console.log('Whisper quality metadata 測試通過：JSON 解析、時間對應、缺失與不一致回落');

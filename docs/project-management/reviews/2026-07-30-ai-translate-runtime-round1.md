@@ -52,7 +52,7 @@
 
 - 判定：部分通過
 - 證據：
-  - 2026-07-30 08:40 CST，直接載入 `/Users/nycu/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app/` 內模組，向 `http://127.0.0.1:11434` 的 Ollama 0.32.5／`llama3.2:1b` 送出兩個繁中 cue、目標語言 `en`。實際回傳兩筆完整英文建議，ID 分別為 `T1`、`T2`，`mode` 均為 `translate`，沒有術語表殘留；程序 exit 0。
+  - 2026-07-30 08:40 CST，直接載入 `<user-home>/Documents/離線字幕工廠/dist/mac-arm64/離線字幕工廠.app/Contents/Resources/app/` 內模組，向 `http://127.0.0.1:11434` 的 Ollama 0.32.5／`llama3.2:1b` 送出兩個繁中 cue、目標語言 `en`。實際回傳兩筆完整英文建議，ID 分別為 `T1`、`T2`，`mode` 均為 `translate`，沒有術語表殘留；程序 exit 0。
   - macOS App `Info.plist` 版本與 build 均為 `0.48.0`；`codesign --verify --deep --strict` exit 0。
   - 尚未完成 Electron 視窗內「點選翻譯 → 開始 AI 優化 → 畫面顯示翻譯」的自動化操作；既有 AX 控制逾時，因此本輪只能證明 UI 靜態接線、完整 API／核心回歸，以及封裝內實際 optimizer/provider 到真實模型的資料路徑。
 

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-17",
+  "workItem": "BUG-WHISPER-METAL-139",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "macOS": "26.6.2",
+    "networkCalls": false,
+    "input": "generated 1-second 16 kHz mono silence WAV"
+  },
+  "assets": {
+    "whisperCli": "tools/whisper-cpp/whisper-cli",
+    "whisperCliSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+    "model": "tools/whisper-models/ggml-tiny.bin",
+    "modelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21"
+  },
+  "commandContract": {
+    "sharedFlags": ["-m", "-f", "-l", "zh", "-osrt", "-oj", "-ojf", "-of"],
+    "metal": "shared flags without --no-gpu",
+    "cpu": "shared flags with --no-gpu"
+  },
+  "results": {
+    "ffmpeg": {
+      "exitCode": 0
+    },
+    "metal": {
+      "exitCode": 139,
+      "srtProduced": false,
+      "jsonProduced": false,
+      "stderrSummary": "ggml_metal_buffer_init: error: failed to allocate buffer, size = 2.20 MiB"
+    },
+    "cpu": {
+      "exitCode": 0,
+      "srtProduced": true,
+      "jsonProduced": true,
+      "jsonTopLevelKeys": ["model", "params", "result", "systeminfo", "transcription"],
+      "transcriptionSegmentCount": 1,
+      "segmentKeys": ["offsets", "text", "timestamps", "tokens"],
+      "hasSegmentConfidence": false,
+      "hasSegmentNoSpeechProbability": false,
+      "tokenProbabilityPresent": true
+    }
+  },
+  "cleanup": {
+    "temporaryInputAndOutputsRemoved": true
+  },
+  "scope": {
+    "result": "current bundled runtime on this macOS arm64 host only",
+    "notValidated": [
+      "Chinese speech recognition quality",
+      "long audio",
+      "cancellation during retry",
+      "other macOS architectures",
+      "Windows",
+      "clean installation",
+      "real user media"
+    ],
+    "lmStudioExecuted": false
+  }
+}

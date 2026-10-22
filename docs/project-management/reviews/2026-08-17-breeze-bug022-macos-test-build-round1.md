@@ -1,16 +1,16 @@
 # 獨立審查報告：Breeze BUG-022 修正版 macOS 測試包（REL-035）
 
-- 審查對象 commit／版本：`codex/021-breeze-runtime-guide@c5e8bbe67255c030e377bc018cb6f17186db1244`，產品版本 `0.49.0`；候選目錄 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`
+- 審查對象 commit／版本：`codex/021-breeze-runtime-guide@c5e8bbe67255c030e377bc018cb6f17186db1244`，產品版本 `0.49.0`；候選目錄 `<user-home>/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`
 - 對應 08-CHANGE-LOG 條目：2026-08-17 — Breeze BUG-022 修正版 macOS 測試包（REL-035）（`docs/project-management/08-CHANGE-LOG.md:5-30`）
 - 審查輪次：round1
 - 審查代理啟動時間、上下文來源：2026-08-17T07:46:41+08:00；獨立上下文，未沿用開發代理對話記憶。依 release preflight 讀取 `AGENTS.md`、專案管理入口／目前狀態／最新工作條目、release／build／test／independent-review／closeout 路由文件。
-- 審查範圍限制：僅讀取目前 repository 與 `/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`；未執行長時間 `npm test`、完整 `npm run check` 或 renderer smoke。renderer smoke 僅引用主代理在候選 README／工作紀錄提供的證據，明確標示未由本代理重跑。
+- 審查範圍限制：僅讀取目前 repository 與 `<user-home>/Documents/離線字幕工廠/dist/test-build-c5e8bbe/`；未執行長時間 `npm test`、完整 `npm run check` 或 renderer smoke。renderer smoke 僅引用主代理在候選 README／工作紀錄提供的證據，明確標示未由本代理重跑。
 
 ## 1. 需求完整性
 
 - 判定：通過（限 macOS arm64 隔離測試候選）
 - 證據：
-  - 候選 README（`/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/TEST-CANDIDATE-README.md:1-21`）標示來源 commit、版本、DMG／ZIP、Breeze BUG-022 修正、未內建 Python／PyTorch／patched Whisper／`.pt` checkpoint，以及「非公開 Release」邊界。
+  - 候選 README（`<user-home>/Documents/離線字幕工廠/dist/test-build-c5e8bbe/TEST-CANDIDATE-README.md:1-21`）標示來源 commit、版本、DMG／ZIP、Breeze BUG-022 修正、未內建 Python／PyTorch／patched Whisper／`.pt` checkpoint，以及「非公開 Release」邊界。
   - `git show -s --format='%H%n%ad%n%s' c5e8bbe67255c030e377bc018cb6f17186db1244` 實際解析至 `c5e8bbe67255c030e377bc018cb6f17186db1244`（`fix: resolve Breeze runtime home paths`）。封裝內 `package.json` 亦實際為 `0.49.0`。
   - 候選資產名稱、平台（macOS arm64）、版本與隔離輸出位置符合 REL-035 工作條目，不涉及 tag、公開 Release 或既有正式資產替換。
 
@@ -20,7 +20,7 @@
 - 證據：
   - 由 ZIP app 直接以 `unzip -p ... '*/Contents/Resources/app/lib/breeze-runtime-probe.mjs' | nl -ba` 讀出封裝內容：`lib/breeze-runtime-probe.mjs:22-48` 依平台選擇 `HOME`／`USERPROFILE`，標準 `Breeze-ASR-25/.venv` runtime 排在 generic bundled Python 前，並保留 `BREEZE_ASR_PYTHON` 明確覆寫。
   - 由 ZIP app 直接以 `unzip -p ... '*/Contents/Resources/app/public/app.js' | nl -ba` 讀出 `public/app.js:416-434`：`/api/health` 成功後呼叫 `updateMetrics(tools)`，符合首頁工具健康卡修正 marker。
-  - `latest-mac.yml`（`/Users/nycu/Documents/離線字幕工廠/dist/test-build-c5e8bbe/latest-mac.yml:1-9`）版本、URL、大小與 SHA-512 欄位可解析，且指向同一候選檔案。
+  - `latest-mac.yml`（`<user-home>/Documents/離線字幕工廠/dist/test-build-c5e8bbe/latest-mac.yml:1-9`）版本、URL、大小與 SHA-512 欄位可解析，且指向同一候選檔案。
 
 ## 3. 邊界情況
 

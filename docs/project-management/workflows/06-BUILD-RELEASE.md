@@ -10,7 +10,7 @@
 2. 準備固定 runtime 並比對來源 SHA。
 3. 執行完整測試後建置 Setup／Portable 或 DMG／ZIP。
 4. 檢查 unpacked 與最終封裝內容、格式、簽章及 checksum。
-5. 下載 CI artifact 做交叉驗證；不可只相信 job 綠燈。
+5. 下載 CI artifact 做交叉驗證；不可只相信 job 綠燈。Windows preview artifact 附 `PACKAGED-APP-MANIFEST-windows-x64.txt`，記錄實際 `win-unpacked/resources/app` 的 source commit、版本與除 platform-specific `node_modules` 外的相對路徑／SHA-256；先驗證 manifest 自身的 SHA-256，再將與目標平台共用的檔案逐一對照候選 app bundle。此 manifest 支持同源封裝交叉核對，不等於另一平台實機驗收。
 6. 使用穩定 ASCII Release 檔名，確保 blockmap、`latest.yml` 與 checksum 一致。
 7. 上傳後核對 GitHub 實際名稱、大小、digest、下載 URL 與說明。
 8. 清楚揭露未簽章、未公證、未實機測試等條件。

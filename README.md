@@ -1,4 +1,65 @@
-# 離線字幕工廠
+# 離線字幕工廠（Offline Subtitle Factory）
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Latest Release](https://img.shields.io/badge/Release-v0.52.0-informational.svg)](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)
+
+**離線優先、重視隱私的桌面字幕製作與校閱工具。** 使用 Whisper.cpp、FFmpeg 與 Electron，協助教育工作者、影音創作者及有資料保護需求的使用者，在自己的電腦完成語音轉錄、字幕編輯、雙語字幕及影片輸出。預設流程不必將原始影音上傳到雲端。
+
+**A local-first subtitle production and review tool.** It supports on-device transcription, subtitle editing, bilingual workflows, and video exports. Optional cloud AI features require user configuration; optional YouTube publishing sends selected files only after explicit consent.
+
+## 快速導覽 / Quick links
+
+- **最新公開版本**：[v0.52.0 (2026-10-20)](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)，**僅發行 macOS Apple Silicon (arm64)** 的 DMG／ZIP。這版尚未發布 Windows 安裝檔；Windows 使用者請查看[歷史發行版本](https://github.com/twyderek/offline-subtitle-factory-app/releases)及各版驗收限制。
+- **取得安裝檔與校驗碼**：[GitHub Releases](https://github.com/twyderek/offline-subtitle-factory-app/releases)；請留意未完成程式碼簽章／Apple 公證的警告，並核對檔案的 SHA-256。
+- **核心功能**：離線 Whisper.cpp 語音辨識、SRT 匯入及校閱、雙語字幕、影片修剪及匯出；可選用本機 LLM 與雲端文字優化。YouTube 私人影片／字幕上傳屬 **v0.52.0 的實驗性選用功能**，尚未完成真實 Google 帳號端到端驗收。
+- **開發及回報問題**：閱讀 [CONTRIBUTING.md](CONTRIBUTING.md)；問題可至 [Issues](https://github.com/twyderek/offline-subtitle-factory-app/issues) 提報。
+- **開源授權**：本專案可授權的原創程式碼採用 [MIT License](LICENSE)；Electron、FFmpeg、whisper.cpp、模型及其他第三方元件各自適用其授權，詳見 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- **安全回報**：敏感問題請閱讀 [SECURITY.md](SECURITY.md)，不要把憑證或私人資料貼到公開 Issue。
+- **OSS 申請證據**：詳見 [公開專案核查與送件證據](docs/OSS-APPLICATION-READINESS.md)，明確區分可查證的維護事實、真實使用量與仍待完成的審查工作。
+
+> **資料與隱私提醒：** 預設離線字幕流程不會上傳原始影音。只有當使用者主動啟用並設定雲端文字處理時，選取的字幕文字才可能傳送至該供應商；選用 YouTube 上傳時，獲同意的影片和字幕會傳送至 Google／YouTube。請參閱版本文件的已知限制，不要將自動化測試視為跨平台實機驗收。
+
+---
+
+## 0.52.0：YouTube 私人影片與字幕上傳
+
+0.52.0 的 GitHub 發行範圍為 macOS Apple Silicon（arm64）。Windows 版未納入本次發布，因為尚未完成此版封裝及實機驗收。
+
+下載 v0.52.0：[GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)（僅提供下方列出的 macOS arm64 DMG／ZIP；不提供 Windows 0.52.0 安裝檔）。
+
+Electron 校閱頁新增「上傳 YouTube」。先儲存校閱字幕、匯出 MP4，再匯入 Google Cloud 的 Desktop OAuth client JSON 並透過系統瀏覽器連結頻道。啟用 YouTube Data API v3；OAuth consent screen 處於 Testing 時，須把登入帳號加入測試使用者。影片／字幕上傳需授予 `youtube.force-ssl` 權限。
+
+視窗列出實際頻道、已輸出 MP4、已保存的 `reviewed.srt`、標題、說明、語言及兒童內容選項；勾選外送同意後才開始。影片固定為私人，字幕獨立上傳；公開、排程及處理狀態可至 YouTube Studio 確認。只會使用最後保存的字幕，未保存編輯不會上傳。
+
+上傳失敗或取消後，遠端可能已有資料；有影片 ID 時可只重試原字幕 snapshot，不重傳影片。沒有影片 ID 的未知結果須先到 Studio 人工核對，此版本不提供跨重啟 byte-level 續傳或自動重新上傳。每個專案僅建立一筆發布紀錄。移除本機授權不等於撤銷 Google 帳戶端權限。
+
+此功能是使用者選用的影音外送例外；離線轉錄與校閱不會自動啟用。真實 Google client／頻道授權、Keychain 與實際影片／字幕上傳尚未驗收。開發驗證：`npm run test:youtube`；隔離桌面 UI：`node scripts/verify-youtube-ui.mjs <新的截圖路徑.png>`。首次 OAuth 設定及上傳限制見 [0.52.0 發布說明](RELEASE-NOTES-0.52.0.md)。
+
+本版 packaged UI smoke 僅驗證介面與互動；合成影片測試沒有展示有效播放進度，不代表有效播放、完整轉錄或 Google 上傳驗收。GitHub 自動產生的原始碼封存包含追蹤中的治理文件；已將歷史文件中可辨識的個人 home 與 Windows user-profile 路徑改為中性佔位符。round12 獨立審查報告依需求方明確指示原樣公開，仍含一處本機絕對候選路徑；此為需求方知情接受的唯一個人路徑例外，不代表其他個人路徑獲准公開。封存不包含本機建置產物。
+
+上傳中無法刪除專案，須先停止傳送並等待工作結束。發布摘要另存於使用者 config 的 `youtube-publish-history`，刪除本機專案或移除授權不會刪除 YouTube 遠端影片，也不會清除這份摘要。若本機鎖定請求的回應遺失，可能需要重啟 App，再到 Studio 核對遠端結果。
+
+## 0.51.0 正式發布：Anthropic Claude provider
+
+0.51.0 新增可選的 Anthropic Claude provider。App 以官方 Messages API 傳送字幕文字，使用 `x-api-key` 與固定 API 版本標頭，並把回應轉回既有的 cue 驗證流程；影片與音訊不會送出，API Key 僅作為該供應商的認證標頭，不會寫入一般設定或 API 回應。首次使用需在校閱頁保存 Anthropic Base URL、模型與 API Key，模型清單可由 `/v1/models` 載入。
+
+- 開發說明：[RELEASE-NOTES-0.51.0.md](RELEASE-NOTES-0.51.0.md)
+- GitHub Release：[v0.51.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0)
+
+## 0.50.0 開發內容：Breeze 效能透明化（收錄於後續版本）
+
+0.50.0 在 0.49.1 的首次 Breeze 設定流程上，新增固定效能參考與選取後提醒。需求方提供的 MacBook Air M3／8 GB 觀察為 1 小時 46 分影片約需 6 小時（約 `3.4×`）；這是單機風險訊號，不是跨機型保證或效能改善承諾。Whisper.cpp 仍是預設，速度敏感時可切回內建引擎。
+
+Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點拆分；正常時顯示最多兩行、每行可見文字最多 20 字元，必要時以連續時間碼分段，不以截斷方式修正。若原始 cue 只有極短時間而無法安全分配多個時間碼，會保留單一 cue、最多兩行，第二行可能超過 20 字元以避免拆斷英文單字。此為 0.50 開發中的可讀性修正，真實長音訊斷句品質仍需實機驗收。
+
+0.50 同時修正 macOS 乾淨 profile 首次啟動：沒有既存加密 AI 金鑰檔時，App 不再先查詢系統 Keychain，避免不必要的金鑰提示或啟動等待；只有實際存在安全金鑰檔時才會檢查並解密。
+
+- 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
+- 開發期間的公開基線為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)；後續正式版本見上方 0.51.0 與 0.52.0。
+
+## 歷史版本（發行時說明）
+
+以下 0.49.0 及更早版本的「目前」「最新版」「正式版本」等字樣，僅反映**該版本發布時**的歷史說明。**現在的最新公開 Release 是 v0.52.0（macOS arm64）**，請以上方連結及對應 Release notes 為準。
 
 ## 0.49.0 Breeze 第一版正式發布
 
@@ -20,7 +81,7 @@
 
 ## 0.48.0 正式發布
 
-0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開，macOS／Windows 資產與 SHA-256 digest 已核對；目前 Latest 為 v0.49.0。
+0.48.0 已完成本機 AI 字幕優化、Ollama／LM Studio 設定支援、翻譯原文／譯文分離、雙語顯示開關，以及模型解說文字安全清理。GitHub Release 已正式公開，macOS／Windows 資產與 SHA-256 digest 已核對；當時 Latest 為 v0.49.0。
 
 - 正式 Release：[v0.48.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.48.0)
 - macOS Apple Silicon：DMG 與 ZIP。
@@ -100,25 +161,21 @@
 
 此預覽版在核定的深藍側欄首頁與字幕校對工作區上，新增單一區間、非破壞式影片修剪。macOS 版使用內建 Whisper.cpp、Apple Metal、FFmpeg 與多語模型，不需要另外安裝 Python。
 
-離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。只有使用者主動啟用自行設定的 AI 供應商時，字幕文字才會送往該服務，影音不會上傳。
+離線字幕工廠是供 Windows 10／11 x64 與 Apple Silicon macOS 12 以上版本使用的本機字幕生成、校閱與輸出工具。影片、字幕與任務資料都保存在使用者電腦，不需要連線到雲端字幕服務。使用者主動啟用 AI 供應商時只送出字幕文字；開發版另提供需明確同意的 YouTube 影片／字幕上傳，詳見上方說明。
 
 ## 安裝版
 
 ### macOS Apple Silicon
 
-開啟下列 DMG，將「離線字幕工廠」拖到「應用程式」：
+從 [v0.52.0 GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 下載 `offline-subtitle-factory-0.52.0-macos-arm64.dmg`，開啟後將「離線字幕工廠」拖到「應用程式」。也可下載同頁的 `offline-subtitle-factory-0.52.0-macos-arm64.zip`，解壓後把 APP 移入「應用程式」。
 
-```text
-offline-subtitle-factory-0.49.0-macos-arm64.dmg
-```
-
-另提供 ZIP 版本，可解壓後把 APP 移入「應用程式」。目前成品使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
+此版使用 ad-hoc 本機簽章，未經 Apple 公證；若首次啟動被 Gatekeeper 阻擋，請在 Finder 對 APP 按右鍵並選擇「打開」。
 
 ### Windows x64
 
-Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 下載 `offline-subtitle-factory-setup-0.49.0.exe` 與 `offline-subtitle-factory-portable-0.49.0.exe`。
+本次 v0.52.0 發布不提供 Windows x64 資產。歷史 Windows 0.49.0 x64 版曾提供 NSIS Setup 與 Portable，可從 GitHub [`v0.49.0` Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.0) 取得；它不是本版，也不包含 v0.52.0 功能。
 
-目前 Windows 正式資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
+歷史 Windows 0.49.0 資產尚未使用程式碼簽章憑證，Windows 11 SmartScreen 可能顯示「未知發行者」。請先核對該 Release 所附 SHA-256，並優先在非關鍵環境完成安裝與操作確認，再由「其他資訊 → 仍要執行」啟動。
 
 ## 預設模式不需要自行安裝其他軟體
 
@@ -178,7 +235,7 @@ Windows 0.49.0 x64 版提供 NSIS Setup 與 Portable。可從 GitHub [`v0.49.0` 
 
 ## 開發與測試
 
-目前 0.47.1 發布與治理收尾位於 `codex/release-v0.47.1`；GitHub 專案首頁以 `main` 為預設分支，本次同步完成後新 checkout 應以 `main` 為準。
+GitHub 專案預設分支為 `main`。要重現特定正式版本，請切換到該版本的 tag；最新穩定安裝檔請使用 GitHub Releases 頁面，不要把預設分支的開發狀態視為最新版安裝包。
 
 ### Windows 11 x64
 

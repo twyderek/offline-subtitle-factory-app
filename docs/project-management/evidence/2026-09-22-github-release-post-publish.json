@@ -1,0 +1,144 @@
+{
+  "schema": "offline-subtitle-factory.github-release-post-publish-macos.v1",
+  "recordedAt": "2026-09-22",
+  "workItem": "REL-047",
+  "packageVersion": "0.51.0",
+  "scope": {
+    "releaseScope": "macos-arm64-only",
+    "windowsLocalAcceptance": false,
+    "systemNetworkDisabled": false,
+    "lmStudioExecuted": false,
+    "userDataModified": false,
+    "releasePublishedAtEvidenceCreation": true
+  },
+  "source": {
+    "branch": "codex/0.51-anthropic-claude",
+    "commit": "53956ccdee6e16e4c0413f09312a419613b27da6",
+    "tag": "v0.51.0",
+    "tagObject": "870704fa0b20486de4c234c6e4d5248b404c7233",
+    "tagResolvesToCommit": true,
+    "candidateDirectory": "../dist/release-0.51.0-macos-53956cc/"
+  },
+  "release": {
+    "id": 393530504,
+    "url": "https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.51.0",
+    "tagName": "v0.51.0",
+    "draft": false,
+    "prerelease": false,
+    "publishedAt": "2026-09-22T09:01:17Z",
+    "releaseNotesMatchLocalAfterTrailingNewlineNormalization": true,
+    "assets": [
+      {
+        "name": "latest-mac.yml",
+        "size": 566,
+        "digest": "sha256:741686e34932e3422a375d2f6317bac562b7f9d4b1882821ea5e8bb1c1a63589",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/latest-mac.yml"
+      },
+      {
+        "name": "offline-subtitle-factory-0.51.0-macos-arm64.dmg",
+        "size": 242742979,
+        "digest": "sha256:2fd5ee33b74c19cf65791f844be645becc3482d2eba2538a38e3343f2e17263d",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/offline-subtitle-factory-0.51.0-macos-arm64.dmg"
+      },
+      {
+        "name": "offline-subtitle-factory-0.51.0-macos-arm64.dmg.blockmap",
+        "size": 254668,
+        "digest": "sha256:75324cc83f2141ed93d3d4ee4f41def04933489d9876e3e79794906180ac35fb",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/offline-subtitle-factory-0.51.0-macos-arm64.dmg.blockmap"
+      },
+      {
+        "name": "offline-subtitle-factory-0.51.0-macos-arm64.zip",
+        "size": 249963233,
+        "digest": "sha256:e5499742edf2660a9e7fafcd7fde7eb5d513fa1e6523ea33bbc30019d507d260",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/offline-subtitle-factory-0.51.0-macos-arm64.zip"
+      },
+      {
+        "name": "offline-subtitle-factory-0.51.0-macos-arm64.zip.blockmap",
+        "size": 259030,
+        "digest": "sha256:bbec76e809f8e054c24e0280a9d72b53e6eceb82108926df81997c7d581d6800",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/offline-subtitle-factory-0.51.0-macos-arm64.zip.blockmap"
+      },
+      {
+        "name": "PROVENANCE.txt",
+        "size": 842,
+        "digest": "sha256:7a22bd620da0d5575e174c4f2f87042fc3240f925184a2e385ebda20a718ec52",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/PROVENANCE.txt"
+      },
+      {
+        "name": "SHA256SUMS-macos-arm64.txt",
+        "size": 474,
+        "digest": "sha256:e4b1a0b239235367da678ceabc2c4df7f8d1d542af6e8b214c8fbd7727c815fa",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/SHA256SUMS-macos-arm64.txt"
+      },
+      {
+        "name": "SIGNING-STATUS-macos-arm64.txt",
+        "size": 379,
+        "digest": "sha256:aa9a29476c64c88cdb639cf27f7ad43b5b6562b8a6ed67efac11c976fd4b8a5d",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/SIGNING-STATUS-macos-arm64.txt"
+      },
+      {
+        "name": "TEST-CANDIDATE-README.md",
+        "size": 984,
+        "digest": "sha256:77078bbbd62ec94801a1e13bef404cbf09ccb8113ab6862ce600bd7020a9e38a",
+        "browserDownloadUrl": "https://github.com/twyderek/offline-subtitle-factory-app/releases/download/v0.51.0/TEST-CANDIDATE-README.md"
+      }
+    ]
+  },
+  "remoteDownloadReadback": {
+    "directory": "/tmp/offline-release-0.51.0-remote",
+    "dmg": {
+      "bytes": 242742979,
+      "sha256": "2fd5ee33b74c19cf65791f844be645becc3482d2eba2538a38e3343f2e17263d",
+      "matchesLocalCandidate": true
+    },
+    "zip": {
+      "bytes": 249963233,
+      "sha256": "e5499742edf2660a9e7fafcd7fde7eb5d513fa1e6523ea33bbc30019d507d260",
+      "matchesLocalCandidate": true
+    },
+    "latestMacYml": {
+      "bytes": 566,
+      "sha256": "741686e34932e3422a375d2f6317bac562b7f9d4b1882821ea5e8bb1c1a63589",
+      "metadataPointsToPublishedAssets": true
+    },
+    "sha256Sums": {
+      "bytes": 474,
+      "sha256": "e4b1a0b239235367da678ceabc2c4df7f8d1d542af6e8b214c8fbd7727c815fa",
+      "matchesLocalCandidate": true
+    }
+  },
+  "windowsPreview": {
+    "localAcceptance": "skippedByUserScope",
+    "runs": [
+      {
+        "id": 35700305138,
+        "status": "completed",
+        "conclusion": "failure",
+        "event": "push",
+        "headSha": "53956ccdee6e16e4c0413f09312a419613b27da6"
+      },
+      {
+        "id": 35700315448,
+        "status": "completed",
+        "conclusion": "failure",
+        "event": "push",
+        "headSha": "53956ccdee6e16e4c0413f09312a419613b27da6"
+      }
+    ],
+    "failureSummary": "Windows runner failed in test-breeze-asr.mjs because no testable Breeze performance-hint update function was found; this is not local Windows acceptance evidence."
+  },
+  "verification": {
+    "releasePublic": true,
+    "assetCount": 9,
+    "allApiAssetSizesAndDigestsMatchLocal": true,
+    "downloadReadbackCompleted": true,
+    "latestMacMetadataValidated": true,
+    "releaseNotesValidated": true,
+    "postPublishVerified": true
+  },
+  "limitations": [
+    "本輪公開資產僅為 macOS arm64 DMG／ZIP；Windows 依需求方要求暫緩，且 GitHub Windows preview runs 35700305138／35700315448 於 Breeze assertion 失敗。",
+    "macOS 為 ad-hoc、未 Developer ID、未公證；spctl exit 3／rejected 是預期限制。",
+    "未宣稱正式 Applications／乾淨帳號、Gatekeeper 通過、真正斷網、真實 AI／模型品質或 Windows 實機驗收完成。"
+  ]
+}

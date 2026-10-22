@@ -1,0 +1,68 @@
+{
+  "schema": "offline-subtitle-factory.whisper-retry-cancellation.v1",
+  "date": "2026-09-18",
+  "workItem": "BUG-WHISPER-METAL-139",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "externalNetwork": false,
+    "userMediaRead": false,
+    "userSubtitleModified": false,
+    "lmStudioExecuted": false
+  },
+  "fixture": {
+    "runner": "scripts/fixtures/mock-whisper-cpp-runtime.mjs",
+    "metalAttempt": "exit 139 after partial SRT and JSON",
+    "cpuRetry": "--no-gpu child writes partial SRT and JSON, installs SIGTERM handler, then writes ready marker",
+    "cancelTrigger": "POST /api/jobs/:jobId/cancel after whisper-cpp-cpu-retry-ready marker"
+  },
+  "verification": {
+    "syntax": {
+      "command": "node --check scripts/fixtures/mock-whisper-cpp-runtime.mjs && node --check scripts/test-core.mjs",
+      "exitCode": 0
+    },
+    "coreIntegration": {
+      "command": "node scripts/test-core.mjs",
+      "repeatCount": 3,
+      "exitCodes": [0, 0, 0],
+      "statusBeforeChildClose": "running/cancelling",
+      "finalStatus": "cancelled",
+      "finalStage": "cancelled",
+      "finalWhisperDevice": "cpu",
+      "invocationSequence": ["metal", "cpu"],
+      "metalFallbackMarkerPreserved": true,
+      "cpuSigtermReceived": true,
+      "cpuChildClosedBeforeCancelled": true,
+      "thirdInvocationObserved": false,
+      "temporaryWavPresentAfterCancel": false,
+      "partialSrtPresentAfterCancel": false,
+      "partialJsonPresentAfterCancel": false,
+      "qualityMetadataPresentAfterCancel": false,
+      "draftPresentAfterCancel": false,
+      "nonAsrEditPlanPreserved": true,
+      "staleMetalPartialObservedByCpu": false
+    },
+    "fullRegression": {
+      "command": "npm run check",
+      "exitCode": 0
+    },
+    "diffCheck": {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  },
+  "scope": {
+    "productionServerCodeChanged": false,
+    "bundledRuntimeUsed": false,
+    "realBundledCrashToCpuCancellationObserved": false,
+    "notValidated": [
+      "external cancellation within the synchronous Metal close callback",
+      "Windows taskkill tree",
+      "long audio",
+      "Chinese speech recognition quality",
+      "clean installation",
+      "release"
+    ]
+  }
+}

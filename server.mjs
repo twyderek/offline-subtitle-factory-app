@@ -10,10 +10,10 @@ import { getEditPaths, normalizeEditPlan, readEditPlan, resolveEffectiveMediaPat
 import { trimSrtToRange } from './lib/subtitle-timeline.mjs';
 import { attachWhisperQuality, parseWhisperQualityJson } from './lib/whisper-quality.mjs';
 import { sanitizeWhisperSrt } from './lib/whisper-srt.mjs';
-import { shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
+import { describeWhisperProcessFailure, isWhisperProcessFailure, shouldRetryWhisperOnCpu } from './lib/whisper-fallback-policy.mjs';
 import { buildWhisperCppArgs, inspectWhisperModels, normalizeWhisperModelName } from './lib/whisper-models.mjs';
 import { downloadWhisperModelFile, formatModelDownloadError, getWhisperModelDownloadDefinition, listWhisperModelDownloads, mergeWhisperModelManifest } from './lib/whisper-model-download.mjs';
-import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
+import { BREEZE_ASR_ENGINE, BREEZE_ASR_MODEL, BREEZE_ASR_PERFORMANCE_REFERENCE, BREEZE_ASR_REVISION, breezeRuntimeInstallGuide, breezeRuntimeInstallGuideDetails, buildBreezeAsrArgs, buildBreezeRuntimeProbeArgs, inspectBreezeAsrModel } from './lib/breeze-asr.mjs';
 import { resolveBreezePython } from './lib/breeze-runtime-probe.mjs';
 import { probeCommand } from './lib/process-probe.mjs';
 import { optimizeSubtitleCues } from './lib/ai/subtitle-optimizer.mjs';
@@ -47,6 +47,9 @@ const toolsInfo = resolveToolsInfo();
 const toolsDir = toolsInfo.toolsDir;
 const toolPaths = toolsInfo.paths;
 const breezeTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_BREEZE_RUNNER || '' : '';
+const whisperCppTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_WHISPER_CPP_RUNNER || '' : '';
+const whisperPythonTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_WHISPER_PYTHON_RUNNER || '' : '';
+const ffmpegTestRunner = process.env.NODE_ENV === 'test' ? process.env.OFFLINE_SUBTITLE_TEST_FFMPEG_RUNNER || '' : '';
 const allowMockBreezeModel = Boolean(breezeTestRunner);
 const usePartialWhisperDownloadFixture = process.env.NODE_ENV === 'test'
   && process.env.OFFLINE_SUBTITLE_TEST_WHISPER_PARTIAL_DOWNLOAD === '1';
@@ -78,13 +81,19 @@ fs.mkdirSync(toolPaths.breezeModelCache, { recursive: true });
 for (const modelCacheDir of [toolPaths.whisperModelCache, toolPaths.breezeModelCache]) {
   for (const file of fs.readdirSync(modelCacheDir)) {
     if (file.endsWith('.download')) {
-      try { fs.unlinkSync(path.join(modelCacheDir, file)); } catch {}
+      const filePath = path.join(modelCacheDir, file);
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') console.warn('[server] Failed to remove temp file:', filePath, error.message);
+      }
     }
   }
 }
 
 const runningJobs = new Map();
 const runningBurns = new Map();
+const youtubePublishLeases = new Map();
 const runningWaveforms = new Map();
 const runningThumbnails = new Map();
 const runningTrims = new Map();
@@ -109,6 +118,20 @@ let whisperModelInspectionCache = null;
 let whisperModelInspectionAt = 0;
 const ASS_PLAY_RES_X = 1920;
 const ASS_PLAY_RES_Y = 1080;
+const AI_PROFILE_STRING_FIELDS = Object.freeze(['baseUrl', 'model', 'deployment', 'apiVersion']);
+const AI_PROFILE_NUMBER_FIELDS = Object.freeze(['batchSize', 'timeoutSeconds']);
+const LEGACY_AI_SECRET_FIELD_NAMES = new Set([
+  'apikey',
+  'authorization',
+  'accesstoken',
+  'bearertoken',
+  'clientsecret',
+  'credential',
+  'password',
+  'privatekey',
+  'secret',
+  'token',
+]);
 
 const defaultSettings = {
   appLanguage: 'zh-TW',
@@ -136,8 +159,26 @@ const defaultSettings = {
 let appSettings = loadSettings();
 fs.mkdirSync(getJobsDir(), { recursive: true });
 
+const internalErrorDetailsPattern = /(?:[A-Za-z]:[\\/]|(?:file:\/\/)?(?:^|[\s("'`])\/(?:Users|private|tmp|var|home|Volumes|Applications|opt|etc|System)\/|\b(?:ENOENT|EACCES|EPERM|ENOTFOUND|ffprobe|spawn)\b|\bat\s+\S+:\d+)/i;
+
+function sanitizeApiErrorPayload(value) {
+  if (Array.isArray(value)) return value.map((item) => sanitizeApiErrorPayload(item));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    ['error', 'message', 'detail', 'reason', 'stderr', 'stdout'].includes(key) && typeof item === 'string'
+      ? getSafeApiErrorMessage({ message: item }, '操作失敗，請稍後再試。')
+      : key === 'logs' && Array.isArray(item)
+        ? item.map((entry) => typeof entry === 'string'
+          ? getSafeApiErrorMessage({ message: entry }, '操作失敗，請稍後再試。')
+          : sanitizeApiErrorPayload(entry))
+      : sanitizeApiErrorPayload(item),
+  ]));
+}
+
 function sendJson(res, status, value) {
-  const body = JSON.stringify(value, null, 2);
+  const safeValue = sanitizeApiErrorPayload(value);
+  const body = JSON.stringify(safeValue, null, 2);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
@@ -148,6 +189,14 @@ function sendJson(res, status, value) {
 function sendText(res, status, text) {
   res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(text);
+}
+
+function getSafeApiErrorMessage(error, fallback) {
+  const message = String(error?.message || '').trim();
+  const detailedErrorsEnabled = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  if (detailedErrorsEnabled && message) return message.slice(0, 200);
+  if (!message || message.length > 200 || internalErrorDetailsPattern.test(message)) return fallback;
+  return message;
 }
 
 function readRequest(req, timeoutMs = 60000) {
@@ -188,7 +237,11 @@ function streamMultipart(req, tempDir) {
     const tempPaths = [];
     let settled = false;
     const cleanup = () => tempPaths.forEach((filePath) => {
-      try { fs.unlinkSync(filePath); } catch {}
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        if (error?.code !== 'ENOENT') console.warn('[server] Failed to cleanup temp file:', filePath, error.message);
+      }
     });
     const fail = (error) => {
       if (settled) return;
@@ -260,6 +313,21 @@ function streamMultipart(req, tempDir) {
 
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function writeJsonAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  let existingMode;
+  try {
+    existingMode = fs.statSync(filePath).mode & 0o777;
+  } catch {}
+  try {
+    fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    if (existingMode !== undefined) fs.chmodSync(temporaryPath, existingMode);
+    fs.renameSync(temporaryPath, filePath);
+  } finally {
+    if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+  }
 }
 
 function readJson(filePath) {
@@ -394,10 +462,52 @@ function normalizeFolder(value) {
 function loadSettings() {
   try {
     if (!fs.existsSync(settingsPath)) return { ...defaultSettings };
-    return normalizeSettings(readJson(settingsPath));
+    const persisted = readJson(settingsPath);
+    const settingsSource = persisted && typeof persisted === 'object' && !Array.isArray(persisted) ? persisted : {};
+    const normalized = normalizeSettings(settingsSource);
+    const migration = sanitizePersistedAiSettings(persisted, normalized);
+    if (migration.changed) {
+      try {
+        writeJsonAtomic(settingsPath, migration.value);
+      } catch {
+        console.warn('[settings] 無法清理歷史 AI 秘密欄位；請確認一般設定檔的寫入權限。');
+      }
+    }
+    return normalized;
   } catch {
     return { ...defaultSettings };
   }
+}
+
+function normalizedSecretFieldName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function sanitizePersistedAiSettings(persisted, normalizedSettingsValue) {
+  if (!persisted || typeof persisted !== 'object' || Array.isArray(persisted)) {
+    return { changed: true, value: normalizedSettingsValue };
+  }
+  const normalizedAi = normalizedSettingsValue.ai;
+  const rawAi = persisted.ai;
+  if (!rawAi || typeof rawAi !== 'object' || Array.isArray(rawAi)) {
+    return { changed: true, value: { ...persisted, ai: normalizedAi } };
+  }
+  let changed = false;
+  const sanitizedAi = { ...rawAi };
+  for (const field of Object.keys(sanitizedAi)) {
+    if (!LEGACY_AI_SECRET_FIELD_NAMES.has(normalizedSecretFieldName(field))) continue;
+    delete sanitizedAi[field];
+    changed = true;
+  }
+  const normalizedProfiles = normalizedAi.profiles || {};
+  if (JSON.stringify(rawAi.profiles) !== JSON.stringify(normalizedProfiles)) {
+    sanitizedAi.profiles = normalizedProfiles;
+    changed = true;
+  }
+  return {
+    changed,
+    value: changed ? { ...persisted, ai: sanitizedAi } : persisted,
+  };
 }
 
 function normalizeSettings(value = {}) {
@@ -408,6 +518,31 @@ function normalizeSettings(value = {}) {
     exportFolder: normalizeFolder(value.exportFolder),
     ai: normalizeAiSettings(value.ai),
   };
+}
+
+function normalizeAiProfiles(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const profiles = {};
+  for (const [provider, profile] of Object.entries(value)) {
+    if (!isSupportedProvider(provider) || !profile || typeof profile !== 'object' || Array.isArray(profile)) continue;
+    const normalized = {};
+    for (const field of AI_PROFILE_STRING_FIELDS) {
+      if (!Object.hasOwn(profile, field) || typeof profile[field] !== 'string') continue;
+      const text = profile[field].trim();
+      normalized[field] = field === 'baseUrl' ? text.replace(/\/+$/, '') : text;
+    }
+    for (const field of AI_PROFILE_NUMBER_FIELDS) {
+      if (!Object.hasOwn(profile, field)) continue;
+      const raw = profile[field];
+      if (!['number', 'string'].includes(typeof raw) || (typeof raw === 'string' && !raw.trim())) continue;
+      const min = field === 'batchSize' ? 1 : 10;
+      const max = field === 'batchSize' ? (isLocalAiProvider(provider) ? 20 : 100) : 300;
+      const normalizedNumber = clampNumber(raw, min, max, undefined);
+      if (normalizedNumber !== undefined) normalized[field] = normalizedNumber;
+    }
+    profiles[provider] = normalized;
+  }
+  return profiles;
 }
 
 function normalizeAiSettings(value = {}) {
@@ -434,7 +569,7 @@ function normalizeAiSettings(value = {}) {
     deployment: String(value.deployment || '').trim(),
     apiVersion: String(value.apiVersion || defaultSettings.ai.apiVersion).trim(),
     consentGrantedAt: String(value.consentGrantedAt || '').trim(),
-    profiles: value.profiles && typeof value.profiles === 'object' ? value.profiles : {},
+    profiles: normalizeAiProfiles(value.profiles),
     instructions: String(value.instructions || defaultSettings.ai.instructions).trim(),
   };
 }
@@ -819,6 +954,7 @@ function listJobs() {
 
 function saveStatus(job) {
   writeJson(path.join(job.jobRoot, 'job-status.json'), job.status);
+  jobsListCache = null;
 }
 
 function updateJob(job, patch, log) {
@@ -826,7 +962,6 @@ function updateJob(job, patch, log) {
   const cleanLog = sanitizeLog(log);
   if (cleanLog) job.status.logs = [...(job.status.logs || []), cleanLog].slice(-120);
   saveStatus(job);
-  jobsListCache = null;
 }
 
 function sanitizeLog(value) {
@@ -922,7 +1057,7 @@ async function getBasicToolsStatus(force = false) {
   if (!force && basicToolsPromise) return basicToolsPromise;
   basicToolsPromise = Promise.all([
     commandExists(toolPaths.node),
-    commandExists(toolPaths.ffmpeg, ['-version']),
+    ffmpegTestRunner ? Promise.resolve(true) : commandExists(toolPaths.ffmpeg, ['-version']),
     commandExists(toolPaths.python),
     commandExists(toolPaths.python, ['-c', 'import whisper; print("ok")']),
     breezeTestRunner ? Promise.resolve(true) : commandExists(toolPaths.breezePython, buildBreezeRuntimeProbeArgs(), 15000),
@@ -1103,6 +1238,7 @@ async function getBreezeModelStatusPayload(runtimeReady = false) {
       ? (runtimeReady ? 'Breeze ASR 25 模型與 runtime 已就緒' : '模型已安裝，但缺少 MediaTek patched Whisper runtime')
       : '尚未安裝 Breeze ASR 25 模型'),
     error: breezeModelDownloadJob?.error || null,
+    performanceReference: BREEZE_ASR_PERFORMANCE_REFERENCE,
     runtimeInstallGuide: breezeRuntimeInstallGuide(),
     runtimeInstallGuideDetails: breezeRuntimeInstallGuideDetails(),
   };
@@ -1365,6 +1501,21 @@ function createJobCancelledError() {
 
 function throwIfJobCancelled(signal) {
   if (signal?.aborted) throw createJobCancelledError();
+}
+
+function throwIfJobCancelledWithAudioCleanup(signal, audioFile) {
+  if (!signal?.aborted) return;
+  try { fs.unlinkSync(audioFile); } catch {}
+  throw createJobCancelledError();
+}
+
+function removeWhisperPartialOutputs(workingDir, outputBases) {
+  for (const outputBase of outputBases) {
+    for (const suffix of ['.srt', '.json']) {
+      try { fs.unlinkSync(`${outputBase}${suffix}`); } catch {}
+    }
+  }
+  try { fs.unlinkSync(path.join(workingDir, 'quality-metadata.json')); } catch {}
 }
 
 function startJob(jobId) {
@@ -1761,8 +1912,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
   const videoFile = getEffectiveVideoPath(job);
   if (!videoFile) throw new Error('找不到可轉錄的有效影片');
   const audioFile = await prepareWhisperAudio(job, videoFile, workingDir, signal);
-  throwIfJobCancelled(signal);
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const tools = await getBasicToolsStatus();
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const selectedModel = inspectWhisperModelWithCache(job.config.modelName);
   if (!selectedModel.valid) {
     try { fs.unlinkSync(audioFile); } catch {}
@@ -1771,10 +1923,12 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       : `Whisper ${selectedModel.name.toUpperCase()} 模型檔案驗證失敗（${selectedModel.reason}）`;
     throw new Error(`${reason}；請在模型管理下載或手動放入模型快取後再試`);
   }
-  if (tools.asrEngine === 'whisper.cpp') {
+  const usePythonTestRunner = Boolean(whisperPythonTestRunner && fs.existsSync(path.join(workingDir, 'whisper-python-mock')));
+  if (tools.asrEngine === 'whisper.cpp' && !usePythonTestRunner) {
     return runWhisperCpp(job, audioFile, workingDir, signal);
   }
   const gpu = await getGpuStatus();
+  throwIfJobCancelledWithAudioCleanup(signal, audioFile);
   const useCuda = gpu.available && gpu.status === 'cuda';
   const preset = job.config.performancePreset || 'balanced';
   const configuredThreads = Number(job.config.cpuThreads || 0);
@@ -1793,8 +1947,15 @@ async function runWhisper(job, inputDir, workingDir, signal) {
     },
   }, `Whisper 裝置=${useCuda ? 'CUDA' : 'CPU'} 模式=${preset}`);
 
+  const testSpawnDelayMs = usePythonTestRunner ? Number(process.env.OFFLINE_SUBTITLE_TEST_WHISPER_SPAWN_DELAY_MS || 0) : 0;
+  if (testSpawnDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, testSpawnDelayMs));
+    throwIfJobCancelledWithAudioCleanup(signal, audioFile);
+  }
+
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
       reject(createJobCancelledError());
       return;
     }
@@ -1813,7 +1974,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
     if (preset === 'accurate') args.push('--beam_size', '5');
     if (job.config.modelName) args.push('--model', job.config.modelName);
     let lastProgressLogAt = 0;
-    const child = spawn(toolPaths.python, args, {
+    const runtimeCommand = usePythonTestRunner ? process.execPath : toolPaths.python;
+    const runtimeArgs = usePythonTestRunner ? [whisperPythonTestRunner, ...args] : args;
+    const child = spawn(runtimeCommand, runtimeArgs, {
       shell: false,
       env: {
         ...process.env,
@@ -1826,16 +1989,36 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       windowsHide: true,
     });
     let settled = false;
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
     const finish = (callback) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
       try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) {
+            removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
+            finish(() => reject(createJobCancelledError()));
+          }
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stdout.on('data', (data) => {
@@ -1850,9 +2033,21 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         updateJob(job, { progress: 52, message: 'Whisper 本機轉錄中' }, log);
       }
     });
-    child.on('error', (error) => finish(() => reject(error)));
-    child.on('exit', (code) => {
+    child.on('error', (error) => {
       if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      finish(() => reject(error));
+    });
+    child.on('close', (code) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [path.join(workingDir, path.parse(audioFile).name)]);
         finish(() => reject(createJobCancelledError()));
         return;
       }
@@ -1865,7 +2060,10 @@ async function runWhisper(job, inputDir, workingDir, signal) {
         finish(() => reject(new Error('Whisper did not produce an SRT file')));
         return;
       }
-      const sanitized = sanitizeWhisperSrt(fs.readFileSync(path.join(workingDir, srtFile), 'utf8'));
+      const sanitized = sanitizeWhisperSrt(
+        fs.readFileSync(path.join(workingDir, srtFile), 'utf8'),
+        { splitLongCues: normalizeWhisperModelName(job.config.modelName) === 'small' },
+      );
       if (!sanitized.cues.length) {
         finish(() => reject(new Error('Whisper 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
         return;
@@ -1873,6 +2071,9 @@ async function runWhisper(job, inputDir, workingDir, signal) {
       fs.writeFileSync(path.join(workingDir, 'draft.srt'), sanitized.subtitle, 'utf8');
       if (sanitized.droppedCount > 0) {
         updateJob(job, { progress: 58, message: `Whisper 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
+      }
+      if (sanitized.normalizedCueCount > 0) {
+        updateJob(job, { progress: 59, message: `Whisper Small 已整理 ${sanitized.normalizedCueCount} 段過長字幕` }, `Small 長 cue：${sanitized.splitCueCount} 段拆分、正常時每行最多 20 字元；未截斷文字`);
       }
       finish(resolve);
     });
@@ -1927,7 +2128,9 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
       cpuThreads,
       forceCpu,
     });
-    const child = spawn(toolPaths.whisperCpp, args, {
+    const runtimeCommand = whisperCppTestRunner ? process.execPath : toolPaths.whisperCpp;
+    const runtimeArgs = whisperCppTestRunner ? [whisperCppTestRunner, ...args] : args;
+    const child = spawn(runtimeCommand, runtimeArgs, {
       shell: false,
       cwd: path.dirname(toolPaths.whisperCpp),
       env: {
@@ -1939,16 +2142,36 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
     let settled = false;
     let stderr = '';
     let lastProgressLogAt = 0;
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
     const finish = (callback, cleanupAudio = true) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
       if (cleanupAudio) try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) {
+            removeWhisperPartialOutputs(workingDir, [outputBase]);
+            finish(() => reject(createJobCancelledError()));
+          }
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stdout.on('data', (data) => {
@@ -1966,29 +2189,44 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
         updateJob(job, { progress: 52, message: 'Whisper.cpp 本機轉錄中' }, log);
       }
     });
-    child.on('error', (error) => finish(() => reject(error)));
-    child.on('exit', (code) => {
+    child.on('error', (error) => {
       if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
         finish(() => reject(createJobCancelledError()));
         return;
       }
-      if (code !== 0) {
-        if (shouldRetryWhisperOnCpu({ platform: process.platform, arch: process.arch, forceCpu, exitCode: code })) {
-          for (const suffix of ['.srt', '.json']) {
-            try { fs.unlinkSync(`${outputBase}${suffix}`); } catch {}
-          }
-          updateJob(job, { progress: 52, message: 'Apple Metal 失敗，改用 CPU 重試 Whisper.cpp' }, `Metal exit ${code}，開始 CPU fallback：${sanitizeLog(stderr).slice(-500)}`);
+      finish(() => reject(error));
+    });
+    child.on('close', (code, signalName) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
+        finish(() => reject(createJobCancelledError()));
+        return;
+      }
+      if (isWhisperProcessFailure({ exitCode: code, signal: signalName })) {
+        const failureReason = describeWhisperProcessFailure({ exitCode: code, signal: signalName });
+        if (shouldRetryWhisperOnCpu({ platform: process.platform, arch: process.arch, forceCpu, exitCode: code, signal: signalName })) {
+          removeWhisperPartialOutputs(workingDir, [outputBase]);
+          updateJob(job, { progress: 52, message: 'Apple Metal 失敗，改用 CPU 重試 Whisper.cpp' }, `Metal ${failureReason}，開始 CPU fallback：${sanitizeLog(stderr).slice(-500)}`);
           finish(() => runWhisperCpp(job, audioFile, workingDir, signal, true).then(resolve, reject), false);
           return;
         }
-        finish(() => reject(new Error(`Whisper.cpp exit code ${code}: ${sanitizeLog(stderr).slice(-500)}`)));
+        removeWhisperPartialOutputs(workingDir, [outputBase]);
+        finish(() => reject(new Error(`Whisper.cpp ${failureReason}: ${sanitizeLog(stderr).slice(-500)}`)));
         return;
       }
       if (!fs.existsSync(outputSrt)) {
         finish(() => reject(new Error('Whisper.cpp 未產生 SRT 字幕檔')));
         return;
       }
-      const sanitized = sanitizeWhisperSrt(fs.readFileSync(outputSrt, 'utf8'));
+      const sanitized = sanitizeWhisperSrt(
+        fs.readFileSync(outputSrt, 'utf8'),
+        { splitLongCues: modelName === 'small' },
+      );
       if (!sanitized.cues.length) {
         finish(() => reject(new Error('Whisper.cpp 只產生無效字幕時間碼；請確認音訊內容或改用其他模型後重試')));
         return;
@@ -1997,17 +2235,32 @@ function runWhisperCpp(job, audioFile, workingDir, signal, forceCpu = false) {
       if (sanitized.droppedCount > 0) {
         updateJob(job, { progress: 58, message: `Whisper.cpp 已略過 ${sanitized.droppedCount} 段無效時間碼` }, `清理 ${sanitized.droppedCount}/${sanitized.totalBlocks} 段無效 SRT cue`);
       }
+      if (sanitized.normalizedCueCount > 0) {
+        updateJob(job, { progress: 59, message: `Whisper Small 已整理 ${sanitized.normalizedCueCount} 段過長字幕` }, `Small 長 cue：${sanitized.splitCueCount} 段拆分、正常時每行最多 20 字元；未截斷文字`);
+      }
       try {
         const jsonPath = `${outputBase}.json`;
         const quality = parseWhisperQualityJson(JSON.parse(fs.readFileSync(jsonPath, 'utf8')));
+        const allowPartialQuality = sanitized.splitCueCount > 0;
         const qualityForCues = sanitized.cues.map((cue) => {
+          if (allowPartialQuality && cue.splitFromSource) return null;
           const segment = quality[cue.sourceIndex];
           return segment ? { ...segment, id: cue.id } : null;
         });
-        const matched = qualityForCues.every(Boolean)
+        const matched = (allowPartialQuality ? qualityForCues.some(Boolean) : qualityForCues.every(Boolean))
           ? attachWhisperQuality(sanitized.cues, qualityForCues)
           : { matched: false, reason: 'source-metadata-mismatch' };
-        if (matched.matched && matched.reason === 'engine-metrics') writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map(({ id, start, end, confidence, noSpeechProbability }) => ({ id, start, end, confidence, noSpeechProbability })));
+        if (matched.matched && matched.reason === 'engine-metrics') {
+          writeJson(path.join(workingDir, 'quality-metadata.json'), matched.cues.map((cue, index) => {
+            const segment = qualityForCues[index];
+            return segment
+              ? { id: cue.id, start: cue.start, end: cue.end, confidence: cue.confidence, noSpeechProbability: cue.noSpeechProbability }
+              : null;
+          }));
+        }
+        if (sanitized.splitCueCount > 0) {
+          updateJob(job, { progress: 60, message: 'Whisper Small 字幕已整理；未拆分片段仍保留品質指標' }, 'Small 拆分 cue 不使用不精確的 segment 對應，其他 cue 保留可取得的 engine metadata');
+        }
       } catch { /* malformed or incompatible metadata must not block SRT completion */ }
       finish(resolve);
     });
@@ -2023,33 +2276,67 @@ function prepareWhisperAudio(job, videoFile, workingDir, signal) {
   }, '使用 FFmpeg 建立 Whisper 最佳化音訊');
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
+      try { fs.unlinkSync(audioFile); } catch {}
       reject(createJobCancelledError());
       return;
     }
-    const child = spawn(toolPaths.ffmpeg, [
+    const ffmpegArgs = [
       '-y', '-i', videoFile,
       '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le',
       audioFile,
-    ], { shell: false, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    ];
+    const runtimeCommand = ffmpegTestRunner ? process.execPath : toolPaths.ffmpeg;
+    const runtimeArgs = ffmpegTestRunner ? [ffmpegTestRunner, ...ffmpegArgs] : ffmpegArgs;
+    const child = spawn(runtimeCommand, runtimeArgs, { shell: false, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
     let settled = false;
-    const finish = (callback) => {
+    let cancelKillTimer = null;
+    let windowsTreeKillPending = false;
+    let cancelledChildClosed = false;
+    const finish = (callback, cleanupAudio = false) => {
       if (settled) return;
       settled = true;
+      if (cancelKillTimer) clearTimeout(cancelKillTimer);
       signal?.removeEventListener('abort', abortHandler);
+      if (cleanupAudio) try { fs.unlinkSync(audioFile); } catch {}
       callback();
     };
     const abortHandler = () => {
-      child.kill('SIGTERM');
-      finish(() => reject(createJobCancelledError()));
+      if (process.platform === 'win32' && child.pid) {
+        windowsTreeKillPending = true;
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore', windowsHide: true });
+        const finishTreeKill = (failed = false) => {
+          if (!windowsTreeKillPending) return;
+          windowsTreeKillPending = false;
+          if (failed) child.kill('SIGKILL');
+          if (cancelledChildClosed) finish(() => reject(createJobCancelledError()), true);
+        };
+        killer.on('error', () => finishTreeKill(true));
+        killer.on('close', (code) => finishTreeKill(code !== 0));
+      } else {
+        child.kill('SIGTERM');
+        cancelKillTimer = setTimeout(() => child.kill('SIGKILL'), 3000);
+      }
     };
     signal?.addEventListener('abort', abortHandler, { once: true });
     child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk.toString('utf8')}`.slice(-2000); });
-    child.on('error', (error) => finish(() => reject(error)));
+    child.on('error', (error) => {
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        finish(() => reject(createJobCancelledError()), true);
+        return;
+      }
+      finish(() => reject(error), true);
+    });
     child.on('close', (code) => {
-      if (signal?.aborted) finish(() => reject(createJobCancelledError()));
+      if (signal?.aborted) {
+        cancelledChildClosed = true;
+        if (windowsTreeKillPending) return;
+        finish(() => reject(createJobCancelledError()), true);
+      }
       else if (code === 0 && fs.existsSync(audioFile)) finish(() => resolve(audioFile));
-      else finish(() => reject(new Error(`音訊前處理失敗（FFmpeg exit ${code}）：${sanitizeLog(stderr).slice(-300)}`)));
+      else finish(() => reject(new Error(`音訊前處理失敗（FFmpeg exit ${code}）：${sanitizeLog(stderr).slice(-300)}`)), true);
     });
   });
 }
@@ -2801,6 +3088,11 @@ function deleteJob(job) {
     throw new Error('Refusing to delete a path outside the jobs directory.');
   }
   const jobId = job.config.jobId;
+  if (youtubePublishLeases.has(fs.realpathSync(jobRoot))) {
+    const error = new Error('YouTube 上傳中，請先在上傳視窗停止傳送並等待完成後再刪除專案。');
+    error.statusCode = 409;
+    throw error;
+  }
   cancelJob(jobId);
   cancelTrim(jobId);
   cancelBurn(jobId);
@@ -3728,7 +4020,7 @@ async function handleApi(req, res) {
         cacheDirectory: toolPaths.breezeModelCache,
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '模型下載失敗，請稍後再試。') });
     }
     return;
   }
@@ -3750,7 +4042,7 @@ async function handleApi(req, res) {
         cacheDirectory: toolPaths.whisperModelCache,
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '模型下載失敗，請稍後再試。') });
     }
     return;
   }
@@ -3774,7 +4066,7 @@ async function handleApi(req, res) {
         settings: saveSettings(payload),
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '設定格式無效，請檢查後重試。') });
     }
     return;
   }
@@ -3800,7 +4092,7 @@ async function handleApi(req, res) {
       if (nextAi.enabled && (!nextAi.baseUrl || !nextAi.model)) throw new Error('啟用 AI 前必須填寫 Base URL 與模型名稱');
       if (nextAi.enabled && nextAi.provider === 'azure' && !nextAi.deployment) throw new Error('啟用 Azure OpenAI 前必須填寫 Azure Deployment');
       if (nextAi.baseUrl) new URL(nextAi.baseUrl);
-      const profiles = { ...(appSettings.ai.profiles || {}), ...(payload.profiles || {}) };
+      const profiles = { ...(appSettings.ai.profiles || {}), ...(nextAi.profiles || {}) };
       profiles[nextAi.provider] = {
         baseUrl: nextAi.baseUrl, model: nextAi.model, deployment: nextAi.deployment,
         apiVersion: nextAi.apiVersion, batchSize: nextAi.batchSize, timeoutSeconds: nextAi.timeoutSeconds,
@@ -3811,7 +4103,7 @@ async function handleApi(req, res) {
       saveAiApiKey(payload.apiKey, nextAi.provider);
       sendJson(res, 200, { ok: true, settings: publicAiSettings() });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 設定無效，請檢查後重試。') });
     }
     return;
   }
@@ -3834,7 +4126,7 @@ async function handleApi(req, res) {
       if (apiKey) runtimeAiKeys[provider] = apiKey;
       else delete runtimeAiKeys[provider];
       sendJson(res, 200, { ok: true, hasApiKey: Boolean(runtimeAiKeys[provider]) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 金鑰設定失敗，請重試。') }); }
     return;
   }
   if (req.method === 'GET' && url.pathname === '/api/ai/local-services') {
@@ -3852,7 +4144,7 @@ async function handleApi(req, res) {
         models: models.map((model) => ({ id: String(model?.id || '') })).filter((model) => model.id),
       });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 模型清單讀取失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -3867,7 +4159,7 @@ async function handleApi(req, res) {
         capabilities,
       });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 模型能力檢查失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -3878,7 +4170,7 @@ async function handleApi(req, res) {
       const result = await createProvider(config).test();
       sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
-      sendJson(res, 422, { ok: false, error: error.message });
+      sendJson(res, 422, { ok: false, error: getSafeApiErrorMessage(error, 'AI 服務連線失敗，請檢查設定後重試。') });
     }
     return;
   }
@@ -3927,7 +4219,7 @@ async function handleApi(req, res) {
       });
     } catch (error) {
       console.error('[api] video probe error:', error.message);
-      sendJson(res, 500, { error: error.message });
+      sendJson(res, 500, { error: getSafeApiErrorMessage(error, '無法分析影片，請確認檔案格式後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -3950,7 +4242,7 @@ async function handleApi(req, res) {
       });
     } catch (error) {
       console.error('[api] Job list error:', error.message);
-      sendJson(res, 500, { error: error.message });
+      sendJson(res, 500, { error: getSafeApiErrorMessage(error, '無法讀取任務清單，請稍後再試。') });
     }
     return;
   }
@@ -3963,7 +4255,7 @@ async function handleApi(req, res) {
       sendJson(res, 201, result);
     } catch (error) {
       console.error('[api] Job creation error:', error.message, error.stack);
-      sendJson(res, 400, { error: error.message });
+      sendJson(res, 400, { error: getSafeApiErrorMessage(error, '無法建立字幕任務，請確認檔案與設定後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -3977,6 +4269,18 @@ async function handleApi(req, res) {
   }
   const jobId = match[1];
   const action = match[2];
+  if (req.method === 'POST' && action === 'youtube-publish-release') {
+    const payload = await readJsonBody(req);
+    for (const [root, lease] of youtubePublishLeases) {
+      if (lease.id === payload.leaseId && lease.jobId === jobId) {
+        youtubePublishLeases.delete(root);
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+    }
+    sendJson(res, 409, { ok: false, error: '找不到對應的 YouTube 上傳鎖定。' });
+    return;
+  }
   const job = loadJob(jobId);
   if (!job) {
     sendJson(res, 404, { error: '找不到任務' });
@@ -3987,8 +4291,21 @@ async function handleApi(req, res) {
     try {
       sendJson(res, 200, deleteJob(job));
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, error.statusCode || 400, { ok: false, error: getSafeApiErrorMessage(error, '刪除任務失敗，請稍後再試。') });
     }
+    return;
+  }
+
+  if (req.method === 'POST' && action === 'youtube-publish-lease') {
+    const payload = await readJsonBody(req);
+    const root = fs.realpathSync(job.jobRoot);
+    if (payload.expectedRoot !== root || youtubePublishLeases.has(root)) {
+      sendJson(res, 409, { ok: false, error: '專案已變動或 YouTube 上傳進行中。' });
+      return;
+    }
+    const id = crypto.randomUUID();
+    youtubePublishLeases.set(root, { id, jobId });
+    sendJson(res, 200, { ok: true, leaseId: id });
     return;
   }
 
@@ -4059,7 +4376,7 @@ async function handleApi(req, res) {
       });
       res.end(body);
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕檔案讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4082,7 +4399,7 @@ async function handleApi(req, res) {
         jobStatus: { status: job.status.status, stage: job.status.stage },
       });
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '無法讀取修剪資訊，請確認任務檔案後重試。') });
     }
     return;
   }
@@ -4092,7 +4409,7 @@ async function handleApi(req, res) {
       const plan = await saveEditPlan(job, payload);
       sendJson(res, 200, { ok: true, plan });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '修剪設定儲存失敗，請檢查內容後重試。') });
     }
     return;
   }
@@ -4116,7 +4433,7 @@ async function handleApi(req, res) {
     try {
       sendJson(res, 200, restoreOriginalMedia(job));
     } catch (error) {
-      sendJson(res, error.statusCode || 400, { ok: false, error: error.message });
+      sendJson(res, error.statusCode || 400, { ok: false, error: getSafeApiErrorMessage(error, '還原原始影片失敗，請稍後再試。') });
     }
     return;
   }
@@ -4127,7 +4444,7 @@ async function handleApi(req, res) {
       await openFolderInExplorer(folder);
       sendJson(res, 200, { ok: true, folder: relativeToApp(folder) });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '開啟資料夾失敗，請稍後再試。') });
     }
     return;
   }
@@ -4206,7 +4523,7 @@ async function handleApi(req, res) {
         },
       });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕規則套用失敗，請檢查規則內容後重試。') });
     } finally {
       upload?.cleanup();
     }
@@ -4230,7 +4547,7 @@ async function handleApi(req, res) {
       const subtitle = serializeSrt(bilingualCues, payload.layout === 'translated-top' ? 'translated-top' : 'source-top');
       sendJson(res, 200, { ok: true, subtitle, bilingualCues, totalCues: cues.length, changedCues: bilingualCues.filter((cue, index) => cue.sourceText !== cues[index].sourceText || cue.translatedText !== cues[index].translatedText).length });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '雙語規則套用失敗，請檢查規則內容後重試。') });
     }
     return;
   }
@@ -4241,7 +4558,7 @@ async function handleApi(req, res) {
       const record = startAiOptimizationJob(job, payload);
       sendJson(res, 202, { ok: true, status: record.status, progress: record.progress });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 優化任務啟動失敗，請稍後再試。') });
     }
     return;
   }
@@ -4251,7 +4568,7 @@ async function handleApi(req, res) {
   }
   if (req.method === 'POST' && action === 'ai-project-settings') {
     try { sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, await readJsonBody(req)) }); }
-    catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 專案設定儲存失敗，請檢查內容後重試。') }); }
     return;
   }
   if (req.method === 'POST' && action === 'ai-glossary-import') {
@@ -4260,7 +4577,7 @@ async function handleApi(req, res) {
       const current = loadProjectAiSettings(job);
       const glossary = payload.format === 'csv' ? parseGlossaryCsv(payload.content) : normalizeProjectAiSettings({ glossary: JSON.parse(payload.content || '[]') }).glossary;
       sendJson(res, 200, { ok: true, settings: saveProjectAiSettings(job, { ...current, glossary }) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 詞彙匯入失敗，請檢查檔案內容後重試。') }); }
     return;
   }
   if (req.method === 'GET' && action === 'ai-glossary-export') {
@@ -4277,14 +4594,14 @@ async function handleApi(req, res) {
     try {
       const payload = await readJsonBody(req);
       sendJson(res, 200, { ok: true, session: updateAiSessionDecisions(job, payload.sessionId, payload.decisions) });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 工作階段決策儲存失敗，請稍後再試。') }); }
     return;
   }
   if (req.method === 'POST' && ['undo-ai-session', 'redo-ai-session'].includes(action)) {
     try {
       const payload = await readJsonBody(req);
       sendJson(res, 200, { ok: true, ...sessionTextChanges(job, payload.sessionId, payload.cues, action.startsWith('undo') ? 'undo' : 'redo') });
-    } catch (error) { sendJson(res, 400, { ok: false, error: error.message }); }
+    } catch (error) { sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 工作階段復原失敗，請稍後再試。') }); }
     return;
   }
   if (req.method === 'GET' && action === 'ai-optimize') {
@@ -4301,7 +4618,7 @@ async function handleApi(req, res) {
       const record = startAiOptimizationJob(job, previous.request, previous);
       sendJson(res, 202, { ok: true, status: record.status, progress: record.progress, resumedFromBatch: record.checkpoint.nextBatchIndex });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, 'AI 優化任務恢復失敗，請稍後再試。') });
     }
     return;
   }
@@ -4322,7 +4639,7 @@ async function handleApi(req, res) {
     try {
       serveFile(req, res, await getProjectThumbnail(job));
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '縮圖讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4331,7 +4648,7 @@ async function handleApi(req, res) {
       const result = await getWaveform(job, url.searchParams.get('points'), url.searchParams.get('source') || 'effective');
       sendJson(res, 200, result);
     } catch (error) {
-      sendJson(res, 422, { error: error.message });
+      sendJson(res, 422, { error: getSafeApiErrorMessage(error, '波形資料讀取失敗，請稍後再試。') });
     }
     return;
   }
@@ -4354,7 +4671,7 @@ async function handleApi(req, res) {
       updateJob(job, { files: { ...(job.status.files || {}), reviewedSrt: subtitlePath, ...(files.bilingualCues ? { bilingualCues: bilingualPath } : {}) } }, '已儲存校閱後字幕');
       sendJson(res, 200, { ok: true, files });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '校閱字幕儲存失敗，請稍後再試。') });
     }
     return;
   }
@@ -4405,7 +4722,7 @@ async function handleApi(req, res) {
       }, '已儲存完整校稿包');
       sendJson(res, 200, { ok: true, folder: relativeToApp(reviewOutputDir), files: manifest.files });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '校閱套件儲存失敗，請稍後再試。') });
     }
     return;
   }
@@ -4424,7 +4741,7 @@ async function handleApi(req, res) {
         });
       }
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message });
+      sendJson(res, 400, { ok: false, error: getSafeApiErrorMessage(error, '字幕輸出啟動失敗，請稍後再試。') });
     }
     return;
   }
@@ -4455,7 +4772,7 @@ const server = createServer(async (req, res) => {
     else serveStatic(req, res);
   } catch (error) {
     console.error('[server] Request error:', error.message);
-    if (!res.headersSent) sendJson(res, 500, { error: error.message });
+    if (!res.headersSent) sendJson(res, 500, { error: getSafeApiErrorMessage(error, '伺服器處理請求時發生錯誤，請稍後再試。') });
   }
 });
 

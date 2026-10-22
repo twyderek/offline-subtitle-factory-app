@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
+import { createProvider } from '../lib/ai/providers.mjs';
+import { optimizeSubtitleCues } from '../lib/ai/subtitle-optimizer.mjs';
 
 const baseUrl = String(process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1').replace(/\/+$/, '');
 const model = process.env.OLLAMA_MODEL || 'llama3.2:1b';
@@ -53,6 +55,53 @@ function validateNativeCueResponse(response) {
   }
 }
 
+function responseShape(response) {
+  const content = response?.choices?.[0]?.message?.content ?? response?.message?.content ?? '';
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed?.cues)) return 'cues-array';
+    if (parsed && typeof parsed === 'object' && 'id' in parsed && 'text' in parsed) return 'cue-object';
+    if (Array.isArray(parsed)) return 'array';
+    return 'other-json';
+  } catch {
+    return 'non-json';
+  }
+}
+
+async function runOptimizerAcceptance() {
+  const config = { provider: 'ollama', baseUrl, model, timeoutSeconds: 120, batchSize: 1 };
+  const provider = createProvider(config);
+  const calls = [];
+  try {
+    const testResult = await provider.test();
+    if (!testResult?.ok) throw new Error('provider test 未回報 ok');
+    if (testResult.modelAvailable === false) throw new Error(`指定模型不可用：${model}`);
+    const result = await optimizeSubtitleCues({
+      cues: [{ id: 'LIVE-OPT-1', start: '00:00:00,000', end: '00:00:02,500', text: '今天天氣很好。這是一段需要完整翻譯的字幕內容，請自然地翻成英文。' }],
+      config,
+      mode: 'translate',
+      language: 'en',
+      complete: async (body, signal, requestOptions) => {
+        const response = await provider.optimize(body, signal, requestOptions);
+        calls.push(responseShape(response));
+        return response;
+      },
+    });
+    return {
+      status: 'pass',
+      test: { ok: true, modelAvailable: testResult.modelAvailable ?? null, modelCount: Number(testResult.modelCount) || 0 },
+      optimize: {
+        suggestionCount: result.suggestions.length,
+        totalRetries: result.totalRetries,
+        responseShapes: calls,
+        cueContract: 'LIVE-OPT-1/one-cue/id-text-reason',
+      },
+    };
+  } catch (error) {
+    return { status: 'fail', error: { message: String(error?.message || error), code: String(error?.code || '') } };
+  }
+}
+
 const versionResponse = await fetch(`${baseUrl.replace(/\/v1$/, '')}/api/version`, { redirect: 'manual' });
 const version = await versionResponse.json();
 const modelsResponse = await fetch(`${baseUrl}/models`, { redirect: 'manual' });
@@ -68,7 +117,10 @@ const artifact = {
   model,
   models,
   requests: results,
-  validation: { nativeSingleCue: validateNativeCueResponse(nativeSingleCue?.response) },
+  validation: {
+    nativeSingleCue: validateNativeCueResponse(nativeSingleCue?.response),
+    optimizerAcceptance: await runOptimizerAcceptance(),
+  },
 };
 await fs.mkdir(path.dirname(outputPath), { recursive: true });
 if (await fs.access(outputPath).then(() => true).catch(() => false)) {
