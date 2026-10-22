@@ -14,6 +14,8 @@
 - **核心功能**：離線 Whisper.cpp 語音辨識、SRT 匯入及校閱、雙語字幕、影片修剪及匯出；可選用本機 LLM 與雲端文字優化。YouTube 私人影片／字幕上傳屬 **v0.52.0 的實驗性選用功能**，尚未完成真實 Google 帳號端到端驗收。
 - **開發及回報問題**：閱讀 [CONTRIBUTING.md](CONTRIBUTING.md)；問題可至 [Issues](https://github.com/twyderek/offline-subtitle-factory-app/issues) 提報。
 - **開源授權**：本專案可授權的原創程式碼採用 [MIT License](LICENSE)；Electron、FFmpeg、whisper.cpp、模型及其他第三方元件各自適用其授權，詳見 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- **安全回報**：敏感問題請閱讀 [SECURITY.md](SECURITY.md)，不要把憑證或私人資料貼到公開 Issue。
+- **OSS 申請證據**：詳見 [公開專案核查與送件證據](docs/OSS-APPLICATION-READINESS.md)，明確區分可查證的維護事實、真實使用量與仍待完成的審查工作。
 
 > **資料與隱私提醒：** 預設離線字幕流程不會上傳原始影音。只有當使用者主動啟用並設定雲端文字處理時，選取的字幕文字才可能傳送至該供應商；選用 YouTube 上傳時，獲同意的影片和字幕會傳送至 Google／YouTube。請參閱版本文件的已知限制，不要將自動化測試視為跨平台實機驗收。
 
@@ -54,6 +56,10 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 - 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
 - 開發期間的公開基線為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)；後續正式版本見上方 0.51.0 與 0.52.0。
+
+## 歷史版本（發行時說明）
+
+以下 0.49.0 及更早版本的「目前」「最新版」「正式版本」等字樣，僅反映**該版本發布時**的歷史說明。**現在的最新公開 Release 是 v0.52.0（macOS arm64）**，請以上方連結及對應 Release notes 為準。
 
 ## 0.49.0 Breeze 第一版正式發布
 
