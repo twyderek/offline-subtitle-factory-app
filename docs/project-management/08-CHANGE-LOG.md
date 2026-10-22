@@ -14,8 +14,8 @@
 - 預計影響檔案／模組：`README.md`、`CONTRIBUTING.md`、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`SECURITY.md`、`.github/workflows/oss-pr-check.yml`、`docs/OSS-APPLICATION-READINESS.md`、`docs/project-management/00-CURRENT-STATUS.md`、本工作紀錄、PR #15。
 - 風險與回復方式：main 目前落後 v0.52.0，整體 PR 差異數百檔；改動在獨立分支保留 Draft，未經合併前 QA／維護者審核不推進 main；可關閉 PR 或回復候選分支。
 - 驗證計畫：GitHub API 讀取檔案、compare 和 PR 狀態；GitHub Actions 如成功觸發則記錄確切 run 結果；CI 未完成時標示未驗證。不將靜態檢查當作安裝版實測。
-- 實際修改：進行中；本條先立項，後續依已完成事實修訂。
-- 開發驗證結果：進行中；尚未執行完整 `npm run check`。
+- 實際修改：已在獨立 Draft PR #15（v0.52.0 tag 為基線）新增/補正 MIT LICENSE、README 最新 Release 說明、CONTRIBUTING.md、SECURITY.md、THIRD-PARTY-NOTICES.md、docs/OSS-APPLICATION-READINESS.md、GitHub Issue 表單、oss-pr-check.yml；補記 00／04／05／06 的 v0.52.0 已公開及 main 尚未同步的正確事實。未改產品 runtime、不建新 Release。
+- 開發驗證結果：GitHub connector 已重讀候選文件、確認可讀；GitHub Actions 開始執行 `OSS pull request checks`，目前尚待成功/失敗的最終結果。未在本對話環境執行完整 `npm run check`、`npm run docs:check:final`，未實機驗收。
 - 獨立審查是否執行：否（尚待專案規範要求的獨立上下文審查，不能自行冒稱通過）。
 - 獨立審查結論：
   - 審查檔案：尚無（完成前保持 Draft，禁止宣稱通過）
@@ -25,7 +25,7 @@
   - 核准時間：2026-10-22（Asia/Taipei）
   - 核准範圍：僅 OSS 準備文件與 CI 的候選變更，並保留 PR 審核關卡
 - 部署／發布結果：目前僅在 GitHub Draft PR #15 候選分支，未合併 main、未重新發版。
-- 遺留風險與後續事項：第三方權利歸屬、實際採用數據、CI 執行結果、macOS/Windows 完整實機、獨立審查、Release 與 main 合併一致性均須按證據收斂。
+- 遺留風險與後續事項：第三方權利歸屬、實際採用數據、CI 執行結果、macOS/Windows 完整實機、獨立審查、Release 與 main 合併一致性均須按證據收斂。未取得完整驗證前，不得解除 Draft 或逕自合併主分支；本條為進行中，不得宣稱已通過 final gate。
 
 ---
 
