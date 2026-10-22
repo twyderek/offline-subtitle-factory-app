@@ -1,6 +1,20 @@
 # 目前專案狀態
 
-> 最後查證日期：2026-10-20
+> 最後查證日期：2026-10-22（GitHub repository / Release 公開資料）
+> 現行版本：0.52.0（`v0.52.0` 已於 2026-10-20 公開發布；僅 macOS Apple Silicon arm64）
+> 現行公開版本：0.52.0（[GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)）
+> 發布狀態：`v0.52.0` Release 已公開；其原始碼 tag 領先於 `main`，而 `main` 的 `package.json` 仍為 0.49.1。現有 `main` 已加入 MIT LICENSE；候選同步整理於 Draft PR #15，尚未合併。本次只補文檔與 PR CI，不重發 tag／Release，不可把歷史來源 SHA 的 CI／候選證據直接宣稱為 PR #15 新 HEAD 驗證。
+> 主分支：`main`（**未**與最新 tag 同步）
+
+## 2026-10-22 OSS-001 — 公開入口與主分支版本一致性（進行中）
+
+- GitHub `v0.52.0` 發布時間：2026-10-20；公開資產為 macOS arm64。Windows v0.52.0 未正式發布，勿將 Windows preview/CI 等同已發布版本。
+- `main` 的原始碼/README/治理文件與 `v0.52.0` 落差屬高優先缺口。Draft PR #15 從 v0.52.0 tag 建立候選，補齊與 `main` 一致的 MIT LICENSE、CONTRIBUTING、README 開源入口、第三方授權與安全性通報文件；在合併前需檢查大型變更及測試。
+- 版本更新、公開使用量、外部貢獻者與安全／平台測試只採有 GitHub 或實機可驗的證據。PR 文件、CI 定義存在不代表測試通過。
+- v0.52.0 已公開後，下面 2026-10-20 發布**前**的「尚未發布」「Latest 0.51.0」「round15 BLOCK」敘述只保留作歷史快照，不是目前對外狀態。詳見 [OSS 送件證據索引](../OSS-APPLICATION-READINESS.md)及 `08-CHANGE-LOG.md` 最新條目。
+
+## 歷史快照：2026-10-20 v0.52.0 發布前審查狀態
+
 
 > 現行版本：0.52.0（round15 發布狀態同步；新 source SHA 驗證中）
 > 現行公開版本：0.51.0（GitHub Latest；macOS arm64-only）
