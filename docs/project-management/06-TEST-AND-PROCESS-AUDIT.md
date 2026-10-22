@@ -1,5 +1,13 @@
 # 功能測試與流程稽核
 
+## 2026-10-22 OSS-001：PR #15 文件與來源驗證範圍
+
+- 以 GitHub connector 核對 `main` 與 `v0.52.0` 的差異、最新公開 Release、MIT LICENSE、README、CONTRIBUTING、SECURITY、THIRD-PARTY-NOTICES，以及 Draft PR #15；這些屬 GitHub 文字／版本資料查核，**不是** npm 測試或跨平台實機驗收。
+- 候選 PR 的目的包含對齊公開 Release 對應原始碼；變更數量遠大於本輪整理的文件數，必須由完整 CI、差異審核與獨立驗證承接。新 PR HEAD 不可沿用歷史 v0.52.0 tag 的測試結果作為當前來源通過證據。
+- 新增 `oss-pr-check.yml` 以嘗試提供 Linux 文件/production dependency audit 與 Windows source regression 檢查；實際 run 狀態以 Actions 為準，尚未回報成功時不視為驗證完成。
+- 真實 Google 帳號、Keychain、YouTube 影片及字幕上傳、Mac Gatekeeper、公證、Windows 0.52.0 發行包完整驗收仍未由本次工作覆蓋。
+- 因外部網路/安裝套件執行環境不可用，未在本次 ChatGPT session 執行 `npm ci`、`npm run check`、`npm run docs:check:final`；沒有獨立上下文 reviewer 報告。後續若 CI 綠燈，仍須實際核對與完成審查。
+
 ## 2026-10-20 FR-027 v0.52.0 round15 BLOCK：治理狀態與已完成證據不一致
 
 - round15 審查對象 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f`。round14 的個人 Windows user-profile blocker 已修正；round15 確認 source、macOS arm64 candidate、exact-source Windows CI/hash gate 於其聲明範圍通過，但因 `00`／`05`／`06`／`08` 仍標示上述修正及 b2b942e 驗證待完成而判 BLOCK。獨立報告：`docs/project-management/reviews/2026-10-20-fr-027-v0520-github-publication-round15.md`，其餘六面向證據與 P1 請查原報告。
