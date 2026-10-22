@@ -1,5 +1,10 @@
 # 專案發展歷程
 
+## 2026-10-22 版本核查補充
+
+- [v0.52.0](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已於 2026-10-20 公開發布，發行包限 macOS Apple Silicon；v0.52.0 原始碼 tag 暫未合併至預設分支 `main`。
+- 2026-10-22 建立 [Draft PR #15](https://github.com/twyderek/offline-subtitle-factory-app/pull/15) 供審閱版本對齊及 OSS 文檔；歷史里程碑表中的過去「開發中」與「未發布」字樣均以記錄當時的狀態為準。
+
 本文件記錄經查證的版本里程碑；細節與原始證據保留在 `RELEASE-NOTES-*.md`、`FINAL-VERSION-LOG.md` 與 `NEXT-VERSION-FIX-LOG.md`。
 
 | 版本／日期 | 里程碑 | 主要驗證／備註 |
