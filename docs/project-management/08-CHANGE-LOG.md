@@ -1,5 +1,34 @@
 # 改版與工作紀錄
 
+## 2026-10-22 — OSS-001 開源申請前公開入口／版本同步候選
+
+- 狀態：進行中（本項不構成產品發布核准，PR #15 保持 Draft）
+- 執行者：ChatGPT 協助維護者整理文件；獨立審查人員尚未介入
+- 需求來源：維護者要求「補正所有缺失」，範圍限 Codex for OSS 送件前可客觀查證與安全修復的 GitHub 專案缺口。
+- 關聯需求／缺陷：OSS-001（公開開源資訊／版本一致性／貢獻指引／CI／審查證據），未修改既有 FR/BUG 的判定。
+- 變更等級：治理文件與 CI 設定；基線 v0.52.0 與 main 大範圍差異需合併前額外驗證，不等同低風險純文件變更。
+- 執行前已讀：`AGENTS.md`、`docs/project-management/README.md`、`00-CURRENT-STATUS.md`、`01-PROJECT-GOVERNANCE.md`、`08-CHANGE-LOG.md` 最新條目與 `workflows/04-INDEPENDENT-REVIEW.md`、`workflows/07-DOCUMENT-CLOSEOUT.md`；未在本次遠端環境真正執行 `npm run project:preflight`。
+- 目標與成功條件：維持已發布的 v0.52.0 原始碼及已在 main 加入的 MIT LICENSE，建立對外可用的 README／CONTRIBUTING／第三方授權與安全回報資訊，新增可檢驗的 CI，讓審查者明確看到版本、平台限制、維護證據與未完成事項；所有公開說法可連回原始證據。
+- 不在範圍：不得捏造 Stars、Downloads、外部貢獻者、使用者、真實 Google API／跨平台實機通過證據；不修改／重發 v0.52.0 tag 或 Release；不以文件整備取代專案獨立審查。
+- 可執行計畫：1. 以 GitHub 公開資料核對 main、v0.52.0、PR #15、LICENSE 與第三方授權；2. 在獨立候選分支整理必要文件及狀態更正；3. 補 CI workflow 與驗證方式；4. 經 GitHub 重新讀取／比較查證；5. 提供審查者清單；6. 合併前需補完整自動回歸、治理 final gate 及獨立六面向審查。
+- 預計影響檔案／模組：`README.md`、`CONTRIBUTING.md`、`LICENSE`、`THIRD-PARTY-NOTICES.md`、`SECURITY.md`、`.github/workflows/oss-pr-check.yml`、`docs/OSS-APPLICATION-READINESS.md`、`docs/project-management/00-CURRENT-STATUS.md`、本工作紀錄、PR #15。
+- 風險與回復方式：main 目前落後 v0.52.0，整體 PR 差異數百檔；改動在獨立分支保留 Draft，未經合併前 QA／維護者審核不推進 main；可關閉 PR 或回復候選分支。
+- 驗證計畫：GitHub API 讀取檔案、compare 和 PR 狀態；GitHub Actions 如成功觸發則記錄確切 run 結果；CI 未完成時標示未驗證。不將靜態檢查當作安裝版實測。
+- 實際修改：進行中；本條先立項，後續依已完成事實修訂。
+- 開發驗證結果：進行中；尚未執行完整 `npm run check`。
+- 獨立審查是否執行：否（尚待專案規範要求的獨立上下文審查，不能自行冒稱通過）。
+- 獨立審查結論：
+  - 審查檔案：尚無（完成前保持 Draft，禁止宣稱通過）
+- 發布授權：
+  - 是否需要：本次不建立新 Release；若合併主分支構成正式部署，需另檢核核准範圍與治理流程
+  - 核准人／角色：使用者授權補正 GitHub 缺失；未授權豁免測試或未揭露風險
+  - 核准時間：2026-10-22（Asia/Taipei）
+  - 核准範圍：僅 OSS 準備文件與 CI 的候選變更，並保留 PR 審核關卡
+- 部署／發布結果：目前僅在 GitHub Draft PR #15 候選分支，未合併 main、未重新發版。
+- 遺留風險與後續事項：第三方權利歸屬、實際採用數據、CI 執行結果、macOS/Windows 完整實機、獨立審查、Release 與 main 合併一致性均須按證據收斂。
+
+---
+
 ## 2026-10-20 — FR-027 v0.52.0 round15 發布狀態同步與 final-source 複審
 
 - 狀態：進行中
