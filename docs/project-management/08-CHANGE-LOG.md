@@ -2,6 +2,58 @@
 
 本文件必須在每次分析、改版、測試、打包或發布開始前建立條目，完成後再補齊結果。最新項目置頂；每次前置閱讀只需範本規則與最新條目，歷史條目按需追溯。未完成欄位使用「待執行／待確認」，不得刪除。
 
+## 2026-09-30 — PR #10 合併衝突修復
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：需求方要求檢查並修復 `twyderek/offline-subtitle-factory-app` PR #10（`codex/ai-cues-response-repair` → `main`）的合併衝突，提交並推送解析結果。
+- 關聯需求／缺陷：`FR-008`、`FR-010`、`FR-021`、PR #10
+- 變更等級：一般（Git 合併衝突解析與文件同步；不修改 AI 功能邏輯、不發布）
+- 執行前已讀：`gh pr view 10`、本地 Git 狀態、`AGENTS.md`、development preflight 列出的固定核心與任務路由文件（是）
+- 基準證據：PR #10 head `3f8df972746890ec52f955198df413abf9054265`；最新 `origin/main` `7829876`；PR 狀態為 open／Draft、`mergeStateStatus=DIRTY`；合併模擬確認唯一內容衝突為 `docs/project-management/08-CHANGE-LOG.md`。
+- 目標與成功條件：保留 PR #10 的 AI parser／測試／既有工作紀錄；只整合最新 `main` 的非衝突內容與必要 changelog 合併；focused 測試與文件檢查通過；建立合併修復 commit 並推送至 PR 分支，遠端 PR 不再有此合併衝突。
+- 不在範圍：不重寫 AI parser、不做無關 refactor、不建立新 PR、不合併 PR 至 `main`、不發布或修改 Release／tag。
+- 預計影響檔案／模組：`docs/project-management/08-CHANGE-LOG.md` 與 Git merge metadata；產品程式與測試邏輯預期不變。
+- 風險與回復方式：以 `origin/main` 為基礎執行可追溯 merge；只保留兩方 changelog 最新工作紀錄；若 focused regression 或文件檢查失敗，保留 merge 狀態並先修正或停止推送。
+- 驗證計畫：`git diff --check`、AI optimizer focused regression、必要的 `npm run docs:check`／`npm run docs:check:final`、`gh pr view 10` 與遠端分支／mergeability 核對；完成後獨立六面向審查並建立獨立報告。
+- 實際修改：由最新 `origin/main` `7829876` 合併至 `codex/ai-cues-response-repair`；保留 `main` 的發布／Breeze 治理歷史與 PR #10 的 2026-08-29 AI parser 工作條目，將本輪 2026-09-30 條目置頂；移除唯一 `docs/project-management/08-CHANGE-LOG.md` conflict markers；未改寫 `lib/ai/subtitle-optimizer.mjs` 或 `scripts/test-ai-optimizer.mjs`；新增 `docs/project-management/reviews/2026-09-30-pr-10-merge-conflict-repair-round1.md`。
+- 開發驗證結果：`npm ci` 依 lockfile 完成且未修改 package manifest；`node --check`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs`、`npm run docs:check` 與 `git diff --check` 通過。完整 `npm run check` 的 docs／syntax／Whisper／Breeze contract／governance／AI／UI suites 通過，最後 `scripts/test-core.mjs` 因本機缺少 Breeze mock 所需 FFmpeg 回傳 `needs-action` 而非 `completed`，未將其宣稱為完整通過。
+- 獨立審查是否執行：是（round1）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-09-30-pr-10-merge-conflict-repair-round1.md`
+  - 判定（逐字引用）：**PR #10 合併衝突修復 round1 獨立審查結論為通過（限合併解析範圍）：合併衝突已解除且 PR implementation 未被改寫；完整 core regression 因本機缺少 FFmpeg 仍需另行補跑。**
+- 發布授權：不適用（本輪不發布、不打包、不修改 Release）
+- 部署／發布結果：建立 merge commit `e3c3f8618aae52830bd28863d08aa92f18b67764` 並推送至 `origin/codex/ai-cues-response-repair`；GitHub PR #10 反向核對為 open／Draft、head 同一 SHA、`mergeable=MERGEABLE`、`mergeStateStatus=CLEAN`；本輪不合併 PR 至 `main`、不發布、不修改 Release／tag。
+- 遺留風險與後續事項：本機缺少 FFmpeg／Breeze mock runtime，完整 `npm run check` 的 core case 尚待具備該 runtime 的環境補跑；本輪未呼叫真實 LM Studio／Ollama endpoint，真實模型品質與服務可用性仍需外部 acceptance。
+
+## 2026-08-29 — AI 回應缺少 cues 的 JSON candidate parser 修正（PR #10）
+
+- 狀態：完成
+- 執行者：Codex 主要開發代理
+- 需求來源：需求方要求在既有 `codex/ai-cues-response-repair` 分支繼續修正 PR #10 `fix: repair AI responses missing cues`，不建立新分支／PR、不合併，並保留 Draft 狀態。
+- 關聯需求／缺陷：`FR-008`、`FR-010`、`FR-021`、PR #10
+- 變更等級：一般（AI 回應解析、修復流程與自動測試；不發布、不打包）
+- 執行前已讀：`AGENTS.md`、`docs/project-management/README.md`、`00-CURRENT-STATUS.md`、`02-REQUIREMENTS-ANALYSIS.md`、`03-FUNCTIONAL-DESIGN.md`、`06-TEST-AND-PROCESS-AUDIT.md`、開發／測試／獨立審查／結案流程文件及本文件範本／最新條目（是）
+- 基準證據：開始時遠端 `origin/codex/ai-cues-response-repair` 與 PR #10 head 均為 `d0aeddbee42f3d38e39c52ecf5d4febf748ed63d`；開始時工作樹 clean，後續只保留本條目預期的程式、測試、設計與 review 報告修改。
+- 目標與成功條件：共用 JSON candidate extraction 支援頂層／巢狀文字、fenced JSON 與前後說明；只有根陣列或明確 `cues` 陣列可成為 cue list；Ollama／LM Studio 缺少 cues 時恰好 repair 一次；非本機 provider 維持 strict failure；JSON Schema response format 不被 `json_object` 覆寫；獨立回歸與完整驗證通過。
+- 不在範圍：不修改無關產品模組；不建立新分支／PR；不合併 PR；不發布或修改 Release／tag；不下載不明 binary。
+- 預計影響檔案／模組：`lib/ai/subtitle-optimizer.mjs`、`scripts/test-ai-optimizer.mjs`、必要的測試／治理紀錄；不修改 provider、server 或封裝流程，除非驗證證明必要。
+- 風險與回復方式：候選抽取若過度寬鬆可能誤認 wrapper 陣列；以 explicit `cues`／root-array 規則、非本機 strict regression、local repair 上限與 checkpoint 失敗案例防護；若驗證失敗保留原始回應並停止提交。
+- 驗證計畫：`node --check lib/ai/subtitle-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs`、`git diff --check`、可行時 `npm run check`；完成後獨立六面向審查與 `npm run docs:check:final`。
+- 實際修改：`lib/ai/subtitle-optimizer.mjs` 新增共用 JSON candidate extraction、root／explicit `cues` 邊界、nested wrapper 防誤認、local JSON repair error code 與單一 response format 決策；`scripts/test-ai-optimizer.mjs` 新增 parser、wrapper、text-part、local repair、strict failure、checkpoint 與 JSON Schema 回歸；`docs/project-management/03-FUNCTIONAL-DESIGN.md` 補充 AI 回應契約；新增 `docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round1.md` 與 `round2.md` 獨立審查報告。
+- 開發驗證結果：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-fetch.mjs`、`npm run project:preflight -- --type=development`、`npm run docs:check`、`npm run docs:check:final` 與 `git diff --check` 通過；`npm run check` 的 docs／syntax／AI／Whisper／UI 測試通過，最後 `scripts/test-core.mjs` 僅因環境缺少 Breeze ASR 所需 FFmpeg 而以 `needs-action` 對 `completed` 失敗；`npm ci` 已依 lockfile 補齊測試依賴且未修改 package manifest。
+- 獨立審查是否執行：是（round1、round2）
+- 獨立審查結論：
+  - 審查檔案：`docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round1.md`
+  - 判定（逐字引用 round1）：**本輪獨立審查結論為不通過，因巢狀 wrapper 字串中的根 JSON array 仍可能被誤認為 cues，違反明確的回應契約。**
+  - 審查檔案：`docs/project-management/reviews/2026-08-29-ai-cues-response-repair-round2.md`
+  - 判定（逐字引用 round2）：**The round-one P1 boundary fix is effective, the complete requested response contract is satisfied, the requested regressions pass, and no unintended scope or likely regression was found.**
+- 發布授權：不適用（本次不發布、不打包、不修改 Release）
+- 部署／發布結果：不適用
+- 遺留風險與後續事項：`npm run check` 的 Breeze ASR／FFmpeg mock runtime 缺失仍需具備該 runtime 的環境補驗；本輪未呼叫真實 LM Studio／Ollama endpoint，真實模型品質與服務可用性仍需外部 acceptance；PR #10 維持 Draft、不合併，推送後的遠端 head 與 PR 狀態另以 GitHub 遠端證據核對。
+
+---
+
 ## 2026-08-18 — Breeze 0.49.1 正式發布收尾（REL-038）
 
 - 狀態：完成
@@ -256,6 +308,7 @@
 
 ---
 
+---
 ## 2026-08-13 — v0.49.0 雙平台測試軟體重建（REL-032）
 
 - 狀態：完成
