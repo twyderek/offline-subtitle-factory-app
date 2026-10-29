@@ -36,12 +36,8 @@ const completeResponses = {
   environmentSecrets: {
     status: 'ok',
     body: {
-      total_count: 3,
-      secrets: [
-        { name: 'OSF_APPLE_ID', created_at: 'private', updated_at: 'private' },
-        { name: 'OSF_APPLE_APP_SPECIFIC_PASSWORD', created_at: 'private', updated_at: 'private' },
-        { name: 'OSF_APPLE_TEAM_ID', created_at: 'private', updated_at: 'private' },
-      ],
+      total_count: 0,
+      secrets: [],
     },
   },
   branchProtection: { status: 'ok', body: { required_pull_request_reviews: { required_approving_review_count: 1 } } },
@@ -52,7 +48,7 @@ const completeEvidence = buildAuditEvidence({ responses: completeResponses, loca
 assert.doesNotThrow(() => validateEvidence(completeEvidence));
 assert.equal(completeEvidence.status, 'pass');
 assert.deepEqual(completeEvidence.summary.reasons, []);
-assert.equal(completeEvidence.environmentSecrets.secretCount, 3);
+assert.equal(completeEvidence.environmentSecrets.secretCount, 0);
 assert.equal(JSON.stringify(completeEvidence).includes('private-reviewer'), false);
 assert.equal(JSON.stringify(completeEvidence).includes('OSF_APPLE_ID'), false);
 
@@ -100,9 +96,9 @@ assert.throws(() => projectLocalSource({
 }), /EXTERNAL_BOUNDARY_GIT_STATUS_UNAVAILABLE/);
 
 const invalidResponses = structuredClone(completeResponses);
-invalidResponses.environmentSecrets = { status: 'ok', body: { secrets: [{ name: 'OSF_APPLE_ID' }] } };
+invalidResponses.environmentSecrets = { status: 'ok', body: {} };
 const partialSecretsEvidence = buildAuditEvidence({ responses: invalidResponses, localSource, sourceRevision, ...timestamps });
-assert.equal(partialSecretsEvidence.environmentSecrets.requiredSecretNamesPresent, false);
+assert.equal(partialSecretsEvidence.environmentSecrets.requiredSecretNamesPresent, null);
 assert.equal(partialSecretsEvidence.status, 'fail');
 assert.throws(() => validateEvidence({ ...completeEvidence, scope: { ...completeEvidence.scope, secretValuesPersisted: true } }), /EXTERNAL_BOUNDARY_SCOPE_NOT_FAIL_CLOSED/);
 assert.throws(() => validateEvidence({ ...completeEvidence, branch: { ...completeEvidence.branch, name: 'other' } }), /EXTERNAL_BOUNDARY_BRANCH_INVALID/);

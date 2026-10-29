@@ -13,7 +13,7 @@ const branchName = 'codex/0.51-anthropic-claude';
 const branchRef = `refs/heads/${branchName}`;
 const environmentName = 'macos-signed-canary';
 const workflowPath = '.github/workflows/macos-signed-canary.yml';
-const requiredSecretNames = ['OSF_APPLE_ID', 'OSF_APPLE_APP_SPECIFIC_PASSWORD', 'OSF_APPLE_TEAM_ID'];
+const requiredSecretNames = [];
 const auditSchema = 'offline-subtitle-factory.macos-signed-canary-external-boundary-audit.v1';
 const startedAt = new Date().toISOString();
 

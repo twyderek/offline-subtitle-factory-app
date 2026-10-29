@@ -59,9 +59,7 @@ jobs:
       - name: Capture signing readiness evidence
         shell: bash
         env:
-          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+          APPLE_KEYCHAIN_PROFILE: osf-signed-canary
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/osf-signed-canary-evidence"
@@ -102,9 +100,7 @@ jobs:
 
       - name: Build isolated signed canary
         env:
-          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+          APPLE_KEYCHAIN_PROFILE: osf-signed-canary
         run: npm run electron:build:mac:signed-canary
 
       - name: Locate signed canary artifacts
@@ -125,11 +121,10 @@ jobs:
       - name: Notarize and staple signed canary
         shell: bash
         env:
-          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+          APPLE_KEYCHAIN_PROFILE: osf-signed-canary
         run: |
           set -euo pipefail
+          test "${APPLE_KEYCHAIN_PROFILE:-}" = "osf-signed-canary"
           notary_dmg_output="$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.json"
           notary_dmg_stderr="$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.stderr"
           notary_zip_output="$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.json"
@@ -170,17 +165,13 @@ jobs:
           xcrun notarytool submit "$OSF_SIGNED_CANARY_DMG" \
             --wait \
             --output-format json \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" > "$notary_dmg_output" 2> "$notary_dmg_stderr"
+            --keychain-profile "$APPLE_KEYCHAIN_PROFILE" > "$notary_dmg_output" 2> "$notary_dmg_stderr"
           test -s "$notary_dmg_output"
           chmod 600 "$notary_dmg_output" "$notary_dmg_stderr"
           xcrun notarytool submit "$OSF_SIGNED_CANARY_ZIP" \
             --wait \
             --output-format json \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" > "$notary_zip_output" 2> "$notary_zip_stderr"
+            --keychain-profile "$APPLE_KEYCHAIN_PROFILE" > "$notary_zip_output" 2> "$notary_zip_stderr"
           test -s "$notary_zip_output"
           chmod 600 "$notary_zip_output" "$notary_zip_stderr"
           printf 'OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT=%s\n' "$notary_dmg_output" >> "$GITHUB_ENV"

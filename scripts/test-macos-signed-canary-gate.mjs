@@ -63,6 +63,19 @@ const ready = evaluateFormalSignedCanaryReadiness({
 assert.equal(ready.ready, true);
 assert.deepEqual(ready.reasons, []);
 assert.equal(ready.notarizationConsistent, true);
+const keychainCredentialPresence = Object.fromEntries(credentialPresenceKeys.map((key) => [key, false]));
+keychainCredentialPresence.APPLE_KEYCHAIN_PROFILE = true;
+const keychainReady = evaluateFormalSignedCanaryReadiness({
+  platform: 'darwin',
+  arch: 'arm64',
+  sourceConfig,
+  identity,
+  toolchain,
+  credentialPresence: keychainCredentialPresence,
+  notarization: summarizeNotarizationCredentialState(keychainCredentialPresence),
+});
+assert.equal(keychainReady.ready, true);
+assert.equal(keychainReady.notarizationConsistent, true);
 assert.equal(summarizeCredentialPresence({ APPLE_ID: '   ', APPLE_TEAM_ID: 'team', APPLE_APP_SPECIFIC_PASSWORD: 'password' }).APPLE_ID, false);
 assert.equal(summarizeCredentialPresence({ APPLE_ID: 'id', APPLE_TEAM_ID: 'team', APPLE_APP_SPECIFIC_PASSWORD: 'password' }).APPLE_ID, true);
 
@@ -151,6 +164,9 @@ assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_DMG/);
 assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT/);
 assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT/);
 assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_ZIP/);
+assert.equal((workflow.match(/APPLE_KEYCHAIN_PROFILE: osf-signed-canary/g) || []).length, 3);
+assert.doesNotMatch(workflow, /OSF_APPLE_(?:ID|APP_SPECIFIC_PASSWORD|TEAM_ID)/);
+assert.doesNotMatch(workflow, /--(?:apple-id|password|team-id)/);
 assert.match(workflow, /ditto -c -k --sequesterRsrc --keepParent/);
 assert.match(workflow, /\/usr\/bin\/unzip -tqq "\$OSF_SIGNED_CANARY_ZIP"/);
 assert.doesNotMatch(workflow, /ditto -t -k/);
@@ -166,6 +182,10 @@ const notarizeStep = workflow.slice(
 );
 assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_DMG"/);
 assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_ZIP"/);
+assert.match(notarizeStep, /test "\$\{APPLE_KEYCHAIN_PROFILE:-\}" = "osf-signed-canary"/);
+assert.match(notarizeStep, /--keychain-profile "\$APPLE_KEYCHAIN_PROFILE"/g);
+assert.equal((notarizeStep.match(/--keychain-profile "\$APPLE_KEYCHAIN_PROFILE"/g) || []).length, 2);
+assert.doesNotMatch(notarizeStep, /--password|--apple-id|--team-id/);
 assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_DMG" "\$submitted_dmg"/);
 assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_DMG" "\$submitted_dmg"\s+chmod 600 "\$submitted_dmg"/);
 assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_ZIP" "\$submitted_zip"\s+chmod 600 "\$submitted_zip"/);

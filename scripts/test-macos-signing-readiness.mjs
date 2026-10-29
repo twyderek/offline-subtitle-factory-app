@@ -76,6 +76,15 @@ assert.deepEqual(summarizeNotarizationCredentialState({
 });
 assert.equal(summarizeNotarizationCredentialState({ APPLE_API_KEY: true, APPLE_API_KEY_ID: true }).status, 'partial');
 assert.equal(summarizeNotarizationCredentialState({ APPLE_KEYCHAIN_PROFILE: true, APPLE_API_KEY: true, APPLE_API_KEY_ID: true, APPLE_API_ISSUER: true }).status, 'ambiguous');
+assert.deepEqual(summarizeNotarizationCredentialState({ APPLE_KEYCHAIN_PROFILE: true }), {
+  appleIdSetComplete: false,
+  apiKeySetComplete: false,
+  keychainProfileSetComplete: true,
+  completeSetCount: 1,
+  partialCredentialSetDetected: false,
+  status: 'complete',
+  ready: true,
+});
 assert.equal(summarizeNotarizationCredentialState({ APPLE_KEYCHAIN: true }).ready, false);
 assert.equal(summarizeNotarizationCredentialState({}).status, 'absent');
 assert.equal(summarizeNotarizationCredentialState({
