@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { normalizeBundleExecutableName } from '../lib/macos-signed-canary-verification.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const evidenceDir = path.join(appDir, 'docs/project-management/evidence');
@@ -24,6 +25,14 @@ function sha256File(filePath) {
   return sha256(fs.readFileSync(filePath));
 }
 
+function sha256FileOrNull(filePath) {
+  try { return sha256File(filePath); } catch { return null; }
+}
+
+function isSha256(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
 function run(command, args, timeout = 10000) {
   const result = spawnSync(command, args, {
     encoding: 'utf8', timeout, maxBuffer: 64 * 1024,
@@ -40,7 +49,9 @@ function run(command, args, timeout = 10000) {
 
 function readPlistValue(plistPath, key) {
   const result = run('/usr/libexec/PlistBuddy', ['-c', `Print :${key}`, plistPath]);
-  return result.status === 0 ? result.stdout.trim() : null;
+  if (result.status !== 0) return null;
+  const value = result.stdout.trim();
+  return value || null;
 }
 
 function parseCodeSign(result) {
@@ -71,7 +82,9 @@ function entitlementSummary(target) {
 }
 
 function inspectCodeObject(label, target, relativeBinaryPath = null) {
-  const executableName = relativeBinaryPath ? null : readPlistValue(path.join(target, 'Contents', 'Info.plist'), 'CFBundleExecutable');
+  const executableName = relativeBinaryPath
+    ? null
+    : normalizeBundleExecutableName(readPlistValue(path.join(target, 'Contents', 'Info.plist'), 'CFBundleExecutable'));
   const binaryPath = relativeBinaryPath
     ? path.join(target, relativeBinaryPath)
     : executableName ? path.join(target, 'Contents', 'MacOS', executableName) : null;
@@ -106,22 +119,28 @@ const expectedHelperBundleNames = [
   '離線字幕工廠 Helper (Plugin).app',
   '離線字幕工廠 Helper (Renderer).app',
 ];
-const frameworkAppEntries = fs.readdirSync(path.join(bundlePath, 'Contents', 'Frameworks'))
-  .filter((name) => name.endsWith('.app'))
-  .sort();
+let frameworkAppEntries = [];
+try {
+  frameworkAppEntries = fs.readdirSync(path.join(bundlePath, 'Contents', 'Frameworks'))
+    .filter((name) => name.endsWith('.app'))
+    .sort();
+} catch {}
 const unexpectedHelperBundleNames = frameworkAppEntries.filter((name) => !expectedHelperBundleNames.includes(name));
 const missingHelperBundleNames = expectedHelperBundleNames.filter((name) => !frameworkAppEntries.includes(name));
 const frameworkEntries = frameworkAppEntries.filter((name) => expectedHelperBundleNames.includes(name));
 const helperInventoryComplete = unexpectedHelperBundleNames.length === 0 && missingHelperBundleNames.length === 0;
 const packageManifest = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
 const infoPlistPath = path.join(bundlePath, 'Contents', 'Info.plist');
-const executableName = readPlistValue(infoPlistPath, 'CFBundleExecutable');
+const executableName = normalizeBundleExecutableName(readPlistValue(infoPlistPath, 'CFBundleExecutable'));
+const candidateMetadataValid = Boolean(executableName);
+const executableRelativePath = executableName ? path.join('Contents', 'MacOS', executableName) : null;
 const objects = [
-  inspectCodeObject('main-app', bundlePath, path.join('Contents', 'MacOS', executableName)),
+  inspectCodeObject('main-app', bundlePath, executableRelativePath),
   inspectCodeObject('electron-framework', frameworkPath, path.join('Versions', 'A', 'Electron Framework')),
-  ...frameworkEntries.map((name) => inspectCodeObject(`helper:${name}`, path.join(bundlePath, 'Contents', 'Frameworks', name))),
+  ...expectedHelperBundleNames.map((name) => inspectCodeObject(`helper:${name}`, path.join(bundlePath, 'Contents', 'Frameworks', name))),
 ];
-const allVerified = objects.every((item) => item.verification.succeeded && item.codeSign.commandSucceeded && item.entitlements.commandSucceeded);
+const allVerified = objects.every((item) => isSha256(item.executableSha256)
+  && item.verification.succeeded && item.codeSign.commandSucceeded && item.entitlements.commandSucceeded);
 const allAdHoc = objects.every((item) => item.codeSign.flags?.includes('adhoc'));
 const allRuntimeFlagsObserved = objects.every((item) => item.codeSign.flags === '0x10002(adhoc,runtime)');
 const requiredCodeSignFlagSatisfied = requiredCodeSignFlag === 'runtime' ? allRuntimeFlagsObserved : true;
@@ -135,8 +154,8 @@ const evidence = {
     bundleVersion: readPlistValue(infoPlistPath, 'CFBundleShortVersionString'),
     bundleIdentifier: readPlistValue(infoPlistPath, 'CFBundleIdentifier'),
     executableName,
-    executableSha256: sha256File(path.join(bundlePath, 'Contents', 'MacOS', executableName)),
-    frameworkSha256: sha256File(frameworkBinary),
+    executableSha256: executableRelativePath ? sha256FileOrNull(path.join(bundlePath, executableRelativePath)) : null,
+    frameworkSha256: sha256FileOrNull(frameworkBinary),
   },
   sourceBuildConfig: {
     macIdentityConfigured: packageManifest.build?.mac?.identity ?? null,
@@ -145,6 +164,7 @@ const evidence = {
   },
   objects,
   summary: {
+    candidateMetadataValid,
     allVerified,
     allAdHoc,
     allRuntimeFlagsObserved,
@@ -171,7 +191,7 @@ const evidence = {
     rawCommandOutputPersisted: false,
     absolutePathsPersisted: false,
   },
-  status: allVerified && objects.length >= 3 && helperInventoryComplete && requiredCodeSignFlagSatisfied ? 'pass' : 'fail',
+  status: candidateMetadataValid && allVerified && objects.length >= 3 && helperInventoryComplete && requiredCodeSignFlagSatisfied ? 'pass' : 'fail',
   interpretation: 'This is a read-only identity audit. It records code-sign and entitlement metadata only; it does not establish the cause of the nested Chromium failure, renderer readiness, UI offline acceptance, whole-machine egress control, Windows support, or FR-021 completion. Ad-hoc or missing entitlement metadata indicates a packaging/signing follow-up may be needed, not that sandbox should be disabled.',
 };
 fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: 'wx', mode: 0o600 });

@@ -15,6 +15,7 @@ import {
   evaluateSignedCanaryVerification,
   expectedCodeObjectLabels,
   expectedHelperBundleNames,
+  normalizeBundleExecutableName,
 } from '../lib/macos-signed-canary-verification.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -36,6 +37,10 @@ function sha256File(filePath) {
   return sha256(fs.readFileSync(filePath));
 }
 
+function sha256FileOrNull(filePath) {
+  try { return sha256File(filePath); } catch { return null; }
+}
+
 function run(command, args, timeout = 15000) {
   const result = spawnSync(command, args, {
     encoding: 'utf8',
@@ -53,13 +58,15 @@ function run(command, args, timeout = 15000) {
 
 function readPlistValue(plistPath, key) {
   const result = run('/usr/libexec/PlistBuddy', ['-c', `Print :${key}`, plistPath]);
-  return result.status === 0 ? result.stdout.trim() : null;
+  if (result.status !== 0) return null;
+  const value = result.stdout.trim();
+  return value || null;
 }
 
 function inspectCodeObject(label, target, relativeBinaryPath = null) {
   const executableName = relativeBinaryPath
     ? null
-    : readPlistValue(path.join(target, 'Contents', 'Info.plist'), 'CFBundleExecutable');
+    : normalizeBundleExecutableName(readPlistValue(path.join(target, 'Contents', 'Info.plist'), 'CFBundleExecutable'));
   const binaryPath = relativeBinaryPath
     ? path.join(target, relativeBinaryPath)
     : executableName ? path.join(target, 'Contents', 'MacOS', executableName) : null;
@@ -146,8 +153,8 @@ export function validateEvidence(evidence) {
     || Object.values(evidence.environment).some((value) => typeof value !== 'string')) fail('SIGNED_RESULT_ENVIRONMENT_SCHEMA_INVALID');
   if (!hasExactKeys(evidence.candidate, candidateKeys)
     || typeof evidence.candidate.metadataValid !== 'boolean'
-    || !isSha256(evidence.candidate.executableSha256)
-    || !isSha256(evidence.candidate.frameworkSha256)) fail('SIGNED_RESULT_CANDIDATE_SCHEMA_INVALID');
+    || (evidence.candidate.executableSha256 !== null && !isSha256(evidence.candidate.executableSha256))
+    || (evidence.candidate.frameworkSha256 !== null && !isSha256(evidence.candidate.frameworkSha256))) fail('SIGNED_RESULT_CANDIDATE_SCHEMA_INVALID');
   if (!hasExactKeys(evidence.sourceBuildConfig, sourceConfigKeys)
     || !['auto-discovery', 'explicit-string'].includes(evidence.sourceBuildConfig.identityConfiguration)
     || typeof evidence.sourceBuildConfig.hardenedRuntimeConfigured !== 'boolean'
@@ -220,7 +227,8 @@ export function validateEvidence(evidence) {
     && evidence.helperInventory.unexpectedHelperCount === 0
     && evidence.helperInventory.actualHelperCount === evidence.helperInventory.expectedHelperCount;
   const expectedObjectSetReady = evidence.objects.every((object, index) => object.label === expectedCodeObjectLabels[index]);
-  const expectedObjectsReady = expectedObjectSetReady && evidence.objects.every((object) => object.codeSign.commandSucceeded
+  const expectedObjectsReady = expectedObjectSetReady && evidence.objects.every((object) => isSha256(object.executableSha256)
+    && object.codeSign.commandSucceeded
     && object.codeSign.verificationSucceeded && object.codeSign.developerIdApplicationPresent
     && object.codeSign.teamIdentifierPresent && object.codeSign.runtimeFlagObserved
     && !object.codeSign.adHocFlagObserved && object.codeSign.entitlementsCommandSucceeded && object.codeSign.entitlementsPresent);
@@ -266,18 +274,19 @@ function main() {
   const frameworkRoot = path.join(bundlePath, 'Contents', 'Frameworks');
   const frameworkPath = path.join(frameworkRoot, 'Electron Framework.framework');
   const frameworkBinary = path.join(frameworkPath, 'Versions', 'A', 'Electron Framework');
-  const frameworkAppEntries = fs.readdirSync(frameworkRoot).filter((name) => name.endsWith('.app')).sort();
+  let frameworkAppEntries = [];
+  try { frameworkAppEntries = fs.readdirSync(frameworkRoot).filter((name) => name.endsWith('.app')).sort(); } catch {}
   const missingHelperBundleNames = expectedHelperBundleNames.filter((name) => !frameworkAppEntries.includes(name));
   const unexpectedHelperBundleNames = frameworkAppEntries.filter((name) => !expectedHelperBundleNames.includes(name));
   const infoPlistPath = path.join(bundlePath, 'Contents', 'Info.plist');
-  const executableName = readPlistValue(infoPlistPath, 'CFBundleExecutable');
+  const executableName = normalizeBundleExecutableName(readPlistValue(infoPlistPath, 'CFBundleExecutable'));
   const bundleVersion = readPlistValue(infoPlistPath, 'CFBundleShortVersionString');
-  const candidateMetadataValid = isSafeVersion(bundleVersion);
+  const candidateMetadataValid = Boolean(executableName) && isSafeVersion(bundleVersion);
+  const executableRelativePath = executableName ? path.join('Contents', 'MacOS', executableName) : null;
   const objects = [
-    inspectCodeObject('main-app', bundlePath, path.join('Contents', 'MacOS', executableName)),
+    inspectCodeObject('main-app', bundlePath, executableRelativePath),
     inspectCodeObject('electron-framework', frameworkPath, path.join('Versions', 'A', 'Electron Framework')),
-    ...expectedHelperBundleNames.filter((name) => frameworkAppEntries.includes(name))
-      .map((name) => inspectCodeObject(`helper:${name}`, path.join(frameworkRoot, name))),
+    ...expectedHelperBundleNames.map((name) => inspectCodeObject(`helper:${name}`, path.join(frameworkRoot, name))),
   ];
   const teamIdentifierDiagnostics = objects.map((object) => object.teamIdentifierDiagnosticForInternalCheck);
   const sourceRevisionSummary = sourceRevision();
@@ -308,8 +317,8 @@ function main() {
     environment: { platform: process.platform, arch: process.arch, node: process.version, osRelease: os.release() },
     candidate: {
       metadataValid: candidateMetadataValid,
-      executableSha256: sha256File(path.join(bundlePath, 'Contents', 'MacOS', executableName)),
-      frameworkSha256: sha256File(frameworkBinary),
+      executableSha256: executableRelativePath ? sha256FileOrNull(path.join(bundlePath, executableRelativePath)) : null,
+      frameworkSha256: sha256FileOrNull(frameworkBinary),
     },
     sourceBuildConfig,
     helperInventory: {

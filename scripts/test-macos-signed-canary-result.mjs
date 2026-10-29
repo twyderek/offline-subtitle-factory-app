@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import {
   classifyCodeSign,
   classifyEntitlements,
@@ -9,8 +13,12 @@ import {
   evaluateSignedCanaryVerification,
   expectedCodeObjectLabels,
   expectedHelperBundleNames,
+  normalizeBundleExecutableName,
 } from '../lib/macos-signed-canary-verification.mjs';
 import { validateEvidence } from './audit-macos-signed-canary-result.mjs';
+
+const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const evidenceDir = path.join(appDir, 'docs/project-management/evidence');
 
 const sourceBuildConfig = {
   identityConfiguration: 'auto-discovery',
@@ -28,9 +36,11 @@ const validCodeSign = classifyCodeSign({
   entitlementsCommandSucceeded: true,
   entitlementsPresent: true,
 });
+const validExecutableHash = 'b'.repeat(64);
 const validDiagnosticForSlot = (index) => `Authority=Developer ID Application: Example (TEAM123)\nTeamIdentifier=TEAM123\nCodeDirectory v=20500 flags=0x10000(runtime)\nObjectSlot=${index}\n`;
 const validObjects = expectedCodeObjectLabels.map((label, index) => ({
   label,
+  executableSha256: validExecutableHash,
   codeSign: classifyCodeSign({
     status: 0,
     stdout: validDiagnosticForSlot(index).trimEnd(),
@@ -62,6 +72,11 @@ assert.equal(compareTeamIdentifiers([validTeamIdentifierDiagnostics[1], validTea
 assert.equal(compareTeamIdentifiers([...validTeamIdentifierDiagnostics.slice(0, -1), 'Authority=Developer ID Application: Example (OTHER)\nTeamIdentifier=OTHER\nCodeDirectory v=20500 flags=0x10000(runtime)\nObjectSlot=5\n'], validObjects.map((object) => object.codeSign.diagnosticSha256)), false);
 assert.equal(classifyStapler({ status: 0, stdout: 'ticket' }).status, 'invalid');
 assert.equal(classifyGatekeeper({ status: 0, stdout: 'assessment completed' }).status, 'rejected');
+assert.equal(normalizeBundleExecutableName('離線字幕工廠'), '離線字幕工廠');
+assert.equal(normalizeBundleExecutableName('  Offline Subtitle Factory  '), 'Offline Subtitle Factory');
+for (const malformedName of [null, '', '.', '..', '../escape', '/absolute', 'foo\\bar', 'line\nfeed', 'x'.repeat(256)]) {
+  assert.equal(normalizeBundleExecutableName(malformedName), null, `malformed executable name must fail closed: ${JSON.stringify(malformedName)}`);
+}
 
 const ready = evaluateSignedCanaryVerification({
   sourceBuildConfig,
@@ -75,6 +90,7 @@ assert.equal(ready.ready, true);
 assert.deepEqual(ready.reasons, []);
 
 const cases = [
+  ['missing executable digest', { objects: validObjects.map((object, index) => (index === 0 ? { ...object, executableSha256: null } : object)) }, 'code-object-signature-not-ready'],
   ['ad-hoc signature', { objects: validObjects.map((object) => ({ ...object, codeSign: { ...object.codeSign, adHocFlagObserved: true } })) }, 'code-object-signature-not-ready'],
   ['missing helper', { helperInventory: { ...helperInventory, complete: false, missingHelperBundleNames: [expectedHelperBundleNames[0]] } }, 'helper-inventory-not-ready'],
   ['non Developer ID', { objects: validObjects.map((object) => ({ ...object, codeSign: { ...object.codeSign, developerIdApplicationPresent: false } })) }, 'code-object-signature-not-ready'],
@@ -100,6 +116,7 @@ for (const [name, overrides, reason] of cases) {
 }
 
 const auditSource = fs.readFileSync(new URL('./audit-macos-signed-canary-result.mjs', import.meta.url), 'utf8');
+const packagedIdentitySource = fs.readFileSync(new URL('./audit-macos-packaged-security-identity.mjs', import.meta.url), 'utf8');
 assert.match(auditSource, /rawCommandOutputPersisted: false/);
 assert.match(auditSource, /identityNamesPersisted: false/);
 assert.match(auditSource, /entitlementsPersisted: false/);
@@ -108,6 +125,14 @@ assert.match(auditSource, /spctl', \['--assess', '--type', 'execute'/);
 assert.match(auditSource, /signingReadinessScriptSha256/);
 assert.match(auditSource, /signedCanaryBuilderConfigSha256/);
 assert.match(auditSource, /packageLockSha256/);
+assert.match(auditSource, /candidateMetadataValid = Boolean\(executableName\) && isSafeVersion\(bundleVersion\)/);
+assert.match(auditSource, /sha256FileOrNull\(frameworkBinary\)/);
+assert.match(auditSource, /expectedHelperBundleNames\.map\(\(name\) => inspectCodeObject/);
+assert.match(packagedIdentitySource, /normalizeBundleExecutableName/);
+assert.match(packagedIdentitySource, /candidateMetadataValid = Boolean\(executableName\)/);
+assert.match(packagedIdentitySource, /isSha256\(item\.executableSha256\)/);
+assert.match(packagedIdentitySource, /candidateMetadataValid && allVerified/);
+assert.match(packagedIdentitySource, /sha256FileOrNull\(frameworkBinary\)/);
 
 const hash = 'a'.repeat(64);
 const fixtureObject = (label) => ({
@@ -147,6 +172,14 @@ const fixture = {
   interpretation: 'test',
 };
 assert.doesNotThrow(() => validateEvidence(fixture));
+const malformedCandidateFixture = structuredClone(fixture);
+malformedCandidateFixture.candidate.metadataValid = false;
+malformedCandidateFixture.candidate.executableSha256 = null;
+malformedCandidateFixture.candidate.frameworkSha256 = null;
+malformedCandidateFixture.summary.reasons = ['candidate-metadata-not-ready', 'helper-inventory-not-ready', 'code-object-signature-not-ready', 'team-identity-not-ready', 'notarization-or-gatekeeper-not-ready'];
+malformedCandidateFixture.summary.candidateMetadataValid = false;
+malformedCandidateFixture.status = 'fail';
+assert.doesNotThrow(() => validateEvidence(malformedCandidateFixture), 'missing CFBundleExecutable must remain bounded fail evidence');
 assert.throws(() => validateEvidence({ ...fixture, extra: true }), /SIGNED_RESULT_EVIDENCE_SCHEMA_INVALID/);
 assert.throws(() => validateEvidence({ ...fixture, status: 'pass' }), /SIGNED_RESULT_SUMMARY_STATUS_MISMATCH/);
 assert.throws(() => validateEvidence({ ...fixture, scope: { ...fixture.scope, unexpected: false } }), /SIGNED_RESULT_SCOPE_NOT_FAIL_CLOSED/);
@@ -192,5 +225,46 @@ assert.throws(() => validateEvidence(appleFlagContradiction), /SIGNED_RESULT_GAT
 const wrongInterpretationType = structuredClone(fixture);
 wrongInterpretationType.interpretation = 42;
 assert.throws(() => validateEvidence(wrongInterpretationType), /SIGNED_RESULT_EVIDENCE_SCHEMA_INVALID/);
+
+const malformedTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-macos-signed-canary-malformed-'));
+const malformedBundle = path.join(malformedTempDir, 'Malformed.app');
+const malformedResultOutput = path.join(evidenceDir, `focused-${process.pid}-macos-signed-canary-malformed-result.json`);
+const malformedIdentityOutput = path.join(evidenceDir, `focused-${process.pid}-macos-packaged-identity-malformed.json`);
+const fakeDarwinBootstrap = `data:text/javascript,${encodeURIComponent('Object.defineProperty(process,"platform",{value:"darwin"});Object.defineProperty(process,"arch",{value:"arm64"});')}`;
+try {
+  fs.mkdirSync(path.join(malformedBundle, 'Contents', 'Frameworks'), { recursive: true });
+  const resultAudit = spawnSync(process.execPath, [
+    '--import', fakeDarwinBootstrap,
+    path.join(appDir, 'scripts/audit-macos-signed-canary-result.mjs'),
+    malformedBundle,
+    malformedResultOutput,
+  ], { encoding: 'utf8' });
+  assert.equal(resultAudit.status, 1, `malformed result audit must fail closed: ${resultAudit.stderr}`);
+  const malformedResultEvidence = JSON.parse(fs.readFileSync(malformedResultOutput, 'utf8'));
+  assert.doesNotThrow(() => validateEvidence(malformedResultEvidence));
+  assert.equal(malformedResultEvidence.status, 'fail');
+  assert.equal(malformedResultEvidence.candidate.metadataValid, false);
+  assert.equal(malformedResultEvidence.candidate.executableSha256, null);
+  assert.equal(malformedResultEvidence.objects.length, expectedCodeObjectLabels.length);
+  assert.equal(fs.statSync(malformedResultOutput).mode & 0o777, 0o600);
+
+  const identityAudit = spawnSync(process.execPath, [
+    '--import', fakeDarwinBootstrap,
+    path.join(appDir, 'scripts/audit-macos-packaged-security-identity.mjs'),
+    malformedBundle,
+    malformedIdentityOutput,
+  ], { encoding: 'utf8' });
+  assert.equal(identityAudit.status, 1, `malformed identity audit must fail closed: ${identityAudit.stderr}`);
+  const malformedIdentityEvidence = JSON.parse(fs.readFileSync(malformedIdentityOutput, 'utf8'));
+  assert.equal(malformedIdentityEvidence.status, 'fail');
+  assert.equal(malformedIdentityEvidence.summary.candidateMetadataValid, false);
+  assert.equal(malformedIdentityEvidence.candidate.executableSha256, null);
+  assert.equal(malformedIdentityEvidence.objects.length, expectedCodeObjectLabels.length);
+  assert.equal(fs.statSync(malformedIdentityOutput).mode & 0o777, 0o600);
+} finally {
+  fs.rmSync(malformedResultOutput, { force: true });
+  fs.rmSync(malformedIdentityOutput, { force: true });
+  fs.rmSync(malformedTempDir, { recursive: true, force: true });
+}
 
 console.log('macOS signed canary result verification contract passed: inventory, Developer ID, runtime, entitlements, staple and Gatekeeper fail-closed matrix');
