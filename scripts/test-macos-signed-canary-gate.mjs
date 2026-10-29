@@ -164,9 +164,33 @@ assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_DMG/);
 assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT/);
 assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT/);
 assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_ZIP/);
-assert.equal((workflow.match(/APPLE_KEYCHAIN_PROFILE: osf-signed-canary/g) || []).length, 3);
+assert.equal((workflow.match(/APPLE_KEYCHAIN_PROFILE: osf-signed-canary/g) || []).length, 4);
 assert.doesNotMatch(workflow, /OSF_APPLE_(?:ID|APP_SPECIFIC_PASSWORD|TEAM_ID)/);
 assert.doesNotMatch(workflow, /--(?:apple-id|password|team-id)/);
+const profileProbeStep = workflow.slice(
+  workflow.indexOf('      - name: Verify notarytool keychain profile resolution'),
+  workflow.indexOf('      - name: Prepare isolated signed-canary output'),
+);
+assert.match(profileProbeStep, /test "\$\{APPLE_KEYCHAIN_PROFILE:-\}" = "osf-signed-canary"/);
+const normalizedProfileProbeStep = profileProbeStep.replace(/\\\n\s*/g, ' ');
+const profileProbeContract = /xcrun notarytool history\s+--keychain-profile "\$APPLE_KEYCHAIN_PROFILE"\s+--output-format json\s+--no-progress\s+>\/dev\/null 2>\/dev\/null(?!\s*\|\|)/;
+assert.match(normalizedProfileProbeStep, profileProbeContract);
+assert.doesNotMatch(normalizedProfileProbeStep, /xcrun notarytool submit/);
+assert.doesNotMatch(normalizedProfileProbeStep, /--password|--apple-id|--team-id/);
+assert.match(profileProbeStep, /set -euo pipefail/);
+assert.doesNotMatch(profileProbeStep, /\|\|\s*true/);
+assert.equal(
+  profileProbeContract.test(normalizedProfileProbeStep.replace('--keychain-profile "$APPLE_KEYCHAIN_PROFILE" ', '')),
+  false,
+);
+assert.equal(
+  profileProbeContract.test(normalizedProfileProbeStep.replace('history', 'submit')),
+  false,
+);
+assert.equal(
+  profileProbeContract.test(normalizedProfileProbeStep.replace('2>\/dev\/null', '2>\/dev\/null || true')),
+  false,
+);
 assert.match(workflow, /ditto -c -k --sequesterRsrc --keepParent/);
 assert.match(workflow, /\/usr\/bin\/unzip -tqq "\$OSF_SIGNED_CANARY_ZIP"/);
 assert.doesNotMatch(workflow, /ditto -t -k/);
@@ -180,6 +204,8 @@ const notarizeStep = workflow.slice(
   workflow.indexOf('      - name: Notarize and staple signed canary'),
   workflow.indexOf('      - name: Verify notarized DMG container'),
 );
+assert(workflow.indexOf('      - name: Verify notarytool keychain profile resolution') < workflow.indexOf('      - name: Prepare isolated signed-canary output'));
+assert(workflow.indexOf('      - name: Verify notarytool keychain profile resolution') < workflow.indexOf('      - name: Build isolated signed canary'));
 assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_DMG"/);
 assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_ZIP"/);
 assert.match(notarizeStep, /test "\$\{APPLE_KEYCHAIN_PROFILE:-\}" = "osf-signed-canary"/);

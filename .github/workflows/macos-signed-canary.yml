@@ -86,6 +86,19 @@ jobs:
           echo 'Signed canary prerequisites are blocked; builder was not started.' >&2
           exit 1
 
+      - name: Verify notarytool keychain profile resolution
+        shell: bash
+        env:
+          APPLE_KEYCHAIN_PROFILE: osf-signed-canary
+        run: |
+          set -euo pipefail
+          test "${APPLE_KEYCHAIN_PROFILE:-}" = "osf-signed-canary"
+          xcrun notarytool history \
+            --keychain-profile "$APPLE_KEYCHAIN_PROFILE" \
+            --output-format json \
+            --no-progress \
+            >/dev/null 2>/dev/null
+
       - name: Prepare isolated signed-canary output
         shell: bash
         run: |
