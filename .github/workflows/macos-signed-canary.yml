@@ -1,0 +1,223 @@
+name: macOS signed canary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osf-macos-signed-canary-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  signed-canary:
+    name: macOS arm64 signed canary
+    runs-on: [self-hosted, macOS, arm64, osf-signed-canary]
+    environment:
+      name: macos-signed-canary
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+
+      - name: Verify protected dispatch ref and Apple Silicon runner
+        shell: bash
+        env:
+          OSF_GITHUB_REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/codex/0.51-anthropic-claude"
+          test "${OSF_GITHUB_REF_PROTECTED:-false}" = "true"
+          test "$(uname -s)" = "Darwin"
+          test "$(uname -m)" = "arm64"
+          git config --local core.autocrlf false
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Run source and regression checks
+        run: npm run check
+
+      - name: Verify clean source before readiness evidence
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Capture signing readiness evidence
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/osf-signed-canary-evidence"
+          evidence="docs/project-management/evidence/ci-${GITHUB_RUN_ID}-macos-signing-readiness.json"
+          node scripts/audit-macos-signing-readiness.mjs "$evidence"
+          chmod 600 "$evidence"
+          cp "$evidence" "$RUNNER_TEMP/osf-signed-canary-evidence/"
+          set +e
+          node scripts/assert-macos-signed-canary-ready.mjs
+          gate_status=$?
+          set -e
+          if [ "$gate_status" -eq 0 ]; then
+            rm "$evidence"
+            exit 0
+          fi
+          gate="docs/project-management/evidence/ci-${GITHUB_RUN_ID}-macos-signed-canary-gate.json"
+          if node scripts/audit-macos-signed-canary-gate.mjs "$gate"; then
+            chmod 600 "$gate"
+            cp "$gate" "$RUNNER_TEMP/osf-signed-canary-evidence/"
+          else
+            echo 'Signed canary gate evidence could not classify the blocked state; readiness evidence remains authoritative.' >&2
+          fi
+          rm -f "$evidence" "$gate"
+          echo 'Signed canary prerequisites are blocked; builder was not started.' >&2
+          exit 1
+
+      - name: Prepare isolated signed-canary output
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/osf-signed-canary-dist-$GITHUB_RUN_ID"
+          if [ -e "$output_dir" ]; then
+            echo 'Run-scoped signed-canary output directory already exists.' >&2
+            exit 1
+          fi
+          mkdir "$output_dir"
+          printf 'OSF_SIGNED_CANARY_OUTPUT_DIR=%s\n' "$output_dir" >> "$GITHUB_ENV"
+
+      - name: Build isolated signed canary
+        env:
+          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+        run: npm run electron:build:mac:signed-canary
+
+      - name: Locate signed canary artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifacts_json="$(node scripts/select-macos-signed-canary-artifacts.mjs "$OSF_SIGNED_CANARY_OUTPUT_DIR")"
+          app_path="$(node --input-type=module -e "const value = JSON.parse(process.argv[1]); process.stdout.write(value.appPath);" "$artifacts_json")"
+          dmg_path="$(node --input-type=module -e "const value = JSON.parse(process.argv[1]); process.stdout.write(value.dmgPath);" "$artifacts_json")"
+          test -n "$app_path"
+          test -n "$dmg_path"
+          printf 'OSF_SIGNED_CANARY_APP=%s\n' "$app_path" >> "$GITHUB_ENV"
+          printf 'OSF_SIGNED_CANARY_DMG=%s\n' "$dmg_path" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple signed canary
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.OSF_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.OSF_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          notary_output="$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"
+          notary_stderr="$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"
+          cleanup_notary_on_failure() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              cleanup_status=0
+              if ! rm -f -- "$notary_output"; then cleanup_status=1; fi
+              if ! rm -f -- "$notary_stderr"; then cleanup_status=1; fi
+              if [ "$cleanup_status" -ne 0 ]; then status="$cleanup_status"; fi
+            fi
+            return "$status"
+          }
+          trap cleanup_notary_on_failure EXIT
+          test ! -e "$notary_output"
+          test ! -L "$notary_output"
+          test ! -e "$notary_stderr"
+          test ! -L "$notary_stderr"
+          xcrun notarytool submit "$OSF_SIGNED_CANARY_DMG" \
+            --wait \
+            --output-format json \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" > "$notary_output" 2> "$notary_stderr"
+          test -s "$notary_output"
+          chmod 600 "$notary_output" "$notary_stderr"
+          printf 'OSF_SIGNED_CANARY_NOTARY_OUTPUT=%s\n' "$notary_output" >> "$GITHUB_ENV"
+          xcrun stapler staple "$OSF_SIGNED_CANARY_APP"
+          xcrun stapler staple "$OSF_SIGNED_CANARY_DMG"
+
+      - name: Verify notarized DMG container
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun stapler validate "$OSF_SIGNED_CANARY_DMG" >/dev/null
+          hdiutil verify "$OSF_SIGNED_CANARY_DMG" >/dev/null
+
+      - name: Write app and DMG distribution evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="docs/project-management/evidence/ci-${GITHUB_RUN_ID}-macos-distribution.json"
+          cleanup_distribution_inputs() {
+            cleanup_status=0
+            if ! rm -f -- "$evidence"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+            return "$cleanup_status"
+          }
+          trap cleanup_distribution_inputs EXIT
+          set +e
+          npm run audit:mac:signed-canary:distribution -- \
+            "$OSF_SIGNED_CANARY_DMG" \
+            "$OSF_SIGNED_CANARY_APP" \
+            "$evidence" \
+            "${OSF_SIGNED_CANARY_NOTARY_OUTPUT:-}"
+          audit_status=$?
+          set -e
+          if [ -f "$evidence" ]; then
+            chmod 600 "$evidence"
+            cp "$evidence" "$RUNNER_TEMP/osf-signed-canary-evidence/"
+          fi
+          exit "$audit_status"
+
+      - name: Verify signed canary result
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="docs/project-management/evidence/ci-${GITHUB_RUN_ID}-macos-signed-canary-result.json"
+          npm run audit:mac:signed-canary -- "$OSF_SIGNED_CANARY_APP" "$evidence"
+          chmod 600 "$evidence"
+          cp "$evidence" "$RUNNER_TEMP/osf-signed-canary-evidence/"
+
+      - name: Upload bounded signed-canary evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: osf-macos-signed-canary-${{ github.run_id }}
+          path: ${{ runner.temp }}/osf-signed-canary-evidence
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Clean run-scoped signed-canary output
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$RUNNER_TEMP/osf-signed-canary-dist-$GITHUB_RUN_ID"
+          cleanup_status=0
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+          if [ "${OSF_SIGNED_CANARY_OUTPUT_DIR:-}" = "$expected" ] && [ -d "$expected" ]; then
+            if ! rm -rf -- "$expected"; then cleanup_status=1; fi
+          fi
+          exit "$cleanup_status"
