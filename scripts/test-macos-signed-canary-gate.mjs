@@ -153,6 +153,10 @@ const cleanupStep = workflow.slice(workflow.indexOf('      - name: Clean run-sco
 assert.match(cleanupStep, /if: always\(\)/);
 assert.match(cleanupStep, /osf-signed-canary-notarytool-\$GITHUB_RUN_ID\.json/);
 assert.match(cleanupStep, /osf-signed-canary-notarytool-\$GITHUB_RUN_ID\.stderr/);
+assert.match(
+  cleanupStep,
+  /result_evidence="docs\/project-management\/evidence\/ci-\$\{GITHUB_RUN_ID\}-macos-signed-canary-result\.json"\s+cleanup_status=0\s+if ! rm -f -- "\$result_evidence"; then cleanup_status=1; fi/,
+);
 assert.doesNotMatch(workflow, /find "\$OSF_SIGNED_CANARY_OUTPUT_DIR"[^\n]*-name '\*\.app'/);
 const artifactFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-artifact-selection-'));
 try {
