@@ -114,10 +114,13 @@ jobs:
           artifacts_json="$(node scripts/select-macos-signed-canary-artifacts.mjs "$OSF_SIGNED_CANARY_OUTPUT_DIR")"
           app_path="$(node --input-type=module -e "const value = JSON.parse(process.argv[1]); process.stdout.write(value.appPath);" "$artifacts_json")"
           dmg_path="$(node --input-type=module -e "const value = JSON.parse(process.argv[1]); process.stdout.write(value.dmgPath);" "$artifacts_json")"
+          zip_path="$(node --input-type=module -e "const value = JSON.parse(process.argv[1]); process.stdout.write(value.zipPath);" "$artifacts_json")"
           test -n "$app_path"
           test -n "$dmg_path"
+          test -n "$zip_path"
           printf 'OSF_SIGNED_CANARY_APP=%s\n' "$app_path" >> "$GITHUB_ENV"
           printf 'OSF_SIGNED_CANARY_DMG=%s\n' "$dmg_path" >> "$GITHUB_ENV"
+          printf 'OSF_SIGNED_CANARY_ZIP=%s\n' "$zip_path" >> "$GITHUB_ENV"
 
       - name: Notarize and staple signed canary
         shell: bash
@@ -127,43 +130,80 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.OSF_APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          notary_output="$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"
-          notary_stderr="$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"
+          notary_dmg_output="$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.json"
+          notary_dmg_stderr="$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.stderr"
+          notary_zip_output="$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.json"
+          notary_zip_stderr="$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.stderr"
+          submitted_dmg="$RUNNER_TEMP/osf-signed-canary-submitted-dmg-$GITHUB_RUN_ID.dmg"
+          submitted_zip="$RUNNER_TEMP/osf-signed-canary-submitted-zip-$GITHUB_RUN_ID.zip"
           cleanup_notary_on_failure() {
             status=$?
             if [ "$status" -ne 0 ]; then
               cleanup_status=0
-              if ! rm -f -- "$notary_output"; then cleanup_status=1; fi
-              if ! rm -f -- "$notary_stderr"; then cleanup_status=1; fi
+              if ! rm -f -- "$notary_dmg_output"; then cleanup_status=1; fi
+              if ! rm -f -- "$notary_dmg_stderr"; then cleanup_status=1; fi
+              if ! rm -f -- "$notary_zip_output"; then cleanup_status=1; fi
+              if ! rm -f -- "$notary_zip_stderr"; then cleanup_status=1; fi
+              if ! rm -f -- "$submitted_dmg"; then cleanup_status=1; fi
+              if ! rm -f -- "$submitted_zip"; then cleanup_status=1; fi
               if [ "$cleanup_status" -ne 0 ]; then status="$cleanup_status"; fi
             fi
             return "$status"
           }
           trap cleanup_notary_on_failure EXIT
-          test ! -e "$notary_output"
-          test ! -L "$notary_output"
-          test ! -e "$notary_stderr"
-          test ! -L "$notary_stderr"
+          test ! -e "$notary_dmg_output"
+          test ! -L "$notary_dmg_output"
+          test ! -e "$notary_dmg_stderr"
+          test ! -L "$notary_dmg_stderr"
+          test ! -e "$notary_zip_output"
+          test ! -L "$notary_zip_output"
+          test ! -e "$notary_zip_stderr"
+          test ! -L "$notary_zip_stderr"
+          test ! -e "$submitted_dmg"
+          test ! -L "$submitted_dmg"
+          test ! -e "$submitted_zip"
+          test ! -L "$submitted_zip"
+          cp "$OSF_SIGNED_CANARY_DMG" "$submitted_dmg"
+          chmod 600 "$submitted_dmg"
+          cp "$OSF_SIGNED_CANARY_ZIP" "$submitted_zip"
+          chmod 600 "$submitted_zip"
           xcrun notarytool submit "$OSF_SIGNED_CANARY_DMG" \
             --wait \
             --output-format json \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" > "$notary_output" 2> "$notary_stderr"
-          test -s "$notary_output"
-          chmod 600 "$notary_output" "$notary_stderr"
-          printf 'OSF_SIGNED_CANARY_NOTARY_OUTPUT=%s\n' "$notary_output" >> "$GITHUB_ENV"
+            --team-id "$APPLE_TEAM_ID" > "$notary_dmg_output" 2> "$notary_dmg_stderr"
+          test -s "$notary_dmg_output"
+          chmod 600 "$notary_dmg_output" "$notary_dmg_stderr"
+          xcrun notarytool submit "$OSF_SIGNED_CANARY_ZIP" \
+            --wait \
+            --output-format json \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" > "$notary_zip_output" 2> "$notary_zip_stderr"
+          test -s "$notary_zip_output"
+          chmod 600 "$notary_zip_output" "$notary_zip_stderr"
+          printf 'OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT=%s\n' "$notary_dmg_output" >> "$GITHUB_ENV"
+          printf 'OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT=%s\n' "$notary_zip_output" >> "$GITHUB_ENV"
+          printf 'OSF_SIGNED_CANARY_SUBMITTED_DMG=%s\n' "$submitted_dmg" >> "$GITHUB_ENV"
+          printf 'OSF_SIGNED_CANARY_SUBMITTED_ZIP=%s\n' "$submitted_zip" >> "$GITHUB_ENV"
           xcrun stapler staple "$OSF_SIGNED_CANARY_APP"
           xcrun stapler staple "$OSF_SIGNED_CANARY_DMG"
+          rm -f -- "$OSF_SIGNED_CANARY_ZIP"
+          test ! -e "$OSF_SIGNED_CANARY_ZIP"
+          ditto -c -k --sequesterRsrc --keepParent "$OSF_SIGNED_CANARY_APP" "$OSF_SIGNED_CANARY_ZIP"
+          test -s "$OSF_SIGNED_CANARY_ZIP"
 
       - name: Verify notarized DMG container
         shell: bash
         run: |
           set -euo pipefail
+          xcrun stapler validate "$OSF_SIGNED_CANARY_APP" >/dev/null
           xcrun stapler validate "$OSF_SIGNED_CANARY_DMG" >/dev/null
           hdiutil verify "$OSF_SIGNED_CANARY_DMG" >/dev/null
+          /usr/bin/unzip -tqq "$OSF_SIGNED_CANARY_ZIP"
 
-      - name: Write app and DMG distribution evidence
+      - name: Write app, DMG and ZIP distribution evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -171,8 +211,12 @@ jobs:
           cleanup_distribution_inputs() {
             cleanup_status=0
             if ! rm -f -- "$evidence"; then cleanup_status=1; fi
-            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
-            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-submitted-dmg-$GITHUB_RUN_ID.dmg"; then cleanup_status=1; fi
+            if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-submitted-zip-$GITHUB_RUN_ID.zip"; then cleanup_status=1; fi
             return "$cleanup_status"
           }
           trap cleanup_distribution_inputs EXIT
@@ -180,8 +224,12 @@ jobs:
           npm run audit:mac:signed-canary:distribution -- \
             "$OSF_SIGNED_CANARY_DMG" \
             "$OSF_SIGNED_CANARY_APP" \
+            "$OSF_SIGNED_CANARY_ZIP" \
+            "$OSF_SIGNED_CANARY_SUBMITTED_DMG" \
+            "$OSF_SIGNED_CANARY_SUBMITTED_ZIP" \
             "$evidence" \
-            "${OSF_SIGNED_CANARY_NOTARY_OUTPUT:-}"
+            "${OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT:-}" \
+            "${OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT:-}"
           audit_status=$?
           set -e
           if [ -f "$evidence" ]; then
@@ -217,8 +265,12 @@ jobs:
           result_evidence="docs/project-management/evidence/ci-${GITHUB_RUN_ID}-macos-signed-canary-result.json"
           cleanup_status=0
           if ! rm -f -- "$result_evidence"; then cleanup_status=1; fi
-          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
-          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-dmg-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.json"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-notarytool-zip-$GITHUB_RUN_ID.stderr"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-submitted-dmg-$GITHUB_RUN_ID.dmg"; then cleanup_status=1; fi
+          if ! rm -f -- "$RUNNER_TEMP/osf-signed-canary-submitted-zip-$GITHUB_RUN_ID.zip"; then cleanup_status=1; fi
           if [ "${OSF_SIGNED_CANARY_OUTPUT_DIR:-}" = "$expected" ] && [ -d "$expected" ]; then
             if ! rm -rf -- "$expected"; then cleanup_status=1; fi
           fi

@@ -143,36 +143,97 @@ assert.throws(() => loadSignedCanaryBuildConfig(appDir, { outputDirectory: 'rela
 assert.throws(() => loadSignedCanaryBuildConfig(appDir, { outputDirectory: appDir }), /outside the source tree/);
 const workflow = fs.readFileSync(new URL('../.github/workflows/macos-signed-canary.yml', import.meta.url), 'utf8');
 assert.match(workflow, /scripts\/select-macos-signed-canary-artifacts\.mjs/);
-assert.match(workflow, /notarytool-\$GITHUB_RUN_ID\.json/);
-assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_OUTPUT/);
+assert.match(workflow, /zip_path=.*value\.zipPath/);
+assert.match(workflow, /OSF_SIGNED_CANARY_ZIP/);
+assert.match(workflow, /osf-signed-canary-notarytool-dmg-\$GITHUB_RUN_ID\.json/);
+assert.match(workflow, /osf-signed-canary-notarytool-zip-\$GITHUB_RUN_ID\.json/);
+assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_DMG/);
+assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT/);
+assert.match(workflow, /OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT/);
+assert.match(workflow, /OSF_SIGNED_CANARY_SUBMITTED_ZIP/);
+assert.match(workflow, /ditto -c -k --sequesterRsrc --keepParent/);
+assert.match(workflow, /\/usr\/bin\/unzip -tqq "\$OSF_SIGNED_CANARY_ZIP"/);
+assert.doesNotMatch(workflow, /ditto -t -k/);
 assert.match(workflow, /cleanup_distribution_inputs/);
 assert.match(workflow, /cleanup_notary_on_failure/);
+assert.match(workflow, /osf-signed-canary-submitted-dmg-\$GITHUB_RUN_ID\.dmg/);
 assert.match(workflow, /OSF_GITHUB_REF_PROTECTED: \$\{\{ github\.ref_protected \}\}/);
 assert.match(workflow, /test "\$\{OSF_GITHUB_REF_PROTECTED:-false\}" = "true"/);
 const cleanupStep = workflow.slice(workflow.indexOf('      - name: Clean run-scoped signed-canary output'));
+const notarizeStep = workflow.slice(
+  workflow.indexOf('      - name: Notarize and staple signed canary'),
+  workflow.indexOf('      - name: Verify notarized DMG container'),
+);
+assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_DMG"/);
+assert.match(notarizeStep, /xcrun notarytool submit "\$OSF_SIGNED_CANARY_ZIP"/);
+assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_DMG" "\$submitted_dmg"/);
+assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_DMG" "\$submitted_dmg"\s+chmod 600 "\$submitted_dmg"/);
+assert.match(notarizeStep, /cp "\$OSF_SIGNED_CANARY_ZIP" "\$submitted_zip"\s+chmod 600 "\$submitted_zip"/);
+assert.match(notarizeStep, /test -s "\$notary_dmg_output"\s+chmod 600 "\$notary_dmg_output" "\$notary_dmg_stderr"/);
+assert.match(notarizeStep, /test -s "\$notary_zip_output"\s+chmod 600 "\$notary_zip_output" "\$notary_zip_stderr"/);
+assert.match(notarizeStep, /rm -f -- "\$OSF_SIGNED_CANARY_ZIP"/);
+assert.match(notarizeStep, /ditto -c -k --sequesterRsrc --keepParent "\$OSF_SIGNED_CANARY_APP" "\$OSF_SIGNED_CANARY_ZIP"/);
+assert.match(notarizeStep, /if ! rm -f -- "\$notary_dmg_output"; then cleanup_status=1; fi/);
+assert.match(notarizeStep, /if ! rm -f -- "\$notary_zip_output"; then cleanup_status=1; fi/);
+assert.match(notarizeStep, /if ! rm -f -- "\$submitted_dmg"; then cleanup_status=1; fi/);
+assert.match(notarizeStep, /if ! rm -f -- "\$submitted_zip"; then cleanup_status=1; fi/);
+const distributionStep = workflow.slice(
+  workflow.indexOf('      - name: Write app, DMG and ZIP distribution evidence'),
+  workflow.indexOf('      - name: Verify signed canary result'),
+);
+const normalizedDistributionStep = distributionStep.replace(/\\\n\s*/g, ' ');
+assert.match(
+  normalizedDistributionStep,
+  /npm run audit:mac:signed-canary:distribution --\s+"\$OSF_SIGNED_CANARY_DMG"\s+"\$OSF_SIGNED_CANARY_APP"\s+"\$OSF_SIGNED_CANARY_ZIP"\s+"\$OSF_SIGNED_CANARY_SUBMITTED_DMG"\s+"\$OSF_SIGNED_CANARY_SUBMITTED_ZIP"\s+"\$evidence"\s+"\$\{OSF_SIGNED_CANARY_NOTARY_DMG_OUTPUT:-\}"\s+"\$\{OSF_SIGNED_CANARY_NOTARY_ZIP_OUTPUT:-\}"/,
+);
+assert.doesNotMatch(
+  normalizedDistributionStep.replace('"$OSF_SIGNED_CANARY_SUBMITTED_DMG" ', ''),
+  /npm run audit:mac:signed-canary:distribution --\s+"\$OSF_SIGNED_CANARY_DMG"\s+"\$OSF_SIGNED_CANARY_APP"\s+"\$OSF_SIGNED_CANARY_ZIP"\s+"\$OSF_SIGNED_CANARY_SUBMITTED_DMG"/,
+);
+assert.doesNotMatch(notarizeStep.replace('chmod 600 "$submitted_zip"', ''), /cp "\$OSF_SIGNED_CANARY_ZIP" "\$submitted_zip"\s+chmod 600 "\$submitted_zip"/);
+assert.doesNotMatch(notarizeStep.replace('if ! rm -f -- "$submitted_zip"; then cleanup_status=1; fi', ''), /if ! rm -f -- "\$submitted_zip"; then cleanup_status=1; fi/);
 assert.match(cleanupStep, /if: always\(\)/);
-assert.match(cleanupStep, /osf-signed-canary-notarytool-\$GITHUB_RUN_ID\.json/);
-assert.match(cleanupStep, /osf-signed-canary-notarytool-\$GITHUB_RUN_ID\.stderr/);
+assert.match(cleanupStep, /osf-signed-canary-notarytool-dmg-\$GITHUB_RUN_ID\.json/);
+assert.match(cleanupStep, /osf-signed-canary-notarytool-dmg-\$GITHUB_RUN_ID\.stderr/);
+assert.match(cleanupStep, /osf-signed-canary-notarytool-zip-\$GITHUB_RUN_ID\.json/);
+assert.match(cleanupStep, /osf-signed-canary-notarytool-zip-\$GITHUB_RUN_ID\.stderr/);
+assert.match(cleanupStep, /osf-signed-canary-submitted-zip-\$GITHUB_RUN_ID\.zip/);
+assert.match(cleanupStep, /osf-signed-canary-submitted-dmg-\$GITHUB_RUN_ID\.dmg/);
+assert.match(distributionStep, /if ! rm -f -- "\$RUNNER_TEMP\/osf-signed-canary-notarytool-dmg-\$GITHUB_RUN_ID\.json"; then cleanup_status=1; fi/);
+assert.match(distributionStep, /if ! rm -f -- "\$RUNNER_TEMP\/osf-signed-canary-notarytool-zip-\$GITHUB_RUN_ID\.json"; then cleanup_status=1; fi/);
+assert.match(distributionStep, /if ! rm -f -- "\$RUNNER_TEMP\/osf-signed-canary-submitted-dmg-\$GITHUB_RUN_ID\.dmg"; then cleanup_status=1; fi/);
+assert.match(distributionStep, /if ! rm -f -- "\$RUNNER_TEMP\/osf-signed-canary-submitted-zip-\$GITHUB_RUN_ID\.zip"; then cleanup_status=1; fi/);
 assert.match(
   cleanupStep,
   /result_evidence="docs\/project-management\/evidence\/ci-\$\{GITHUB_RUN_ID\}-macos-signed-canary-result\.json"\s+cleanup_status=0\s+if ! rm -f -- "\$result_evidence"; then cleanup_status=1; fi/,
 );
+assert.doesNotMatch(workflow, /OSF_SIGNED_CANARY_NOTARY_OUTPUT/);
 assert.doesNotMatch(workflow, /find "\$OSF_SIGNED_CANARY_OUTPUT_DIR"[^\n]*-name '\*\.app'/);
 const artifactFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-artifact-selection-'));
 try {
   const outputDirectory = path.join(artifactFixtureRoot, 'dist');
   const mainApp = path.join(outputDirectory, 'mac-arm64', '離線字幕工廠.app');
+  const dmgPath = path.join(outputDirectory, 'offline-subtitle-factory-0.52.0-macos-arm64.dmg');
+  const zipPath = path.join(outputDirectory, 'offline-subtitle-factory-0.52.0-macos-arm64.zip');
   fs.mkdirSync(path.join(mainApp, 'Contents', 'Frameworks', '離線字幕工廠 Helper.app'), { recursive: true });
-  fs.writeFileSync(path.join(outputDirectory, 'offline-subtitle-factory-0.52.0-macos-arm64.dmg'), 'fixture');
+  fs.writeFileSync(dmgPath, 'fixture');
+  fs.writeFileSync(zipPath, 'fixture');
   assert.deepEqual(selectSignedCanaryArtifacts(outputDirectory), {
     appPath: mainApp,
-    dmgPath: path.join(outputDirectory, 'offline-subtitle-factory-0.52.0-macos-arm64.dmg'),
+    dmgPath,
+    zipPath,
   });
   fs.mkdirSync(path.join(outputDirectory, 'mac-arm64', 'second.app'));
   assert.throws(() => selectSignedCanaryArtifacts(outputDirectory), /MAIN_APP_CARDINALITY_INVALID/);
   fs.rmSync(path.join(outputDirectory, 'mac-arm64', 'second.app'), { recursive: true, force: true });
   fs.writeFileSync(path.join(outputDirectory, 'second-macos-arm64.dmg'), 'fixture');
   assert.throws(() => selectSignedCanaryArtifacts(outputDirectory), /DMG_CARDINALITY_INVALID/);
+  fs.rmSync(path.join(outputDirectory, 'second-macos-arm64.dmg'));
+  fs.rmSync(zipPath);
+  assert.throws(() => selectSignedCanaryArtifacts(outputDirectory), /ZIP_CARDINALITY_INVALID/);
+  fs.writeFileSync(zipPath, 'fixture');
+  fs.writeFileSync(path.join(outputDirectory, 'second-macos-arm64.zip'), 'fixture');
+  assert.throws(() => selectSignedCanaryArtifacts(outputDirectory), /ZIP_CARDINALITY_INVALID/);
 } finally {
   fs.rmSync(artifactFixtureRoot, { recursive: true, force: true });
 }
