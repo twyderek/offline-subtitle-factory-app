@@ -209,8 +209,9 @@ if (process.platform === 'darwin' && process.arch === 'arm64') {
   }
 }
 
-const writerFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-distribution-writer-'));
-try {
+if (process.platform !== 'win32') {
+  const writerFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-distribution-writer-'));
+  try {
   const evidencePath = path.join(writerFixtureRoot, 'evidence.json');
   writeEvidenceFile(evidencePath, fixture);
   assertPrivateEvidenceMode(evidencePath);
@@ -305,8 +306,9 @@ try {
     if (previousRunnerTemp === undefined) delete process.env.RUNNER_TEMP;
     else process.env.RUNNER_TEMP = previousRunnerTemp;
   }
-} finally {
-  fs.rmSync(writerFixtureRoot, { recursive: true, force: true });
+  } finally {
+    fs.rmSync(writerFixtureRoot, { recursive: true, force: true });
+  }
 }
 
 console.log('macOS signed canary distribution evidence contract passed: app/DMG/ZIP digests, dual notary projection, stapler/archive fail-closed schema and privacy matrix');

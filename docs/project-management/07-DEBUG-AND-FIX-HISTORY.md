@@ -1,5 +1,13 @@
 # 偵錯與修改歷程
 
+### BUG-066：Windows distribution writer fixture 錯誤要求 POSIX evidence mode（2026-10-30；source 已修正，CI 複驗中）
+
+- 現象：Windows workflow `41013406327` 已通過 temp path 與 mode-bit 修正後，在 `scripts/test-macos-signed-canary-distribution.mjs:231` 因 writer fixture 期待 POSIX `0600` 而失敗；該 fixture 後續亦依賴 macOS-only `/usr/bin/zip`。
+- 根因：distribution contract test 將 production writer 的 Unix privacy-mode fixture 與 Windows source／schema contract 混在同一執行路徑；Windows Node 可讀取 fixture，但無法保留 POSIX mode bits，且 runner 不提供 `/usr/bin/zip`。
+- 修正：將 writer filesystem／archive fixture 限定於非 Windows；Windows 仍執行跨平台 schema、privacy projection、notary projection 與負向 contract，POSIX／macOS 保留完整 writer／archive／0600／symlink／cleanup 驗證。
+- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` exit 0；待 push 後由新 Windows workflow run 驗證 package／renderer／installation／archive／SHA stages。
+- 界線：未放寬 production writer 的 fail-closed mode contract；此修正只排除 Windows 無法提供的 macOS／POSIX fixture，不能替代 macOS signed／notarized candidate acceptance。
+
 ### BUG-065：Windows workflow 的 macOS ZIP fixture 依賴 `/usr/bin/zip`／`unzip`（2026-10-30；source 已修正，CI 複驗中）
 
 - 現象：Windows workflow `41013228899` 已通過前兩個跨平台 contract failure，但在 `scripts/test-macos-signed-canary-distribution.mjs:136` 因 `spawnSync /usr/bin/zip ENOENT` 停止。
