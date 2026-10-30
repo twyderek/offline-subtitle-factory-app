@@ -54,7 +54,7 @@
 ## 支援環境
 
 - Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。
-- 0.51.0 公開版使用 Electron 43.3.0／electron-builder 26.15.7。0.52.0 使用 Electron 43.8.0／electron-builder 26.17.0，source tag `v0.52.0` 指向 `b6b1efd6b72574f9210af74729d2cb2fd869e42d`，已於 2026-10-20 發布為 GitHub Latest，範圍限定 macOS arm64。round16 獨立審查 PASS；DMG／ZIP、兩個 blockmaps、`latest-mac.yml`、SHA-256 sidecar、signing status 共七項 asset 的名稱／大小／digest／下載 URL 與候選核對相符。Windows exact-source preview run `39382252222`／artifact `12246485809` 的 manifest／73 shared hashes 通過其聲明範圍，但完整 archive 未下載、不是本次發行 asset。UI 合成影片沒有有效播放／完整轉錄證明；真實 Google／Keychain／上傳未驗收。ad-hoc／未公證與 `GHSA-hp3w-g68c-fv3c` build-time advisory 依 Release notes 揭露。發布後狀態與資產詳見 `00-CURRENT-STATUS.md`／`06-TEST-AND-PROCESS-AUDIT.md`；不得覆寫既有 tag／Release。
+- 0.51.0 公開版使用 Electron 43.3.0／electron-builder 26.15.7。0.52.0 使用 Electron 43.8.0／electron-builder 26.17.0，source tag `v0.52.0` 指向 `b6b1efd6b72574f9210af74729d2cb2fd869e42d`，已於 2026-10-20 發布為 GitHub Latest，公開範圍限定 macOS arm64。round16 獨立審查 PASS；DMG／ZIP、兩個 blockmaps、`latest-mac.yml`、SHA-256 sidecar、signing status 共七項 asset 的名稱／大小／digest／下載 URL 與候選核對相符。最新 Windows exact-source preview run `41013639786`／artifact `12958791997`（504,815,503 bytes，API digest `sha256:01f57853d4f585907e5589d15727c2068d0ecc82d9b1a76dd54e048fc40e4a3d`）完整 workflow 成功，但 artifact 仍是 unsigned preview、不是本次發行 asset，且 Windows Authenticode／實機未驗收。UI 合成影片沒有有效播放／完整轉錄證明；真實 Google／Keychain／上傳未驗收。ad-hoc／未公證與 `GHSA-hp3w-g68c-fv3c` build-time advisory 依 Release notes 揭露。發布後狀態與資產詳見 `00-CURRENT-STATUS.md`／`06-TEST-AND-PROCESS-AUDIT.md`；不得覆寫既有 tag／Release。
 - 0.50.0 開發分支目前只變更 Breeze 效能參考 payload、選取後提醒與版本識別；尚未建立 tag／Release。若進入發布流程，需以 `v0.50.0` 重新建置並重新核對雙平台資產。
 - Windows 10/11 x64；封裝由 `windows-2022` runner 執行。
 - Apple Silicon macOS 12 以上。

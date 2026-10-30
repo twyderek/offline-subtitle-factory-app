@@ -307,7 +307,7 @@
 
 > 現行版本：0.52.0（已發布；macOS arm64-only）
 > 現行公開版本：0.52.0（GitHub Latest）
-> 發布狀態：GitHub Release [`v0.52.0`](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已公開，annotated tag 指向 source `b6b1efd6b72574f9210af74729d2cb2fd869e42d`。round16 六面向獨立審查 PASS；七項 macOS arm64 assets 的名稱、大小、GitHub SHA-256 digest 與下載 URL 已核對，Release notes 與本地 `RELEASE-NOTES-0.52.0.md` 一致；未發布 Windows preview。round14 的 Windows user-profile 路徑 blocker 已匿名化，round15 的狀態文件同步 blocker 已解除，詳見 `06-TEST-AND-PROCESS-AUDIT.md` 最新條目與 round15／round16 獨立報告。真實播放／完整轉錄、Google／Keychain／上傳、Windows 完整 archive／實機及 macOS Developer ID／公證／Gatekeeper 仍未驗收；`GHSA-hp3w-g68c-fv3c` build-time advisory 依 Release notes 揭露。
+> 發布狀態：GitHub Release [`v0.52.0`](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0) 已公開，annotated tag 指向 source `b6b1efd6b72574f9210af74729d2cb2fd869e42d`。round16 六面向獨立審查 PASS；七項 macOS arm64 assets 的名稱、大小、GitHub SHA-256 digest 與下載 URL 已核對，Release notes 與本地 `RELEASE-NOTES-0.52.0.md` 一致。最新 Windows exact-source workflow run `41013639786`（HEAD `539d880`）已成功產生 unsigned preview artifact `offline-subtitle-factory-0.52.0-windows-x64`（artifact `12958791997`，504,815,503 bytes，API digest `sha256:01f57853d4f585907e5589d15727c2068d0ecc82d9b1a76dd54e048fc40e4a3d`），但未上傳至公開 Release。round14 的 Windows user-profile 路徑 blocker 已匿名化，round15 的狀態文件同步 blocker 已解除，詳見 `06-TEST-AND-PROCESS-AUDIT.md` 最新條目與 round15／round16 獨立報告。真實播放／完整轉錄、Google／Keychain／上傳、Windows Authenticode／實機與 macOS Developer ID／公證／Gatekeeper 仍未驗收；`GHSA-hp3w-g68c-fv3c` build-time advisory 依 Release notes 揭露。
 > 發布 tag／commit：`v0.52.0` → `b6b1efd6b72574f9210af74729d2cb2fd869e42d`
 > 主分支：`main`
 

@@ -17,7 +17,7 @@
 
 ## 本版範圍與已知限制
 
-- 本次候選發行範圍為 macOS Apple Silicon（arm64）。Windows 0.52.0 尚未完成此版封裝及實機驗收，不包含 Windows 發行資產。
+- 本次公開候選發行範圍為 macOS Apple Silicon（arm64）。Windows 0.52.0 已由 GitHub Actions run `41013639786` 產生 unsigned preview package，並通過 source／offline runtime、renderer／安裝生命週期、archive 與 SHA-256 驗證；因未完成 Authenticode 與 Windows 實機驗收，仍不包含 Windows 公開發行資產。該 preview artifact 只供同源 CI 交叉驗證與後續測試。
 - 尚未以真實 Google OAuth client、macOS Keychain、個人頻道完成登入、影片上傳及字幕上傳端到端驗收。請將 YouTube 上傳視為尚未完成實帳號驗收的功能，首次使用前先以非重要／私人測試素材確認。
 - 本版 packaged UI smoke 只驗證版面與互動；合成影片測試沒有展示有效播放進度，不能視為有效播放、完整轉錄或上傳驗收。
 - GitHub 自動產生的原始碼封存包含追蹤中的治理文件；已將歷史文件中可辨識的個人 home 與 Windows user-profile 路徑改為中性佔位符。需求方明確核准 round12 獨立審查報告原樣公開，並知情接受該原件含一處本機絕對候選路徑；此限縮例外僅涵蓋該報告，不代表其他個人路徑可公開。封存不包含本機建置產物。

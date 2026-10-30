@@ -1,5 +1,12 @@
 # 功能測試與流程稽核
 
+## 2026-10-30 Windows 0.52.0 unsigned preview workflow closeout
+
+- Exact-source Windows workflow run `41013639786`（HEAD `539d8804265fb1d1738abf205629013bfc4f382a`）完整成功：source／offline runtime、source／FFmpeg regression、unsigned preview package、packaged renderer／install lifecycle、archive／SHA-256 與 artifact upload 均通過；Authenticode-signed step 依未提供憑證而 skipped，不能宣稱 Windows signed package。
+- artifact `offline-subtitle-factory-0.52.0-windows-x64`（ID `12958791997`）為 504,815,503 bytes，GitHub API digest `sha256:01f57853d4f585907e5589d15727c2068d0ecc82d9b1a76dd54e048fc40e4a3d`；它是 CI preview，未加入既有公開 `v0.52.0` Release。下載與內容核對須以 artifact manifest／checksum 的實際結果為準，不以 job 綠燈替代資產核驗。
+- BUG-063／064／065／066 的 Windows runner contract failures 已由新 run 越過；production evidence writer 的 POSIX `0600` 與 macOS ZIP 工具契約仍由 POSIX／macOS fixture 驗證，未因 Windows CI 而放寬。
+- 此項完成 Windows 0.52.0 CI preview／封裝準備，不完成 Windows Authenticode、Windows 實機、公開 Release asset、Google OAuth／頻道上傳或 macOS Developer ID／公證／Gatekeeper 驗收。
+
 ## 2026-10-30 Windows workflow macOS distribution writer fixture portability regression
 
 - Windows workflow run `41013406327`（HEAD `02f795d7c1cb3d2c0d5ff84d6fb9f5a614a61672`）已通過前述 temp path／mode-bit contract，但在 `scripts/test-macos-signed-canary-distribution.mjs:231` 因 Windows 無法表達 production writer 的 POSIX `0600` archive evidence mode 而停止；此後同一測試仍會嘗試 macOS-only `/usr/bin/zip`，故 writer fixture 也限定非 Windows 執行。
@@ -10,19 +17,19 @@
 
 - Windows workflow run `41013228899` 在 `scripts/test-macos-signed-canary-distribution.mjs:136` 因 `/usr/bin/zip` 不存在停止；此前的 hard-coded temp path 與 POSIX mode-bit failures 已先由 `86d9133`／`02f795d` 修正。
 - archive integration fixture 現限定非 Windows 執行；Windows 保留 distribution schema／privacy／writer／notary projection／negative contract 測試，避免把 macOS-only CLI 工具缺失誤判為 Windows source regression。
-- 本地 distribution focused test 與完整 `npm run check` 均通過；修正推送後須重跑 Windows workflow，確認能進入 package／renderer／installation／archive／SHA stages。
+- 本地 distribution focused test 與完整 `npm run check` 均通過；後續 exact-source Windows workflow `41013639786` 已完成 package／renderer／installation／archive／SHA stages，並上傳 unsigned preview artifact；該結果不延伸為 Authenticode 或 Windows 實機驗收。
 
 ## 2026-10-30 Windows workflow POSIX mode-bit contract regression
 
 - Windows workflow run `41013005375`（HEAD `86d9133eda44480067e2a867445f1c4688b05470`）已通過 runtime 準備並在 `scripts/test-macos-signed-canary-result.mjs:249` 因 Windows mode `438` 與 POSIX `0600` 的預期 `384` 不同而停止。
 - 三支 signed-canary contract test 改以 `process.platform !== 'win32'` 條件驗證 `0600`；POSIX／macOS 仍保留嚴格 mode gate，Windows 不再把不可表達的 Unix mode bits 當成失敗。
-- 本地三支 focused tests 均 exit 0；修正推送後須重新驗證 Windows source／runtime、完整 regression、unsigned／signed package 路徑、renderer／install smoke、archive 與 SHA manifest。
+- 本地三支 focused tests 均 exit 0；後續 exact-source Windows workflow `41013639786` 已驗證 Windows source／runtime、完整 regression、unsigned preview package、renderer／install smoke、archive 與 SHA manifest；signed package step 因無憑證 skipped。
 
 ## 2026-10-30 Windows workflow cross-platform contract regression
 
 - GitHub Windows workflow run `40993031453`（HEAD `4996a421de284569bc2e8660b2d6737a781e5fc1`）在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs:210` 失敗：實際 Windows temp path 為 `D:\\tmp\\osf-signed-canary-test-output`，fixture 卻要求 `/tmp/osf-signed-canary-test-output`。
 - 修正測試改用 `os.tmpdir()`／`path.join()`；本地 `node scripts/test-macos-signed-canary-gate.mjs` 與完整 `npm run check` 均 exit 0。修正推送後須以新的 Windows workflow run 驗證 source check、runtime preparation、package build、renderer／installation smoke、archive與 SHA manifest。
-- 此項目前只結案 local source／test regression；Windows runner、unsigned／signed package、安裝生命週期與 Release asset 仍待 CI 複驗，不把 local pass 擴大成 Windows release acceptance。
+- 後續 exact-source Windows workflow `41013639786` 已完成 runner、unsigned package、安裝生命週期、archive／SHA 與 artifact upload；signed package、Release asset 與 Windows 實機仍未驗收，不把 CI preview pass 擴大成 Windows release acceptance。
 
 ## 2026-10-30 FR-021 signed-canary prerequisite revalidation review findings remediation
 

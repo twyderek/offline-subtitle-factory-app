@@ -2,7 +2,7 @@
 
 ## 0.52.0：YouTube 私人影片與字幕上傳
 
-0.52.0 的 GitHub 發行範圍為 macOS Apple Silicon（arm64）。Windows 版未納入本次發布，因為尚未完成此版封裝及實機驗收。
+0.52.0 的 GitHub 發行範圍為 macOS Apple Silicon（arm64）。Windows 0.52.0 已由 GitHub Actions 產生並驗證 unsigned preview package、renderer／安裝生命週期與 archive checksum，但因未完成 Authenticode 與 Windows 實機驗收，仍未納入公開 Release。
 
 下載 v0.52.0：[GitHub Release](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)（僅提供下方列出的 macOS arm64 DMG／ZIP；不提供 Windows 0.52.0 安裝檔）。
 

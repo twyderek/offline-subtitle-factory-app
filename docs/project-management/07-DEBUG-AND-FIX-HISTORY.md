@@ -1,35 +1,35 @@
 # 偵錯與修改歷程
 
-### BUG-066：Windows distribution writer fixture 錯誤要求 POSIX evidence mode（2026-10-30；source 已修正，CI 複驗中）
+### BUG-066：Windows distribution writer fixture 錯誤要求 POSIX evidence mode（2026-10-30；已由 exact-source CI 複驗）
 
 - 現象：Windows workflow `41013406327` 已通過 temp path 與 mode-bit 修正後，在 `scripts/test-macos-signed-canary-distribution.mjs:231` 因 writer fixture 期待 POSIX `0600` 而失敗；該 fixture 後續亦依賴 macOS-only `/usr/bin/zip`。
 - 根因：distribution contract test 將 production writer 的 Unix privacy-mode fixture 與 Windows source／schema contract 混在同一執行路徑；Windows Node 可讀取 fixture，但無法保留 POSIX mode bits，且 runner 不提供 `/usr/bin/zip`。
 - 修正：將 writer filesystem／archive fixture 限定於非 Windows；Windows 仍執行跨平台 schema、privacy projection、notary projection 與負向 contract，POSIX／macOS 保留完整 writer／archive／0600／symlink／cleanup 驗證。
-- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` exit 0；待 push 後由新 Windows workflow run 驗證 package／renderer／installation／archive／SHA stages。
+- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` exit 0；Windows workflow `41013639786` 已完整通過 package／renderer／installation／archive／SHA stages，並上傳 unsigned preview artifact。
 - 界線：未放寬 production writer 的 fail-closed mode contract；此修正只排除 Windows 無法提供的 macOS／POSIX fixture，不能替代 macOS signed／notarized candidate acceptance。
 
-### BUG-065：Windows workflow 的 macOS ZIP fixture 依賴 `/usr/bin/zip`／`unzip`（2026-10-30；source 已修正，CI 複驗中）
+### BUG-065：Windows workflow 的 macOS ZIP fixture 依賴 `/usr/bin/zip`／`unzip`（2026-10-30；已由 exact-source CI 複驗）
 
 - 現象：Windows workflow `41013228899` 已通過前兩個跨平台 contract failure，但在 `scripts/test-macos-signed-canary-distribution.mjs:136` 因 `spawnSync /usr/bin/zip ENOENT` 停止。
 - 根因：macOS distribution integration fixture 無條件建立並檢查 ZIP；Windows runner 沒有 macOS 的 `/usr/bin/zip`／`unzip`，雖然該 fixture 並非 Windows package acceptance 的必要路徑。
 - 修正：將依賴 macOS ZIP／unzip 工具的 archive integration fixture 限定在非 Windows 執行；Windows 仍執行 distribution schema、privacy、writer、notary projection 與 fail-closed contract cases。
-- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` 均 exit 0；待新的 Windows workflow 確認 package／renderer／installation／archive／SHA 路徑。
+- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` 均 exit 0；後續 exact-source Windows workflow `41013639786` 已確認 package／renderer／installation／archive／SHA 路徑與 unsigned preview artifact upload。
 - 界線：本修正只處理跨平台測試 fixture，不代表 macOS signed／notarized candidate、Windows Release asset 或實機驗收已完成。
 
-### BUG-064：Windows workflow 的 macOS evidence mode contract 直接比對 POSIX 0600（2026-10-30；source 已修正，CI 複驗中）
+### BUG-064：Windows workflow 的 macOS evidence mode contract 直接比對 POSIX 0600（2026-10-30；已由 exact-source CI 複驗）
 
 - 現象：Windows workflow `41013005375` 已通過上一個 gate path failure，但在 `scripts/test-macos-signed-canary-result.mjs:249` 以 `438 !== 384` 失敗；Windows `fs.stat().mode` 不提供 POSIX `0600` 的可觀測語義。
 - 根因：macOS-only evidence writer 的測試也由跨平台 `npm run check` 執行，直接以 Unix mode bits 驗證 Windows 檔案，將平台能力差異誤判為 evidence writer failure。
 - 修正：三支 macOS signed-canary contract tests 將 mode assertion 集中為跨平台 helper；POSIX 仍嚴格要求 `0600`，Windows 保留 writer 呼叫但跳過不具語義的 mode-bit 比對。
-- 本地驗證：`node scripts/test-macos-signed-canary-result.mjs`、`node scripts/test-macos-signed-canary-distribution.mjs`、`node scripts/test-macos-signed-canary-external-boundary.mjs` 均 exit 0；待新的 Windows workflow 確認 source／runtime／package／install 全流程。
+- 本地驗證：`node scripts/test-macos-signed-canary-result.mjs`、`node scripts/test-macos-signed-canary-distribution.mjs`、`node scripts/test-macos-signed-canary-external-boundary.mjs` 均 exit 0；後續 exact-source Windows workflow `41013639786` 已確認 source／runtime／unsigned package／install 全流程。
 - 界線：本修正只處理跨平台測試契約，不代表 macOS signed／notarized candidate、Windows Release asset 或實機驗收已完成。
 
-### BUG-063：Windows workflow 的 signed-canary gate contract 使用 macOS 硬編碼暫存路徑（2026-10-30；source 已修正，CI 複驗中）
+### BUG-063：Windows workflow 的 signed-canary gate contract 使用 macOS 硬編碼暫存路徑（2026-10-30；已由 exact-source CI 複驗）
 
 - 現象：GitHub Windows workflow `40993031453` 在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs` 失敗；Windows `os.tmpdir()` 解析為 `D:\\tmp`，測試卻要求 `/tmp/osf-signed-canary-test-output`。
 - 根因：測試用固定 POSIX `/tmp` 字串驗證 signed-canary build config 的 isolated output，而該 contract 也會在 Windows runner 執行，造成跨平台測試本身 false failure。
 - 修正：改以 Node `os.tmpdir()` 與 `path.join()` 建立並驗證平台原生暫存路徑；保留 absolute path／source tree boundary 的既有 assertions。
-- 本地驗證：`node scripts/test-macos-signed-canary-gate.mjs` 與完整 `npm run check` 均 exit 0；待推送後由 Windows runner 重跑相同 workflow，確認後續封裝與安裝驗收沒有下一層問題。
+- 本地驗證：`node scripts/test-macos-signed-canary-gate.mjs` 與完整 `npm run check` 均 exit 0；後續 exact-source Windows workflow `41013639786` 已確認 source check、runtime preparation、unsigned package、renderer／install、archive／SHA 與 artifact upload，未宣稱 signed／實機驗收。
 - 界線：本修正只處理 Windows CI contract failure，不代表 Windows 0.52.0 Release asset、Authenticode、實機安裝驗收或 Google／Apple 外部驗收已完成。
 
 ### FR-021-MACOS-SIGNED-CANARY-PREREQUISITES-REVALIDATION-20261030-NEXT2-REMEDIATION：formal gate／readiness evidence validator hardening（2026-10-30；待複審）

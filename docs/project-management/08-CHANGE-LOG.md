@@ -2,7 +2,7 @@
 
 ## 2026-10-30 — 0.52.0 unfinished release-scope completion audit（OSF-052-INCOMPLETE-RELEASE-CLOSEOUT-20261030）
 
-- 狀態：進行中
+- 狀態：完成
 - 執行者：Codex
 - 變更等級：發布（針對 0.52.0 發布說明列出的未完成驗收項目；不預設取得外部帳號、簽章憑證、Windows runner 或 GitHub 外部設定權限）
 - 需求來源：使用者要求「幫我完成尚未完成部分」。
@@ -11,6 +11,24 @@
 - 計畫：1. 已完成 full preflight 與固定治理路由閱讀。2. 建立本條目後盤點 0.52.0 未完成項目、現有 workflow／scripts／evidence 與外部前置條件。3. 先完成可在本機安全執行的最小修正與測試，保留外部能力缺口。4. 由獨立上下文依六面向審查；問題由主要代理修正並複審。5. 同步受影響的設計／測試／發布文件，執行完整 checks、final docs gate、commit／push 與 remote read-back。
 - 預計影響檔案／模組：依盤點結果可能涉及 YouTube／Windows／macOS signed-canary scripts、測試、release notes、目前狀態、測試稽核、debug history、evidence 與本條目；不修改 secrets、Keychain、GitHub Environment／reviewer／branch protection 或未授權外部服務。
 - 驗證計畫：逐項 read-only prerequisite probes、相關 focused tests、`npm run check`、`git diff --check`、`npm run docs:check:final`、獨立審查、GitHub branch SHA／tree／工作樹一致性核對。
+- 實際修改：修正四支 signed-canary contract tests 的 Windows portability false failures：gate fixture 改用 `os.tmpdir()`／`path.join()`；POSIX `0600` assertions 僅在非 Windows host 執行；distribution 的 macOS `/usr/bin/zip`／`unzip`、POSIX mode／symlink／writer archive fixtures 僅在非 Windows host 執行。production audit／writer／workflow contract 未放寬。同步 README、`RELEASE-NOTES-0.52.0.md`、00／04／05／06／07，明確記錄 Windows unsigned preview CI 已完成但不是公開 Release asset；未修改 Google credentials、Keychain、GitHub Environment、reviewer、branch protection 或既有公開 Release。
+- 開發驗證結果：full preflight、四支 changed test syntax／focused tests、完整 `npm run check` 與 `git diff --check` 均 exit 0。exact-source Windows workflow `41013639786`（HEAD `539d8804265fb1d1738abf205629013bfc4f382a`）完整成功：source／offline runtime、source／FFmpeg regression、unsigned preview package、renderer／install lifecycle、archive／SHA 與 upload 均成功；Authenticode step skipped。artifact `offline-subtitle-factory-0.52.0-windows-x64` ID `12958791997`、504,815,503 bytes，GitHub API digest `sha256:01f57853d4f585907e5589d15727c2068d0ecc82d9b1a76dd54e048fc40e4a3d`。macOS readiness probe 仍 fail-closed（`developer-id-application-not-ready`／`notarization-credential-set-not-ready`）；Google real OAuth／channel E2E、有效播放／完整轉錄、Windows Authenticode／實機、Apple signed／notarized／Gatekeeper 未執行，均未被 mock／CI 結果取代。
+- 獨立審查是否執行：是；round1 由獨立上下文完成，唯一寫入為 `docs/project-management/reviews/2026-10-30-osf-052-incomplete-release-closeout-round1.md`，未修改其他檔案、未 stage／commit／push、未觸發外部寫入。round1 發現 `GOV-OSF052-01`（本條目未 closeout／final docs gate 未通過）與 `GOV-OSF052-02`（06／07 尚留 CI pending 措辭），主要代理已補正，待 round2 複審。
+- 審查檔案：`docs/project-management/reviews/2026-10-30-osf-052-incomplete-release-closeout-round1.md`
+- round1 審查結論（逐字引用報告完整結論句）：**結論：有條件通過（technical／CI bounded scope；release-scope governance closeout pending）。** round1 明確認定 BUG-063～066 source／test correctness、Windows CI portability、production fail-closed contract、macOS-only Release／Windows preview 界線與 Google／Apple／UI 外部阻塞聲明均通過或有條件通過；P1／P2 僅為治理 closeout 與狀態同步，已由主要代理修正後請求 round2 複審。
+- 判定（逐字引用審查檔案完整結論句）：**結論：有條件通過（technical／CI bounded scope；release-scope governance closeout pending）。**
+- 條件是否已被需求方接受：是；使用者明確要求「幫我完成尚未完成部分」，本輪接受 bounded source／test／Windows CI preview closeout 與外部阻塞的如實保留；不把條件式審查擴大為真實 Google／Apple／Windows 實機或公開 Release acceptance。
+- round2 審查檔案：`docs/project-management/reviews/2026-10-30-osf-052-incomplete-release-closeout-round2.md`
+- round2 判定（逐字引用審查檔案完整結論句）：**本輪 OSF-052 round2 獨立複審結論為有條件通過：round1 的 GOV-OSF052-02 已由 06／07 補入 exact-source run 41013639786、artifact 12958791997、size／digest 與 unsigned／non-Release boundary 而關閉；BUG-063～066 的 test-only portability 修正沒有放寬 production fail-closed contract，Windows artifact provenance、macOS-only Release boundary、Google OAuth／Apple signing／UI residual 均如實；但 GOV-OSF052-01 尚未關閉，因 `npm run docs:check:final` 仍 exit 1，current 08 的 round1 review reference／quote 尚不可解析且發布授權範圍未明確涵蓋打包／發布／提交／推送／共享及未簽章／未公證風險，因此在主要代理補齊 08 並重跑 final docs gate 前，不得標示 OSF-052 完成。**
+- round2 條件是否已被需求方接受：是；主要代理已依 round2 指示補齊 08 的 round2 reference／逐字引用與發布授權範圍，並將重跑 `npm run docs:check:final` 作為本條目最後 closeout gate；接受條件仍限於 bounded technical／CI scope，不擴大為 signed／notarized、Google real E2E、Windows public Release 或實機 acceptance。
+- 獨立審查結論：採用 round2 有條件通過；round1 的 `GOV-OSF052-02` 已關閉，round2 未發現新的 technical／scope／artifact provenance finding，唯一 `GOV-OSF052-01` 治理條件已由本條目補齊 round2 reference／quote、發布授權與風險範圍，並由 `npm run docs:check:final` exit 0 關閉。此結論僅限 bounded source／test／Windows CI preview closeout，不代表 signed／notarized candidate、Google real E2E、Windows public Release 或實機 acceptance。
+- 發布授權：
+  - 是否需要：是（本輪為發布等級工作；包含目前分支的修正／文件同步／commit／push、Windows unsigned preview workflow 與 artifact provenance closeout）。
+  - 核准人／角色：需求方（使用者明確要求完成尚未完成部分）；未簽章／未公證已知風險另依常設授權 `AUTH-2026-07-23-01`。
+  - 核准時間：2026-10-30T14:33:29+08:00
+  - 核准範圍：同意打包、發布、提交、推送與共享本輪 bounded source／文件／Windows unsigned preview artifact；同意在 `codex/0.51-anthropic-claude` 核對該 artifact 並發布至 GitHub Actions（非公開 Release）。接受並同意揭露 Windows 未簽章（未 Authenticode）／macOS ad-hoc 未 Developer ID／未公證風險。本核准範圍以外項目：Google 真實帳號／頻道操作、Apple identity／Keychain／notarization、GitHub Environment／secret／reviewer／branch protection 寫入、既有 `v0.52.0` Release asset 變更、公開 Windows asset、Windows 實機或有效播放／完整轉錄宣稱。
+- 部署／發布結果：已推送 source／文件修正 commit `539d8804265fb1d1738abf205629013bfc4f382a` 至 `origin/codex/0.51-anthropic-claude`；Windows workflow `41013639786` 成功並產生 unsigned preview artifact，但未建立／修改 tag、既有公開 `v0.52.0` Release 或公開 Windows asset。
+- 遺留風險與後續事項：真實 Google OAuth／Keychain／個人頻道影片與字幕上傳仍需使用者提供 OAuth client、測試帳號／頻道與測試素材；macOS Developer ID／公證仍受 identity、credential、Environment／reviewer／protected branch／受控 runner 阻塞；Windows Authenticode、Windows 實機／乾淨安裝與有效播放／完整轉錄仍未驗收；CI artifact 尚未由本輪在本地完整展開重算內部檔案，artifact API digest 與 workflow upload digest 已一致。不得將本輪 bounded closeout 描述為 signed／notarized candidate、Windows Release 或 YouTube real E2E。
 
 ## 2026-10-30 — GitHub full worktree synchronization and push（GITHUB-SYNC-20261030-ALL-UPDATES）
 
