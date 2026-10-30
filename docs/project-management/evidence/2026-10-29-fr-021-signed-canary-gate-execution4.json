@@ -1,0 +1,98 @@
+{
+  "schema": "offline-subtitle-factory.macos-signed-canary-gate-execution.v1",
+  "startedAt": "2026-10-29T03:12:49.254Z",
+  "completedAt": "2026-10-29T03:12:49.278Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "27.0.0",
+    "node": "v22.22.3"
+  },
+  "command": "electron:build:mac:signed-canary",
+  "gate": {
+    "ready": false,
+    "reasons": [
+      "developer-id-application-not-ready",
+      "notarization-credential-set-not-ready"
+    ],
+    "sourceConfigReady": true,
+    "requiredToolchainReady": true,
+    "identityReady": false,
+    "notarizationReady": false,
+    "notarizationStatus": "absent",
+    "notarizationConsistent": true
+  },
+  "sourceConfig": {
+    "identityConfiguration": "auto-discovery",
+    "hardenedRuntimeConfigured": true,
+    "gatekeeperAssessConfigured": true,
+    "entitlementsConfigured": false,
+    "macTargetConfigured": true,
+    "sourceConfigReady": true
+  },
+  "identity": {
+    "commandSucceeded": true,
+    "probeReady": true,
+    "probeStatus": "ok",
+    "validIdentityCount": 0,
+    "developerIdApplicationPresent": false,
+    "formalIdentityAvailable": false
+  },
+  "toolchain": {
+    "codesignPresent": true,
+    "xcrunPresent": true,
+    "xcrunCodesignAvailable": true,
+    "xcrunNotarytoolAvailable": true
+  },
+  "credentialPresence": {
+    "CSC_NAME": false,
+    "CSC_LINK": false,
+    "CSC_KEY_PASSWORD": false,
+    "APPLE_ID": false,
+    "APPLE_APP_SPECIFIC_PASSWORD": false,
+    "APPLE_TEAM_ID": false,
+    "APPLE_API_KEY": false,
+    "APPLE_API_KEY_ID": false,
+    "APPLE_API_ISSUER": false,
+    "APPLE_KEYCHAIN": false,
+    "APPLE_KEYCHAIN_PROFILE": false
+  },
+  "notarization": {
+    "appleIdSetComplete": false,
+    "apiKeySetComplete": false,
+    "keychainProfileSetComplete": false,
+    "completeSetCount": 0,
+    "partialCredentialSetDetected": false,
+    "status": "absent",
+    "ready": false
+  },
+  "execution": {
+    "runtimeManifestStarted": false,
+    "builderStarted": false,
+    "candidateCreated": false
+  },
+  "scope": {
+    "runtimeManifestStarted": false,
+    "builderStarted": false,
+    "candidateCreated": false,
+    "signingAttempted": false,
+    "notarizationAttempted": false,
+    "keychainModified": false,
+    "networkConnectionsAttempted": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "identityNamesPersisted": false,
+    "identityHashesPersisted": false,
+    "secretsPersisted": false
+  },
+  "sourceRevision": {
+    "gateScriptSha256": "63d22ec15b56e675db7c20507d5f0eb01f77e29b07020521719d6990a4495571",
+    "packageJsonSha256": "0980d896c417828d08f17a5ca1399f682c5bc440bf20e2849839d766466ed79a",
+    "focusedTestSha256": "8d6c97c238e9bbae9140de1227d448842ce69d52a821a6dd72f498883209d839"
+  },
+  "interpretation": "This immutable record captures only the read-only gate decision before runtime manifest and electron-builder. A blocked result is an external signing prerequisite, not a signed package, notarization, renderer acceptance, or FR-021 completion."
+}

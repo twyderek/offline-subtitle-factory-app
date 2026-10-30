@@ -1,0 +1,123 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v3",
+  "scenario": "cancel-resume",
+  "startedAt": "2026-10-01T02:30:19.425Z",
+  "completedAt": "2026-10-01T02:33:24.382Z",
+  "elapsedMs": 184963,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": true,
+    "appServerPortClosed": true,
+    "userDataRemoved": true
+  },
+  "source": {
+    "cueCount": 6,
+    "timecodes": [
+      [
+        0,
+        3
+      ],
+      [
+        3,
+        6
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        9,
+        12
+      ],
+      [
+        12,
+        15
+      ],
+      [
+        15,
+        18
+      ]
+    ],
+    "sourceSubtitleSha256": "a58fc56a50f988e586dc773634c010ee7dbe04cfe872c2633a380040e818c10e",
+    "originalSubtitleFileName": "rule-cleaned.srt",
+    "originalSrtSha256Before": "5519517bb77f8cb21d6bfbd12f9216701fae7c31dd30a2f300bf86e3e3ccb991"
+  },
+  "error": {
+    "category": "UI_ACCEPTANCE_ASSERTION_FAILED",
+    "code": "",
+    "electronExitCode": null,
+    "electronExitSignal": null,
+    "startupDiagnosticCategories": []
+  },
+  "ui": {
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null,
+      "toolbarExpanded": false
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewHashPresent": false
+    },
+    "cancelResume": {
+      "cancelled": false,
+      "retryable": false,
+      "completedBatches": 0,
+      "totalBatches": 0,
+      "resumeVisibleBeforeReload": false,
+      "runEnabledAfterCancel": false,
+      "cancelHidden": false,
+      "suggestionsHidden": false,
+      "sourceSubtitleUnchangedAfterCancel": false,
+      "originalSrtUnchangedAfterCancel": true
+    }
+  }
+}

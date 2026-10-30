@@ -1,0 +1,205 @@
+{
+  "mode": "source-electron-usability-audit",
+  "googleRequests": false,
+  "measurements": [
+    {
+      "width": 1400,
+      "height": 800,
+      "mediaDuration": 3,
+      "dialog": {
+        "clientHeight": 678,
+        "scrollHeight": 1098
+      },
+      "upload": {
+        "left": 425,
+        "right": 553,
+        "top": 1007.828125,
+        "bottom": 1036.328125
+      },
+      "close": {
+        "left": 425,
+        "right": 473,
+        "top": 1090.828125,
+        "bottom": 1119.328125
+      },
+      "entry": {
+        "left": 1247.734375,
+        "right": 1376,
+        "top": 21,
+        "bottom": 61
+      },
+      "withoutYoutubeExport": {
+        "left": 1318,
+        "right": 1376,
+        "top": 21,
+        "bottom": 61
+      },
+      "existingButtonStyle": {
+        "font": "700 14px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "14px",
+        "borderRadius": "8px",
+        "padding": "0px 14px",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      "youtubeButtonStyle": {
+        "font": "16px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "16px",
+        "borderRadius": "0px",
+        "padding": "1px 6px",
+        "background": "rgba(239, 239, 239, 0.3)"
+      },
+      "reviewStatus": "AI 狀態恢復失敗：找不到 AI 優化任務"
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "mediaDuration": 3,
+      "dialog": {
+        "clientHeight": 678,
+        "scrollHeight": 1098
+      },
+      "upload": {
+        "left": 365,
+        "right": 493,
+        "top": 1007.828125,
+        "bottom": 1036.328125
+      },
+      "close": {
+        "left": 365,
+        "right": 413,
+        "top": 1090.828125,
+        "bottom": 1119.328125
+      },
+      "entry": {
+        "left": 1127.734375,
+        "right": 1256,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "withoutYoutubeExport": {
+        "left": 1198,
+        "right": 1256,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "existingButtonStyle": {
+        "font": "700 14px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "14px",
+        "borderRadius": "8px",
+        "padding": "0px 14px",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      "youtubeButtonStyle": {
+        "font": "16px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "16px",
+        "borderRadius": "0px",
+        "padding": "1px 6px",
+        "background": "rgba(239, 239, 239, 0.3)"
+      },
+      "reviewStatus": "AI 狀態恢復失敗：找不到 AI 優化任務"
+    },
+    {
+      "width": 1100,
+      "height": 800,
+      "mediaDuration": 3,
+      "dialog": {
+        "clientHeight": 678,
+        "scrollHeight": 1098
+      },
+      "upload": {
+        "left": 275,
+        "right": 403,
+        "top": 1007.828125,
+        "bottom": 1036.328125
+      },
+      "close": {
+        "left": 275,
+        "right": 323,
+        "top": 1090.828125,
+        "bottom": 1119.328125
+      },
+      "entry": {
+        "left": 1048.734375,
+        "right": 1177,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "withoutYoutubeExport": {
+        "left": 1119,
+        "right": 1177,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "existingButtonStyle": {
+        "font": "700 14px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "14px",
+        "borderRadius": "8px",
+        "padding": "0px 14px",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      "youtubeButtonStyle": {
+        "font": "16px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "16px",
+        "borderRadius": "0px",
+        "padding": "1px 6px",
+        "background": "rgba(239, 239, 239, 0.3)"
+      },
+      "reviewStatus": "AI 狀態恢復失敗：找不到 AI 優化任務"
+    },
+    {
+      "width": 1024,
+      "height": 800,
+      "mediaDuration": 3,
+      "dialog": {
+        "clientHeight": 678,
+        "scrollHeight": 1098
+      },
+      "upload": {
+        "left": 237,
+        "right": 365,
+        "top": 1007.828125,
+        "bottom": 1036.328125
+      },
+      "close": {
+        "left": 237,
+        "right": 285,
+        "top": 1090.828125,
+        "bottom": 1119.328125
+      },
+      "entry": {
+        "left": 1048.734375,
+        "right": 1177,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "withoutYoutubeExport": {
+        "left": 1119,
+        "right": 1177,
+        "top": 21.5,
+        "bottom": 61.5
+      },
+      "existingButtonStyle": {
+        "font": "700 14px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "14px",
+        "borderRadius": "8px",
+        "padding": "0px 14px",
+        "background": "rgba(0, 0, 0, 0)"
+      },
+      "youtubeButtonStyle": {
+        "font": "16px \"Microsoft JhengHei\", \"Noto Sans TC\", system-ui, sans-serif",
+        "fontSize": "16px",
+        "borderRadius": "0px",
+        "padding": "1px 6px",
+        "background": "rgba(239, 239, 239, 0.3)"
+      },
+      "reviewStatus": "AI 狀態恢復失敗：找不到 AI 優化任務"
+    }
+  ],
+  "playback": {
+    "duration": 3,
+    "currentTime": 0.176316,
+    "paused": true
+  },
+  "errorImmediately": "YouTube 操作未完成。請確認 Desktop OAuth 設定、連結頻道、已匯出的 MP4 與已儲存的字幕；如已有發布紀錄，請先至 Studio 核對。",
+  "errorAfterPolling": "準備上傳。"
+}

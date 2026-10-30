@@ -1,0 +1,62 @@
+{
+  "schema": "offline-subtitle-factory.macos-seatbelt-nested-profile-canary.v1",
+  "startedAt": "2026-10-01T08:37:20.452Z",
+  "completedAt": "2026-10-01T08:37:20.493Z",
+  "environment": {
+    "macOSProductVersion": "26.6.2",
+    "macOSBuildVersion": "25G83",
+    "architecture": "arm64",
+    "electronVersion": "43.3.0",
+    "chromiumVersion": "150.0.7871.212",
+    "candidateExecutableSha256": "75e6c676265dfbc6c980458f56435505dae532eec05dc9f04a7acd29326454ac"
+  },
+  "priorPackagedUiEvidence": {
+    "path": "2026-09-30-ollama-llama3.2-3b-ui-offline-replay11.json",
+    "status": "fail",
+    "failureStage": "electron_start",
+    "failureCode": "CHROMIUM_CHILD_SANDBOX_INIT_FAILED"
+  },
+  "method": {
+    "parentProfile": "acceptance loopback-only Seatbelt policy: deny external outbound/inbound/bind; allow localhost only",
+    "childProfile": "Chromium network-service policy shape: allow remote TCP/UDP and local TCP/UDP",
+    "childCommand": "/usr/bin/true",
+    "networkConnectionsAttempted": false,
+    "externalSocketAttempted": false
+  },
+  "cases": [
+    {
+      "name": "same_restrictive_parent_and_child",
+      "parentAllowsRemoteTcpUdp": false,
+      "childRequestsRemoteTcpUdp": false,
+      "exitCode": 0,
+      "operationNotPermitted": false
+    },
+    {
+      "name": "restricted_parent_child_requests_remote_tcp_udp",
+      "parentAllowsRemoteTcpUdp": false,
+      "childRequestsRemoteTcpUdp": true,
+      "exitCode": 71,
+      "operationNotPermitted": true
+    },
+    {
+      "name": "parent_allows_child_remote_tcp_udp_profile",
+      "parentAllowsRemoteTcpUdp": true,
+      "childRequestsRemoteTcpUdp": true,
+      "exitCode": 0,
+      "operationNotPermitted": false
+    }
+  ],
+  "scope": {
+    "systemNetworkDisabled": false,
+    "systemNetworkConfigurationChanged": false,
+    "modelDownloaded": false,
+    "existingOllamaDaemonStopped": false,
+    "packagedElectronRerun": false,
+    "uiFlowRun": false
+  },
+  "interpretation": "The task-local deny-network parent accepts an equally restrictive nested profile, rejects a nested profile that requests remote TCP/UDP, and accepts it when the parent grants those protocols. This reproduces a Seatbelt policy-composition conflict consistent with the saved Electron startup failure. The canary uses a minimal profile model, not Chromium's exact generated profile, and does not by itself prove the sole cause of the app failure or constitute UI acceptance.",
+  "sourceReferences": [
+    "https://releases.electronjs.org/release/v43.3.0",
+    "https://chromium.googlesource.com/chromium/src/+/HEAD/sandbox/policy/mac/network.sb"
+  ]
+}

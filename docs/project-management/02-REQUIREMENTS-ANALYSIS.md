@@ -57,6 +57,8 @@
 
 以暫存資料目錄及測試 server 透過 `127.0.0.1:11434/v1` 執行 `llama3.2:1b` 產品級流程：建立含 2 cue 的手動字幕任務、完成英文翻譯、建立 AI session、接受 2 筆建議、undo／redo 各 2 筆，並保存雙語校閱結果。最終 artifact `docs/project-management/evidence/2026-09-15-ollama-product-live-recheck-5.json` 顯示時間碼未變、原始 SRT 保存前後 SHA-256 相同、endpoint privacy 為 `local`；探針另已驗證遠端 URL 與既有 evidence 在建立暫存資料／啟動 server 前拒絕，並以 exclusive create 防止 evidence 競態覆寫。本證據只證明 loopback 產品流程，不證明系統真正斷網；`scope.systemNetworkDisabled=false`，因此 FR-021 整體仍待真正網路隔離及 LM Studio 例外之外的完整條件收斂。
 
+2026-10-28 BUG-060 修正後，`llama3.2:1b` 在隨機 loopback port 的 macOS Seatbelt product replay4 完成同一 2-cue translation／session／接受／undo／redo／雙語保存流程；Ollama provider 對所有 loopback port 優先走 native `/api/chat`，custom native 404 才回到 OpenAI-compatible fallback，translate 與 proofread 均以 exact cue JSON Schema 約束回應。`docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-product-offline-replay4.json` 仍只證明受控子程序隔離（外連 `EPERM`、`systemNetworkDisabled=false`），不代表 FR-021 完整驗收或模型品質泛化。
+
 ## 非功能需求
 
 | ID | 類別 | 要求 |

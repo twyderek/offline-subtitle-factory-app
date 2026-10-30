@@ -1,0 +1,29 @@
+{
+  "schema": "fr-021-replay11-electron-framework-identity-v1",
+  "observedAt": "2026-10-12",
+  "sourceReplay": "2026-09-30-ollama-llama3.2-3b-ui-offline-replay11.json",
+  "candidateBundle": {
+    "pathRelativeToProject": "../dist/release-0.51.0-macos-53956cc/mac-arm64/離線字幕工廠.app",
+    "bundleVersion": "0.51.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executablePath": "Contents/MacOS/離線字幕工廠",
+    "replayExecutableSha256": "e872f406bfb64ced064cdf8efaf0ae329e0db82e3ac0d92a4b192da3963f80ec",
+    "observedExecutableSha256": "e872f406bfb64ced064cdf8efaf0ae329e0db82e3ac0d92a4b192da3963f80ec",
+    "executableHashMatchesReplay": true,
+    "executableMtime": "2026-09-22 15:21:23 CST",
+    "codesignVerifyDeepStrictExitCode": 0
+  },
+  "electronFramework": {
+    "bundleIdentifier": "com.github.Electron.framework",
+    "bundleVersion": "43.3.0",
+    "binaryPath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework",
+    "observedBinarySha256": "a6763870b706a065d621935435d82ea206747192b3948c8b17b7f5e2930c758a",
+    "binaryMtime": "2026-09-22 15:21:23 CST"
+  },
+  "limitations": [
+    "Replay11 JSON records the executable SHA-256 but not the app bundle path or Electron Framework hash; the matching executable identifies a preserved bundle copy, not by itself the exact path used during replay.",
+    "The Framework SHA-256 was measured on 2026-10-12. Its matching bundle mtime and current deep code-signature verification do not independently prove that these exact framework bytes were loaded during replay11.",
+    "No Chromium exact generated sandbox profile was captured, so this does not establish the runtime profile or root cause.",
+    "This was a read-only bundle inspection: no app launch, Ollama action, socket probe, or OS/network configuration change was performed."
+  ]
+}

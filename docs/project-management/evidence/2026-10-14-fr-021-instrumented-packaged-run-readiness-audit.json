@@ -1,0 +1,100 @@
+{
+  "schema": "offline-subtitle-factory.fr021-instrumented-packaged-run-readiness-audit.v1",
+  "auditedAt": "2026-10-14",
+  "scope": {
+    "packagedElectronLaunched": false,
+    "ollamaStartedOrStopped": false,
+    "networkProbeRun": false,
+    "osNetworkConfigurationChanged": false,
+    "canaryRerun": false,
+    "noSandboxFlagUsed": true
+  },
+  "inputs": {
+    "packagedUiRunner": {
+      "path": "scripts/verify-electron-ollama-ui.mjs",
+      "sha256": "ec18194cbfff6b1f84875b884e73ace3bd48ad63df7809a4732540aa8c804a23"
+    },
+    "offlineUiRunner": {
+      "path": "scripts/verify-electron-ollama-ui-offline.mjs",
+      "sha256": "a0955e1c40929eb6599a7fac42188d13b6951a4ec386d42ba2354bf0bd460229"
+    },
+    "electronMain": {
+      "path": "electron/main.mjs",
+      "sha256": "a80cbc27c5f3592e82d2783bf4c8948387c9067fb55aa34439d744c30835d6c1"
+    },
+    "packageManifest": {
+      "path": "package.json",
+      "sha256": "f95175270855b8144e18f9253e85a10052c1d3eea61bcf9b85f8887c8c8b7b3f"
+    },
+    "lockfile": {
+      "path": "package-lock.json",
+      "sha256": "dec7d48c6227eb9bf26d3194f1d840c2748ee8f1736ca038f759f926612d1aad"
+    },
+    "priorReplay11": {
+      "path": "docs/project-management/evidence/2026-09-30-ollama-llama3.2-3b-ui-offline-replay11.json",
+      "sha256": "99eea0f85f9d6bc300b8802f6dae7110c75c1635dc9546d3eedcaf79551fa3f7"
+    },
+    "priorStaticBundleIdentity": {
+      "path": "docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json",
+      "sha256": "42c80f032fa1747b96d51837766098233a5830e14471c2eb7a85dfa027867ea8"
+    }
+  },
+  "observations": {
+    "packagedUiRunner": {
+      "outerSandboxProfileConstructedInMemory": true,
+      "outerLaunchArgvConstructedInMemory": true,
+      "childStdoutAndStderrCapturedTransiently": true,
+      "rawChildOutputPersistedInEvidence": false,
+      "fixedDiagnosticCategoriesPersisted": true,
+      "candidateExecutableSha256Persisted": true,
+      "candidateFrameworkSha256Persisted": false,
+      "outerArgvPersisted": false
+    },
+    "offlineUiRunner": {
+      "outerSandboxProfileUsed": true,
+      "packagedRunnerArgumentsPassedInMemory": true,
+      "rawUiRunnerOutputPersisted": false,
+      "runtimeGeneratedProfileCapture": false,
+      "runtimeGeneratedArgvEvidence": false,
+      "exclusiveEvidenceCreate": true
+    },
+    "electronMain": {
+      "rendererSandboxConfigured": true,
+      "commandLineOrArgvInstrumentation": false,
+      "serverChildOutputForwardedToParentConsole": true,
+      "frameworkIdentityCapture": false
+    },
+    "priorReplay11": {
+      "hasStartupArgv": false,
+      "hasRawStderr": false,
+      "hasFrameworkSha256": false,
+      "hasSourceCommitOrBuildProvenance": false,
+      "hasExactGeneratedProfile": false
+    }
+  },
+  "readiness": {
+    "currentContract": "partial",
+    "available": [
+      "outer sandbox and launch arguments exist in runner source",
+      "candidate executable SHA-256 is persisted",
+      "startup output is reduced to fixed diagnostic categories",
+      "renderer sandbox remains enabled"
+    ],
+    "missing": [
+      "persisted outer launch argv with redacted temporary paths",
+      "persisted raw or reproducibly redacted startup stderr",
+      "replay-time Electron Framework SHA-256 and build provenance",
+      "Chromium runtime-generated child profile or equivalent instrumented trace"
+    ],
+    "exactGeneratedProfileCaptureBoundary": "An app-level runner can persist its own outer argv, candidate identity, and bounded diagnostics, but the current audited source has no capture contract for Chromium's runtime-generated child profile. Obtaining that profile or an equivalent trace requires a separately authorized instrumented packaged run or an equivalent platform/runtime trace."
+  },
+  "authorizedFollowUpRequirements": [
+    "explicit approval for a packaged instrumented run and its exact candidate bundle",
+    "preserved executable and Electron Framework identity with source/build provenance",
+    "redacted outer and child launch argv plus bounded diagnostic capture",
+    "exact profile dump or an equivalent Chromium/OS trace, if technically available",
+    "exclusive evidence output, process-tree cleanup, rollback, and no external network access"
+  ],
+  "conclusion": "The current project has a partial diagnostic readiness contract but cannot produce replay-time exact generated profile evidence without a separately authorized instrumented packaged run or equivalent trace.",
+  "status": "pass"
+}

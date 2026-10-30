@@ -1,0 +1,112 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v3",
+  "scenario": "cancel-resume",
+  "artifact": {
+    "executableSha256": "e2c0d9054cad3cf0cbc4d10877889425055324ee0b4a447b813c2bc92d9e7a4d",
+    "reviewScriptSha256": "1801f4e20f99be4d4ac6f3b0a199696c1bf8ee5282fc4367c2875b139dd37b55"
+  },
+  "startedAt": "2026-10-01T02:48:03.890Z",
+  "completedAt": "2026-10-01T02:48:22.288Z",
+  "elapsedMs": 18398,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "isolatedAcceptanceDaemon": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "appServerPortClosed": true,
+    "userDataRemoved": true,
+    "ownedDaemon": {
+      "stopped": true,
+      "processGroupAbsent": true,
+      "forcedCleanup": false,
+      "portClosed": true,
+      "temporaryRootRemoved": true
+    }
+  },
+  "daemon": {
+    "preinstalledModelFound": false,
+    "contextLength": 4096,
+    "modelDownloadAttempted": false,
+    "sandboxedDaemonOnly": false,
+    "existingServiceModified": false,
+    "failureCode": "LOCAL_DAEMON_START_TIMEOUT",
+    "diagnostics": {
+      "listeningReported": true,
+      "lastHttpStatus": null,
+      "lastFetchErrorCode": "TAGS_TIMEOUT"
+    }
+  },
+  "error": {
+    "stage": "local_daemon_start",
+    "targetSummary": {
+      "pageCount": 2,
+      "localUiPageCount": 1,
+      "filePageCount": 1
+    },
+    "category": "UI_ACCEPTANCE_ASSERTION_FAILED",
+    "code": "",
+    "electronExitCode": null,
+    "electronExitSignal": null,
+    "startupDiagnosticCategories": []
+  },
+  "ui": {
+    "start": null,
+    "settings": {
+      "opened": false,
+      "saved": false,
+      "provider": "",
+      "model": "",
+      "language": "",
+      "keyEmpty": false,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": false,
+      "consentDisabled": false
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null,
+      "toolbarExpanded": false
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewHashPresent": false
+    },
+    "cancelResume": null
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schema": "offline-subtitle-factory.whisper-long-media-integrity-fault-injection.v2",
+  "createdAt": "2026-09-23T09:30:58.485Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "testRuntime": "synthetic-whisper-cli-wrapper",
+  "originalMediaRead": false,
+  "originalSrtRead": false,
+  "transcriptStored": false,
+  "cases": [
+    {
+      "case": "input-media-hash-mismatch",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "INPUT_MEDIA_MODIFIED"
+      ],
+      "integrityFlag": "originalVideoModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "input-media-missing",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "INPUT_MEDIA_MODIFIED"
+      ],
+      "integrityFlag": "originalVideoModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "source-srt-hash-mismatch",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "SOURCE_SRT_MODIFIED"
+      ],
+      "integrityFlag": "originalSrtModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "source-srt-missing",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "SOURCE_SRT_MODIFIED"
+      ],
+      "integrityFlag": "originalSrtModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "custom-source-srt-path-redacted",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "evidenceCode": "PROBE_FAILED",
+      "tempRootRemoved": true,
+      "canaryStored": false,
+      "result": "pass"
+    }
+  ],
+  "result": "pass"
+}

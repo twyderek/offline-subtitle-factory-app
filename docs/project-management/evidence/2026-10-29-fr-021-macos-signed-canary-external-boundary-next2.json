@@ -1,0 +1,87 @@
+{
+  "schema": "offline-subtitle-factory.macos-signed-canary-external-boundary-audit.v1",
+  "startedAt": "2026-10-29T06:17:45.586Z",
+  "completedAt": "2026-10-29T06:17:47.738Z",
+  "repository": {
+    "owner": "twyerek",
+    "name": "offline-subtitle-factory-app"
+  },
+  "branch": {
+    "name": "codex/0.51-anthropic-claude",
+    "ref": "refs/heads/codex/0.51-anthropic-claude"
+  },
+  "remoteBranch": {
+    "status": "not-found",
+    "present": false,
+    "sha": null
+  },
+  "environment": {
+    "status": "not-found",
+    "present": false,
+    "requiredReviewerRulePresent": false,
+    "deploymentBranchPolicyConfigured": false
+  },
+  "environmentSecrets": {
+    "status": "not-found",
+    "present": false,
+    "secretCount": null,
+    "requiredSecretNamesPresent": false
+  },
+  "branchProtection": {
+    "status": "not-found",
+    "protected": false,
+    "requiredPullRequestReviewsConfigured": false
+  },
+  "workflow": {
+    "status": "not-found",
+    "present": false,
+    "sha": null
+  },
+  "localSource": {
+    "head": "c06d15e95a2f0a0981518c5873003a460e57a5ee",
+    "workingTreeDirty": true,
+    "workflowPresent": true,
+    "workflowSha256": "21535d3dbec2d47da3346f1d7943b632a4c86d1918b57544b9fbe6777bdae34f"
+  },
+  "summary": {
+    "ready": false,
+    "reasons": [
+      "remote-branch-not-found",
+      "environment-not-configured",
+      "environment-required-reviewer-not-confirmed",
+      "environment-secret-scope-not-confirmed",
+      "branch-not-protected",
+      "workflow-not-on-remote",
+      "local-source-not-verified"
+    ],
+    "environmentReady": false,
+    "environmentSecretsReady": false,
+    "branchProtectionReady": false,
+    "workflowDeployed": false,
+    "remoteSourceMatchesLocalHead": null
+  },
+  "sourceRevision": {
+    "gitHead": "c06d15e95a2f0a0981518c5873003a460e57a5ee",
+    "workingTreeDirty": true,
+    "auditScriptSha256": "4ee14c32425412c982a9d55f9329f1f55fbaf204c1429f1897bd9fa0eb2f8fa5",
+    "packageJsonSha256": "d93d656587e8d2f0252b3be79531a02adb68fa5d5664ea9beea221e227992454",
+    "workflowSourceSha256": "21535d3dbec2d47da3346f1d7943b632a4c86d1918b57544b9fbe6777bdae34f"
+  },
+  "scope": {
+    "remoteApiQueried": true,
+    "networkConnectionsAttempted": true,
+    "remoteStateModified": false,
+    "workflowTriggered": false,
+    "secretsRead": false,
+    "secretValuesPersisted": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "identityNamesPersisted": false,
+    "reviewerNamesPersisted": false,
+    "candidateModified": false,
+    "signingAttempted": false,
+    "notarizationAttempted": false
+  },
+  "status": "fail",
+  "interpretation": "This is a read-only external boundary audit. It records bounded remote response status, remote ref metadata, workflow presence and secret metadata count without storing secret values, reviewer names or raw API output; it does not configure GitHub, trigger CI, prove Apple signing or notarization, or establish FR-021 overall acceptance."
+}

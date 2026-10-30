@@ -1,0 +1,17 @@
+{
+  "schema": "offline-subtitle-factory.fr-021-signing-identity-availability.v1",
+  "status": "no-valid-codesigning-identities",
+  "command": "security find-identity -v -p codesigning",
+  "validIdentityCount": 0,
+  "scope": {
+    "readOnly": true,
+    "packagedAppExecuted": false,
+    "candidateModified": false,
+    "networkConnectionsAttempted": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false
+  },
+  "interpretation": "No valid local macOS code-signing identity is available for a signed/hardened packaging comparison in this environment. The CLI-only canary cannot establish an effective hardened identity without external signing credentials or a configured identity."
+}

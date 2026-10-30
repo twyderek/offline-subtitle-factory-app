@@ -1,0 +1,162 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v4",
+  "scenario": "complete",
+  "artifact": {
+    "executableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "reviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+    "electronFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+    "electronFrameworkPresent": true,
+    "electronFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+  },
+  "launch": {
+    "command": "離線字幕工廠",
+    "argv": [
+      "--remote-debugging-port=9993",
+      "--user-data-dir=<temporary-user-data>"
+    ],
+    "sandboxedTargetProcessTree": false,
+    "outerSandboxProfileApplied": false
+  },
+  "runnerProvenance": {
+    "command": "離線字幕工廠",
+    "argv": [
+      "--remote-debugging-port=9993",
+      "--user-data-dir=<temporary-user-data>"
+    ],
+    "argvRedactionValidated": true,
+    "argvDroppedCount": 0,
+    "argvInputCount": 2,
+    "sandboxedTargetProcessTree": false,
+    "outerSandboxProfileApplied": false,
+    "candidateExecutableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "candidateReviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+    "candidateFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+    "candidateFrameworkPresent": true,
+    "candidateFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework",
+    "childOutputSha256": "706140966305c68f9b6d25bfa39cc817a72b70d4b2cc79bb269d8cd63727c34f",
+    "childOutputBytes": 1123,
+    "captureLimitBytes": 16000,
+    "startupDiagnosticCategories": [],
+    "rawChildOutputPersisted": false
+  },
+  "diagnostics": {
+    "captureLimitBytes": 16000,
+    "rawChildOutputPersisted": false,
+    "childOutputSha256": "706140966305c68f9b6d25bfa39cc817a72b70d4b2cc79bb269d8cd63727c34f",
+    "childOutputBytes": 1123,
+    "startupDiagnosticCategories": []
+  },
+  "startedAt": "2026-10-29T04:26:43.436Z",
+  "completedAt": "2026-10-29T04:27:02.015Z",
+  "elapsedMs": 18580,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "isolatedAcceptanceDaemon": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "appServerPortClosed": true,
+    "userDataRemoved": true,
+    "ownedDaemon": {
+      "stopped": true,
+      "processGroupAbsent": true,
+      "forcedCleanup": false,
+      "portClosed": true,
+      "temporaryRootRemoved": true
+    }
+  },
+  "source": {
+    "cueCount": 2,
+    "timecodes": [
+      [
+        0,
+        2.5
+      ],
+      [
+        2.5,
+        5
+      ]
+    ],
+    "sourceSubtitleSha256": "5ac453f8d5c6db911a9e92ae5b702a5b2012b2da615a6cdc5f90ca4f1d5154d5",
+    "originalSubtitleFileName": "rule-cleaned.srt",
+    "originalSrtSha256Before": "7b885f55b7ed9419e0e516cf25d616fd6c48a242d8f9a0b1385f17c413f6033b"
+  },
+  "error": {
+    "stage": "review_navigation",
+    "targetSummary": {
+      "pageCount": 1,
+      "localUiPageCount": 1,
+      "filePageCount": 0
+    },
+    "category": "UI_ACCEPTANCE_ASSERTION_FAILED",
+    "code": "",
+    "electronExitCode": null,
+    "electronExitSignal": null,
+    "startupDiagnosticCategories": [],
+    "reviewNavigation": {
+      "ready": false,
+      "href": "http://127.0.0.1:8791/review/20261029042646-e4bc0b",
+      "title": "字幕校對｜離線字幕工廠",
+      "cueCount": "0"
+    }
+  },
+  "ui": {
+    "start": null,
+    "settings": {
+      "opened": false,
+      "saved": false,
+      "provider": "",
+      "model": "",
+      "language": "",
+      "keyEmpty": false,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": false,
+      "consentDisabled": false
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null,
+      "toolbarExpanded": false
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewHashPresent": false
+    },
+    "cancelResume": null
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-offline-acceptance.v3",
+  "startedAt": "2026-09-30T08:28:18.910Z",
+  "completedAt": "2026-09-30T08:28:18.924Z",
+  "elapsedMs": 14,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "macOSProductVersion": "26.6.2",
+    "macOSBuildVersion": "25G83"
+  },
+  "candidate": {
+    "bundleInputKind": "app_executable_path",
+    "bundleVersion": null,
+    "bundleIdentifier": null,
+    "executableName": null,
+    "executableSha256": null
+  },
+  "provider": "ollama",
+  "model": "llama3.2:3b",
+  "status": "fail",
+  "failureCode": "APP_BUNDLE_INVALID",
+  "failureStage": "app_bundle_preflight",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": false,
+    "externalSocketDenied": false,
+    "externalSocketError": null,
+    "daemonStartedInSandbox": false,
+    "electronAppStartedInSandbox": false,
+    "uiAutomationDriverSandboxed": false,
+    "networkSandboxInheritedByElectronAndServer": false,
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "preinstalledModelFound": false,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "ui": null,
+  "cleanup": {
+    "uiRunnerExited": true,
+    "uiAutomationDriverGroupPresentAtCleanupStart": false,
+    "uiAutomationDriverGroupAbsentAfterCleanup": true,
+    "uiAutomationDriverGroupClosedConfirmed": true,
+    "uiAutomationDriverGroupForcedCleanup": false,
+    "daemonStopped": true,
+    "ollamaDaemonGroupPresentAtCleanupStart": false,
+    "ollamaDaemonGroupAbsentAfterCleanup": true,
+    "ollamaDaemonGroupClosedConfirmed": true,
+    "ollamaDaemonGroupForcedCleanup": false,
+    "daemonPortClosed": true,
+    "temporaryRootRemoved": true
+  },
+  "scope": {
+    "systemNetworkDisabled": false,
+    "apiKeySupplied": false,
+    "externalProviderUsed": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "windows": "deferred-by-request"
+  }
+}

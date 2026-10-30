@@ -14,10 +14,14 @@ import {
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const evidenceDir = path.join(appDir, 'docs/project-management/evidence');
 const evidenceFile = fs.readdirSync(evidenceDir)
-  .filter((fileName) => /^2026-10-29-fr-021-prerequisite-readiness-recheck-next\d+\.json$/.test(fileName))
-  .sort((left, right) => Number(right.match(/next(\d+)\.json$/)[1]) - Number(left.match(/next(\d+)\.json$/)[1]))[0];
+  .filter((fileName) => /^2026-10-(?:29|30)-fr-021-prerequisite-readiness-recheck-next\d+\.json$/.test(fileName))
+  .sort((left, right) => {
+    const dateOrder = right.slice(0, 10).localeCompare(left.slice(0, 10));
+    return dateOrder || Number(right.match(/next(\d+)\.json$/)[1]) - Number(left.match(/next(\d+)\.json$/)[1]);
+  })[0];
 const evidencePath = path.join(evidenceDir, evidenceFile || 'missing-authoritative-readiness-evidence.json');
 assert.equal(fs.existsSync(evidencePath), true, 'authoritative signing readiness evidence must exist');
+assert.match(evidenceFile, /^2026-10-30-/);
 const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
 assert.doesNotThrow(() => validateReadinessEvidence(evidence), 'authoritative readiness evidence must satisfy executable privacy/provenance gates');
 assert.equal(evidence.status, 'blocked-external-signing-identity');
@@ -30,6 +34,9 @@ assert.equal(evidence.sourceBuildConfig.hardenedRuntimeConfigured, true);
 assert.equal(evidence.sourceBuildConfig.gatekeeperAssessConfigured, true);
 assert.equal(evidence.decision.sourceConfigReady, true);
 assert.equal(evidence.decision.notarizationCredentialReady, false);
+assert.throws(() => validateReadinessEvidence({ ...evidence, startedAt: null }), /READINESS_TIMESTAMP_INVALID/);
+assert.throws(() => validateReadinessEvidence({ ...evidence, completedAt: 'not-a-timestamp' }), /READINESS_TIMESTAMP_INVALID/);
+assert.throws(() => validateReadinessEvidence({ ...evidence, completedAt: new Date(Date.parse(evidence.startedAt) - 1).toISOString() }), /READINESS_TIMESTAMP_INVALID/);
 assert.deepEqual(evidence.notarization, {
   appleIdSetComplete: false,
   apiKeySetComplete: false,

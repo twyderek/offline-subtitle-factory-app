@@ -1,0 +1,47 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-offline-acceptance.v1",
+  "startedAt": "2026-09-29T06:39:57.233Z",
+  "completedAt": "2026-09-29T06:40:01.811Z",
+  "elapsedMs": 4578,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:1b",
+  "status": "fail",
+  "failureCode": "MODEL_RESPONSE_CONTRACT_REJECTED",
+  "failureStage": "product_probe",
+  "failureClass": "Error",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": true,
+    "externalSocketError": "EPERM",
+    "targetProcesses": [
+      "isolated ollama serve",
+      "product probe and descendant app server"
+    ],
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "startedInSandbox": true,
+    "baseUrlLoopbackOnly": true,
+    "preinstalledModelFound": true,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "productFlow": {
+    "status": "fail",
+    "endpointPrivacy": "local",
+    "networkSandboxInheritedByProductServer": true,
+    "failureCategory": "MODEL_RESPONSE_CONTRACT_REJECTED"
+  },
+  "cleanup": {
+    "temporaryRootRemoved": true,
+    "daemonStopped": true,
+    "daemonPortClosed": true
+  }
+}

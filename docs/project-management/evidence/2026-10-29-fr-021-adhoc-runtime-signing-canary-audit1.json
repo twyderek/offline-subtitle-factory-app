@@ -1,0 +1,217 @@
+{
+  "schema": "offline-subtitle-factory.macos-packaged-security-identity-audit.v1",
+  "startedAt": "2026-10-29T01:35:28.540Z",
+  "completedAt": "2026-10-29T01:35:29.044Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "osRelease": "27.0.0"
+  },
+  "candidate": {
+    "bundleVersion": "0.52.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executableName": "離線字幕工廠",
+    "executableSha256": "40a54ae3e981951058d2ebef916b09d9f7f120b18d2e01028e54aa240f8a0be5",
+    "frameworkSha256": "91757b30b0a7c37a130c71e52628e088d55c4ce1d05eab8cc92a90409f61fc5c"
+  },
+  "sourceBuildConfig": {
+    "macIdentityConfigured": null,
+    "hardenedRuntimeConfigured": false,
+    "gatekeeperAssessConfigured": false
+  },
+  "objects": [
+    {
+      "label": "main-app",
+      "bundleIdentifier": "com.offline-subtitle-factory.app",
+      "executableSha256": "40a54ae3e981951058d2ebef916b09d9f7f120b18d2e01028e54aa240f8a0be5",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.offline-subtitle-factory.app",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "683c3b98fcf1379c482bc09a409f2458fcd8c54c",
+        "authorities": [],
+        "rawDiagnosticSha256": "73b768cdb77dbdd0f147f22eb0b216dcb0931469351443ed662cff36d3515157",
+        "rawDiagnosticBytes": 1040
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "1e699cfc5a5b3a1d59a1f92639ad17eb787922095d5f304f1bc7ccce25c02779",
+        "bytes": 249
+      }
+    },
+    {
+      "label": "electron-framework",
+      "bundleIdentifier": null,
+      "executableSha256": "91757b30b0a7c37a130c71e52628e088d55c4ce1d05eab8cc92a90409f61fc5c",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.github.Electron.framework",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "f2d3d142c1d077a889702b2da6eec8971dee72b1",
+        "authorities": [],
+        "rawDiagnosticSha256": "1cbeb9996f54b84c33ebdc3bba99d6c895b70af6ca520a6c30e8411608c2a0a6",
+        "rawDiagnosticBytes": 1095
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "15bff42c28e1eb2a77ea817ac1e859feb645b50bf712577f6a9dcb9b7b616e15",
+        "bytes": 300
+      }
+    },
+    {
+      "label": "helper:離線字幕工廠 Helper (GPU).app",
+      "bundleIdentifier": "com.offline-subtitle-factory.app.helper.GPU",
+      "executableSha256": "15c6f8b46e2a4b5f00c69e8f230fa601f0c34acefcb1d317c602472ad0a3b3d3",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.offline-subtitle-factory.app.helper.GPU",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "1fdd7a02a84acaa9f16f9b2e65761a1216b9d71e",
+        "authorities": [],
+        "rawDiagnosticSha256": "481a7c50c0d491d007d059d31e1b356b484f71dd7e8c3e51a2ee1a6deccc4a31",
+        "rawDiagnosticBytes": 1120
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "f8c3d118d58674525371840138703b3b6efc22cc642584d26eef8d1b67123cde",
+        "bytes": 318
+      }
+    },
+    {
+      "label": "helper:離線字幕工廠 Helper (Plugin).app",
+      "bundleIdentifier": "com.offline-subtitle-factory.app.helper.Plugin",
+      "executableSha256": "a533b8edfe43f2580ac17e1b73f37dcfa895640bc1aab1df4e5f1aa66941498d",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.offline-subtitle-factory.app.helper.Plugin",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "7214b2b258fc4cc31d222483ccf49c51726120cf",
+        "authorities": [],
+        "rawDiagnosticSha256": "239ae93cef9168ef34b8fe3bf1a3a9cbf36aa06717ce3a6baebfa2ece37d29e7",
+        "rawDiagnosticBytes": 1129
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "40e44072ebc0cc8532c2a8edfef4a82d960a819342a7f16da1bf657fc39d9c26",
+        "bytes": 324
+      }
+    },
+    {
+      "label": "helper:離線字幕工廠 Helper (Renderer).app",
+      "bundleIdentifier": "com.offline-subtitle-factory.app.helper.Renderer",
+      "executableSha256": "8a3b01affcd4bf0a6690390aa108852db3e56ac89fd6dc3435d40a2882edc069",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.offline-subtitle-factory.app.helper.Renderer",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "a607a82a6c546cc1166d01835330573690759968",
+        "authorities": [],
+        "rawDiagnosticSha256": "896b0cbd249cf7228f8dc3a10d80a49c83ca0751ce6e4c7f7b1f8624fa512ef4",
+        "rawDiagnosticBytes": 1135
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "067d24bc81c651ae98a7b525d338ce12d0b1b68e308fede0ca5c2e94572428de",
+        "bytes": 328
+      }
+    },
+    {
+      "label": "helper:離線字幕工廠 Helper.app",
+      "bundleIdentifier": "com.offline-subtitle-factory.app.helper",
+      "executableSha256": "67aec8e8cf00f5534bfc2924e35266e278aa3351b4be50a66b3a9627680d5fe7",
+      "codeSign": {
+        "commandSucceeded": true,
+        "identifier": "com.offline-subtitle-factory.app.helper",
+        "teamIdentifier": "not set",
+        "flags": "0x10002(adhoc,runtime)",
+        "cdHash": "7303eeb449ce7c3381346a53bfccf4e3af0e7c38",
+        "authorities": [],
+        "rawDiagnosticSha256": "0079302e486da192acc05ccf9daac7329aebeb3ecfbbc395d8b4dd5f23a9bb75",
+        "rawDiagnosticBytes": 1104
+      },
+      "verification": {
+        "succeeded": true,
+        "status": 0,
+        "errorCode": null
+      },
+      "entitlements": {
+        "commandSucceeded": true,
+        "present": false,
+        "sha256": "c13ca9b06ebb78aa06496723782b02a39d01d35540d22b1933c0fc46531a2daf",
+        "bytes": 306
+      }
+    }
+  ],
+  "summary": {
+    "allVerified": true,
+    "allAdHoc": true,
+    "noTeamIdentifier": true,
+    "anyEntitlementsPresent": false,
+    "helperCount": 4,
+    "helperInventoryComplete": true,
+    "helperInventory": {
+      "frameworkAppEntries": [
+        "離線字幕工廠 Helper (GPU).app",
+        "離線字幕工廠 Helper (Plugin).app",
+        "離線字幕工廠 Helper (Renderer).app",
+        "離線字幕工廠 Helper.app"
+      ],
+      "expectedHelperBundleNames": [
+        "離線字幕工廠 Helper.app",
+        "離線字幕工廠 Helper (GPU).app",
+        "離線字幕工廠 Helper (Plugin).app",
+        "離線字幕工廠 Helper (Renderer).app"
+      ],
+      "missingHelperBundleNames": [],
+      "unexpectedHelperBundleNames": []
+    }
+  },
+  "scope": {
+    "candidateModified": false,
+    "networkConnectionsAttempted": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false
+  },
+  "status": "pass",
+  "interpretation": "This is a read-only identity audit. It records code-sign and entitlement metadata only; it does not establish the cause of the nested Chromium failure, renderer readiness, UI offline acceptance, whole-machine egress control, Windows support, or FR-021 completion. Ad-hoc or missing entitlement metadata indicates a packaging/signing follow-up may be needed, not that sandbox should be disabled."
+}

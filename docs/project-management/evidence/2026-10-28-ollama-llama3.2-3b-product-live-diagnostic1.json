@@ -1,0 +1,25 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-live-acceptance.v1",
+  "startedAt": "2026-10-28T02:46:44.673Z",
+  "completedAt": "2026-10-28T02:50:45.178Z",
+  "elapsedMs": 240520,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "error": {
+    "message": "實際 Ollama AI 任務等待逾時",
+    "code": ""
+  }
+}

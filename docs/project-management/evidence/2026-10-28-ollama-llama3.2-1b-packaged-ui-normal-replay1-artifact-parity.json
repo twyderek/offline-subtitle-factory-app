@@ -1,0 +1,35 @@
+{
+  "schema": "offline-subtitle-factory.packaged-artifact-parity.v1",
+  "recordedAt": "2026-10-28T11:51:42+08:00",
+  "status": "pass",
+  "scope": "read-only static parity audit; no process launch, network request, model operation, OS network change, or release",
+  "candidate": {
+    "pathKind": "repo-external-macos-arm64-directory-candidate",
+    "version": "0.52.0",
+    "executableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "electronFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee"
+  },
+  "parity": {
+    "lib/ai/providers.mjs": {
+      "sourceSha256": "f402f835ba55c7b776a9280d9b5637fb26fa1af59543901b6b7aef11d74967ed",
+      "candidateSha256": "f402f835ba55c7b776a9280d9b5637fb26fa1af59543901b6b7aef11d74967ed",
+      "byteForByteEqual": true,
+      "markers": [
+        "isLoopbackAiUrl",
+        "buildOllamaCueResponseFormat",
+        "num_ctx=4096",
+        "strictJson=true"
+      ]
+    },
+    "scripts/test-ai-providers.mjs": {
+      "sourceSha256": "c0828784f37be31b209814e7d62f6e27024a5636cf54e80988b0155029ea469b",
+      "candidateIncluded": false,
+      "note": "deterministic test source remains worktree-only; it is not a packaged runtime input"
+    }
+  },
+  "evidenceInput": "2026-10-28-ollama-llama3.2-1b-packaged-ui-normal-replay1.json",
+  "limitations": [
+    "This audit proves packaged runtime provider parity only; it does not prove Seatbelt process-tree network denial.",
+    "systemNetworkDisabled=false and sandboxedTargetProcessTree=false remain the normal replay scope."
+  ]
+}

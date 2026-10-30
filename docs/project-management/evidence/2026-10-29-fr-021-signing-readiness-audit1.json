@@ -1,0 +1,128 @@
+{
+  "schema": "offline-subtitle-factory.macos-signing-readiness-audit.v1",
+  "startedAt": "2026-10-29T01:46:57.002Z",
+  "completedAt": "2026-10-29T01:46:57.065Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "macOSProductVersion": "27.0.1",
+    "macOSBuildVersion": "26A434",
+    "codesign": null,
+    "productbuild": null
+  },
+  "toolchain": {
+    "codesign": {
+      "commandSucceeded": false,
+      "status": 2,
+      "signal": null,
+      "errorCode": null
+    },
+    "productbuild": {
+      "commandSucceeded": false,
+      "status": 1,
+      "signal": null,
+      "errorCode": null
+    },
+    "spctl": {
+      "commandSucceeded": false,
+      "status": 2,
+      "signal": null,
+      "errorCode": null
+    },
+    "xcodeSelect": {
+      "commandSucceeded": true,
+      "status": 0,
+      "signal": null,
+      "errorCode": null
+    },
+    "xcrunCodesign": {
+      "commandSucceeded": true,
+      "status": 0,
+      "signal": null,
+      "errorCode": null
+    },
+    "xcrunNotarytool": {
+      "commandSucceeded": true,
+      "status": 0,
+      "signal": null,
+      "errorCode": null
+    }
+  },
+  "identity": {
+    "commandSucceeded": true,
+    "validIdentityCount": 0,
+    "matchingIdentityCount": 0,
+    "developerIdApplicationPresent": false,
+    "appleDevelopmentPresent": false,
+    "appleDistributionPresent": false,
+    "formalIdentityAvailable": false,
+    "rawOutputPersisted": false,
+    "identityNamesPersisted": false,
+    "identityHashesPersisted": false
+  },
+  "sourceBuildConfig": {
+    "identityConfiguration": "unset",
+    "hardenedRuntimeConfigured": false,
+    "gatekeeperAssessConfigured": false,
+    "entitlementsConfigured": false,
+    "macTargetConfigured": true
+  },
+  "credentialPresence": {
+    "CSC_NAME": false,
+    "CSC_LINK": false,
+    "CSC_KEY_PASSWORD": false,
+    "APPLE_ID": false,
+    "APPLE_APP_SPECIFIC_PASSWORD": false,
+    "APPLE_TEAM_ID": false
+  },
+  "existingEvidence": [
+    {
+      "file": "2026-10-28-fr-021-packaged-security-identity-audit3.json",
+      "exists": true,
+      "status": "pass",
+      "allVerified": true,
+      "allAdHoc": true,
+      "noTeamIdentifier": true,
+      "anyEntitlementsPresent": false,
+      "requiredCodeSignFlag": null,
+      "requiredCodeSignFlagSatisfied": null
+    },
+    {
+      "file": "2026-10-29-fr-021-adhoc-runtime-signing-canary-audit2.json",
+      "exists": true,
+      "status": "pass",
+      "allVerified": true,
+      "allAdHoc": true,
+      "noTeamIdentifier": true,
+      "anyEntitlementsPresent": false,
+      "requiredCodeSignFlag": "runtime",
+      "requiredCodeSignFlagSatisfied": true
+    }
+  ],
+  "decision": {
+    "toolchainReady": false,
+    "sourceConfigReady": false,
+    "formalSigningReady": false,
+    "status": "blocked-external-signing-identity",
+    "nextAction": "Obtain an approved Developer ID Application identity and entitlements in an external signing environment before creating another signed/hardened canary."
+  },
+  "scope": {
+    "candidateModified": false,
+    "keychainModified": false,
+    "signingAttempted": false,
+    "notarizationAttempted": false,
+    "networkConnectionsAttempted": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "identityNamesPersisted": false,
+    "identityHashesPersisted": false,
+    "secretsPersisted": false
+  },
+  "interpretation": "This is a read-only signing-readiness audit. A blocked status is an external packaging prerequisite result, not an FR-021 pass or a renderer diagnosis. It does not authorize keychain changes, signing, notarization, sandbox relaxation, network-policy changes, or release publication.",
+  "status": "blocked-external-signing-identity"
+}

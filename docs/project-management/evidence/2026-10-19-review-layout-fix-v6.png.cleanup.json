@@ -1,0 +1,7 @@
+{
+  "groupPresentAtCleanupStart": true,
+  "groupAbsentAfterCleanup": true,
+  "groupClosedConfirmed": true,
+  "forcedCleanup": false,
+  "profileRemoved": true
+}

@@ -37,6 +37,80 @@ try {
   assert.equal(result.totalCues, 3);
   assert.equal(result.suggestions.length, 3);
 
+  let streamErrorCalls = 0;
+  let streamErrorCheckpoints = 0;
+  globalThis.fetch = async () => {
+    streamErrorCalls += 1;
+    return new Response([
+      JSON.stringify({ message: { content: '{"cues":' }, done: false }),
+      JSON.stringify({ error: { message: 'model stopped unexpectedly' } }),
+    ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  };
+  const errorProvider = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 0.1 });
+  await assert.rejects(
+    () => optimizeSubtitleCues({
+      cues: [{ id: 7, text: '原文7' }],
+      config: { provider: 'ollama', model: 'test-model', batchSize: 1, maxRetries: 3, retryBaseMs: 1, disableRetryJitter: true },
+      complete: (body, signal, requestOptions) => errorProvider.optimize(body, signal, requestOptions),
+      onCheckpoint: () => { streamErrorCheckpoints += 1; },
+    }),
+    (error) => error.code === 'ollama_stream_error' && error.retryable === false && /model stopped unexpectedly/.test(error.message),
+    'Ollama stream error 不應降成 empty_content 或進入 repair／retry',
+  );
+  assert.equal(streamErrorCalls, 1, 'Ollama provider error 不應被 optimizer 重試');
+  assert.equal(streamErrorCheckpoints, 0, 'Ollama provider error 不應寫入 checkpoint');
+
+  let malformedCalls = 0;
+  let malformedCheckpoints = 0;
+  globalThis.fetch = async () => {
+    malformedCalls += 1;
+    return new Response([
+      JSON.stringify({ message: { content: '{"cues":' }, done: false }),
+      'not-json',
+      JSON.stringify({ message: { content: '[]}' }, done: true }),
+    ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  };
+  const malformedProvider = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 0.1 });
+  await assert.rejects(
+    () => optimizeSubtitleCues({
+      cues: [{ id: 8, text: '原文8' }],
+      config: { provider: 'ollama', model: 'test-model', batchSize: 1, maxRetries: 3, retryBaseMs: 1, disableRetryJitter: true },
+      complete: (body, signal, requestOptions) => malformedProvider.optimize(body, signal, requestOptions),
+      onCheckpoint: () => { malformedCheckpoints += 1; },
+    }),
+    (error) => error.code === 'ollama_stream_invalid_json' && error.retryable === false,
+    'Ollama malformed NDJSON 不應降成 empty_content 或進入 repair／retry',
+  );
+  assert.equal(malformedCalls, 1, 'Ollama malformed NDJSON 不應被 optimizer 重試');
+  assert.equal(malformedCheckpoints, 0, 'Ollama malformed NDJSON 不應寫入 checkpoint');
+
+  let invalidEncodingCalls = 0;
+  let invalidEncodingCheckpoints = 0;
+  const invalidEncodingBytes = new Uint8Array([
+    ...new TextEncoder().encode(`${JSON.stringify({ message: { role: 'assistant', content: '{"cues":[]}' }, done: true })}\n`),
+    0xff,
+  ]);
+  globalThis.fetch = async () => new Response(invalidEncodingBytes, {
+    status: 200,
+    headers: { 'content-type': 'application/x-ndjson' },
+  });
+  const invalidEncodingProvider = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 0.1 });
+  await assert.rejects(
+    () => optimizeSubtitleCues({
+      cues: [{ id: 10, text: '原文10' }],
+      config: { provider: 'ollama', model: 'test-model', batchSize: 1, maxRetries: 3, retryBaseMs: 1, disableRetryJitter: true },
+      complete: (body, signal, requestOptions) => {
+        invalidEncodingCalls += 1;
+        return invalidEncodingProvider.optimize(body, signal, requestOptions);
+      },
+      onCheckpoint: () => { invalidEncodingCheckpoints += 1; },
+    }),
+    (error) => error.code === 'ollama_stream_invalid_encoding' && error.retryable === false,
+    'Ollama invalid UTF-8 不應降成可解析內容或進入 retry／repair',
+  );
+  assert.equal(invalidEncodingCalls, 1, 'Ollama invalid UTF-8 不應被 optimizer 重試');
+  assert.equal(invalidEncodingCheckpoints, 0, 'Ollama invalid UTF-8 不應寫入 checkpoint');
+
   let retryCalls = 0;
   globalThis.fetch = async (_url, options = {}) => {
     retryCalls += 1;

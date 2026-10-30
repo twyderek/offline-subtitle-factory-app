@@ -1,0 +1,80 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v3",
+  "scenario": "cancel-resume",
+  "startedAt": "2026-10-01T02:33:56.821Z",
+  "completedAt": "2026-10-01T02:34:27.061Z",
+  "elapsedMs": 30218,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": true,
+    "appServerPortClosed": true,
+    "userDataRemoved": true
+  },
+  "error": {
+    "category": "ELECTRON_RENDERER_TIMEOUT",
+    "code": "",
+    "electronExitCode": null,
+    "electronExitSignal": null,
+    "startupDiagnosticCategories": []
+  },
+  "ui": {
+    "settings": {
+      "opened": false,
+      "saved": false,
+      "provider": "",
+      "model": "",
+      "language": "",
+      "keyEmpty": false,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": false,
+      "consentDisabled": false
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null,
+      "toolbarExpanded": false
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewHashPresent": false
+    },
+    "cancelResume": null
+  }
+}

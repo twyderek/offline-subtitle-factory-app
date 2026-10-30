@@ -1,0 +1,40 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-offline-acceptance.v1",
+  "startedAt": "2026-09-29T04:09:44.736Z",
+  "completedAt": "2026-09-29T04:09:44.736Z",
+  "elapsedMs": 0,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:1b",
+  "status": "fail",
+  "failureCode": "ACCEPTANCE_FAILED",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": false,
+    "externalSocketError": null,
+    "targetProcesses": [
+      "isolated ollama serve",
+      "product probe and descendant app server"
+    ],
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "startedInSandbox": false,
+    "baseUrlLoopbackOnly": true,
+    "preinstalledModelFound": false,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "productFlow": null,
+  "cleanup": {
+    "temporaryRootRemoved": true,
+    "daemonStopped": true,
+    "daemonPortClosed": true
+  }
+}

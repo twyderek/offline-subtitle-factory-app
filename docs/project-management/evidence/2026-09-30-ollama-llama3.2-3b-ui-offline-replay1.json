@@ -1,0 +1,56 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-offline-acceptance.v1",
+  "startedAt": "2026-09-30T01:02:27.842Z",
+  "completedAt": "2026-09-30T01:02:35.166Z",
+  "elapsedMs": 7324,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "candidate": {
+    "bundleVersion": "0.51.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executableName": "離線字幕工廠",
+    "executableSha256": "e872f406bfb64ced064cdf8efaf0ae329e0db82e3ac0d92a4b192da3963f80ec"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:3b",
+  "status": "fail",
+  "failureCode": "UI_RUNNER_PROCESS_GROUP_LEAK",
+  "failureStage": "electron_start",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": true,
+    "externalSocketError": "EPERM",
+    "daemonStartedInSandbox": true,
+    "electronRunnerStartedInSandbox": true,
+    "networkSandboxInheritedByElectronAndServer": true,
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "preinstalledModelFound": true,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "ui": null,
+  "cleanup": {
+    "uiRunnerExited": true,
+    "uiRunnerProcessGroupAbsentAtExit": false,
+    "uiRunnerProcessGroupClosed": true,
+    "daemonStopped": true,
+    "daemonProcessGroupAbsentAtExit": true,
+    "daemonProcessGroupClosed": true,
+    "daemonPortClosed": true,
+    "temporaryRootRemoved": true
+  },
+  "scope": {
+    "systemNetworkDisabled": false,
+    "apiKeySupplied": false,
+    "externalProviderUsed": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "windows": "deferred-by-request"
+  }
+}

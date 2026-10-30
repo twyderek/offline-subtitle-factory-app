@@ -1,0 +1,93 @@
+{
+  "schema": "offline-subtitle-factory.whisper-long-media-integrity-fault-injection.v5",
+  "createdAt": "2026-09-29T01:28:22.568Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "testRuntime": "synthetic-whisper-cli-wrapper",
+  "originalMediaRead": false,
+  "originalSrtRead": false,
+  "transcriptStored": false,
+  "cases": [
+    {
+      "case": "input-media-hash-mismatch",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "INPUT_MEDIA_MODIFIED"
+      ],
+      "integrityFlag": "originalVideoModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "input-media-missing",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "INPUT_MEDIA_MODIFIED"
+      ],
+      "integrityFlag": "originalVideoModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "source-srt-hash-mismatch",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "SOURCE_SRT_MODIFIED"
+      ],
+      "integrityFlag": "originalSrtModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "source-srt-missing",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "integrityViolations": [
+        "SOURCE_SRT_MODIFIED"
+      ],
+      "integrityFlag": "originalSrtModified",
+      "integrityFlagValue": true,
+      "tempRootRemoved": true,
+      "result": "pass"
+    },
+    {
+      "case": "custom-source-srt-path-redacted",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "evidenceCode": "PROBE_FAILED",
+      "tempRootRemoved": true,
+      "canaryStored": false,
+      "result": "pass"
+    },
+    {
+      "case": "custom-source-srt-basename-redacted",
+      "expectedProbeExitCode": 0,
+      "actualProbeExitCode": 0,
+      "sourceSrtEvidenceLabel": "source.srt",
+      "canaryStored": false,
+      "result": "pass"
+    },
+    {
+      "case": "probe-cleanup-removal-failed-root-remains",
+      "expectedProbeExitCode": 1,
+      "actualProbeExitCode": 1,
+      "evidenceCode": "TEMP_ROOT_CLEANUP_FAILED",
+      "tempRootRemoved": false,
+      "tempRootPathPreselected": true,
+      "tempRootPresentBeforeHarnessCleanup": true,
+      "diagnosticCanaryStored": false,
+      "result": "pass",
+      "tempRootRemovedByHarness": true
+    }
+  ],
+  "result": "pass"
+}

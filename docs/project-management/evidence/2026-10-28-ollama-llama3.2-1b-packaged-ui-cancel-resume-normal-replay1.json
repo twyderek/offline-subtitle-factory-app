@@ -1,0 +1,206 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v4",
+  "scenario": "cancel-resume",
+  "artifact": {
+    "executableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "reviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+    "electronFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+    "electronFrameworkPresent": true,
+    "electronFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+  },
+  "launch": {
+    "command": "離線字幕工廠",
+    "argv": [
+      "--remote-debugging-port=9997",
+      "--user-data-dir=<temporary-user-data>"
+    ],
+    "sandboxedTargetProcessTree": false,
+    "outerSandboxProfileApplied": false
+  },
+  "diagnostics": {
+    "captureLimitBytes": 16000,
+    "rawChildOutputPersisted": false,
+    "childOutputSha256": "16ae850348ca707162cc43b4f2742067c7d671677836c45d1d9c6e412103d6d0",
+    "childOutputBytes": 12505,
+    "startupDiagnosticCategories": []
+  },
+  "startedAt": "2026-10-28T03:54:14.362Z",
+  "completedAt": "2026-10-28T03:54:29.211Z",
+  "elapsedMs": 14850,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:55426/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "isolatedAcceptanceDaemon": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "fail",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "appServerPortClosed": true,
+    "userDataRemoved": true,
+    "ownedDaemon": {
+      "stopped": true,
+      "processGroupAbsent": true,
+      "forcedCleanup": false,
+      "portClosed": true,
+      "temporaryRootRemoved": true
+    }
+  },
+  "daemon": {
+    "preinstalledModelFound": true,
+    "contextLength": 4096,
+    "modelDownloadAttempted": false,
+    "sandboxedDaemonOnly": false,
+    "existingServiceModified": false,
+    "failureCode": null,
+    "diagnostics": {
+      "listeningReported": true,
+      "lastHttpStatus": 200,
+      "lastFetchErrorCode": "ECONNREFUSED"
+    }
+  },
+  "source": {
+    "cueCount": 6,
+    "timecodes": [
+      [
+        0,
+        3
+      ],
+      [
+        3,
+        6
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        9,
+        12
+      ],
+      [
+        12,
+        15
+      ],
+      [
+        15,
+        18
+      ]
+    ],
+    "sourceSubtitleSha256": "a58fc56a50f988e586dc773634c010ee7dbe04cfe872c2633a380040e818c10e",
+    "originalSubtitleFileName": "rule-cleaned.srt",
+    "originalSrtSha256Before": "5519517bb77f8cb21d6bfbd12f9216701fae7c31dd30a2f300bf86e3e3ccb991"
+  },
+  "error": {
+    "stage": "checkpoint_cancel",
+    "targetSummary": {
+      "pageCount": 1,
+      "localUiPageCount": 1,
+      "filePageCount": 0
+    },
+    "category": "UI_ACCEPTANCE_ASSERTION_FAILED",
+    "code": "",
+    "electronExitCode": null,
+    "electronExitSignal": null,
+    "startupDiagnosticCategories": []
+  },
+  "ui": {
+    "start": {
+      "runDisabled": true,
+      "taskHttpStatus": 200,
+      "taskStatus": "running",
+      "requestCaptured": true,
+      "errorPresent": false,
+      "requestSummary": {
+        "mode": "translate",
+        "language": "en",
+        "preserveTiming": true,
+        "cueCount": 6,
+        "cueIds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "cueTextLengths": [
+          9,
+          13,
+          9,
+          13,
+          9,
+          13
+        ],
+        "instructionsLength": 111
+      }
+    },
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "provider": "ollama",
+      "model": "llama3.2:1b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null,
+      "toolbarExpanded": false
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewHashPresent": false
+    },
+    "cancelResume": {
+      "cancelled": false,
+      "observedStatus": "checkpoint-window-missed",
+      "observedTaskStatus": "failed",
+      "errorPresent": true,
+      "retryable": false,
+      "completedBatches": 0,
+      "totalBatches": 0,
+      "resumeVisibleBeforeReload": false,
+      "runEnabledAfterCancel": false,
+      "cancelHidden": false,
+      "suggestionsHidden": false,
+      "sourceSubtitleUnchangedAfterCancel": false,
+      "originalSrtUnchangedAfterCancel": true
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "offline-subtitle-factory.fr021-replay11-exact-profile-feasibility-audit.v1",
+  "auditedAt": "2026-10-14",
+  "scope": {
+    "packagedElectronLaunched": false,
+    "ollamaStartedOrStopped": false,
+    "networkProbeRun": false,
+    "osNetworkConfigurationChanged": false,
+    "noSandboxFlagUsed": true
+  },
+  "inputs": {
+    "replay11": {
+      "path": "docs/project-management/evidence/2026-09-30-ollama-llama3.2-3b-ui-offline-replay11.json",
+      "sha256": "99eea0f85f9d6bc300b8802f6dae7110c75c1635dc9546d3eedcaf79551fa3f7"
+    },
+    "offlineRunner": {
+      "path": "scripts/verify-electron-ollama-ui-offline.mjs",
+      "sha256": "a0955e1c40929eb6599a7fac42188d13b6951a4ec386d42ba2354bf0bd460229"
+    },
+    "packagedUiRunner": {
+      "path": "scripts/verify-electron-ollama-ui.mjs",
+      "sha256": "ec18194cbfff6b1f84875b884e73ace3bd48ad63df7809a4732540aa8c804a23"
+    },
+    "staticBundleIdentity": {
+      "path": "docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json",
+      "sha256": "42c80f032fa1747b96d51837766098233a5830e14471c2eb7a85dfa027867ea8"
+    }
+  },
+  "observations": {
+    "replay11": {
+      "recordsStartupFailureAndCleanup": true,
+      "recordsCandidateExecutableSha256": true,
+      "recordsOuterProfileIdAndIsolationFlags": true,
+      "containsSerializedGeneratedProfile": false,
+      "containsChromiumChildProfileText": false,
+      "containsGeneratedChildArgv": false,
+      "containsFrameworkSha256": false,
+      "containsSourceCommitOrBuildProvenance": false
+    },
+    "runnerSource": {
+      "declaresOuterSeatbeltProfile": true,
+      "constructsSyntheticLaunchArguments": true,
+      "persistsRuntimeGeneratedChildProfile": false,
+      "persistsRuntimeGeneratedChildArgv": false,
+      "persistsReplayTimeFrameworkIdentity": false
+    },
+    "staticBundleIdentity": {
+      "executableHashMatchesPreservedBundle": true,
+      "currentFrameworkHashMeasured": true,
+      "provesReplayTimeFrameworkBytes": false,
+      "recoversReplayTimeGeneratedProfile": false
+    }
+  },
+  "conclusion": {
+    "exactGeneratedProfilePresentInAuditedArtifacts": false,
+    "exactGeneratedProfileReconstructibleFromAuditedArtifacts": false,
+    "reason": "The audited replay11 evidence contains failure-stage and cleanup metadata but no serialized Chromium child policy, runtime-generated argv, replay-time Framework identity, or build provenance. The audited runners define the outer Seatbelt wrapper and synthetic launch arguments but do not capture the Chromium-generated child profile. Existing static bundle identity and pinned Chromium source references therefore cannot recover the replay-time exact profile or establish a unique root cause.",
+    "fr021PackagedUiOfflineAcceptance": "blocked"
+  },
+  "limitations": [
+    "This is a static audit of the listed repository evidence, runners, and preserved bundle identity record; it is not a new packaged Electron replay.",
+    "The result does not prove that no unlisted external artifact could contain the profile; it records that the audited project artifacts do not contain or reconstruct it.",
+    "Obtaining exact runtime profile and replay-time binary provenance would require a separately authorized instrumented packaged run or equivalent preserved trace.",
+    "No OS-level per-app egress control was configured or evaluated in this audit."
+  ],
+  "status": "pass"
+}

@@ -1,0 +1,237 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v4",
+  "scenario": "cancel-resume-restart",
+  "artifact": {
+    "executableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "reviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+    "electronFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+    "electronFrameworkPresent": true,
+    "electronFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+  },
+  "launch": {
+    "command": "離線字幕工廠",
+    "argv": [
+      "--remote-debugging-port=9995",
+      "--user-data-dir=<temporary-user-data>"
+    ],
+    "sandboxedTargetProcessTree": false,
+    "outerSandboxProfileApplied": false
+  },
+  "runnerProvenance": {
+    "command": "離線字幕工廠",
+    "argv": [
+      "--remote-debugging-port=9995",
+      "--user-data-dir=<temporary-user-data>"
+    ],
+    "argvRedactionValidated": true,
+    "argvDroppedCount": 0,
+    "argvInputCount": 2,
+    "sandboxedTargetProcessTree": false,
+    "outerSandboxProfileApplied": false,
+    "candidateExecutableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+    "candidateReviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+    "candidateFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+    "candidateFrameworkPresent": true,
+    "candidateFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework",
+    "childOutputSha256": "1a1986ebbd6c066820098597ff4bb4897fd7e177c72f834e745bb24417488c35",
+    "childOutputBytes": 6288,
+    "captureLimitBytes": 16000,
+    "startupDiagnosticCategories": [
+      "CHROMIUM_GPU_SANDBOX_UNAVAILABLE"
+    ],
+    "rawChildOutputPersisted": false
+  },
+  "diagnostics": {
+    "captureLimitBytes": 16000,
+    "rawChildOutputPersisted": false,
+    "childOutputSha256": "1a1986ebbd6c066820098597ff4bb4897fd7e177c72f834e745bb24417488c35",
+    "childOutputBytes": 6288,
+    "startupDiagnosticCategories": [
+      "CHROMIUM_GPU_SANDBOX_UNAVAILABLE"
+    ]
+  },
+  "startedAt": "2026-10-29T04:52:49.743Z",
+  "completedAt": "2026-10-29T04:53:04.710Z",
+  "elapsedMs": 14970,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "isolatedAcceptanceDaemon": false,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "pass",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "appServerPortClosed": true,
+    "userDataRemoved": true,
+    "appRestart": {
+      "attempted": true,
+      "firstElectronExited": true,
+      "firstProcessGroupAbsentAfterCleanup": true,
+      "firstProcessGroupClosedConfirmed": true,
+      "firstProcessGroupForcedCleanup": false,
+      "firstAppServerPortClosed": true,
+      "userDataPreservedBetweenLaunches": true,
+      "secondLaunchReady": true,
+      "secondAppServerPortCaptured": true,
+      "secondAppServerPortClosed": true
+    },
+    "ownedDaemon": {
+      "stopped": true,
+      "processGroupAbsent": true,
+      "forcedCleanup": false,
+      "portClosed": true,
+      "temporaryRootRemoved": true
+    }
+  },
+  "source": {
+    "cueCount": 6,
+    "timecodes": [
+      [
+        0,
+        3
+      ],
+      [
+        3,
+        6
+      ],
+      [
+        6,
+        9
+      ],
+      [
+        9,
+        12
+      ],
+      [
+        12,
+        15
+      ],
+      [
+        15,
+        18
+      ]
+    ],
+    "sourceSubtitleSha256": "1f68acaa46fecc94d523980cfb2a209e7366a6e0a7374f756599af8c8c3dccfb",
+    "originalSubtitleFileName": "rule-cleaned.srt",
+    "originalSrtSha256Before": "ad8d7414d52e1ed3124c75cb503cc0cce87b3b42924088bcf54c6cef333f75af",
+    "originalSrtSha256After": "ad8d7414d52e1ed3124c75cb503cc0cce87b3b42924088bcf54c6cef333f75af",
+    "originalSrtUnchanged": true
+  },
+  "home": {
+    "href": "http://127.0.0.1:8791/",
+    "title": "本機離線字幕工廠｜字幕生成任務",
+    "hasHomeDashboard": true
+  },
+  "appServerPort": 8791,
+  "job": {
+    "createStatus": 201,
+    "startStatus": 202,
+    "finalStatus": "completed",
+    "cueCount": 6
+  },
+  "ui": {
+    "reviewLoaded": {
+      "ready": true,
+      "href": "http://127.0.0.1:8791/review/20261029045252-b5db51",
+      "title": "字幕校對｜離線字幕工廠"
+    },
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "status": "設定已儲存；API Key 不會回傳到畫面",
+      "provider": "ollama",
+      "baseUrl": "http://127.0.0.1:11434/v1",
+      "model": "llama3.2:3b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "completed",
+      "sessionIdPresent": true,
+      "suggestionCount": 6,
+      "totalRetries": 0,
+      "progress": {
+        "completedBatches": 6,
+        "totalBatches": 6,
+        "processedCues": 6,
+        "totalCues": 6,
+        "totalRetries": 0
+      },
+      "toolbarExpanded": true
+    },
+    "accept": {
+      "accepted": 6,
+      "actionsHidden": true,
+      "changedCount": "6"
+    },
+    "history": {
+      "undo": true,
+      "redo": true,
+      "undoText": "本次紀錄：3af37396；可查看決策、撤銷或重新套用",
+      "redoText": "本次紀錄：3af37396；可查看決策、撤銷或重新套用",
+      "undoEnabled": true,
+      "redoEnabled": true
+    },
+    "save": {
+      "saved": true,
+      "subtitleFileName": "reviewed.srt",
+      "cueCount": 6,
+      "timecodesUnchanged": true,
+      "hasEnglishTranslation": true,
+      "reviewSha256": "a739b79d49bbe49bb2af76cf09e233af68f6b6d1231bb748dd0cdf1671c4dbf3"
+    },
+    "cancelResume": {
+      "cancelled": true,
+      "observedStatus": "cancelled",
+      "observedTaskStatus": "",
+      "errorPresent": false,
+      "retryable": true,
+      "completedBatches": 1,
+      "totalBatches": 6,
+      "resumeVisibleBeforeReload": true,
+      "runEnabledAfterCancel": true,
+      "cancelHidden": true,
+      "suggestionsHidden": true,
+      "sourceSubtitleUnchangedAfterCancel": true,
+      "originalSrtUnchangedAfterCancel": true,
+      "cancelRequestHttpStatus": 200,
+      "cancelRequestAccepted": true,
+      "cancelRequestCancelled": true,
+      "checkpointPersisted": true,
+      "checkpointSuggestionCount": 1,
+      "resumeVisibleAfterReload": true,
+      "sessionUnchangedAfterReload": true,
+      "checkpointUnchangedAfterReload": true,
+      "appRestartAttempted": true,
+      "appRestarted": true,
+      "resumeVisibleAfterAppRestart": true,
+      "sessionUnchangedAfterAppRestart": true,
+      "checkpointUnchangedAfterAppRestart": true,
+      "pageTimeOriginChangedAfterAppRestart": true,
+      "resumeRequestAccepted": true,
+      "resumedFromBatch": 1,
+      "resumeStartsAtCheckpoint": true,
+      "sessionUnchangedAfterResume": true
+    }
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "schema": "offline-subtitle-factory.macos-signing-readiness-audit.v1",
+  "startedAt": "2026-10-29T05:18:02.666Z",
+  "completedAt": "2026-10-29T05:18:02.719Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "osRelease": "27.0.0",
+    "node": "v22.22.3",
+    "macOSProductVersion": {
+      "commandSucceeded": true,
+      "reportedOnStdout": true,
+      "value": "27.0.1"
+    },
+    "macOSBuildVersion": {
+      "commandSucceeded": true,
+      "reportedOnStdout": true,
+      "value": "26A434"
+    }
+  },
+  "sourceRevision": {
+    "gitHead": "c06d15e95a2f0a0981518c5873003a460e57a5ee",
+    "provenanceScope": "audit-script-package-json-focused-test",
+    "sourceScriptSha256": "7803b418fe5962dbc5e79d742599522eb30ab94ad0f8503360ff4de739083277",
+    "packageJsonSha256": "0980d896c417828d08f17a5ca1399f682c5bc440bf20e2849839d766466ed79a",
+    "focusedTestSha256": "cd09442102a1019e732ef3846c66f40fb8ce19154dbc4b7d97fbd113230dafb9",
+    "gitCommandSucceeded": true,
+    "workingTreeDirty": true
+  },
+  "toolchain": {
+    "required": {
+      "codesign": {
+        "executablePresent": true
+      },
+      "xcrun": {
+        "executablePresent": true
+      },
+      "xcrunCodesign": {
+        "commandSucceeded": true,
+        "status": 0,
+        "signal": null,
+        "errorCode": null
+      }
+    },
+    "optional": {
+      "productbuild": {
+        "executablePresent": true
+      },
+      "spctl": {
+        "executablePresent": true
+      },
+      "xcodeSelect": {
+        "commandSucceeded": true,
+        "status": 0,
+        "signal": null,
+        "errorCode": null
+      },
+      "xcrunNotarytool": {
+        "commandSucceeded": true,
+        "status": 0,
+        "signal": null,
+        "errorCode": null
+      }
+    }
+  },
+  "identity": {
+    "commandSucceeded": true,
+    "probeReady": true,
+    "probeStatus": "ok",
+    "validIdentityCount": 0,
+    "matchingIdentityCount": 0,
+    "developerIdApplicationPresent": false,
+    "appleDevelopmentPresent": false,
+    "appleDistributionPresent": false,
+    "formalIdentityAvailable": false,
+    "rawOutputPersisted": false,
+    "identityNamesPersisted": false,
+    "identityHashesPersisted": false
+  },
+  "sourceBuildConfig": {
+    "identityConfiguration": "auto-discovery",
+    "hardenedRuntimeConfigured": true,
+    "gatekeeperAssessConfigured": true,
+    "entitlementsConfigured": false,
+    "macTargetConfigured": true,
+    "sourceConfigReady": true
+  },
+  "credentialPresence": {
+    "CSC_NAME": false,
+    "CSC_LINK": false,
+    "CSC_KEY_PASSWORD": false,
+    "APPLE_ID": false,
+    "APPLE_APP_SPECIFIC_PASSWORD": false,
+    "APPLE_TEAM_ID": false,
+    "APPLE_API_KEY": false,
+    "APPLE_API_KEY_ID": false,
+    "APPLE_API_ISSUER": false,
+    "APPLE_KEYCHAIN": false,
+    "APPLE_KEYCHAIN_PROFILE": false
+  },
+  "notarization": {
+    "appleIdSetComplete": false,
+    "apiKeySetComplete": false,
+    "keychainProfileSetComplete": false,
+    "completeSetCount": 0,
+    "partialCredentialSetDetected": false,
+    "status": "absent",
+    "ready": false
+  },
+  "existingEvidence": [
+    {
+      "file": "2026-10-28-fr-021-packaged-security-identity-audit3.json",
+      "exists": true,
+      "parseable": true,
+      "sha256": "fc18682da1b669f09650a068db623dca2102e4c0b2e2eb4b303feba126bb46d0",
+      "bytes": 8002,
+      "status": "pass",
+      "allVerified": true,
+      "allAdHoc": true,
+      "noTeamIdentifier": true,
+      "anyEntitlementsPresent": false,
+      "requiredCodeSignFlag": null,
+      "requiredCodeSignFlagSatisfied": null,
+      "scopeKeys": [
+        "absolutePathsPersisted",
+        "candidateModified",
+        "existingOllamaDaemonStartedOrStopped",
+        "modelDownloaded",
+        "networkConnectionsAttempted",
+        "packagedAppExecuted",
+        "rawCommandOutputPersisted",
+        "uiFlowRun"
+      ],
+      "scopeSafe": true
+    },
+    {
+      "file": "2026-10-29-fr-021-adhoc-runtime-signing-canary-audit2.json",
+      "exists": true,
+      "parseable": true,
+      "sha256": "ca5bf50782ee7ff6a1336e37385b04b3693149388db9a1ae64653bea569656f5",
+      "bytes": 8194,
+      "status": "pass",
+      "allVerified": true,
+      "allAdHoc": true,
+      "noTeamIdentifier": true,
+      "anyEntitlementsPresent": false,
+      "requiredCodeSignFlag": "runtime",
+      "requiredCodeSignFlagSatisfied": true,
+      "scopeKeys": [
+        "absolutePathsPersisted",
+        "candidateModified",
+        "existingOllamaDaemonStartedOrStopped",
+        "modelDownloaded",
+        "networkConnectionsAttempted",
+        "packagedAppExecuted",
+        "rawCommandOutputPersisted",
+        "uiFlowRun"
+      ],
+      "scopeSafe": true
+    }
+  ],
+  "decision": {
+    "toolchainReady": true,
+    "sourceConfigReady": true,
+    "existingEvidenceReady": true,
+    "provenanceReady": true,
+    "notarizationCredentialReady": false,
+    "formalSigningReady": false,
+    "status": "blocked-external-signing-identity",
+    "nextAction": "Obtain an approved Developer ID Application identity and entitlements in an external signing environment before creating another signed/hardened canary."
+  },
+  "scope": {
+    "candidateModified": false,
+    "keychainModified": false,
+    "signingAttempted": false,
+    "notarizationAttempted": false,
+    "networkConnectionsAttempted": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "identityNamesPersisted": false,
+    "identityHashesPersisted": false,
+    "secretsPersisted": false
+  },
+  "interpretation": "This is a read-only signing and notarization-prerequisite audit. Notarization credential status records only boolean presence and does not invoke notarytool or prove credential validity. A blocked status is an external packaging prerequisite result, not an FR-021 pass or a renderer diagnosis. It does not authorize keychain changes, signing, notarization, sandbox relaxation, network-policy changes, or release publication.",
+  "status": "blocked-external-signing-identity"
+}

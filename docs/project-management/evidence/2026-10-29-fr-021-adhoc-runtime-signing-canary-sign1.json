@@ -1,0 +1,29 @@
+{
+  "schema": "offline-subtitle-factory.fr-021-adhoc-runtime-signing-canary-sign.v1",
+  "status": "pass-runtime-flag-created",
+  "candidateRelativePath": "../dist/fr-021-adhoc-runtime-signing-canary/mac-arm64/離線字幕工廠.app",
+  "signing": {
+    "mode": "ad-hoc",
+    "command": "codesign --force --deep --sign - --options runtime --timestamp=none <candidate>",
+    "deepVerificationSucceeded": true,
+    "codeObjectCount": 6,
+    "allRuntimeFlagsObserved": true,
+    "observedCodeDirectoryFlag": "0x10002(adhoc,runtime)",
+    "teamIdentifierPresent": false,
+    "entitlementsPresent": false,
+    "auditEvidence": "2026-10-29-fr-021-adhoc-runtime-signing-canary-audit1.json"
+  },
+  "scope": {
+    "newCandidateCreated": true,
+    "existingCandidateModified": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "networkConnectionsAttempted": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "rawCommandOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "published": false
+  },
+  "interpretation": "Ad-hoc signing with the runtime option created a measurable 0x10002(adhoc,runtime) CodeDirectory flag across the audited code objects, but did not create a Team ID or entitlements. This is a diagnostic identity contrast, not a production signing result or an acceptance workaround."
+}

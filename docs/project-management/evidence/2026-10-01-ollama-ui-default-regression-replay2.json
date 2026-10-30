@@ -1,0 +1,145 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-live-acceptance.v3",
+  "scenario": "complete",
+  "artifact": {
+    "executableSha256": "611dc64c2e830c08baa4fc72ddae72429eea6c80c8f610595136a7369096d266",
+    "reviewScriptSha256": "6bb93f9939415b21261c92a0adacfad0d5a9e304e97a02900770aeac6e8d1cf9"
+  },
+  "startedAt": "2026-10-01T03:10:03.867Z",
+  "completedAt": "2026-10-01T03:10:13.026Z",
+  "elapsedMs": 9157,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "executable": "離線字幕工廠",
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:55700/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:3b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "sandboxedTargetProcessTree": false,
+    "loopbackOnlyConfiguration": true,
+    "apiKeySupplied": false,
+    "isolatedAcceptanceDaemon": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "pass",
+  "cleanup": {
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "appServerPortClosed": true,
+    "userDataRemoved": true,
+    "ownedDaemon": {
+      "stopped": true,
+      "processGroupAbsent": true,
+      "forcedCleanup": false,
+      "portClosed": true,
+      "temporaryRootRemoved": true
+    }
+  },
+  "daemon": {
+    "preinstalledModelFound": true,
+    "contextLength": 4096,
+    "modelDownloadAttempted": false,
+    "sandboxedDaemonOnly": false,
+    "existingServiceModified": false,
+    "failureCode": null,
+    "diagnostics": {
+      "listeningReported": true,
+      "lastHttpStatus": 200,
+      "lastFetchErrorCode": "ECONNREFUSED"
+    }
+  },
+  "source": {
+    "cueCount": 2,
+    "timecodes": [
+      [
+        0,
+        2.5
+      ],
+      [
+        2.5,
+        5
+      ]
+    ],
+    "sourceSubtitleSha256": "5ac453f8d5c6db911a9e92ae5b702a5b2012b2da615a6cdc5f90ca4f1d5154d5",
+    "originalSubtitleFileName": "rule-cleaned.srt",
+    "originalSrtSha256Before": "7b885f55b7ed9419e0e516cf25d616fd6c48a242d8f9a0b1385f17c413f6033b",
+    "originalSrtSha256After": "7b885f55b7ed9419e0e516cf25d616fd6c48a242d8f9a0b1385f17c413f6033b",
+    "originalSrtUnchanged": true
+  },
+  "home": {
+    "href": "http://127.0.0.1:8790/",
+    "title": "本機離線字幕工廠｜字幕生成任務",
+    "hasHomeDashboard": true
+  },
+  "appServerPort": 8790,
+  "job": {
+    "createStatus": 201,
+    "startStatus": 202,
+    "finalStatus": "completed",
+    "cueCount": 2
+  },
+  "ui": {
+    "reviewLoaded": {
+      "ready": true,
+      "href": "http://127.0.0.1:8790/review/20261001031006-00b744",
+      "title": "字幕校對｜離線字幕工廠"
+    },
+    "settings": {
+      "opened": true,
+      "saved": true,
+      "status": "設定已儲存；API Key 不會回傳到畫面",
+      "provider": "ollama",
+      "baseUrl": "http://127.0.0.1:55700/v1",
+      "model": "llama3.2:3b",
+      "language": "en",
+      "keyEmpty": true,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": true,
+      "consentDisabled": true
+    },
+    "optimize": {
+      "status": "completed",
+      "sessionIdPresent": true,
+      "suggestionCount": 2,
+      "totalRetries": 0,
+      "progress": {
+        "completedBatches": 1,
+        "totalBatches": 1,
+        "processedCues": 2,
+        "totalCues": 2,
+        "totalRetries": 0
+      },
+      "toolbarExpanded": true
+    },
+    "accept": {
+      "accepted": 2,
+      "actionsHidden": true,
+      "changedCount": "2"
+    },
+    "history": {
+      "undo": true,
+      "redo": true,
+      "undoText": "本次紀錄：57fc2337；可查看決策、撤銷或重新套用",
+      "redoText": "本次紀錄：57fc2337；可查看決策、撤銷或重新套用",
+      "undoEnabled": true,
+      "redoEnabled": true
+    },
+    "save": {
+      "saved": true,
+      "subtitleFileName": "reviewed.srt",
+      "cueCount": 2,
+      "timecodesUnchanged": true,
+      "hasEnglishTranslation": true,
+      "reviewSha256": "791516f6d3182c141248de4033553291eb646c1f432c37a72f4448a80d516fdb"
+    },
+    "cancelResume": null
+  }
+}

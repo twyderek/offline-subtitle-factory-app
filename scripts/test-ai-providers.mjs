@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { requestAiJson } from '../lib/ai/openai-compatible.mjs';
 import { createProvider, listProviderDefinitions } from '../lib/ai/providers.mjs';
 import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
 import { inspectModelCapabilities, modelContextLength, parseCapabilityProbe } from '../lib/ai/model-capabilities.mjs';
@@ -69,6 +70,7 @@ try {
   assert.equal(openaiCompatibleBody.output_language, undefined);
   assert.equal(openaiCompatibleBody.subtitle_cue_count, undefined);
   assert.equal(openaiCompatibleBody.subtitle_cue_ids, undefined);
+  assert.equal(openaiCompatibleBody.options?.num_ctx, undefined, '非 Ollama provider 不得帶入 Ollama context bound');
   assert.ok(Array.isArray(openaiCompatibleBody.messages));
 
   const azure = createProvider({ provider: 'azure', baseUrl: 'https://resource.openai.azure.com', apiKey: 'azure-key', deployment: 'subtitle', apiVersion: '2024-12-01-preview' });
@@ -108,17 +110,118 @@ try {
     assert.equal(requests.at(-1).options.headers.Authorization, undefined, `${provider} 無 Key 時不得送出空 Authorization`);
   }
   const ollamaNative = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model' });
-  await ollamaNative.optimize({ model: 'test-model', subtitle_cue_count: 2, messages: [{ role: 'user', content: 'test' }] });
+  await ollamaNative.optimize({ model: 'test-model', operation: 'proofread', subtitle_cue_count: 2, subtitle_cue_ids: [1, 2], messages: [{ role: 'user', content: 'test' }] });
   const ollamaNativeRequest = requests.at(-1);
   assert.match(ollamaNativeRequest.url, /127\.0\.0\.1:11434\/api\/chat$/, 'Ollama 應使用原生 chat endpoint');
   const ollamaNativeBody = JSON.parse(ollamaNativeRequest.options.body);
   assert.equal(ollamaNativeBody.stream, true, 'Ollama 原生 chat 應使用 streaming，避免長生成被 idle timeout 中斷');
   assert.equal(ollamaNativeBody.options.temperature, 0);
   assert.equal(ollamaNativeBody.options.num_predict, 512);
+  assert.equal(ollamaNativeBody.options.num_ctx, 4096, 'Ollama native request 必須固定受控 context bound');
   assert.equal(ollamaNativeBody.keep_alive, '10m');
+  assert.equal(ollamaNativeBody.format.type, 'object');
+  assert.equal(ollamaNativeBody.format.additionalProperties, false);
+  assert.deepEqual(ollamaNativeBody.format.required, ['cues']);
+  assert.equal(ollamaNativeBody.format.properties.cues.type, 'array');
+  assert.equal(ollamaNativeBody.format.properties.cues.additionalProperties, undefined);
   assert.equal(ollamaNativeBody.format.minItems, undefined);
   assert.equal(ollamaNativeBody.format.properties.cues.minItems, 2);
   assert.equal(ollamaNativeBody.format.properties.cues.maxItems, 2);
+  assert.deepEqual(ollamaNativeBody.format.properties.cues.items.required, ['id', 'text', 'reason']);
+  assert.equal(ollamaNativeBody.format.properties.cues.items.additionalProperties, false);
+  assert.deepEqual(ollamaNativeBody.format.properties.cues.items.properties.id.enum, [1, 2]);
+  assert.equal(ollamaNativeBody.format.properties.cues.items.properties.text.type, 'string', 'Ollama proofread schema 的 text 必須是 string');
+  assert.equal(ollamaNativeBody.format.properties.cues.items.properties.reason.type, 'string', 'Ollama proofread schema 的 reason 必須是 string');
+  const ollamaCustomLoopback = createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:24567/v1', apiKey: '', model: 'test-model' });
+  await ollamaCustomLoopback.optimize({ model: 'test-model', subtitle_cue_count: 1, subtitle_cue_ids: ['C1'], messages: [{ role: 'user', content: 'test' }] });
+  const ollamaCustomLoopbackRequest = requests.at(-1);
+  assert.match(ollamaCustomLoopbackRequest.url, /127\.0\.0\.1:24567\/api\/chat$/, 'Ollama custom loopback port 應維持 native chat endpoint');
+  const ollamaCustomLoopbackBody = JSON.parse(ollamaCustomLoopbackRequest.options.body);
+  assert.equal(ollamaCustomLoopbackBody.options.num_ctx, 4096, 'Ollama custom loopback port 也必須固定 context bound');
+  assert.equal(ollamaCustomLoopbackBody.format.properties.cues.maxItems, 1, 'Ollama custom loopback port 必須保留 cue schema');
+  const fallbackRequests = [];
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    fallbackRequests.push({ url: String(url), options });
+    if (String(url).endsWith('/api/chat')) return new Response(JSON.stringify({ error: 'native endpoint unavailable' }), { status: 404 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: '{"cues":[]}' } }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    await createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:24568/v1', apiKey: '', model: 'test-model' }).optimize({
+      model: 'test-model',
+      operation: 'translate',
+      output_language: 'en',
+      subtitle_cue_count: 2,
+      subtitle_cue_ids: ['T1', 'T2'],
+      messages: [{ role: 'system', content: 'translate' }, { role: 'user', content: '[{"id":"T1","text":"你好"},{"id":"T2","text":"世界"}]' }],
+    });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+  assert.equal(fallbackRequests.length, 2, 'Ollama custom loopback native 404 應只產生 native probe 與一次 fallback request');
+  assert.match(fallbackRequests[0].url, /127\.0\.0\.1:24568\/api\/chat$/, 'Ollama custom loopback 應先探測 native endpoint');
+  assert.match(fallbackRequests[1].url, /127\.0\.0\.1:24568\/v1\/chat\/completions$/, 'Ollama custom loopback native 404 應 fallback 至相容 endpoint');
+  const fallbackBody = JSON.parse(fallbackRequests[1].options.body);
+  assert.deepEqual(Object.keys(fallbackBody).sort(), ['messages', 'model'], 'fallback body 只應保留 OpenAI-compatible model/messages');
+  assert.equal(fallbackBody.model, 'test-model');
+  assert.deepEqual(fallbackBody.messages, [{ role: 'system', content: 'translate' }, { role: 'user', content: '[{"id":"T1","text":"你好"},{"id":"T2","text":"世界"}]' }]);
+  for (const field of ['operation', 'output_language', 'subtitle_cue_count', 'subtitle_cue_ids', 'format', 'options', 'keep_alive', 'think']) {
+    assert.equal(fallbackBody[field], undefined, `fallback body 不得保留 native／internal field：${field}`);
+  }
+  const non404Requests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    non404Requests.push({ url: String(url), options });
+    return new Response(JSON.stringify({ error: { message: 'native bad request', code: 'bad_request' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    await assert.rejects(
+      () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:24569/v1', apiKey: '', model: 'test-model' }).optimize({ model: 'test-model', operation: 'translate', messages: [{ role: 'user', content: 'test' }] }),
+      (error) => error.status === 400 && error.code === 'bad_request',
+      'Ollama custom loopback native non-404 failure 不得 fallback',
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+  assert.equal(non404Requests.length, 1, 'Ollama custom loopback native non-404 failure 不得發出第二次 fallback request');
+  assert.match(non404Requests[0].url, /127\.0\.0\.1:24569\/api\/chat$/);
+  const serverErrorRequests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    serverErrorRequests.push({ url: String(url), options });
+    return new Response(JSON.stringify({ error: { message: 'native server error', code: 'server_error' } }), { status: 500, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    await assert.rejects(
+      () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:24570/v1', apiKey: '', model: 'test-model' }).optimize({ model: 'test-model', operation: 'translate', messages: [{ role: 'user', content: 'test' }] }),
+      (error) => error.status === 500 && error.code === 'server_error',
+      'Ollama custom loopback native HTTP 500 不得 fallback',
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+  assert.equal(serverErrorRequests.length, 1, 'Ollama custom loopback native HTTP 500 不得發出第二次 fallback request');
+  assert.match(serverErrorRequests[0].url, /127\.0\.0\.1:24570\/api\/chat$/);
+  const strictFailureRequests = [];
+  globalThis.fetch = async (url, options = {}) => {
+    strictFailureRequests.push({ url: String(url), options });
+    return new Response('not-json\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  };
+  try {
+    await assert.rejects(
+      () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:24571/v1', apiKey: '', model: 'test-model' }).optimize({ model: 'test-model', operation: 'translate', messages: [{ role: 'user', content: 'test' }] }),
+      (error) => error.code === 'ollama_stream_invalid_json' && error.retryable === false,
+      'Ollama custom loopback native strict stream failure 不得 fallback',
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+  assert.equal(strictFailureRequests.length, 1, 'Ollama custom loopback native strict stream failure 不得發出第二次 fallback request');
+  assert.match(strictFailureRequests[0].url, /127\.0\.0\.1:24571\/api\/chat$/);
+  const ollamaRemote = createProvider({ provider: 'ollama', baseUrl: 'https://ollama.example.test/v1', apiKey: 'remote-key', model: 'test-model' });
+  await ollamaRemote.optimize({ model: 'test-model', operation: 'translate', messages: [{ role: 'user', content: 'test' }] });
+  const ollamaRemoteRequest = requests.at(-1);
+  assert.match(ollamaRemoteRequest.url, /ollama\.example\.test\/v1\/chat\/completions$/, '非 loopback Ollama endpoint 應保留 OpenAI-compatible fallback');
+  const ollamaRemoteBody = JSON.parse(ollamaRemoteRequest.options.body);
+  assert.equal(ollamaRemoteBody.options, undefined, '非 loopback fallback 不得帶入 Ollama native options');
   await ollamaNative.optimize({
     model: 'test-model',
     operation: 'translate',
@@ -129,7 +232,17 @@ try {
   });
   const ollamaTranslateRequest = requests.at(-1);
   const ollamaTranslateBody = JSON.parse(ollamaTranslateRequest.options.body);
-  assert.equal(ollamaTranslateBody.format, 'json', 'Ollama 翻譯應使用原生 JSON format');
+  assert.equal(ollamaTranslateBody.format.type, 'object', 'Ollama 翻譯應使用受限 JSON Schema format');
+  assert.equal(ollamaTranslateBody.format.additionalProperties, false);
+  assert.deepEqual(ollamaTranslateBody.format.required, ['cues']);
+  assert.equal(ollamaTranslateBody.format.properties.cues.type, 'array');
+  assert.deepEqual(ollamaTranslateBody.format.properties.cues.items.required, ['id', 'text', 'reason']);
+  assert.equal(ollamaTranslateBody.format.properties.cues.items.additionalProperties, false);
+  assert.equal(ollamaTranslateBody.format.properties.cues.items.properties.text.type, 'string');
+  assert.equal(ollamaTranslateBody.format.properties.cues.items.properties.reason.type, 'string');
+  assert.deepEqual(ollamaTranslateBody.format.properties.cues.items.properties.id.enum, ['T1'], 'Ollama 翻譯 schema 必須綁定原始 cue ID');
+  assert.equal(ollamaTranslateBody.format.properties.cues.minItems, 1, 'Ollama 翻譯 schema 必須固定 cue 數量下限');
+  assert.equal(ollamaTranslateBody.format.properties.cues.maxItems, 1, 'Ollama 翻譯 schema 必須固定 cue 數量上限');
   assert.equal(ollamaTranslateBody.think, false, 'Ollama 翻譯應關閉 thinking，避免解說混入');
   assert.match(ollamaTranslateBody.messages[0].content, /professional subtitle translator/);
   assert.match(ollamaTranslateBody.messages[0].content, /into en/);
@@ -140,7 +253,276 @@ try {
   ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
   const streamed = await createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] });
   assert.equal(streamed.choices[0].message.content, '{"cues":[]}');
+  globalThis.fetch = async () => new Response('not-json\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_invalid_json' && error.retryable === false,
+    'Ollama malformed-only NDJSON 必須在 parser 前 fail-closed',
+  );
+  globalThis.fetch = async () => new Response([
+    JSON.stringify({ message: { role: 'assistant', content: '{"cues":' }, done: false }),
+    'not-json',
+    JSON.stringify({ message: { role: 'assistant', content: '[]}' }, done: true }),
+  ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_invalid_json',
+    'Ollama 合法片段前後的 malformed NDJSON 不得被靜默丟棄',
+  );
   const encoder = new TextEncoder();
+  const validUtf8 = encoder.encode(`${JSON.stringify({ message: { role: 'assistant', content: '跨 chunk UTF-8' }, done: true })}\n`);
+  const continuationByte = validUtf8.findIndex((byte) => byte >= 0x80 && byte <= 0xbf);
+  globalThis.fetch = async () => new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(validUtf8.slice(0, continuationByte));
+      controller.enqueue(validUtf8.slice(continuationByte));
+      controller.close();
+    },
+  }), { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  const splitUtf8 = await createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] });
+  assert.equal(splitUtf8.choices[0].message.content, '跨 chunk UTF-8', 'Ollama strict decoder 不得誤判跨 chunk UTF-8');
+  const invalidUtf8 = new Uint8Array([...encoder.encode(`${JSON.stringify({ message: { role: 'assistant', content: 'valid' }, done: true })}\n`), 0xff]);
+  globalThis.fetch = async () => new Response(invalidUtf8, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_invalid_encoding' && error.retryable === false,
+    'Ollama invalid UTF-8 必須在 parser 前 fail-closed',
+  );
+  const truncatedUtf8 = new Uint8Array([...encoder.encode(`${JSON.stringify({ message: { role: 'assistant', content: 'valid' }, done: true })}\n`), 0xe4]);
+  globalThis.fetch = async () => new Response(truncatedUtf8, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_invalid_encoding',
+    'Ollama stream 結尾未完成 UTF-8 sequence 不得因 decoder 未 flush 而被忽略',
+  );
+  let normalReaderReads = 0;
+  let normalReaderCancelCalls = 0;
+  let normalReaderReleaseCalls = 0;
+  const normalReader = {
+    async read() {
+      if (normalReaderReads++ === 0) return { done: false, value: encoder.encode(`${JSON.stringify({ message: { content: 'normal reader' }, done: true })}\n`) };
+      return { done: true, value: undefined };
+    },
+    async cancel() { normalReaderCancelCalls += 1; },
+    releaseLock() { normalReaderReleaseCalls += 1; },
+  };
+  let normalStreamSignal;
+  globalThis.fetch = async (_url, options = {}) => {
+    normalStreamSignal = options.signal;
+    return { ok: true, status: 200, body: { getReader: () => normalReader }, headers: new Headers() };
+  };
+  const originalSetTimeout = globalThis.setTimeout;
+  const normalTimerDelays = [];
+  globalThis.setTimeout = (handler, delay, ...args) => {
+    normalTimerDelays.push(delay);
+    return originalSetTimeout(handler, delay, ...args);
+  };
+  let normalReaderResult;
+  try {
+    normalReaderResult = await requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } });
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+  assert.equal(normalReaderResult.message.content, 'normal reader');
+  assert.equal(normalReaderCancelCalls, 0, 'strict reader 正常 EOF 不應呼叫 cancel');
+  assert.equal(normalReaderReleaseCalls, 1, 'strict reader 正常 EOF 必須 release lock');
+  assert.equal(normalTimerDelays.includes(250), false, 'strict reader 正常 EOF 不應建立 bounded cleanup timer');
+  assert.equal(normalStreamSignal?.aborted, false, 'strict reader 正常 EOF 不應 abort request signal');
+  let decoderFailureCancelCalls = 0;
+  let decoderFailureReleaseCalls = 0;
+  const decoderFailureReader = {
+    async read() { return { done: false, value: new Uint8Array([0xff]) }; },
+    async cancel() { decoderFailureCancelCalls += 1; },
+    releaseLock() { decoderFailureReleaseCalls += 1; },
+  };
+  globalThis.fetch = async () => ({ ok: true, status: 200, body: { getReader: () => decoderFailureReader }, headers: new Headers() });
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'probe_invalid_encoding' && error.retryable === false,
+    'decoder failure 必須保留 invalid encoding 分類',
+  );
+  assert.equal(decoderFailureCancelCalls, 1, 'decoder failure 必須 best-effort cancel reader');
+  assert.equal(decoderFailureReleaseCalls, 1, 'decoder failure 必須 release reader lock');
+  let transportFailureCancelCalls = 0;
+  let transportFailureReleaseCalls = 0;
+  const transportFailureReader = {
+    async read() { throw new Error('reader socket closed'); },
+    async cancel() { transportFailureCancelCalls += 1; throw new Error('cancel failed'); },
+    releaseLock() { transportFailureReleaseCalls += 1; throw new Error('release failed'); },
+  };
+  globalThis.fetch = async () => ({ ok: true, status: 200, body: { getReader: () => transportFailureReader }, headers: new Headers() });
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'network_error' && error.retryable === true,
+    'reader transport failure 必須保留既有 network error 分類',
+  );
+  assert.equal(transportFailureCancelCalls, 1, 'reader transport failure 必須 best-effort cancel reader');
+  assert.equal(transportFailureReleaseCalls, 1, 'reader transport failure 必須 release reader lock');
+  let hangingCancelCalls = 0;
+  let hangingCancelReleaseCalls = 0;
+  const hangingCancelReader = {
+    async read() { return { done: false, value: new Uint8Array([0xff]) }; },
+    cancel() {
+      hangingCancelCalls += 1;
+      return new Promise(() => {});
+    },
+    releaseLock() { hangingCancelReleaseCalls += 1; },
+  };
+  let hangingStreamSignal;
+  globalThis.fetch = async (_url, options = {}) => {
+    hangingStreamSignal = options.signal;
+    return { ok: true, status: 200, body: { getReader: () => hangingCancelReader }, headers: new Headers() };
+  };
+  let cleanupWatchdog;
+  const cleanupTimerDelays = [];
+  globalThis.setTimeout = (handler, delay, ...args) => {
+    cleanupTimerDelays.push(delay);
+    return originalSetTimeout(handler, delay, ...args);
+  };
+  let boundedCleanupResult;
+  try {
+    boundedCleanupResult = await Promise.race([
+      requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }).then(() => null, (error) => error),
+      new Promise((resolve) => { cleanupWatchdog = setTimeout(() => resolve('cleanup watchdog'), 1000); }),
+    ]);
+  } finally {
+    clearTimeout(cleanupWatchdog);
+    globalThis.setTimeout = originalSetTimeout;
+  }
+  assert.notEqual(boundedCleanupResult, 'cleanup watchdog', 'reader.cancel 永不 settle 時 cleanup 不得無限等待');
+  assert.equal(boundedCleanupResult?.code, 'probe_invalid_encoding', 'bounded cleanup 必須保留原始 invalid encoding 分類');
+  assert.equal(hangingCancelCalls, 1, 'bounded cleanup 只應呼叫一次 reader.cancel');
+  assert.equal(hangingCancelReleaseCalls, 1, 'bounded cleanup 超時後仍必須 release reader lock');
+  assert.equal(cleanupTimerDelays.filter((delay) => delay === 250).length, 1, 'failure cleanup 必須建立固定 250ms timer');
+  assert.equal(hangingStreamSignal?.aborted, true, 'strict parser failure 必須先 abort underlying request signal');
+  const parserFailureEvents = [];
+  let parserFailureReads = 0;
+  const parserFailureReader = {
+    async read() {
+      if (parserFailureReads++ === 0) return { done: false, value: encoder.encode('not-json\n') };
+      return { done: true, value: undefined };
+    },
+    cancel() { parserFailureEvents.push('cancel'); return Promise.resolve(); },
+    releaseLock() { parserFailureEvents.push('release'); },
+  };
+  globalThis.fetch = async (_url, options = {}) => {
+    options.signal?.addEventListener('abort', () => parserFailureEvents.push('abort'), { once: true });
+    return { ok: true, status: 200, body: { getReader: () => parserFailureReader }, headers: new Headers() };
+  };
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictJson: true, invalidJsonCode: 'probe_invalid_json', strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'probe_invalid_json' && error.retryable === false,
+    'strict NDJSON parser failure 必須保留 invalid JSON 分類',
+  );
+  assert.deepEqual(parserFailureEvents, ['abort', 'cancel', 'release'], 'strict parser failure cleanup 順序必須是 abort、cancel、release');
+  let readerTimeoutCancelCalls = 0;
+  let readerTimeoutReleaseCalls = 0;
+  let readerTimeoutSignal;
+  const readerTimeoutReader = {
+    async read() {
+      if (readerTimeoutSignal.aborted) throw readerTimeoutSignal.reason || new Error('reader timeout');
+      return new Promise((_, reject) => readerTimeoutSignal.addEventListener('abort', () => reject(readerTimeoutSignal.reason || new Error('reader timeout')), { once: true }));
+    },
+    cancel() { readerTimeoutCancelCalls += 1; throw new Error('cancel failed'); },
+    releaseLock() { readerTimeoutReleaseCalls += 1; throw new Error('release failed'); },
+  };
+  globalThis.fetch = async (_url, options = {}) => {
+    readerTimeoutSignal = options.signal;
+    return { ok: true, status: 200, body: { getReader: () => readerTimeoutReader }, headers: new Headers() };
+  };
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, timeoutSeconds: 0.01, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'timeout' && error.retryable === true,
+    'reader path timeout 必須保留既有 timeout 分類',
+  );
+  assert.equal(readerTimeoutCancelCalls, 1, 'reader path timeout 必須 best-effort cancel reader');
+  assert.equal(readerTimeoutReleaseCalls, 1, 'reader path timeout 必須 release reader lock');
+  const externalReaderAbort = new AbortController();
+  let externalReaderCancelCalls = 0;
+  let externalReaderReleaseCalls = 0;
+  let externalReaderSignal;
+  const externalReader = {
+    async read() {
+      if (externalReaderSignal.aborted) throw externalReaderSignal.reason || new Error('external cancel');
+      return new Promise((_, reject) => externalReaderSignal.addEventListener('abort', () => reject(externalReaderSignal.reason || new Error('external cancel')), { once: true }));
+    },
+    async cancel() { externalReaderCancelCalls += 1; },
+    releaseLock() { externalReaderReleaseCalls += 1; },
+  };
+  globalThis.fetch = async (_url, options = {}) => {
+    externalReaderSignal = options.signal;
+    return { ok: true, status: 200, body: { getReader: () => externalReader }, headers: new Headers() };
+  };
+  const externalReaderRequest = requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, signal: externalReaderAbort.signal, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } });
+  externalReaderAbort.abort(new Error('external reader cancel'));
+  await assert.rejects(externalReaderRequest, (error) => error.message === 'external reader cancel', 'reader path 外部取消不得改寫原始取消錯誤');
+  assert.equal(externalReaderCancelCalls, 1, '外部取消必須 best-effort cancel reader');
+  assert.equal(externalReaderReleaseCalls, 1, '外部取消必須 release reader lock');
+  globalThis.fetch = async () => ({ ok: true, status: 200, body: null, headers: new Headers(), text: async () => 'replacement-�' });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_encoding_unavailable' && error.retryable === false,
+    'Ollama strict path 缺少 byte reader 時必須明確 fail-closed',
+  );
+  globalThis.fetch = async () => new Response([
+    JSON.stringify({ message: { role: 'assistant', content: 'legacy' }, done: true }),
+    'not-json',
+  ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  const permissiveStream = await requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true });
+  assert.equal(permissiveStream.message.content, 'legacy', '共用 transport 預設仍維持非 strict streaming 行為');
+  const permissiveInvalidUtf8 = new Uint8Array([...encoder.encode(`${JSON.stringify({ message: { role: 'assistant', content: 'legacy-encoding' }, done: true })}\n`), 0xff]);
+  globalThis.fetch = async () => new Response(permissiveInvalidUtf8, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  const permissiveEncoding = await requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true });
+  assert.equal(permissiveEncoding.message.content, 'legacy-encoding', '共用 transport 預設不得套用 Ollama strict UTF-8 policy');
+  globalThis.fetch = async (_url, options = {}) => ({
+    ok: true,
+    status: 200,
+    body: null,
+    headers: new Headers(),
+    arrayBuffer: () => new Promise((resolve, reject) => {
+      if (options.signal?.aborted) {
+        reject(options.signal.reason || new Error('aborted'));
+        return;
+      }
+      options.signal?.addEventListener('abort', () => reject(options.signal.reason || new Error('aborted')), { once: true });
+    }),
+  });
+  const externalAbort = new AbortController();
+  const externalAbortRequest = requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, signal: externalAbort.signal, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } });
+  externalAbort.abort(new Error('external cancel'));
+  await assert.rejects(externalAbortRequest, (error) => error.message === 'external cancel' && error.code !== 'probe_invalid_encoding', 'strict fallback 不得把外部取消誤報成 invalid encoding');
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, timeoutSeconds: 0.01, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'timeout' && error.retryable === true,
+    'strict fallback timeout 應保留既有 timeout 分類',
+  );
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    body: null,
+    headers: new Headers(),
+    arrayBuffer: async () => { throw new Error('socket closed'); },
+  });
+  await assert.rejects(
+    () => requestAiJson({ baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', pathname: '/api/chat', method: 'POST', body: {}, streamResponse: true, streamOptions: { strictEncoding: true, invalidEncodingCode: 'probe_invalid_encoding' } }),
+    (error) => error.code === 'network_error' && error.retryable === true,
+    'strict fallback transport failure 應保留既有 network error 分類',
+  );
+  globalThis.fetch = async () => new Response(`${JSON.stringify({ error: { message: 'model unavailable', code: 'MODEL_UNAVAILABLE' } })}\n`, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_error' && error.retryable === false && /model unavailable/.test(error.message),
+    'Ollama HTTP 200 stream error 必須保留為 provider error',
+  );
+  globalThis.fetch = async () => new Response([
+    JSON.stringify({ message: { role: 'assistant', content: '{"cues":' }, done: false }),
+    JSON.stringify({ error: { message: 'model stopped unexpectedly' } }),
+  ].join('\n') + '\n', { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+  await assert.rejects(
+    () => createProvider({ provider: 'ollama', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', model: 'test-model', timeoutSeconds: 1 }).optimize({ model: 'test-model', messages: [] }),
+    (error) => error.code === 'ollama_stream_error' && /model stopped unexpectedly/.test(error.message),
+    'Ollama partial content 後的 stream error 不得被合併成可解析內容',
+  );
   globalThis.fetch = async () => new Response(new ReadableStream({
     start(controller) {
       const chunks = [

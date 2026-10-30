@@ -416,6 +416,65 @@ assert.equal(localJsonRepairCalls, 2, '本機模型缺少 cues 時應自動要�
 assert.match(localJsonRepairBodies[1].messages[0].content, /未符合必要的 JSON 結構/);
 assert.equal(repairedLocalJson.totalCues, 1);
 
+let emptyOllamaCalls = 0;
+const repairedEmptyOllama = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'test', batchSize: 1 },
+  complete: async () => {
+    emptyOllamaCalls += 1;
+    return parserResult(emptyOllamaCalls === 1 ? '  ' : JSON.stringify(parserPayload));
+  },
+});
+assert.equal(emptyOllamaCalls, 2, 'Ollama 空白 message.content 應只觸發一次 JSON repair');
+assert.equal(repairedEmptyOllama.suggestions[0].text, parserCue.text);
+
+let missingOllamaCalls = 0;
+const repairedMissingOllama = await optimizeSubtitleCues({
+  cues: source.slice(0, 1),
+  config: { provider: 'ollama', model: 'test', batchSize: 1 },
+  complete: async () => {
+    missingOllamaCalls += 1;
+    return missingOllamaCalls === 1
+      ? { choices: [{ message: {} }] }
+      : parserResult(JSON.stringify(parserPayload));
+  },
+});
+assert.equal(missingOllamaCalls, 2, 'Ollama 缺少 message.content 應只觸發一次 JSON repair');
+assert.equal(repairedMissingOllama.suggestions[0].text, parserCue.text);
+
+let failedEmptyOllamaCalls = 0;
+let failedEmptyOllamaCheckpoint = null;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'ollama', model: 'test', batchSize: 1 },
+    complete: async () => {
+      failedEmptyOllamaCalls += 1;
+      return parserResult('');
+    },
+    onCheckpoint: async (checkpoint) => { failedEmptyOllamaCheckpoint = checkpoint; },
+  }),
+  /AI 未回傳字幕內容/,
+  'Ollama repair 後仍沒有內容時應明確失敗',
+);
+assert.equal(failedEmptyOllamaCalls, 2, 'Ollama 空回應 repair 最多只能送出兩次 response');
+assert.equal(failedEmptyOllamaCheckpoint, null, '空回應 repair 失敗不得寫入完成 checkpoint');
+
+let nonLocalEmptyCalls = 0;
+await assert.rejects(
+  () => optimizeSubtitleCues({
+    cues: source.slice(0, 1),
+    config: { provider: 'openai-compatible', model: 'test', batchSize: 1 },
+    complete: async () => {
+      nonLocalEmptyCalls += 1;
+      return parserResult('');
+    },
+  }),
+  /AI 未回傳字幕內容/,
+  '非 Ollama provider 的空回應應維持 strict failure，不得自動 repair',
+);
+assert.equal(nonLocalEmptyCalls, 1, '非 Ollama 空回應不得重送 repair');
+
 for (const provider of ['ollama', 'lm-studio']) {
   let missingCuesCalls = 0;
   const repaired = await optimizeSubtitleCues({

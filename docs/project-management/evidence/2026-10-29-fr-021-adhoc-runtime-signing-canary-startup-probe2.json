@@ -1,0 +1,75 @@
+{
+  "schema": "offline-subtitle-factory.electron-single-process-startup-probe.v1",
+  "startedAt": "2026-10-29T01:36:09.322Z",
+  "completedAt": "2026-10-29T01:36:24.493Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "candidate": {
+    "bundleVersion": "0.52.0",
+    "executableName": "離線字幕工廠",
+    "executableSha256": "40a54ae3e981951058d2ebef916b09d9f7f120b18d2e01028e54aa240f8a0be5",
+    "frameworkSha256": "91757b30b0a7c37a130c71e52628e088d55c4ce1d05eab8cc92a90409f61fc5c"
+  },
+  "invocation": {
+    "command": "/usr/bin/sandbox-exec",
+    "argv": [
+      "-p",
+      "<loopback-only-profile>",
+      "/usr/bin/env",
+      "<sanitized-environment>",
+      "<candidate-executable>",
+      "--no-zygote",
+      "--remote-debugging-port=63276",
+      "<temporary-user-data>"
+    ],
+    "profileId": "deny-network-loopback-only-v1",
+    "startupVariant": "no-zygote",
+    "startupFlag": "--no-zygote",
+    "shellRequired": false,
+    "uiFlowRun": false,
+    "networkConnectionsAttempted": true,
+    "loopbackConnectionsAttempted": true,
+    "externalSocketAttempted": false
+  },
+  "startup": {
+    "devtoolsPortReserved": true,
+    "localPagePublished": false,
+    "pageUrlLocal": false,
+    "pageTitlePresent": false,
+    "cdpResponseReceived": false,
+    "cdpResult": null,
+    "cdpError": null,
+    "waitError": "DEVTOOLS_PAGE_TIMEOUT",
+    "childExitCode": null,
+    "childExitSignal": "SIGABRT",
+    "childExitedBeforeCleanup": true,
+    "spawnErrorCode": null,
+    "validCdpResult": false,
+    "diagnosticCategories": [
+      "ELECTRON_EARLY_EXIT"
+    ],
+    "childOutputSha256": "fbaea4c5f088423619fceab1bda5f3ee19ae81d8e5be539dac70ea2313ccc997",
+    "childOutputBytes": 1395,
+    "rawChildOutputPersisted": false
+  },
+  "cleanup": {
+    "processGroupPresentAtCleanupStart": false,
+    "processGroupAbsentAfterCleanup": true,
+    "processGroupClosedConfirmed": true,
+    "processGroupForcedCleanup": false,
+    "temporaryRootRemoved": true
+  },
+  "scope": {
+    "systemNetworkDisabled": false,
+    "outerSandboxProfileApplied": true,
+    "sandboxedTargetProcessTree": true,
+    "modelDownloaded": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "packagedUiAcceptanceRun": false
+  },
+  "status": "fail",
+  "interpretation": "This is a bounded startup-only diagnostic for Chromium process composition. The tested startup variants are not production acceptance workarounds and a pass does not establish renderer sandbox security, offline UI acceptance, full-machine egress control, Windows support, or FR-021 completion."
+}

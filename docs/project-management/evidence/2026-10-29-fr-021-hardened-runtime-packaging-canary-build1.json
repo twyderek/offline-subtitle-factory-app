@@ -1,0 +1,43 @@
+{
+  "schema": "offline-subtitle-factory.fr-021-hardened-runtime-packaging-canary.v1",
+  "status": "inconclusive-no-effective-security-change",
+  "build": {
+    "tool": "electron-builder",
+    "version": "26.17.0",
+    "electronVersion": "43.8.0",
+    "target": "mac-arm64-directory",
+    "publish": false,
+    "outputRelativePath": "../dist/fr-021-hardened-runtime-canary/mac-arm64/離線字幕工廠.app",
+    "requestedOverrides": {
+      "mac.hardenedRuntime": true,
+      "mac.gatekeeperAssess": false
+    },
+    "effectiveIdentity": {
+      "signingSkippedBecauseIdentityIsNull": true,
+      "effectiveCodeSignChanged": false,
+      "effectiveEntitlementsChanged": false,
+      "effectiveHardenedRuntimeEvidence": false
+    },
+    "auditEvidence": "2026-10-29-fr-021-hardened-runtime-packaging-canary-audit1.json"
+  },
+  "candidate": {
+    "bundleVersion": "0.52.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executableSha256": "b89fe70df706cecb5388eb979047dead5b20b44e4204a6474e63bf549030ef13",
+    "frameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee"
+  },
+  "scope": {
+    "newCandidateCreated": true,
+    "existingCandidateModified": false,
+    "packagedAppExecuted": false,
+    "uiFlowRun": false,
+    "startupProbeRun": false,
+    "existingOllamaDaemonStartedOrStopped": false,
+    "modelDownloaded": false,
+    "dependencyDownloadOccurred": true,
+    "rawBuildOutputPersisted": false,
+    "absolutePathsPersisted": false,
+    "published": false
+  },
+  "interpretation": "electron-builder accepted the CLI hardened-runtime request but skipped macOS code signing because the configured identity is null. The resulting candidate remained ad-hoc with no Team ID or entitlements, so it is not an effective hardened packaging comparison and no renderer startup replay was run. This does not establish or resolve the nested Chromium failure."
+}

@@ -1,5 +1,73 @@
 # 專案功能設計
 
+## 2026-10-29 FR-021 signed-canary keychain-profile runtime resolution boundary
+
+signed-canary workflow 的 credential data flow 現在分成兩個 fail-closed 層次：readiness／formal gate 只判定固定非秘密 `APPLE_KEYCHAIN_PROFILE=osf-signed-canary` route 的 source contract；builder 前再由同一固定 profile 執行 read-only `xcrun notarytool history --keychain-profile "$APPLE_KEYCHAIN_PROFILE" --output-format json --no-progress`，只有 exit 0 才建立 run-scoped output directory 並進入 builder。probe 的 stdout／stderr 直接丟棄，不把 Apple response、submission history、credential material 或 raw diagnostics 寫入 checkout、artifact 或 log；非 0 exit 直接停止，沒有 unsigned／ad-hoc fallback。
+
+此 probe 只驗證受控 runner 能以 profile 解析並完成 notary service history request，不代表 Developer ID identity、archive signing、submit／ticket validity、stapler、Gatekeeper、workflow 全程或 FR-021 acceptance；本機不執行該 probe、不建立或修改 keychain／secret。workflow 的兩個實際 submit 仍必須各自使用 `--keychain-profile`，並保留原有 run-scoped artifact／cleanup／privacy boundary。
+
+## 2026-10-29 FR-021 external prerequisite readiness boundary
+
+最新 authoritative read-only readiness recheck `docs/project-management/evidence/2026-10-29-fr-021-prerequisite-readiness-recheck-next2.json`（next1 immutable baseline 保留）確認 macOS arm64 required code-sign／notarytool toolchain 與 signed-canary source config 可用，但目前沒有 Developer ID identity（`validIdentityCount=0`）或完整 notarization credential；故只能維持 `blocked-external-signing-identity`，不得建立 signed／hardened candidate。audit validator 現以 derived-field consistency fail-closed，focused test 直接鎖定 next2 fixture；此 audit 只保存 boolean／分類／digest，未讀取或保存 identity name／hash、credential value、keychain 內容、raw command output 或絕對路徑，也不授權 keychain／OS network／sandbox policy 變更。
+
+這項 recheck 另確認既有 `/usr/bin/sandbox-exec`、Ollama executable 與預裝 3B／1B model 仍存在；它們只支持既有 bounded local diagnostics。Seatbelt packaged renderer 的 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`、真正 full-egress control、signed／notarized UI 與 FR-021 overall 仍是未完成的外部／平台條件，不把 tool availability 誤寫成 acceptance pass。
+
+## 2026-10-29 FR-021 live replay provenance v1 boundary
+
+normal-loopback live verifier 的 acceptance evidence schema v5 在既有 runner-level `runnerProvenance` 之外新增 `replayProvenance`：以去敏 `git HEAD`、worktree status digest、verifier／shared provenance module／package manifest SHA-256、package version、normalized invocation template／scenario／model／DevTools port／timeout、platform／arch／Node／OS release，以及 renderer-ready 後重新讀取並 hash 的 candidate／review.js／Electron Framework bytes 建立可重算關聯。`loadedBytesObservation=renderer-ready-file-read` 只表示 renderer-ready 階段重新讀取檔案 bytes，要求與 pre-launch hashes 相等；它不等同 Electron memory-mapped bytes、runtime loader 或記憶體映射 introspection。source path、完整 raw command、環境 secret、token 與 child raw output 不保存；任何 source revision、hash、invocation 或 loaded artifact 欄位缺失時，live runner 以 `REPLAY_PROVENANCE_UNAVAILABLE` fail-closed。這只補 F-02 evidence provenance，不改產品 runtime、AI contract、Seatbelt policy、network boundary 或既有 immutable evidence。
+
+## 2026-10-29 FR-021 signed canary post-build verification boundary
+
+正式 signed canary 使用獨立 `electron-builder.signed-canary.mjs`，由 `lib/macos-signed-canary-build-config.mjs` 複製既有 build config 後只對 signed canary 注入 auto-discovery、`hardenedRuntime=true` 與 `gatekeeperAssess=true`；base `package.json` 的 `build.mac` 仍是明確 unsigned／development boundary。`audit:mac:signed-canary` 的 ready 必須同時滿足六個固定 code object 的 Developer ID authority、Team ID 一致、runtime 且非 ad-hoc、完整 entitlements plist、有效 stapler ticket 與正向 Gatekeeper notarized acceptance。任何 malformed／partial／generic status-0 output、dirty source provenance、異常 candidate metadata 或 inventory mismatch 都 fail-closed。這只建立 future candidate 的 post-build contract，不代表目前已有 identity、signed package、notarization、renderer／UI 或 FR-021 完成。
+
+## 2026-10-29 FR-021 signed canary build gate boundary
+
+正式 signed canary 建置現在有獨立的 `scripts/assert-macos-signed-canary-ready.mjs` gate 與 `electron:build:mac:signed-canary` 命令。gate 只在 macOS arm64 上核對 source config（含有效 `dmg／zip／dir` arm64 target）、required code-sign／notarytool availability、Developer ID Application identity 與單一路徑 notarization credential；其純 evaluation 以 `ready`、去敏 `reasons` 與 safe summary 回報，任何 absent／partial／ambiguous／malformed／非 Developer ID 狀態都在 builder 前 fail-closed。既有 unsigned／development build 命令不經此 gate，避免把目前本地 ad-hoc／未公證開發流程誤稱為正式 canary。
+
+此 gate 的 `ready` 只表示可以開始另立隔離 signed／hardened packaging canary，不表示實際 signing、effective entitlements、notarization、Gatekeeper、renderer／UI／AI／Ollama／model／network acceptance 已通過；目前 `validIdentityCount=0`，所以 gate 預期阻擋。
+
+## 2026-10-29 FR-021 signed canary／notarization prerequisite boundary
+
+signed canary 前置預檢現在明確區分三種 notarization credential path：Apple ID／app-specific password／team ID、API key／key ID／issuer、或 keychain profile（keychain path optional）。只有單一 complete set 才標示 `notarizationCredentialReady=true`；absent、partial、multiple complete sets 或 complete+partial 組合均不代表可 notarize。預檢只保存 boolean presence／分類，不執行 `notarytool`。
+
+audit11 `docs/project-management/evidence/2026-10-29-fr-021-signing-readiness-audit11.json` 顯示目前 credential status `absent`、source config ready，但 external Developer ID identity 仍為 0，故 `formalSigningReady=false` 且不建立 signed candidate；audit10／audit9／audit8 保留為前輪 immutable 原件。所有 nested leaf schema 與 generic path leakage 均由 validator fail-closed；effective entitlements、實際簽章／公證與 renderer acceptance 仍須在 identity 取得後另立隔離 canary；本預檢不等同 FR-021 完成。
+
+## 2026-10-29 FR-021 formal packaging source configuration boundary
+
+正式 packaging source path 不再以 `identity: null` 強制跳過簽章；package config 省略 identity，讓 electron-builder 使用 keychain auto-discovery 或外部 `CSC_NAME`，並明確要求 `hardenedRuntime=true`／`gatekeeperAssess=true`。這只是把未來正式 identity 的 source seam 準備好，不是目前已有 identity 或已完成 signed package。
+
+audit7 `docs/project-management/evidence/2026-10-29-fr-021-signing-readiness-audit7.json` 以去敏、source-revision-bound、exclusive evidence 核對 `identityConfiguration=auto-discovery`、`sourceConfigReady=true`、required toolchain／existing evidence／audit script／focused test provenance／privacy gate 均通過；本機 `validIdentityCount=0`，故仍以 `blocked-external-signing-identity` fail-closed 停止，不建立 candidate 或 renderer replay。explicit `identity: null` 與 ad-hoc `identity: "-"` 均由 focused classifier 判為不可用的 formal source path。audit6 保留為 round1 finding 前原件。
+
+## 2026-10-29 FR-021 formal signing／hardened-runtime readiness boundary
+
+正式 signed／hardened packaging 是 packaged renderer 診斷的前置條件，但 readiness audit 不等於 renderer acceptance。audit5 只讀核對 required code-sign toolchain、Developer ID identity availability、source macOS config 與既有 immutable evidence；目前工具鏈可用，但 valid identity 為 0、source `identity` 未設定且 hardened runtime／Gatekeeper assess 未開啟，因此 decision 為 `blocked-external-signing-identity`。
+
+readiness evidence 必須保存 source script／package／git revision digest、去敏工具／identity 摘要與明確 false scope；existing evidence 只接受固定檔案與完整 scope key allowlist，unknown／敏感欄位、錯誤型別或 digest mismatch 均 fail-closed。不得保存 raw command output、絕對路徑、identity name／hash、憑證、token 或 secret。identity probe failure、malformed output、既有 evidence 污染與 required tool 缺失均須 fail-closed，不能被歸類為「無 identity」。此 audit 不修改 keychain、candidate、sandbox、network policy 或 formal acceptance argv，也不代表 FR-021 完成。
+
+## 2026-10-29 FR-021 ad-hoc runtime code-sign diagnostic boundary
+
+隔離副本以 ad-hoc `codesign --options runtime` 形成 `0x10002(adhoc,runtime)` CodeDirectory flag，並由 audit2 的 required-runtime gate 逐一 fail-closed 核對；這證明本機即使沒有 Team ID／entitlement 仍可建立可觀察的 runtime-flag 對照。但新候選的 `--single-process`／`--no-zygote` bounded startup probe 都沒有 local page／CDP，不能把 ad-hoc runtime flag 視為正式 signed／hardened package 或 UI workaround。
+
+此 diagnostic 仍要求 outer loopback-only boundary、renderer sandbox、child／temporary cleanup 與 immutable evidence；`systemNetworkDisabled=false`、未執行完整 UI／AI flow。任何後續 signed package 仍需正規 identity／entitlement，不能由本輪結果推導 root cause 或 FR-021 acceptance。
+
+## 2026-10-29 FR-021 hardened-runtime packaging canary boundary
+
+隔離 canary 以 CLI 要求 `mac.hardenedRuntime=true` 建置新 macOS arm64 directory candidate，但因 source `identity: null`，electron-builder 跳過 code signing；read-only audit 仍看到全 ad-hoc、無 Team ID／entitlement。此結果只證明目前環境沒有產生有效 signed／hardened identity 對照，不能把 CLI request 當成 effective runtime setting，也不觸發 renderer replay。
+
+若後續要取得有效對照，必須提供正規 signing identity／entitlement 的隔離 packaging 路徑；目前只讀 `security find-identity -v -p codesigning` 為 0 valid identities。新 candidate／evidence 仍須保留 renderer sandbox、network deny、cleanup 與 provenance gate；不修改 current candidate、不把 dependency download 誤稱為 app network、也不使用 sandbox-disabling flags。
+
+## 2026-10-28 FR-021 packaged security identity boundary
+
+packaged Electron 的 nested renderer acceptance 必須保留 Chromium renderer sandbox，並以可追溯的正式 packaging identity／entitlement／runtime 設定取得候選證據。對目前 macOS arm64 candidate 的 read-only audit3 顯示主 app、Framework 與 4 個 helper 均為可驗證的 ad-hoc code object，沒有 Team ID 或 entitlement，且 helper inventory 完整；source config 亦未開啟 hardened runtime。這是需要另立 packaging canary 的邊界訊號，不是已證實的 runtime root cause。
+
+任何後續 packaging 實驗都必須輸出新的、不可覆寫的 candidate 與 evidence，保留 renderer sandbox、外部 network deny、process／temporary cleanup 與 provenance gate；不得修改現有 candidate 來取得結果，不得使用 `--no-sandbox`、`ELECTRON_DISABLE_SANDBOX` 或等價放寬。audit 本身不代表 local page、CDP、UI／AI flow 或 FR-021 acceptance 已通過。
+
+## 2026-10-28 FR-021 Chromium nested sandbox process-composition boundary
+
+FR-021 的 packaged UI offline acceptance 必須同時滿足 renderer 可操作、loopback-only isolation、模型不下載、cleanup 與 evidence provenance；local page 出現不等於 renderer sandbox／DevTools 可用。本階段只做 startup-only boundary diagnosis：`--single-process` 與 `--no-zygote` 均不得成為正式 acceptance workaround，因為前者仍在 `SIGTRAP` 前沒有 CDP response，後者雖發布 local page 仍無 `Runtime.evaluate` response 並以 `SIGTRAP` 結束。
+
+目前 synthetic Seatbelt canary 證明 restrictive parent 與 Chromium-like network-service child profile shape 的組合可在 child policy compilation／permission boundary 失敗；explicit TCP／UDP allowances 不足以證明 exact generated Chromium profile 或唯一 root cause。若要解除 blocker，仍需保留 renderer sandbox security、外部 network deny 與 process cleanup，並取得可操作 packaged UI 的新 evidence；不得以 `--no-sandbox`、`ELECTRON_DISABLE_SANDBOX`、放寬 outer profile 或單純 local page 取代該條件。
+
 ## 2026-10-19 BUG-049 校閱短／窄視窗
 
 保留側欄＋左影片／右字幕的布局。workspace採扣除gap後的可收縮fr欄，1280以下改46／54比例並讓播放／字幕工具列換行，避免子欄min-content撐出viewport。主grid固定viewport高度、row minmax(0,1fr)；側欄、viewer與右stage各自允許垂直捲動。viewer以max-content rows保留影片／按鈕的真實高度，不壓縮track造成影片覆蓋播放鍵；右stage保留至少180px字幕區並容許展開AI內容向下捲動。焦點及scrollIntoView不得捲走頁面header。所有變更局限review selectors，不改資料、轉錄或發布流程。
@@ -124,17 +192,21 @@ AI 狀態輪詢另以 generation 隔離：每次 `setAiRunning` 遞增 token；p
 
 2026-10-01 取消控制修補：成功 cancel POST 後停止舊 polling 狀態，再以既有狀態還原流程讀取 server 終態／retryable 並更新恢復按鈕；不得依賴可能晚到的 pre-cancel running 回應。零 checkpoint 不顯示恢復、取消 API 拒絕維持原 running 控制；checkpoint 與來源字幕格式不變。macOS UI acceptance runner 新增 opt-in `OSF_OLLAMA_UI_SCENARIO=cancel-resume`，六段合成字幕／batchSize 1，以實際取消、page time-origin 變化的重載、UI 續跑及 checkpoint／Session／hash 證據驗證；預設兩段完成流程保留。DevTools target selector 跳過 file:// splash，只連既有 local HTTP 與 exact-port WebSocket whitelist。
 
+2026-10-29 app-restart resume acceptance extension：`OSF_OLLAMA_UI_SCENARIO=cancel-resume-restart` 沿用六段／batchSize 1 fixture，先保存 cancel POST 的 status／`ok`／`cancelled`，再以同一 temporary userData／job root 結束第一個 Electron process group、確認 app server port 關閉，重新啟動同一 candidate／DevTools port，重新載入 review page 並核對同一 Session／checkpoint／page time-origin change，最後由 UI 續跑。runner 只保存去敏布林／數字與既有 hash／cleanup projection，不保存 token、raw output 或 absolute path；這是 normal loopback lifecycle evidence，不是 Seatbelt offline 或全機斷網證據。
+
 驗收可另外設定 `OSF_OLLAMA_UI_ISOLATED_DAEMON=1`：建立自有 loopback Ollama process group／HOME／port，以預裝 store 與固定 context 4096、no-cloud／no-prune 執行；不接受同時覆寫 endpoint，tags 確認模型存在才進行 UI。自建 daemon 及其所有 child、port、temp root 均須確認清理，否則 evidence fail；不停止或修改桌面 Ollama。這是非斷網的 macOS UI 驗收模式，成功流程不套用 Seatbelt，既有 offline wrapper policy 不改。
 
 Artifact identity 讀取屬 runner 主 try/finally 保護階段，讀取失敗仍清理及固定化記錄；daemon tags 使用 startup 剩餘期限的 absolute timer（不以 activity 重置）、成功後再確認總 deadline，body 上限 1 MiB。
 
 2026-10-14 runner provenance capture contract：live acceptance evidence schema v4 保存去敏 outer command／argv summary、outer sandbox 套用旗標、candidate executable 與 Electron Framework 的 pre-launch SHA-256、最多 16,000 bytes child stdout／stderr 的 fingerprint／byte length 與固定 diagnostic categories；raw child output、使用者／暫存路徑及 secret-shaped env value 不保存。這些欄位只描述 runner-level pre-launch／bounded diagnostics，不等於 replay-time loaded bytes、exact Chromium generated profile、build provenance 或 UI acceptance；offline wrapper 只投影白名單欄位。
 
-offline wrapper argv redaction boundary：offline evidence schema v5 在 `runnerProvenance.argv` 保存前再次套用固定 allowlist，只接受去敏固定旗標、1024–65535 的 debug port、七個已知環境名稱的 `<redacted>` token 與受限 candidate basename；未知、超長、路徑或 secret-shaped value 不保存，僅以 `argvDroppedCount`／`argvRedactionValidated` 表示投影結果。這是保存邊界的防回歸契約，不等於 live runner 的 replay-time argv、exact Chromium generated profile 或 packaged UI acceptance。
+2026-10-29 replay provenance hardening：live acceptance evidence schema v5 另保存 `replayProvenance` 的 source revision／dirty-state digest、runner／package source bytes、normalized replay invocation、runtime environment 與 loaded candidate／review.js／Framework hashes；`provenanceComplete=false` 時以 stable code fail-closed。此仍不取得 exact Chromium generated profile、完整 build system provenance、Seatbelt offline 或 FR-021 overall acceptance。
+
+offline wrapper argv redaction boundary：offline evidence schema v5 在 `runnerProvenance.argv` 保存前再次套用固定 allowlist，只接受去敏固定旗標、1024–65535 的 debug port、七個已知環境名稱的 `<redacted>` token 與 basename-only 的安全 Unicode candidate name；未知、超長、路徑、separator、控制字元、`.`／`..` 或 secret-shaped value 不保存，僅以 `argvDroppedCount`／`argvRedactionValidated` 表示投影結果。這是保存邊界的防回歸契約，不等於 live runner 的 replay-time argv、exact Chromium generated profile 或 packaged UI acceptance。
 
 使用者啟用與設定 → 測試連線 → 選擇範圍／模式 → 分批傳送字幕文字 → 驗證 cue ID、數量、順序與內容 → 顯示建議 → 使用者接受／略過 → 自動保存。AI 不可修改時間碼或直接覆寫原字幕。
 
-AI 回應解析共用同一套 JSON candidate extraction，支援根 JSON array、明確 `cues` array、text-part array、wrapper 物件與含 Markdown fence／周邊說明文字的巢狀字串；`data`、`response`、`content`、`message` 等 wrapper 下的非 `cues` 陣列不得直接視為字幕。Ollama 是 active 本機 provider，解析成功但缺少 `cues` 時只進行一次格式修復，第二次仍失敗即拒絕；既有 LM Studio 路徑保留相同 deterministic compatibility regression 行為，但不屬 active implementation、驗收或 bug triage 目標；非本機 provider 維持 strict failure。若 provider 宣告 JSON Schema response format，請求必須保留 schema，不得覆寫為 `json_object`。
+AI 回應解析共用同一套 JSON candidate extraction，支援根 JSON array、明確 `cues` array、text-part array、wrapper 物件與含 Markdown fence／周邊說明文字的巢狀字串；`data`、`response`、`content`、`message` 等 wrapper 下的非 `cues` 陣列不得直接視為字幕。缺失或空白 `message.content` 先分類為 `empty_content`，不可誤稱為 malformed JSON。Ollama 是 active 本機 provider，解析成功但缺少 `cues`、JSON 結構錯誤或未回傳內容時只進行一次格式修復，第二次仍失敗即拒絕；既有 LM Studio 路徑保留原有 deterministic compatibility regression，但不對 `empty_content` 擴大 active repair policy，也不屬 active implementation、驗收或 bug triage 目標；非本機 provider 維持 strict failure。若 provider 宣告 JSON Schema response format，請求必須保留 schema，不得覆寫為 `json_object`。
 
 供應商 ID 由後端 provider registry 統一驗證，支援 `openai`、`openai-compatible`、`azure`、`groq`、`gemini`、`anthropic`、`ollama`、`lm-studio`；新 API 輸入非法 ID 會回覆 400，不得無聲回退。各供應商的 profile、runtime key 與磁碟 secret 以 ID 隔離；profile 只保存 `baseUrl`、`model`、`deployment`、`apiVersion`、`batchSize` 與 `timeoutSeconds` allowlist 欄位，巢狀 API Key、Authorization、token、secret 或未知欄位不得寫入一般設定。既有 `settings.json` 載入時，AI 根層的 legacy secret-shaped 欄位與 profile 非 allowlist／未知 provider 會以同目錄暫存檔原子置換清除；合法 profile、非敏感未知 AI 根層欄位與獨立 secrets 保留，歷史明文不會自動匯入 secrets。若一般設定檔無法寫入，runtime 仍只使用正規化後資料並輸出不含秘密值的權限警告。Groq 使用 OpenAI 相容的 models／chat completions 路徑；Gemini 原生 models API 使用 `x-goog-api-key`，優化則依官方 OpenAI 相容介面使用 Bearer 認證與 chat completions 路徑。Anthropic 使用 `/v1/models` 與 `/v1/messages`，以 `x-api-key` 及固定 `anthropic-version` 標頭認證；連線測試只讀 `/v1/models`，避免為驗證產生模型輸出，並依清單回報指定模型是否存在，空清單或缺少指定 ID 均回報不可用。Models API 每頁要求官方最大合法 `limit=1000`；`has_more=true` 時以 opaque `last_id` 作下一頁 `after_id` 並保留順序，缺失／重複游標或超過 100 頁時明確失敗，避免回傳不完整清單或無限請求。正式 optimizer 的 system message 移到 Anthropic `system` 欄位，連續 user／assistant 訊息合併，`max_completion_tokens` 映射為必要的 `max_tokens`，移除 OpenAI 專用 `response_format`、內部 cue metadata，以及共用 optimizer 可能附帶的 `temperature`／`top_p`／`top_k`；後三者依 Anthropic 最新相容性要求由 prompt 與 cue contract 取代，不依模型 ID 分支，避免新模型收到非預設值時回覆 HTTP 400。回應再正規化為 `choices[].message.content`。非 Azure 供應商的 Deployment 與 API Version 欄位必須清空並停用。
 
@@ -146,13 +218,19 @@ Provider registry 新增 `ollama` 與 `lm-studio`，兩者均使用 OpenAI-compa
 
 本機服務探測只請求固定候選端點，採短逾時並只回傳可連線服務及模型 ID，不掃描任意連接埠。Ollama 預設 `http://127.0.0.1:11434/v1`，LM Studio 預設 `http://127.0.0.1:1234/v1`。使用者仍可保存其他 loopback port；非 loopback URL 一律視為雲端／遠端服務。
 
-loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼叫；HTTP client 會完全省略 Authorization header。非 loopback 端點維持既有 API Key 與資料傳送同意門檻。本機 provider 預設較小批次，仍沿用 optimizer 的嚴格 cue ID、數量、順序與時間碼保護，所有結果只形成待人工接受的建議。Ollama 若回傳合法但缺少 `cues` wrapper 的單一 cue object，僅可觸發一次結構修復，修復後仍須通過完整 strict validation；其他 provider 不放寬此契約。不自動下載、啟動、停止或刪除模型。
+loopback 本機 provider 可在沒有 API Key 與雲端資料傳送同意時呼叫；HTTP client 會完全省略 Authorization header。非 loopback 端點維持既有 API Key 與資料傳送同意門檻。本機 provider 預設較小批次，仍沿用 optimizer 的嚴格 cue ID、數量、順序與時間碼保護，所有結果只形成待人工接受的建議。Ollama 若回傳合法但缺少 `cues` wrapper 的單一 cue object，或 `message.content` 缺失／空白，僅可觸發一次結構修復，修復後仍須通過完整 strict validation；原生 NDJSON 串流任一 record 若含明確 `error`，必須在 parser／repair 前轉為不可重試的 `ollama_stream_error`，即使先前已有部分 content 也不得當作可解析回應、不得進 repair 或寫 checkpoint；任一非空 record 若不是有效 JSON，則由 Ollama-only strict framing 轉為不可重試的 `ollama_stream_invalid_json`，不得靜默丟棄或交給 JSON repair；strict decoder 遇到無效 UTF-8 或 EOF 未完成 byte sequence 時，必須轉為不可重試的 `ollama_stream_invalid_encoding`，不得以替換字元或未 flush 的 decoder state 掩蓋 framing 損壞；strict path 若 response 沒有可取得 raw bytes 的 reader／`arrayBuffer()`，必須以不可重試的 `ollama_stream_encoding_unavailable` fail-closed，且 fallback 的 abort／timeout／transport rejection 必須保留既有分類；reader 正常 EOF 必須釋放 lock，decoder／reader failure 或外部取消則須先 best-effort abort underlying request signal，再 best-effort cancel 後釋放 lock，cancel 若永不 settle 只等待固定 250ms 後即繼續 release lock，cleanup failure 不得覆蓋原始錯誤；abort 是 teardown best-effort，不等同底層 socket／stream 已完成物理回收。其他 provider 不放寬此契約。不自動下載、啟動、停止或刪除模型。
+
+2026-10-28 BUG-059 resource bound：Ollama native `/api/chat` request options 固定帶 `num_ctx=4096`，只限制該 request 的 context／KV cache，不修改使用者 daemon、模型檔或全域設定；其他 provider 不帶入此欄位，batch size、cue contract、strict stream／repair／retry policy 維持不變。此 bound 是目前小記憶體 macOS acceptance 的受控預設，不宣稱適用所有模型／硬體的效能或品質保證。
+
+2026-10-28 BUG-060 native routing／schema：`ollama` provider 對 loopback base URL（包含自訂 port）一律使用 native `/api/chat`，translate 與 proofread 均送 request-local JSON Schema，固定 `cues`、原始 ID enum、exact cue count、`text` 與 `reason`；非 loopback Ollama 保留既有 OpenAI-compatible fallback。這只強化 Ollama response contract，不放寬 parser／validator，不改 batch、retry、stream lifecycle 或其他 provider。
 
 2026-09-15 驗收範圍例外：需求方已刪除本機 LM Studio，因此本輪不做 LM Studio 實機、UI、取消／續跑或斷網驗收；`lm-studio` provider 的產品支援與 deterministic tests 保留，日後若恢復服務仍須依 FR-021 重新取得實機證據。
 
 2026-10-21 current support policy：需求方已確認 LM Studio 終止開發；`lm-studio` 不再是 active implementation、support、驗收、bug triage、下載／同步或新測試目標。後續同步 repo、下載使用或開發者工作可忽略 LM Studio 相關內容，除非需求方另行明確重新啟用。既有 provider registry／runtime code、deterministic tests 與歷史文件保留作相容性／歷史追溯，不代表目前支援承諾；Ollama 仍是 active 本機 provider 目標，移除既有 LM Studio 殘留需另立 removal change。
 
 2026-09-29 macOS offline acceptance 邊界：`npm run acceptance:ollama:offline` 為 acceptance-only wrapper，不改產品 runtime。它以 macOS Seatbelt deny-network profile 啟動獨立 `ollama serve` 與既有 product probe；只允許 localhost bind／inbound／outbound，並先以 sandbox socket probe 要求 loopback 成功且外部測試位址明確回 `EPERM`。執行前須確認指定模型已存在於本機 model store；不呼叫 pull、無外網能力，server 與 probe 使用隔離 HOME／暫存資料，保存 evidence 時 exclusive-create。managed-child lifecycle 會接收 `spawn`／`error`／`close` 事件，cleanup 等待 close、停止自有 daemon 並確認 port／暫存目錄清除；`NODE_ENV=test` 下的唯一測試注入點可由 wrapper integration regression 驗證 spawn error 的 failure evidence 與清理，不影響正常 acceptance 命令。此作法只隔離驗收子程序，不停用全機網路，也不代表 Electron UI、取消／續跑或物理拔網已驗收；不能將其作為產品 runtime 的網路安全邊界或一般跨平台方案。
+
+2026-10-28 packaged Electron Seatbelt startup diagnosis 邊界：曾以 bounded startup-only matrix 比較 `NetworkServiceInProcess2`、`disable-gpu-sandbox` 與 `disable-gpu`，但這些旗標只讓 loopback page 出現，未讓 DevTools renderer `Runtime.evaluate` 回應；因此不納入正式 acceptance，且不得以 `--no-sandbox` 或等價 Electron sandbox 關閉換取假 pass。正式 runner 只保留 loopback URL／exact-port WebSocket trust、對 transient title 不敏感的 target selection、home dashboard bounded DOM wait 與穩定 timeout 分類；`CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／`SIGTRAP` blocker 仍須以平台／Electron／bundle 層級的安全方案另行處理。
 
 ### 多語言 LLM 流程
 

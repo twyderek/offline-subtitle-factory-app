@@ -1,0 +1,110 @@
+{
+  "schema": "offline-subtitle-factory.whisper-long-media.v4",
+  "startedAt": "2026-09-23T03:56:17.321Z",
+  "completedAt": "2026-09-23T03:56:17.834Z",
+  "elapsedMs": 510,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "input": {
+    "fileName": "synthetic.mp4",
+    "fileSizeBytes": 36477,
+    "fileSizeBytesAfter": 36477,
+    "sha256": "72507dce07df161051ce96b50253ae6e1687e9bb304d35f6946282a2d7334691",
+    "sha256After": "72507dce07df161051ce96b50253ae6e1687e9bb304d35f6946282a2d7334691",
+    "userMediaRead": true,
+    "mediaMetadata": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "codec_name": "mpeg4",
+          "codec_type": "video"
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "sample_rate": "16000",
+          "channels": 1
+        }
+      ],
+      "format": {
+        "duration": "3.505000",
+        "size": "36477"
+      }
+    },
+    "sourceSrt": {
+      "fileName": "synthetic.edited.srt",
+      "fileSizeBytes": 54,
+      "fileSizeBytesAfter": 54,
+      "sha256Before": "6316d79675bd9cae1105d72e037bc07aef6bbe0ff6d5f8e7a0c9754bd7b210cf",
+      "sha256After": "6316d79675bd9cae1105d72e037bc07aef6bbe0ff6d5f8e7a0c9754bd7b210cf",
+      "checked": true
+    }
+  },
+  "assets": {
+    "toolsDir": "tools",
+    "ffmpeg": "ffmpeg",
+    "ffprobe": "ffprobe",
+    "runtime": "whisper-cli",
+    "model": "ggml-tiny.bin",
+    "runtimeSha256": "6167fe4817a85cb011cbb58abf53f80a9e9488be26b99348e9ff6f655edc7a08",
+    "modelSha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21"
+  },
+  "extraction": {
+    "command": "<path> -hide_banner -loglevel error -y -i <input-media> -vn -ac 1 -ar 16000 -c:a flac -compression_level 5 <temp-root>/input.flac",
+    "exitCode": 0,
+    "signal": null,
+    "durationMs": 23,
+    "audioFileSizeBytes": 140821,
+    "audioSha256": "501fdf939698aacf9219dce3714178157992d30bd29cf771421da836a5540a42"
+  },
+  "inference": {
+    "modelName": "tiny",
+    "command": "<path> -m <path> -f <temp-root>/input.flac -l zh -t 4 -osrt -oj -ojf -of <temp-root>/whisper-output -np",
+    "exitCode": 0,
+    "signal": null,
+    "durationMs": 346,
+    "requestedGpu": true,
+    "deviceObserved": null,
+    "stdoutSummary": {
+      "lineCount": 1,
+      "transcriptLineCount": 1,
+      "contentStored": false
+    },
+    "stderrTail": "read_audio_data: reading audio data from '<temp-root>/input.flac' ...\nread_audio_data: trying to decode with miniaudio\noutput_srt: saving output to '<temp-root>/whisper-output.srt'\noutput_json: saving output to '<temp-root>/whisper-output.json'\n",
+    "summary": {
+      "segmentCount": 1,
+      "textCodePointCount": 16,
+      "firstSegmentStart": 0,
+      "lastSegmentEnd": 3.48,
+      "confidenceFieldCount": 0,
+      "noSpeechProbabilityFieldCount": 0,
+      "tokenProbabilityCount": 17
+    }
+  },
+  "outputs": {
+    "srt": {
+      "sizeBytes": 82,
+      "sha256": "e8213361b129660085785df00e2c8051c383793dd9f06c6b0d067e6e87fcb658"
+    },
+    "json": {
+      "sizeBytes": 4912,
+      "sha256": "17fab6335f5d83e68835e94b1b3ab9c80a1c8b355d739bddeeb26e2007029acf"
+    },
+    "tempRootRemoved": true
+  },
+  "scope": {
+    "externalNetwork": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "originalVideoModified": false,
+    "inputMediaHashChecked": true,
+    "originalSrtModified": false,
+    "sourceSrtHashChecked": true,
+    "fullTranscriptStored": false
+  },
+  "integrityViolations": [],
+  "status": "pass"
+}

@@ -172,6 +172,12 @@ function validNullableString(value) {
   return value === null || typeof value === 'string';
 }
 
+function validIsoTimestamp(value) {
+  return typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+    && !Number.isNaN(Date.parse(value));
+}
+
 function validateVersionSummary(value) {
   return hasExactKeys(value, ['commandSucceeded', 'reportedOnStdout', 'value'])
     && typeof value.commandSucceeded === 'boolean'
@@ -615,6 +621,7 @@ function validateDerivedReadinessFields(evidence) {
 export function validateReadinessEvidence(evidence) {
   if (!hasExactKeys(evidence, readinessEvidenceKeys)) fail('READINESS_SCHEMA_KEYS_INVALID');
   if (!evidence || evidence.schema !== 'offline-subtitle-factory.macos-signing-readiness-audit.v1') fail('READINESS_SCHEMA_INVALID');
+  if (!validIsoTimestamp(evidence.startedAt) || !validIsoTimestamp(evidence.completedAt) || Date.parse(evidence.completedAt) < Date.parse(evidence.startedAt)) fail('READINESS_TIMESTAMP_INVALID');
   if (!allowedStatuses.has(evidence.status) || evidence.status !== evidence.decision?.status) fail('READINESS_STATUS_INVALID');
   if (!validateSourceRevision(evidence.sourceRevision)) fail('SOURCE_REVISION_SCHEMA_INVALID');
   if (!validateEnvironment(evidence.environment)) fail('ENVIRONMENT_SCHEMA_INVALID');

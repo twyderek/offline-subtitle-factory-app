@@ -1,0 +1,43 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-live-acceptance.v1",
+  "startedAt": "2026-10-28T03:19:30.392Z",
+  "completedAt": "2026-10-28T03:19:34.585Z",
+  "elapsedMs": 4193,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "endpointPrivacy": "local",
+  "model": "llama3.2:1b",
+  "scope": {
+    "systemNetworkDisabled": false,
+    "loopbackOnlyConfiguration": true,
+    "lmStudio": "not-run-by-explicit-scope-exception"
+  },
+  "status": "pass",
+  "job": {
+    "created": true,
+    "aiStatus": "completed",
+    "suggestionCount": 2,
+    "totalRetries": 0
+  },
+  "session": {
+    "created": true,
+    "accepted": 2,
+    "undoChanges": 2,
+    "redoChanges": 2
+  },
+  "review": {
+    "saved": true,
+    "cueCount": 2,
+    "timecodesUnchanged": true,
+    "sourceSrtPreserved": true,
+    "sourceSrtBeforeSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+    "sourceSrtAfterSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+    "sourceSrtSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+    "reviewSrtSha256": "b93c06c2f5ff2a664a43badc0e72d4ce28283462c5860c1aab4d91f3328018ba"
+  }
+}

@@ -1,5 +1,365 @@
 # 功能測試與流程稽核
 
+## 2026-10-30 FR-021 signed-canary prerequisite revalidation review findings remediation
+
+- 修正後四支指定 source／test syntax、gate／readiness focused tests、`node scripts/test-project-docs-validator.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0。
+- gate test 現驗證 authoritative blocked evidence 與 synthetic ready path，並固定每一類 source／toolchain／identity／notarization derived mismatch、timestamp／privacy／execution negative cases；readiness test 現以 date-first 再序號選取 10/30 latest evidence，並固定 timestamp null／malformed／reverse-order rejection。
+- 本輪只修正 local validator／test contract，不新增 workflow／builder／signing／notarization／candidate evidence；待複審與 `npm run docs:check:final`。
+
+## 2026-10-30 FR-021 macOS signed-canary external prerequisites revalidation next stage 2
+
+- 依序執行 `next15` external boundary（exit 1，四項 GitHub external configuration gap）、`next7` readiness（exit 0，`blocked-external-signing-identity`）與 `execution7` formal gate（exit 0，`ready=false`，兩項 identity／credential reasons）；三份 evidence 均 mode `0600`、綁定 current HEAD `f16ae8be60fb132bdbb1a128722a244f70f86e6b`。
+- 本輪 schema／mode／SHA／provenance／scope probe、三支 focused contract、三支 syntax、`node scripts/test-project-docs-validator.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0；未觸發 workflow／signing／notarization，未啟動 runtime manifest／builder／candidate。
+- remote workflow／source match 不代表 external Environment／identity／credential ready；本 evidence 不代表 signed／notarized candidate、Apple ticket、release 或 FR-021 overall acceptance。
+
+## 2026-10-30 FR-021 macOS signed-canary external prerequisites revalidation next stage
+
+- 依序執行 external boundary、signing readiness、formal gate 三支 read-only audit：`next14` exit 1（四項 GitHub external configuration gap）、`next6` exit 0 且 status `blocked-external-signing-identity`、`execution6` exit 0 且 gate reasons 為 `developer-id-application-not-ready`／`notarization-credential-set-not-ready`。三份 evidence 均 mode `0600`、綁定 current HEAD `f16ae8be60fb132bdbb1a128722a244f70f86e6b`。
+- authoritative SHA-256：next14 `3f9055efef9e7af3a508c485ac55910a5a787eeefa0e5cd4db9f26f429a0789f`；next6 `15f43ad1722344019cf48e3d2e5b8d0edae280d5283c51ef05f99b3585cc5cfa`；execution6 `ae372012947ffecb12f29ce607b7854474804dc78e18011b30bac4a0b5edee39`。
+- current state 沒有 ready transition：remote workflow／source match，但 Environment／reviewer／secret metadata／branch protection 不存在；local identity／credential 不存在；formal gate 未啟動 runtime manifest／builder／candidate。scope 與 privacy flags 維持 fail-closed，未觸發 workflow／signing／notarization。
+- 本輪 focused contract／syntax／schema／mode／hash／scope／provenance、完整 `npm run check`、治理 validator、`git diff --check` 與 `npm run docs:check:final` 均已重跑並通過；本證據不代表 signed／notarized candidate 或 FR-021 overall。
+
+## 2026-10-29 FR-021 macOS signed-canary current-source formal build gate recheck next stage
+
+- 執行 `node scripts/audit-macos-signed-canary-gate.mjs docs/project-management/evidence/2026-10-29-fr-021-signed-canary-gate-execution5.json`，exit 0 並保存 mode `0600`、SHA-256 `5a1bb264b698f78d958d7bd53056c57aae5ed6cf2b4349fd0dd1905f203872e5` 的 current-source gate evidence。gate `ready=false`，reasons 為 `developer-id-application-not-ready`、`notarization-credential-set-not-ready`。
+- execution5 source config／required toolchain ready、identity／credential not ready；`runtimeManifestStarted`／`builderStarted`／`candidateCreated` 與完整 scope 均 false，未進入 builder、未建立 candidate。`node --check scripts/audit-macos-signed-canary-gate.mjs`、`node scripts/test-macos-signed-canary-gate.mjs` 與 schema／0600／SHA／provenance／execution／scope probe 通過。
+- 這是 current-source formal gate 的 fail-closed evidence，不是 codesign／notarization／Apple ticket／Gatekeeper、workflow、packaged UI 或 FR-021 overall acceptance；外部 identity／credential 仍是後續必要條件。
+
+## 2026-10-29 FR-021 macOS signed-canary current-source signing readiness recheck next stage
+
+- 執行 `node scripts/audit-macos-signing-readiness.mjs docs/project-management/evidence/2026-10-29-fr-021-prerequisite-readiness-recheck-next5.json`，exit 0 並保存 status `blocked-external-signing-identity` 的 bounded evidence；mode `0600`、SHA-256 `11312386df77c2bee79accf6f07a055693abeef236c15ea8a13d8b3d2dcc1937`。next5 綁定目前 source HEAD `f16ae8be60fb132bdbb1a128722a244f70f86e6b`，補足 next3／next4 舊 source provenance 不能代表現行 handoff 的缺口。
+- readiness projection：toolchain／source config／existing evidence／provenance ready；identity probe command 成功但 `validIdentityCount=0`、`formalIdentityAvailable=false`、Developer ID Application 不存在；Apple ID／API key／keychain profile credential route 均 absent，decision 為 `blocked-external-signing-identity`。
+- `node --check scripts/audit-macos-signing-readiness.mjs`、`node scripts/test-macos-signing-readiness.mjs` 與 next5 schema／0600／SHA／scope／source provenance probe 通過；scope 保持未修改 keychain／candidate、未 signing／notarization、未執行 packaged app／UI／Ollama／model／network，未保存 raw output／identity／secret。這不是 signed candidate 或 FR-021 overall evidence。
+
+## 2026-10-29 FR-021 macOS signed-canary external boundary recheck next stage
+
+- 執行 `node scripts/audit-macos-signed-canary-external-boundary.mjs docs/project-management/evidence/2026-10-29-fr-021-macos-signed-canary-external-boundary-next13.json`；因外部前置設定未就緒而 exit 1，authoritative evidence status `fail`、mode `0600`、SHA-256 `c3ffb62230fc4ae5d6de2add79c0cce71dca1c3de9e86d0741cd822308b607ec`。這是預期的 fail-closed boundary 結果，不是 local source／audit contract failure。
+- remote branch／workflow 與 local source HEAD／workflow provenance match；`macos-signed-canary` Environment、required reviewer、environment secret metadata、branch protection 仍 `not-found`，四項 summary reasons 已保存於 next13，故 `ready=false`。
+- `node scripts/test-macos-signed-canary-external-boundary.mjs` 通過，確認 schema／privacy／scope／negative matrix 與 exclusive 0600 writer；scope 為 remote API queried、remote state unmodified、workflow not triggered、secret metadata queried 但 secret value 未讀取。未執行 workflow、builder、signing、notarization、stapler、Gatekeeper 或 release。
+- 本輪只更新 current external observation；後續必須由外部管理者提供 Environment／reviewer／secret scope／protected branch，並由受控 macOS runner 提供 Apple identity／keychain profile／notarization，才可進行 signed-canary handoff。renderer、全機 egress、Windows 與 FR-021 overall residual 維持。
+
+## 2026-10-29 FR-021 macOS signed-canary notarytool keychain-profile runtime resolution preflight
+
+- 本輪驗收新增 workflow ordering／runtime command contract：固定 profile probe 必須位於 output directory／builder 前，執行 `xcrun notarytool history --keychain-profile "$APPLE_KEYCHAIN_PROFILE" --output-format json --no-progress`，stdout／stderr 不落盤，非 0 exit fail-closed；workflow 仍不得含 `OSF_APPLE_*`、`--password`、`--apple-id` 或 `--team-id`。
+- focused gate test 需覆蓋固定 profile injection count、probe command／ordering、history-versus-submit distinction、stdout／stderr suppression 與移除 `--keychain-profile`／改成 submit 的 mutation fail；YAML／syntax、完整 `npm run check`、`git diff --check` 與治理 validator 需通過。
+- 本輪不在本機執行 `notarytool history`、workflow、builder、signing、notarization、stapler、Gatekeeper 或 release；runtime probe 僅能在受控 self-hosted runner 產生 profile resolution evidence，不等同 Apple ticket／signed candidate 或 FR-021 overall acceptance。
+- 實作結果：workflow 新增固定 profile probe 並置於 output directory／builder 前；focused gate test 補 history／submit distinction、stdout／stderr suppression、ordering、`set -euo pipefail`、`|| true` absence 與 appended `|| true` mutation rejection。round1 review `docs/project-management/reviews/2026-10-29-fr-021-macos-signed-canary-notary-keychain-profile-probe-next2-round1.md` 發現 F-01，round2 review `docs/project-management/reviews/2026-10-29-fr-021-macos-signed-canary-notary-keychain-profile-probe-next2-round2.md` 確認已關閉，結論為 bounded source／local contract 有條件通過。
+- 開發驗證／最終 closeout：full preflight、focused gate、指定 syntax、Ruby YAML parse、完整 `npm run check`、`git diff --check`、round1／round2 mutation review 均通過；allowlist-only 2-path source commit `f16ae8be60fb132bdbb1a128722a244f70f86e6b` 已推送且 remote SHA 一致。next12 evidence status `fail`、mode `0600`、SHA-256 `a0283d10dd4420744aff7fa676d8e9a6a4da7276b10548621544a80dbece6376`，remote branch／workflow／source match，Environment／reviewer／secret metadata／branch protection not-found，`secretValuesRead=false`；治理回填後執行 `npm run docs:check:final`。
+- 獨立審查結論：round1 F-01 已由主要代理修正並由同一審查代理 round2 確認關閉；兩輪均保留 runner profile、Apple toolchain、workflow runtime、signing／notarization 未執行的邊界，不宣稱 signed／notarized candidate、release 或 FR-021 overall。
+
+## 2026-10-29 FR-021 macOS signed-canary notarytool keychain-profile argv hardening
+
+- focused gate／readiness／external-boundary tests、指定 syntax、workflow YAML parse、`git diff --check` 與完整 `npm run check` 均通過；測試明確拒絕 workflow 中的 `OSF_APPLE_*`、`--password`、`--apple-id`、`--team-id`，並要求三個固定 profile injection 與兩個 `--keychain-profile` submit flags。
+- round1 獨立審查為 bounded source／local contract 有條件通過，無 source／test technical finding；審查保留 keychain profile 真實 provisioning／resolution 與 workflow runtime 未執行的外部限制。source-only commit `ce72b64f8aa2b937e1b589e1b9577835dd691ca8` 已推送。
+- next11 external-boundary evidence status `fail`、mode `0600`、SHA-256 `d6364070c4cb9ee87f91b8c3a2c99018f97c4d30526cfa39cfd8d4a8b1813f4c`：remote branch／workflow 與 local source match，Environment／reviewer／secret metadata／branch protection 尚未配置，`secretValuesRead=false`；本輪不代表 Apple notarization 或 FR-021 overall。
+
+## 2026-10-29 FR-021 macOS signed-canary ZIP target coverage hardening
+
+- selector／gate／distribution focused tests、Darwin arm64 audit-main integration fixture、指定 source syntax、workflow YAML parse、`git diff --check` 與完整 `npm run check` 均通過；distribution contract 覆蓋 app／DMG／ZIP cardinality、dual notary digest、submitted／final archive provenance、ZIP integrity／embedded executable digest、0600／symlink／malformed／invalid UTF-8 與 cleanup mutation。
+- round1 獨立審查發現目標 macOS 不支援的 `ditto -t`、notary raw provenance 缺口與 workflow guard 覆蓋不足；round2 複審確認三項均關閉，結論為 bounded source／local contract 有條件通過。source-only commit `3a8f04080d810fae55df6b58b5b1b4991a2632ba` 已推送，未執行 GitHub workflow 或 Apple signing／notarization。
+- push 後 external-boundary `next10` evidence status `fail`、mode `0600`、SHA-256 `c046a1a2f295c4960ce18020391ed778aa0e92c107f50c9daaca90052d41b16a`；remote branch／workflow 與 local source match，Environment／secret metadata／branch protection 為 `not-found`，`secretValuesRead=false`。本輪不代表 workflow run、release 或 FR-021 overall。
+
+## 2026-10-29 FR-021 macOS malformed candidate bounded evidence hardening
+
+- focused `scripts/test-macos-signed-canary-result.mjs` 覆蓋 executable name 的 null／空值／`.`／`..`／相對與絕對路徑／反斜線／換行／超長矩陣、missing executable digest、strict packaged `isSha256` source guard，以及 fake-darwin 實際啟動兩支 audit 的 malformed `.app` path。
+- fake-darwin probes 確認 result audit 與 packaged identity audit 都 exit 1、仍各自寫出 exclusive mode `0600` 的 bounded `status: fail` JSON；result evidence 通過 schema validator、candidate metadata false、null executable digest、固定 6 objects 與 `candidate-metadata-not-ready`／helper／signature failure reasons。完整 `npm run check`、project-docs validator、`git diff --check` 與 round2 review 通過。
+- source-only commit `ae599e780fc246910e8e625c142c2af0ac87b412` 已推送；current-source external-boundary `next9` status `fail`、mode `0600`、SHA-256 `7ae3a89462ac1ff30e75da27e8ed65b15e87d36f22a78e96ef0aa0f519b5ba99`，remote branch／workflow present 且 source matches local HEAD，但 Environment／secret metadata／branch protection 為 `not-found`，secret value 未讀取。本項不涵蓋真實 codesign／stapler／Gatekeeper／self-hosted workflow、ZIP、notary argv 或 FR-021 overall acceptance。
+
+## 2026-10-29 FR-021 macOS signed-canary result evidence cleanup hardening
+
+- staged 2-path cleanup change 通過 `git diff --cached --check`、Node syntax、Ruby YAML parse、focused gate test、固定 path-to-rm mutation probe、regular／leaf-symlink／directory filesystem probe 與完整 `npm run check`；commit `4fdbcc279409690ed39ff922703e328bb49a741b` 已推送並完成 remote workflow metadata read-back。
+- round1 發現 test assertion false-pass，round2 確認連續 regex 已綁定實際 `rm -f -- "$result_evidence"` 且 F-01 關閉；治理 final gate、source／remote ref 與 next8 bounded external observation 已完成。這不是實際 runner、signing、notarization 或 release evidence。
+
+## 2026-10-29 FR-021 macOS signed-canary remote source handoff closeout
+
+- 23-path source-only commit `8dd82fbe71e754616d1c87971670e1e5ad5bf7bc` 的 dependency closure、source／package／focused-test provenance、workflow YAML、所有 handoff source syntax、signed-canary focused tests、`git diff --cached --check` 與 clean staged-tree `npm run check` 均通過；full check 使用既有 `.gitignore` ignored `tools/whisper-cpp`／`tools/whisper-models` fixture，未將 binary／model 宣稱為交付內容。
+- push 後唯讀 external-boundary `next7` 保存 remote branch／workflow presence、source SHA match、Environment／secret metadata／branch protection 缺口與 `secretValuesRead=false`；未修改 remote、讀取 secret value 或觸發 workflow。round1／round2／round3 source review 與 round4 governance closeout 均保留；round4 為有條件通過。
+- 本項僅結案 source-only handoff 與可回溯驗證，不是 CI run、Apple signing／notarization、signed candidate、release 或 FR-021 overall acceptance；P2 cleanup／ZIP／malformed evidence／notary argv 與 external configuration residual 維持。
+
+## 2026-10-29 FR-021 macOS signed-canary external boundary audit
+
+- `scripts/audit-macos-signed-canary-external-boundary.mjs` 固定 repository／branch／Environment／workflow constants，以 `gh api --hostname github.com` 查詢 remote branch ref、Environment、environment secret metadata、branch protection 與 workflow content；projection 只保存 bounded status、boolean、secret metadata count 與 remote ref／content SHA，不保存 secret name／value、reviewer name、token 或 raw API diagnostics。
+- `scripts/test-macos-signed-canary-external-boundary.mjs` 實際覆蓋 complete pass fixture、Environment／secret／protection／workflow 404、remote source mismatch、plain／JSON 404／403／malformed／timeout `gh` responses、partial secret metadata、空／缺失／非陣列 reviewer metadata、git status subprocess failure、privacy／scope／schema mismatch 與 exclusive 0600／EEXIST writer。首三份 first-run evidence、next4 predecessor 與 next5 scope-repair predecessor 保留；owner typo、implicit host routing、`secretsRead` 語意、reviewer false-pass 與 git status fail-open 均已修正，authoritative next6 status `fail`、mode `0600`、SHA-256 `bb21059bb0408f0f6643f81b9e1911df20a06a4563cdd272f62de612e739a40a`。
+- next6 的 bounded 結果為 remote branch present／SHA `22f7a09767923973c698fa817c543a1e586495f4`，Environment、environment secret metadata、branch protection、remote workflow 均 `not-found`，local source dirty 且 local HEAD 未匹配 remote branch；scope 為 `secretMetadataRead=true`、`secretValuesRead=false`，reviewer metadata 與 local git status 均 fail-closed，因此不得宣稱 external reviewer／secret scope／protected branch／remote workflow 已部署。focused syntax／contract、完整 `npm run check`、治理 validator、`git diff --check`、round2／round3 獨立複審與 `npm run docs:check:final` 均已通過。
+
+## 2026-10-29 FR-021 signed-canary distribution evidence hardening
+
+- `scripts/test-macos-signed-canary-gate.mjs` 以實際 temporary filesystem fixture 建立主 app 及 nested `離線字幕工廠 Helper.app`，確認 selector 只回傳主 app；另覆蓋 duplicate app／DMG cardinality fail-closed。workflow static assertion 改要求共用 selector module，並拒絕 recursive app locator。
+- `scripts/test-macos-signed-canary-distribution.mjs` 覆蓋 exact distribution evidence schema、app／DMG digest leaf、run-scoped notarytool JSON projection／DMG hash binding、stapler／archive fail-closed、scope 全 false、source provenance、exclusive 0600 writer／EEXIST、extra-key／forged-ready／digest contradiction／timestamp／privacy leakage negative cases；audit writer 使用 exclusive create／0600。
+- 已驗證：兩個 focused tests、`npm run check`、workflow Ruby YAML parse、相關 `node --check` 與 `git diff --check` exit 0。未執行 GitHub workflow、Apple signing／notarization／stapler／hdiutil／spctl 或 packaged app；因此 evidence contract 不等同實際 signed／notarized candidate。
+
+## 2026-10-29 FR-021 macOS signed-canary CI handoff
+
+- 新增 `.github/workflows/macos-signed-canary.yml`，僅 `workflow_dispatch`，限定 `self-hosted`／`macOS`／`arm64`／`osf-signed-canary` runner；不在本輪觸發外部 workflow。runner identity 必須預先存在，workflow 不修改 keychain。
+- workflow 先執行 `npm run check` 與 readiness audit，但 readiness 只作 evidence；之後每次都執行 `assert-macos-signed-canary-ready.mjs` 正式 gate，只有其 exit 0 才會進入 builder。blocked 時只上傳 0600 去敏 readiness／gate evidence；ready 後使用 run-scoped output directory，唯一 artifact 才能進入 signed build、notarytool、stapler 與 post-build audit。protected ref、required-reviewer environment、immutable action SHA、concurrency 與 clean output directory 是 workflow contract；Apple ID secrets 只注入必要 steps，不會寫入 repository、evidence 或 artifact。
+- 本機 readiness 仍為 `blocked-external-signing-identity`（0 valid identity／credential absent），本輪未觸發 CI、未 signing、未 notarization、未建立 candidate；因此此 workflow 是交接 contract，不是 signed／notarized／Gatekeeper、offline UI 或 FR-021 overall evidence。
+
+## 2026-10-29 FR-021 external prerequisite readiness recheck next stage
+
+- first run `node scripts/audit-macos-signing-readiness.mjs ...next1.json` exit 0；next1 schema v1、status `blocked-external-signing-identity`、mode `0600`、SHA-256 `6f5447d8b0244a27eef0fdbf5b3f58cd17f071c08b7351912ab4c27424ebe8a4` 保留為 immutable baseline。derived-field consistency 修正與 focused fixture 更新後，authoritative `node scripts/audit-macos-signing-readiness.mjs ...next2.json` exit 0；next2 mode `0600`、SHA-256 `b7ee6038368f946fd7ead6c7ca11255f88e8e86d87cfc87da4881fe5db4dc031`，privacy scan 未見 raw output／absolute path／identity name／hash／secret，focused test 直接驗證 next2。
+- readiness：required toolchain、source config、existing evidence 與 source provenance 全部 ready；`security find-identity` command 成功但 `validIdentityCount=0`、`formalIdentityAvailable=false`，credential presence 11 flags 全 false，notarization `absent`／`ready=false`。scope 全部 false，未觸碰 keychain、signing、notarization、candidate、packaged app、UI、Ollama、model 或 network。
+- capability recheck：`/usr/bin/sandbox-exec` 可用，`ollama list` 顯示 `llama3.2:3b` 與 `llama3.2:1b`；未重播 known Seatbelt UI failure，未下載或修改模型。
+- 解讀：本 evidence 只更新 external prerequisite 的 current state；validator 現拒絕 identity／decision derived fields 矛盾，未解除 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`、true full-egress、Developer ID／notarization、Windows 或 FR-021 overall blocker。
+
+## 2026-10-29 FR-021 current-source normal-loopback 3B live evidence provenance hardening next stage
+
+- focused contract：`projectReplayProvenance()` 覆蓋完整 source revision／dirty digest、source bytes、normalized invocation、environment、loaded bytes 與 invalid path／secret／revision／timeout fail-closed；`scripts/test-ollama-ui-offline.mjs` 同時固定 live schema v5、`REPLAY_PROVENANCE_UNAVAILABLE` 與 source-before-spawn contract。
+- first run：`OSF_OLLAMA_UI_SCENARIO=cancel-resume-restart node scripts/verify-electron-ollama-ui.mjs <candidate-executable> 9995 30000 docs/project-management/evidence/2026-10-29-fr-021-evidence-provenance-next1.json llama3.2:3b` exit 0；evidence mode `0600`、SHA-256 `aa35a2cc9b5e75dcc3886941ec98fc2a011ae0d365cd5b068007e11c39286bfe`，round1 finding 後不作 authoritative closeout。
+- authoritative replay：同一 command 改用 `.../2026-10-29-fr-021-evidence-provenance-next2.json` exit 0；evidence mode `0600`、SHA-256 `9a159170c0c4dfeac9112dff755fc68f6cd1356445a9396ef49d0fe42d0f19e3`、`sourceProvenanceComplete=true`、`provenanceComplete=true`、`loadedBytesObservation=renderer-ready-file-read`、`loadedBytesMatchPreLaunch=true`。此 observation 是 renderer-ready 後重新讀取檔案 bytes，不等同 memory-mapped bytes、runtime loader 或記憶體映射 introspection。
+- lifecycle／scope：cancel POST HTTP 200／accepted／cancelled、checkpoint／same-session app restart／resume 1 至 6/6、第二次 port capture／close、privacy、cleanup 均通過；normal loopback flags 保持 `systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`apiKeySupplied=false`，未執行 Seatbelt／LM Studio／signing／notarization。
+- 本輪後續：round1 findings 已由 source／focused regression／next2 修正；round2 獨立複審為有條件通過，治理 closeout 已完成並須以 final docs gate 收斂。若再有 provenance 或 live boundary finding，保留本 evidence 並另以新 immutable record 修正，不覆寫歷史 evidence。
+
+## 2026-10-29 FR-021 current-source packaged UI normal-loopback 3B app-restart resume replay next stage
+
+- 預檢：`npm run project:preflight -- --type=full` exit 0；candidate executable、Ollama、`llama3.2:3b` 與 model store 存在；不套用 Seatbelt、不停止或修改既有桌面 Ollama、不下載模型。
+- next1 first-run `OSF_OLLAMA_UI_SCENARIO=cancel-resume-restart ... next1.json` exit 0 但 round1 發現第二次 app server port 未實際驗證；修正後 authoritative next2 `OSF_OLLAMA_UI_SCENARIO=cancel-resume-restart node scripts/verify-electron-ollama-ui.mjs <candidate-executable> 9995 30000 docs/project-management/evidence/2026-10-29-fr-021-ui-normal-3b-app-restart-resume-next2.json llama3.2:3b` exit 0；next2 mode 0600、SHA-256 `e95aa0524fdc32684a49c03bc4c22942afe012657d77dedd6c95e66903256f24`。
+- next1 status `pass`：6 cues／6 batches；第 1 批完成後 UI cancel，cancel POST HTTP 200／accepted／cancelled，`cancelled=true`／`retryable=true`／completed `1/6`，checkpoint suggestion count 1 persisted，source subtitle／original SRT unchanged。
+- app-restart assertions：第一個 Electron process group／app server port 關閉且未 forced cleanup，temporary userData／job root 在兩次啟動間保留；第二次同一 candidate／DevTools port 啟動成功，第二次 app server port 已捕獲且 final close 驗證通過，same session／checkpoint 還原、page time-origin 改變，resume 從 batch 1 至 6/6 完成；accept 6、undo／redo、save `reviewed.srt` 6 cues、timecodes unchanged、最終 Electron／server／port／temporary userData／owned daemon cleanup 全部通過。
+- scope：`systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`loopbackOnlyConfiguration=true`、`apiKeySupplied=false`；這是 normal-loopback app-restart lifecycle evidence，不是 Seatbelt offline／全機 egress／signed／Windows evidence。raw child output 未保存，token／absolute path 未落盤。
+- focused `node scripts/test-ollama-ui-offline.mjs`、`npm run check`、治理 validator 與 `git diff --check` 均 exit 0；round1 blocker 已修正並以 next2 重跑，round2／round3 獨立複審與 `npm run docs:check:final` final docs gate 均 exit 0。
+
+## 2026-10-29 FR-021 current-source packaged UI normal-loopback 3B replay next stage
+
+- 預檢：`npm run project:preflight -- --type=debug` exit 0；candidate executable、Ollama、`llama3.2:3b` 與 model store 存在；不套用 Seatbelt、不停止或修改既有桌面 Ollama、不下載模型。
+- 基準 next1／next2：使用 current packaged candidate executable 啟動 normal renderer，synthetic job setup 完成；next1／next2 在 `review_navigation` 失敗，next2 保存 `ready=false`、local review `href`、title 與 `cueCount=0`，Electron／server／port／temporary cleanup 全通過。next1／next2 均非 3B model／Chromium startup failure。
+- BUG-062 修正：runner 不再從去敏首頁 URL 取 token；只在記憶體保存 navigation token，另建立不含 token 的 `homeEvidence`；normal evidence writer 與 offline writer 均採 exclusive owner-only `0600`。focused source regression 已固定 token non-persistence 與 writer mode。
+- next3 `docs/project-management/evidence/2026-10-29-fr-021-ui-normal-3b-replay-next3.json` status `pass`：home／review ready、job `201/202/completed`、Ollama local settings saved、2 suggestions／1 batch／0 retries、accept 2、undo／redo、save `reviewed.srt` 2 cues、timecodes unchanged、English translation；candidate／Framework provenance、raw child output excluded、cleanup 全部通過。
+- next3 scope：`systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`loopbackOnlyConfiguration=true`、`apiKeySupplied=false`；此非 offline／全機 egress／signed／Windows evidence。
+- 驗證：`node --check scripts/verify-electron-ollama-ui.mjs`、`node scripts/test-ollama-ui-offline.mjs`、`npm run check`、round3 mutation probes 與 `git diff --check` 均 exit 0；next3 mode 0600、SHA-256 `b275d0e03f2c503df5eb6591d0059a1bee93aa8769ce17f5aad0aef0e9b0ae77`。BUG-062 round1／round2／round3 報告均保留；F-01 home-probe source-region 與 F-02 canonical governance state/path 均已由 round3 確認關閉，本條目治理 closeout 完成。
+
+## 2026-10-29 FR-021 current-source packaged UI normal-loopback 3B cancel-resume replay next stage
+
+- 預檢：`npm run project:preflight -- --type=debug` exit 0；candidate executable、Ollama、`llama3.2:3b` 與 model store 存在；不套用 Seatbelt、不停止或修改既有桌面 Ollama、不下載模型。
+- `OSF_OLLAMA_UI_SCENARIO=cancel-resume node scripts/verify-electron-ollama-ui.mjs <candidate-executable> 9995 30000 docs/project-management/evidence/2026-10-29-fr-021-ui-normal-3b-cancel-resume-next1.json llama3.2:3b` exit 0；evidence mode 0600、SHA-256 `397983b2388083c64c161c7f0e3bf340be4c919bde1abcc7da532c661545e31c`。
+- next1 status `pass`：job `201/202/completed`、6 cues／6 batches／0 retries；第 1 批完成後 cancel，`cancelled=true`／`retryable=true`／completed `1/6`，checkpoint persisted 且 suggestion count 1；reload 後 `sessionUnchangedAfterReload=true`、checkpoint 狀態保留，resume 從 batch 1、same session，最後 6/6 completed。
+- lifecycle assertions：home／review ready、Ollama settings saved、provider／model 正確、API key empty／local privacy、accept 6、undo／redo、save `reviewed.srt` 6 cues、timecodes unchanged、English translation、source subtitle／original SRT unchanged；Electron／server／port／temporary userData／owned daemon cleanup 全部通過，`rawChildOutputPersisted=false`。
+- scope：`systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`loopbackOnlyConfiguration=true`、`apiKeySupplied=false`；這是 normal-loopback lifecycle evidence，不是 Seatbelt offline／全機 egress／signed／Windows evidence。
+- focused／完整回歸、治理 validator、`git diff --check`、round1 獨立六面向審查與 round2 closeout 複審均通過；F-01 已完成 08 closeout，F-02 evidence provenance 與 F-03 cancel POST observability 列為非阻擋改善建議；`npm run docs:check:final` exit 0。
+
+## 2026-10-29 FR-021 current-source packaged UI Seatbelt offline replay next stage
+
+- bounded replay 實際使用 existing arm64 candidate／Ollama `llama3.2:3b`；next1／next2 均以 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／`SIGTRAP` 在 `electron_start` 結束，沒有 home dashboard、AI flow 或 UI acceptance pass。
+- next2 `docs/project-management/evidence/2026-10-29-fr-021-ui-offline-replay-next2.json` mode 0600；loopback／external `EPERM`、sandbox inheritance、preinstalled model、no-download、no API key／external provider、process／port／temporary cleanup 均符合範圍。`systemNetworkDisabled=false`，LM Studio／Windows 未執行。
+- 針對 next1 mode 0644 的 observation，wrapper 已補 exclusive owner-only evidence create，focused offline UI contract 與完整 `npm run check` 通過；next1 不覆寫，next2 作 authoritative bounded failure record。這不是 packaged UI pass、全機斷網、signed package 或 FR-021 overall acceptance。
+- round1 獨立審查為 bounded failure contract 有條件通過；`npm run docs:check:final` 已完成，範圍只限 next2 的 macOS arm64／candidate／`llama3.2:3b`／Seatbelt failure evidence，不把 renderer failure 誤稱為 UI pass。
+
+## 2026-10-29 FR-021 signed canary post-build verification contract
+
+- 新增的 pure classifier／audit CLI 只保存固定分類、boolean、digest／bytes、safe hash 與全 false scope；Team ID 僅以記憶體內 diagnostics 比對，不保存原值，helper metadata 只保存數量，candidate version 只驗證格式不落盤。schema validator 固定 top-level／nested keys、六個 code object、source provenance、scope、status／summary consistency 與 privacy boundary。
+- `classifyStapler` 只接受固定 `The validate action worked!`／`The staple and validate action worked!` 形狀；`classifyGatekeeper` 必須同時看到 `accepted` 與 `source=Notarized Developer ID`，generic／空白／矛盾／截斷 status 0 都拒絕。完整 plist／dict entitlements、非 ad-hoc runtime flags、Developer ID authority、Team ID consistency 與 clean source provenance 都是 ready 條件。
+- 本輪 focused contract、full `npm run check`、治理 validator 與 `git diff --check` 通過；config split 後 gate execution4 `docs/project-management/evidence/2026-10-29-fr-021-signed-canary-gate-execution4.json` mode 0600，sourceRevision SHA-256 與目前 gate audit script／focused test 一致，且在 builder 前停止。沒有執行 `codesign`、`stapler`、`spctl`、electron-builder、candidate、packaged app、renderer／UI／AI／Ollama／model／network。沒有 signed result evidence；外部 identity blocker 與 FR-021 packaged UI blocker 仍保留。
+
+## 2026-10-29 FR-021 signed canary build gate
+
+- `scripts/test-macos-signed-canary-gate.mjs` 實際通過 ready、absent／partial／ambiguous credential、0／非 Developer ID／malformed identity、malformed／wrong-arch／missing mac target、source-config、required toolchain 與 platform／arch fail-closed matrix；gate summary 不含 secret、raw output、path 或 identity name／hash。
+- `npm run electron:build:mac:signed-canary` 在目前環境實際以非零狀態停止，輸出 `developer-id-application-not-ready` 與 `notarization-credential-set-not-ready`；沒有執行 runtime manifest 或 electron-builder，沒有建立 candidate。`sourceConfigReady=true`、required toolchain ready 仍保持可觀測；execution2 evidence mode 0600，builder／candidate／scope flags 全 false。
+- 完整 `npm run check`、`node scripts/test-project-docs-validator.mjs`、`git diff --check` 均通過。此為 future formal signed-canary build gate，不是 signing／notarization／effective entitlements／packaged renderer／UI／AI／Ollama／model／network acceptance。
+
+## 2026-10-29 FR-021 signed canary／notarization prerequisite preflight
+
+- audit12 `docs/project-management/evidence/2026-10-29-fr-021-signing-readiness-audit12.json` status `blocked-external-signing-identity`；source config／required toolchain／existing evidence／audit script／focused test／git provenance／privacy 均通過，但 identity probe 為 `validIdentityCount=0`、`formalSigningReady=false`；audit11／audit10／audit9／audit8 保留為前輪 immutable 原件。
+- credential classifier 完整覆蓋 Apple ID／app-specific password／team ID、API key／key ID／issuer、keychain profile／optional keychain；11 個 presence flags 全 false，notarization status `absent`、`completeSetCount=0`、`partialCredentialSetDetected=false`、`notarizationCredentialReady=false`。focused test 覆蓋 complete／partial／complete+partial／multiple complete／ambiguous／absent matrix，missing／unknown key、derived mismatch、unknown top-level key、nested leaf unknown／type 與 generic POSIX absolute-path leakage 均 fail-closed；未呼叫 notarytool。
+- audit12 mode 0600，scope 的 candidate／keychain／signing／notarization／network／packaged app／UI／Ollama／model／raw output／path／identity／secret flags 全 false。此為 credential／signing readiness preflight，不是 formal signed package、effective entitlements、notarization、renderer、offline UI 或 FR-021 acceptance。
+
+## 2026-10-29 FR-021 formal packaging source configuration readiness
+
+- package source config 已移除明確 `identity: null`，採 electron-builder auto-discovery／外部 `CSC_NAME` seam，並設定 `hardenedRuntime=true`／`gatekeeperAssess=true`；未設定固定 identity 名稱、未新增 ad-hoc identity、未新增未經確認的 entitlements。
+- audit7 `docs/project-management/evidence/2026-10-29-fr-021-signing-readiness-audit7.json` status `blocked-external-signing-identity`：`sourceBuildConfig.identityConfiguration=auto-discovery`、`sourceConfigReady=true`，required toolchain／existing evidence／source／package／focused-test／git provenance／privacy 均通過，但 identity probe 成功且 `validIdentityCount=0`、`formalIdentityAvailable=false`，因此 `formalSigningReady=false`；audit6 保留為 round1 finding 前的 immutable record。
+- focused contract 新增 auto-discovery pass 與 explicit-null／explicit-ad-hoc／hardened false fail cases；audit6 寫檔權限 0600，raw output／absolute path／identity name／hash／secret 均未落盤。這只是正式 packaging source readiness，不是 signed package、renderer、offline UI 或 FR-021 acceptance；沒有 identity 時不建立 candidate。
+
+## 2026-10-29 FR-021 formal signing／hardened-runtime readiness audit
+
+- audit5 `docs/project-management/evidence/2026-10-29-fr-021-signing-readiness-audit5.json` status `blocked-external-signing-identity`：platform／arch 為 darwin／arm64，required codesign／xcrun 可用，identity probe command 成功且 `validIdentityCount=0`、`formalIdentityAvailable=false`；source config mismatch 為 `identityConfiguration=unset`、hardened／Gatekeeper false。
+- readiness source 在寫檔前驗證 identity probe 可解析、required／optional toolchain 分類、恰好兩份既有 pass evidence 的固定 filename／hash／完整 scope key allowlist／metadata、source script／package／git provenance、credential presence 與完整 privacy scope；所有 candidate／keychain／signing／notarization／network／packaged app／UI／Ollama／model／raw output／path／secret flags 均為 false。
+- `node --check`、readiness focused contract（identity command failure、malformed output、required tool failure、auto-discovery／explicit-null／ad-hoc／hardened false、空／單／重複 evidence、privacy／imported evidence pollution、unknown scope key、型別錯誤）與 audit7 leakage／invariant guard 通過；完整 `npm run check`、治理 validator、`git diff --check` 通過。這只是環境 readiness，不是 signed package、renderer、offline UI 或 FR-021 acceptance。
+
+## 2026-10-29 FR-021 ad-hoc runtime code-sign canary
+
+- 新 candidate 只在 repo 外副本上以 `codesign --options runtime` 操作；audit2 required-runtime gate 核對 6 個 code object 均 deep verify、`0x10002(adhoc,runtime)`、helper inventory complete，仍無 Team ID／entitlement。signing operation evidence 為 `docs/project-management/evidence/2026-10-29-fr-021-adhoc-runtime-signing-canary-sign1.json`，audit1 保留為 gate 修正前原件。
+- bounded startup probe1／probe2 分別測試 `--single-process`／`--no-zygote`：兩者均無 local page／CDP，child `SIGABRT`／`ELECTRON_EARLY_EXIT`，process group／temporary cleanup 通過；未執行完整 UI／AI flow、Ollama 或模型。`systemNetworkDisabled=false`，control-plane loopback scope 已記錄。
+- 本輪只證明 ad-hoc runtime flag 的 identity contrast 與 blocker persistence，不是正式簽章、renderer readiness、offline UI、全機 egress、Windows 或 FR-021 完整驗收。
+
+## 2026-10-29 FR-021 isolated hardened-runtime packaging canary
+
+- repo 外 canary build 成功建立新 macOS arm64 directory candidate，但 builder 明確因 `identity: null` 跳過 macOS code signing；read-only audit 顯示 6 個 code object 全部 deep verify、helper inventory complete，仍全為 ad-hoc、無 Team ID、無 entitlement。
+- build scope evidence `docs/project-management/evidence/2026-10-29-fr-021-hardened-runtime-packaging-canary-build1.json` 記錄 requested CLI override、effective identity 未變、既有 candidate 未修改、packaged app／UI／startup probe 未執行、Ollama／model 未動；dependency download occurred 已明確揭露。
+- 因未形成有效 security identity 對照，本輪不把 canary 當 signed／hardened pass，也不執行無意義的 renderer replay；後續需另有正規 signing identity／entitlement 的隔離候選，不能由本輪推導 root cause 或 FR-021 completion。
+- signing identity availability check `docs/project-management/evidence/2026-10-29-fr-021-hardened-runtime-packaging-canary-signing-identity-check1.json` 記錄 `security find-identity -v -p codesigning` 的 `validIdentityCount: 0`；這是環境能力證據，不是產品 runtime failure。
+
+## 2026-10-28 FR-021 packaged security identity audit
+
+- `scripts/audit-macos-packaged-security-identity.mjs` 以 macOS arm64 read-only 方式核對 current candidate 的主 app、Electron Framework 與所有 helper，保存 bundle identity、binary SHA-256、code-sign flags／CDHash、Team ID、entitlement presence／digest 與 deep verification 結果；不保存 raw command output 或絕對路徑。
+- audit3 `docs/project-management/evidence/2026-10-28-fr-021-packaged-security-identity-audit3.json` 為 `pass`：6 個 code object 全部 deep verify 成功，helper inventory complete，但全為 ad-hoc、無 Team ID、無 entitlement；source build config 為 `identity: null`、`hardenedRuntime: false`、`gatekeeperAssess: false`。audit1／audit2 均保留為 immutable 原件，audit3 為修正後 authoritative evidence。
+- scope 明確為 metadata audit：candidate 未修改、packaged app／UI 未執行、network 未嘗試、Ollama 未啟停、模型未下載；因此不能推導 nested Chromium 唯一根因、renderer readiness、UI offline、全機 egress、Windows 或 FR-021 完整驗收。後續若進行 packaging canary，須另立 work item 與 immutable candidate／evidence。
+
+## 2026-10-28 FR-021 Chromium nested sandbox process-composition next-stage diagnostic
+
+- 現行 nested profile canary `2026-10-28-fr-021-chromium-nested-profile-composition-canary1.json` status `pass`：same restrictive parent／child 可 exit 0；loopback-only parent 與 Chromium-like network-service child shape 以 `Operation not permitted`／exit 71 fail；只加 explicit TCP／UDP 仍 fail；unrestricted parent pass。它只執行 `/usr/bin/true`，`chromiumNetworkServiceShapeIsExactGeneratedProfile=false`，因此是 profile-composition evidence，不是 packaged UI acceptance。
+- 最新 packaged probes `2026-10-28-fr-021-electron-single-process-startup-probe4.json` 與 `2026-10-28-fr-021-electron-no-zygote-startup-probe3.json` 均 status `fail`：兩個變體在 outer loopback-only Seatbelt 下都沒有 local page、沒有 CDP response，child `SIGTRAP`；較早 no-zygote probe2 曾有 local page 但 CDP `Runtime.evaluate` timeout，child `SIGTRAP`，diagnostic categories 含 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`／`OS_PERMISSION_DENIED`。兩次最新 probe 的 loopback control-plane connections 已明確記錄，external socket 未嘗試，process／temporary cleanup 通過，所有較早 probe evidence 原件保留。
+- 兩次 packaged probe 均明確 `uiFlowRun=false`、`packagedUiAcceptanceRun=false`、`existingOllamaDaemonStartedOrStopped=false`、`modelDownloaded=false`、`systemNetworkDisabled=false`；未寫入 raw child output，保留 output digest／bytes。這兩個 flags 只作診斷，未進入 formal acceptance source。
+- 開發驗證：canary 與兩次 probe 均使用 exclusive evidence path；probe source `node --check`、focused／完整 check、immutable evidence guard、獨立六面向審查、治理 validator、`git diff --check` 與 `npm run docs:check:final` 均已完成；round2 確認本項僅為 bounded process-composition diagnostic closeout。
+- 界線：本階段確認 `--single-process`／`--no-zygote` 不能在不關閉 sandbox 的前提下解除 packaged renderer blocker；不宣稱 Seatbelt packaged UI offline、全機 egress、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 FR-021 Chromium nested sandbox startup diagnosis
+
+- 新增 failure evidence `docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-offline-chromium-workaround-replay1.json`；測試版 runner argv 的固定 startup flags provenance 完整（`argvRedactionValidated=true`、`argvDroppedCount=0`），但 status 仍為 `fail`／`CHROMIUM_CHILD_SANDBOX_INIT_FAILED`，UI 未完成 home／AI flow。Seatbelt loopback／external `EPERM`、preinstalled model／no-download、process／port／temporary cleanup 全部通過；`systemNetworkDisabled=false`。
+- bounded startup-only matrix 顯示：`NetworkServiceInProcess2`＋`disable-gpu-sandbox`（含另加 `disable-gpu`）可建立 local HTTP page，但 DevTools page 的 `Runtime.evaluate` 無回應；此不構成 renderer-ready 或 UI pass。未使用 `--no-sandbox`，也未保存 raw child output；本輪診斷建立的明確 process groups 已終止並確認無殘留。
+- source hardening 只保留安全修正：loopback DevTools target 不再依賴 transient `title`，home dashboard 探針改為最多 10 秒的 bounded DOM wait，並將 renderer／DevTools timeout 從 startup diagnostic category 分離；無效的 GPU／network startup flags 已撤回，不改產品 runtime、Seatbelt profile 或既有 evidence。
+- 開發驗證：`node --check lib/runner-provenance.mjs`、`node --check lib/electron-devtools-target.mjs`、`node --check scripts/verify-electron-ollama-ui.mjs`、`node --check scripts/test-ollama-ui-offline.mjs` 與 `node scripts/test-ollama-ui-offline.mjs` 均 exit 0；完整 `npm run check`、immutable evidence hash／scope guard、round1／round2 獨立審查、治理 validator、`git diff --check` 與 `npm run docs:check:final` 均已通過。
+- 界線：這是 blocker diagnosis 與 runner robustness hardening，不是 Seatbelt packaged UI offline pass；全機 egress、Windows、其他模型／版本、offline cancel／resume 與 FR-021 完整驗收仍未完成。
+
+## 2026-10-28 FR-021 Unicode candidate executable argv provenance
+
+- 變更限定於 `lib/runner-provenance.mjs` 的 evidence argv sanitizer 與 `scripts/test-ollama-ui-offline.mjs` deterministic regression：candidate wrapper 改採 Unicode-safe basename boundary，仍拒絕 path／separator／control／`.`／`..`／oversize，且不保存 dropped raw value。
+- 驗證結果：`node --check lib/runner-provenance.mjs`、`node --check scripts/test-ollama-ui-offline.mjs`、`node scripts/test-ollama-ui-offline.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0；測試固定 `<candidate-executable:離線字幕工廠>` pass，path／dot-name／control／129 字元 candidate fail-closed。
+- replay1 immutable evidence 以 jq 唯讀核對 failure／Seatbelt loopback／external `EPERM`／preinstalled no-download／process／port／temporary cleanup／candidate hash 與原始 Unicode drop residual；沒有重播、沒有修改 evidence、沒有產品 runtime／OS network 變更。
+- 這只改善未來 evidence provenance 的 localized candidate 可追溯性；不改變 replay1 的 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`、`SIGTRAP`、`systemNetworkDisabled=false`，不代表 packaged UI offline、全機斷網、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 FR-021 current-source packaged Ollama UI Seatbelt offline replay
+
+- 新 evidence `docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-offline-current-source-replay1.json` status `fail`、`failureCode=CHROMIUM_CHILD_SANDBOX_INIT_FAILED`、`failureStage=electron_start`；candidate version `0.52.0`／arm64、executable SHA `b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4`，Electron UI 未載入，無產品 AI flow pass 宣稱。
+- isolation evidence 通過 loopback／external boundary：`loopbackAllowed=true`、`externalSocketDenied=true`、`externalSocketError=EPERM`、`daemonStartedInSandbox=true`、`electronAppStartedInSandbox=true`、`networkSandboxInheritedByElectronAndServer=true`；`systemNetworkDisabled=false` 仍如實記錄。model `llama3.2:1b` 預裝、`modelDownloadAttempted=false`；Electron／driver／daemon／port／temporary cleanup 全通過。
+- startup diagnostics 固定為 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED`、`CHROMIUM_GPU_SANDBOX_UNAVAILABLE`、`OS_PERMISSION_DENIED`，Electron signal `SIGTRAP`；這把 current-source packaged UI offline blocker 收斂到 nested Chromium／OS permission startup boundary，但不宣稱唯一 root cause。runner argv redaction false 另因 Unicode candidate basename 被 ASCII allowlist drop，raw path／secret 未保存，列為後續 evidence sanitizer 工作。
+- 這是 immutable failure evidence，不覆寫歷史 replay；不能替代 normal loopback pass、不能宣稱 Seatbelt UI offline／全機斷網／Windows／FR-021 完整驗收。
+
+## 2026-10-28 FR-021 shared runner provenance projection contract
+
+- live `scripts/verify-electron-ollama-ui.mjs` 與 offline `scripts/verify-electron-ollama-ui-offline.mjs` 已改由 `lib/runner-provenance.mjs:projectRunnerProvenance()` 產生同一 runner provenance key set；SHA-256、command、argv、framework path、bounded bytes／categories 與 raw-output flag 共用 fail-closed 邏輯。
+- `scripts/test-ollama-ui-offline.mjs` 直接比較 shared projection key set，並覆蓋缺失／boxed review.js hash、非法 path、secret／private argv exclusion；syntax、focused UI、provider、完整 `npm run check` 與 `git diff --check` 均通過。
+- round1 static probe 發現 shared helper 若接受外部 `argvProjection` 會保留 path／secret；主要代理已改為 helper 只接收 raw argv 並自行套用 `sanitizeRunnerArgv()`，新增 bypass regression，修正後完整 check 通過；既有 round2 report 與 2026-10-29 next1 current-source 審查均確認 bypass 已關閉，治理 closeout 已完成。
+- 未新增 live／offline replay；既有 replay4 仍是 normal loopback，只用於唯讀 hash／scope 對照，不代表 Seatbelt offline、全機 egress、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 FR-021 runner provenance review.js hash schema parity
+
+- `scripts/verify-electron-ollama-ui-offline.mjs` 的 `projectUiEvidence()` 已補投影 `candidateReviewScriptSha256`，只接受 source artifact 的 64-hex `reviewScriptSha256`；與 live runner 的 artifact／runner provenance hash 欄位同名，非法／path／缺失值不保存。
+- deterministic regression 覆蓋 valid executable／review.js／Framework hash、invalid review.js path fail-closed 與 source-level field contract；syntax、`node scripts/test-ollama-ui-offline.mjs`、`node scripts/test-ai-providers.mjs`、完整 `npm run check`、`git diff --check` 均通過。
+- 既有 replay4 evidence 僅作唯讀 source／candidate provenance 對照，未新增 live／offline run；範圍限 evidence schema parity，不代表 Seatbelt packaged UI offline、全機 egress、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 FR-021 runner provenance Unicode command identity and live/offline parity
+
+- 變更僅限 evidence provenance contract 與 deterministic regression：新增共用 `sanitizeRunnerCommand()`，以 basename-only 方式允許 Unicode executable identity，拒絕 path／separator／control／empty／`.`／`..`／oversize／非 primitive；live `scripts/verify-electron-ollama-ui.mjs` 與 offline `scripts/verify-electron-ollama-ui-offline.mjs` 使用同一 projection，避免欄位規則分叉。
+- `node scripts/test-ollama-ui-offline.mjs`、`node scripts/test-ai-providers.mjs`、語法檢查、`git diff --check` 與完整 `npm run check` 均通過；測試直接固定 `離線字幕工廠` pass、path／secret fail-closed、live/offline projection parity、VM failure evidence redaction 與 raw child output 不落盤。
+- packaged replay4 `docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-cancel-resume-normal-replay4.json` status `pass`；`runnerProvenance.command`、argv／hash／bounded child-output provenance 與 cancel-resume／save／cleanup assertions 均通過。範圍限 normal loopback：`systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`；不代表 Seatbelt offline、全機 egress、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 FR-021 packaged Ollama UI live evidence runner provenance hardening
+
+- 稽核範圍：只強化 `scripts/verify-electron-ollama-ui.mjs` 的 live evidence provenance projection，沿用 `lib/runner-provenance.mjs` 白名單；不修改產品 runtime、不改 OS network、不下載模型、不發布。既有 replay1／replay2 evidence 保留未覆寫。
+- 程式／deterministic 驗證：加入 `runnerProvenance`，包含安全 argv projection、`argvRedactionValidated`／dropped／input counts、sandbox flags、candidate executable／review.js／Framework hashes、Framework path、child-output hash／bytes／capture limit、diagnostic categories 與 `rawChildOutputPersisted=false`；`scripts/test-ollama-ui-offline.mjs` 補 runner VM failure evidence assertions。`node --check scripts/verify-electron-ollama-ui.mjs`、focused UI／provider tests、完整 `npm run check` 與 `git diff --check` 通過。
+- Live replay3：`OSF_OLLAMA_UI_SCENARIO=cancel-resume OSF_OLLAMA_UI_ISOLATED_DAEMON=1 OLLAMA_MODEL=llama3.2:1b npm run acceptance:ollama:ui -- ../dist/mac-arm64/離線字幕工廠.app/Contents/MacOS/離線字幕工廠 9999 30000 docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-cancel-resume-normal-replay3.json llama3.2:1b` exit 0，status `pass`、約 13.3 秒；provenance 的 candidate executable／Framework hash 與前一輪一致，argv redaction validated、no raw output；cancel／checkpoint／reload／resume／complete／save assertions 全通過。
+- Cleanup／模型：replay3 `preinstalledModelFound=true`、`modelDownloadAttempted=false`、`existingServiceModified=false`、context length 4096；Electron process group、app port、temporary userData、owned daemon process／port／temporary root 全部清理通過。
+- 驗證界線：replay3 的 `systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`loopbackOnlyConfiguration=true`、`apiKeySupplied=false`；provenance 可補 candidate／runner 追溯，但不等同 Seatbelt deny-network、真正全機 egress、Windows 或 FR-021 完整驗收。`runnerProvenance.command=null` 是中文 executable basename 未通過 ASCII command projection 的明確 fail-safe 結果，argv／hash 仍有效保存。
+
+## 2026-10-28 FR-021 current-source packaged Ollama UI cancel/resume normal-path replay
+
+- 稽核範圍：沿用 current-source macOS arm64 directory candidate，以預裝 `llama3.2:1b`、獨立本機 Ollama daemon、normal packaged Electron UI 驗證 6 cues／6 batches 的 cancel／checkpoint／同 session reload／resume，並驗證 accept／undo／redo／save 與 cleanup；不修改 OS network、不下載模型、不停止既有桌面 daemon、不發布。
+- 初次 failure 保留：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-cancel-resume-normal-replay1.json` status `fail`、stage `checkpoint_cancel`、`observedTaskStatus=failed`、`completedBatches=0`；原 fixture 讓 1B 模型在建立第一個可取消 checkpoint 前先產生 translation contract failure。cleanup 的 Electron process group／app port／temporary userData／owned daemon process／port／temporary root 全部通過。
+- Fixture 修正：只修改 worktree-only `scripts/verify-electron-ollama-ui.mjs` 的 cancel-resume synthetic fixture，改用短而穩定的中文句，讓本輪測量取消／續跑而非小模型翻譯品質；未修改產品 runtime、candidate bundle 或 normal replay fixture。`node --check scripts/verify-electron-ollama-ui.mjs` 與 `git diff --check` 通過。
+- Replay2 evidence：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-cancel-resume-normal-replay2.json` status `pass`、elapsed 約 13.7 秒；`cancelled=true`、`retryable=true`、checkpoint `1/6` persisted、checkpoint suggestion count 1、reload 後 session／checkpoint unchanged、resume request accepted、resumed from batch 1、同 session 完成；6 suggestions、accept 6、undo／redo、reviewed.srt 6 cues、timecodes unchanged、English translation 全部通過。
+- Candidate／模型／cleanup：replay2 artifact executable／Framework hash 與前一輪 candidate 相同；`preinstalledModelFound=true`、`contextLength=4096`、`modelDownloadAttempted=false`、`existingServiceModified=false`；Electron、app server port、temporary userData 與 owned daemon cleanup 全部通過。
+- 驗證界線：replay2 scope 明確為 `systemNetworkDisabled=false`、`sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`loopbackOnlyConfiguration=true`、`apiKeySupplied=false`；它補強 packaged normal UI cancel／resume coverage，不證明 Seatbelt deny-network process tree、真正全機斷網、Windows 或 FR-021 完整驗收。replay1 failure 不被覆寫，兩份 evidence 均為 exclusive path。
+
+## 2026-10-28 FR-021 current-source packaged Ollama UI normal-path replay
+
+- 稽核範圍：以目前 dirty source 建立新的 macOS arm64 directory candidate，靜態核對 BUG-060 native routing／schema／`num_ctx=4096` 已進入 candidate，再以預裝 `llama3.2:1b` 與獨立本機 Ollama daemon 執行 normal packaged UI；不修改 OS network、不下載模型、不停止既有桌面 daemon、不發布。
+- Build／candidate：`node scripts/test-ollama-ui-offline.mjs`、`node scripts/test-ai-providers.mjs`、`git diff --check` 均先通過；`npm run electron:build:mac:dir` exit 0，runtime manifest／verify 通過，candidate version `0.52.0`；packaged provider marker 包含 `isLoopbackAiUrl`、`buildOllamaCueResponseFormat`、`num_ctx=4096`、`strictJson=true`，`lib/ai/providers.mjs` 與 worktree source byte-for-byte 相同。candidate executable／Electron Framework hash 與 provider parity 見 `docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-normal-replay1-artifact-parity.json`；`scripts/test-ai-providers.mjs` 為 worktree-only deterministic test source，未宣稱屬 packaged runtime。
+- Normal UI evidence：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-packaged-ui-normal-replay1.json` status `pass`、elapsed 約 14.9 秒；settings 儲存 `ollama`／`llama3.2:1b`／loopback、API Key 空值；2 cue optimize completed、2 suggestions、accept 2、undo／redo、reviewed.srt 2 cues、English translation 與 timecodes unchanged 均通過。
+- Cleanup／模型：`preinstalledModelFound=true`、`modelDownloadAttempted=false`、`existingServiceModified=false`、context length 4096；Electron process group、app server port、temporary userData 與 owned daemon process／port／temporary root 全部清理通過。
+- 驗證界線：此 evidence 的 `sandboxedTargetProcessTree=false`、`outerSandboxProfileApplied=false`、`systemNetworkDisabled=false`；它證明目前 source 已進入 packaged artifact 且 normal loopback UI flow 可用，不證明 Seatbelt deny-network process tree、真正全機斷網、Electron UI offline、Windows 或 FR-021 完整驗收。
+
+## 2026-10-28 BUG-061 BUG-060 provider regression coverage hardening（2026-10-29 bounded closeout）
+
+- 稽核範圍：只補 deterministic `scripts/test-ai-providers.mjs`，鎖定 BUG-060 的 custom native 404 fallback body stripping、proofread／translate exact schema 與 custom native non-404 fail-closed；未修改產品 runtime、未啟動真實 Ollama、未改 OS 網路或發布。
+- 測試變更：fallback 第二次 `/v1/chat/completions` request 現逐欄斷言只保留 model／messages、完整 internal metadata 已移除、request 總數固定為 native probe 加一次 fallback；default proofread 直接斷言 operation、root／cues／item required、additionalProperties、ID enum、exact count 與 `text`／`reason` string type，translate 另直接斷言相同 item type／schema；兩者共用 source builder 的欄位契約；custom native HTTP 400／500 與 strict stream failure 各只發出一次 `/api/chat`，不得 fallback。
+- 驗證結果：`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-providers.mjs`、完整 `npm run check`、`node scripts/test-project-docs-validator.mjs` 與 `git diff --check` 均 exit 0。這些 assertions 只強化 source contract regression，不擴大為模型品質、live endpoint、Electron UI 或 FR-021 完整驗收。
+- 獨立審查／closeout：round1 指出上述 coverage false-negative 風險；round2 報告 `docs/project-management/reviews/2026-10-28-bug-061-regression-coverage-round2.md` 確認既有 fallback／schema／no-fallback coverage，並指出 proofread type 文件精確性 residual；next1 `docs/project-management/reviews/2026-10-29-bug-061-regression-coverage-next1-round1.md` 已確認 direct assertions 與完整 deterministic checks 通過，唯一 finding 為治理同步，已完成 00／06／07／08 closeout。
+
+## 2026-10-28 BUG-060 Ollama translate schema 與 custom loopback routing
+
+- 稽核範圍：承接 1B Seatbelt replay1／replay2 的 `MODEL_RESPONSE_CONTRACT_REJECTED`；確認 custom loopback port 不再繞過 Ollama native request，translate response 以 exact cue schema 約束。未改 Ollama daemon／全域設定／模型檔／OS 網路，不處理 UI、Windows、LM Studio 或發布。
+- 根因與修正：acceptance wrapper 使用隨機 loopback port，原 provider 只對 11434 使用 native `/api/chat`；custom port 因而沒有 `num_ctx`／native schema。現在所有 loopback port 使用 native path，translate／proofread 都帶原始 ID／exact count 的 JSON Schema，非 loopback 保留 fallback。
+- 程式／focused 驗證：`node --check lib/ai/providers.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-providers.mjs` 通過；regression 覆蓋 default native、custom loopback native、non-loopback fallback、context bound、translate schema、strict stream 與其他 provider boundary。
+- 完整與產品驗證：`npm run check` exit 0；最後 source 的 `docs/project-management/evidence/2026-10-28-ollama-llama3.2-1b-product-offline-replay4.json` status pass，2 suggestions、接受／undo／redo 各 2、雙語保存、timecodes unchanged、source SRT hash 相同、Seatbelt 外連 `EPERM`、預裝／未下載／daemon／port／temporary cleanup 全通過。replay1／replay2 fail evidence 與 replay3 pass evidence 保留，沒有被成功樣本覆寫。
+- 界線：目前只證明 macOS arm64、目前 Ollama、預裝 1B、random loopback port 與目前 source；`systemNetworkDisabled=false`，不替代真正全機斷網、Electron UI、取消／續跑、Windows、不同模型／版本或 FR-021 全流程。
+
+## 2026-10-28 BUG-059 Ollama native request context resource bound
+
+- 稽核範圍：承接 FR-021-REPLAY-20261028 的 3B product flow stall；以現有 Ollama loopback logs／受控最小 request 找出 context／KV cache resource overcommit，將固定 `num_ctx=4096` 限定在 Ollama native request。未修改 daemon、全域設定、模型檔、OS 網路、batch size、cue contract 或其他 provider。
+- 基準與根因證據：3B 未指定 context 時，Ollama log 記錄 `n_ctx_slot=131072`、KV cache 約 14.3 GiB、預測記憶體約 15.9 GiB、系統記憶體 8.0 GiB／free 約 1.0 GiB；同一最小 `/api/chat` request 60 秒 timeout。相同 request 加 `options.num_ctx=4096` 後實際 provider path 約 1.25 秒完成。
+- 程式／focused 驗證：`lib/ai/providers.mjs` 對 Ollama native body 加 `num_ctx=4096`；`scripts/test-ai-providers.mjs` 斷言該欄位及非 Ollama 不帶入；node syntax、provider、Ollama batch stream、optimizer focused tests 通過。
+- 產品離線驗收：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-3b-product-offline-replay2.json` status pass；2 suggestions、接受 2、undo／redo 各 2、雙語保存、timecodes unchanged、source SRT preserved／before-after hash 相同；Seatbelt external `EPERM`、預裝模型、未下載、daemon／port／temporary root cleanup 全通過。
+- 界線：這只證明目前 macOS arm64、Ollama 0.40.8、預裝 `llama3.2:3b` 與目前 source 在受控 4096 request bound 下完成既有 product probe；不代表所有模型／硬體的效能品質，不替代 Electron UI、取消／續跑、Windows、真正全機斷網或 FR-021 全流程。
+
+## 2026-10-28 FR-021 目前 source 的 Ollama macOS Seatbelt 產品離線驗收重播
+
+- 稽核範圍：以目前工作樹執行既有 `acceptance:ollama:offline` wrapper 與預裝 `llama3.2:3b`，驗證 Seatbelt deny-network／loopback-only、Ollama model preflight、產品兩 cue flow 與 cleanup；另以獨立 loopback product probe 取得 timeout 診斷。未修改產品 source、未下載模型、未改 OS 網路或防火牆。
+- 離線 evidence：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-3b-product-offline-replay1.json` 記錄 `status=fail`、`failureStage=product_probe`、`failureCode=MODEL_RESPONSE_CONTRACT_REJECTED`；loopback allowed、external socket `EPERM`、`preinstalledModelFound=true`、`modelDownloadAttempted=false`、daemon／port／temporary root cleanup 全為 true。故 isolation／cleanup 子範圍通過，產品 AI flow 子範圍未通過。
+- 診斷 evidence：`docs/project-management/evidence/2026-10-28-ollama-llama3.2-3b-product-live-diagnostic1.json` 只使用 `http://127.0.0.1:11434/v1`，`status=fail`，錯誤為 `實際 Ollama AI 任務等待逾時`（240 秒）；沒有 raw response，不足以把問題歸因為 BUG-058、模型品質或 server runtime。
+- 驗證界線：`ollama ps` 唯讀檢查顯示 3B runner 仍載入；未停止既有桌面 Ollama。上述 evidence 是目前本機／目前模型／單次 run，不能代替不同模型／版本、Electron UI、取消／續跑、Windows、真正全機斷網或 FR-021 整體驗收。
+- 結案：兩份 immutable fail evidence 已保留；適用 deterministic／docs regression、round1／round2 六面向審查與 `npm run docs:check:final` 均完成。除非取得新的診斷方向，不以重播堆疊成功樣本掩蓋本次 timeout／contract failure；本項結案只代表失敗結果可追溯，不代表 product AI flow 或 FR-021 通過。
+
+## 2026-10-28 BUG-058 Ollama strict stream parser failure abort underlying request
+
+- 稽核範圍：承接 BUG-057 的 pending cancel／底層 response teardown residual；只修改共用 streaming reader 的 request-local abort hook 與 deterministic provider tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-058`、`BUG-057`、`BUG-056`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；strict parser／decoder `AiProviderError` failure 必須先 abort 同一 fetch signal，再沿用 250ms bounded cancel／release；正常 EOF、provider error、non-strict provider 不額外 abort；原始 invalid encoding／invalid JSON、timeout／取消／network error 分類不回歸。
+- 程式變更：`readStreamingJson()` 在 failure-only cleanup 捕捉原始 `AiProviderError`，先呼叫 request-local abort callback，再執行既有 bounded cancel／release；`requestAiJson()` 將 timeout controller abort callback 傳入 reader，其他 provider 仍不啟用 strict parser failure path。
+- focused 驗證：`scripts/test-ai-providers.mjs` 補正常 EOF 不 abort signal、strict parser failure abort underlying signal、250ms bounded cleanup／release、reader timeout 與 cleanup failure 原始分類保留；既有 Ollama strict encoding／framing、provider error 與 non-strict compatibility tests 保留。
+- 完整驗證與獨立審查：focused、完整 `npm run check`、`git diff --check`、round1／round2 六面向獨立審查、`node scripts/test-project-docs-validator.mjs` 與 `npm run docs:check:final` 均已通過；所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：abort 只提供 underlying request teardown 的 best-effort signal，不證明 live socket／stream 已物理回收；尚無真實 Ollama raw response、不同模型／版本或 Windows evidence。
+
+## 2026-10-22 BUG-057 Ollama strict reader cancel bounded cleanup
+
+- 稽核範圍：承接 BUG-056 的 cancel promise hanging residual risk；只修改共用 streaming reader 的 failure cleanup timeout 與 deterministic provider tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-057`、`BUG-056`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；failure path 的 `reader.cancel()` 最多等待固定 250ms，逾時後仍 release lock，cancel／timeout／release exception 不得覆蓋原始錯誤；正常 EOF 不啟動 cleanup timer，既有 invalid encoding、timeout／取消、transport 分類與非 strict 行為不回歸。
+- 程式變更：`readStreamingJson()` 對 failure-only cancel 使用 cancel promise 與 250ms timeout race；cancel rejection 轉為已處理的 cleanup 結果，timeout 後繼續 release lock，正常完成不建立 timer。
+- focused 驗證：`scripts/test-ai-providers.mjs` 補 cancel 永不 settle 的 watchdog、cancel／release 同時失敗與既有正常 EOF／decoder／reader rejection／外部取消 assertions；既有 Ollama strict encoding／framing 與 non-strict compatibility tests 保留。
+- 完整驗證與獨立審查：focused、完整 `npm run check`、`git diff --check`、round1／round2 六面向獨立審查、`node scripts/test-project-docs-validator.mjs` 與 `npm run docs:check:final` 均已通過；所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：尚無真實 Ollama raw response、不同模型／版本或 Windows evidence；本輪固定 250ms 是 cleanup latency 契約，不證明底層 live stream 在 timeout 後已完成物理 resource teardown。
+
+## 2026-10-22 BUG-056 Ollama strict reader 失敗後釋放與取消
+
+- 稽核範圍：承接 BUG-055 的 reader lifecycle residual risk；只修改共用 streaming reader 的 failure cleanup 與 deterministic provider tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-056`、`BUG-055`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；strict reader 正常 EOF 必須 release lock，decoder failure、reader rejection 或外部取消必須 best-effort cancel 並 release lock，cleanup failure 不得覆蓋原始錯誤；既有 invalid encoding、timeout／取消／transport 分類與非 strict 行為不回歸。
+- 程式變更：`readStreamingJson()` 以完成旗標區分正常 EOF 與 failure path；正常完成只 release lock，failure path 先 best-effort `reader.cancel()` 再 release lock，兩者 cleanup exception 均被吞回以保留原始錯誤。
+- focused 驗證：`scripts/test-ai-providers.mjs` 補 fake reader lifecycle probe，覆蓋正常 EOF（不 cancel／release）、decoder failure、reader transport rejection（cancel failure 不遮蔽 network error）與外部取消；既有 Ollama strict encoding／framing 與 non-strict compatibility tests 保留。
+- 完整驗證與獨立審查：focused、完整 `npm run check`、`git diff --check`、round1／round2 六面向獨立審查、`node scripts/test-project-docs-validator.mjs` 與 `npm run docs:check:final` 均已通過；所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：尚無真實 Ollama raw response、不同模型／版本或 Windows evidence；本輪僅證明 response reader lifecycle 的 deterministic contract，不代表 live server／OS stream implementation 的所有行為。
+
+## 2026-10-22 BUG-055 Ollama NDJSON 無效 UTF-8 串流 fail-closed（2026-10-29 bounded closeout）
+
+- 稽核範圍：承接 BUG-054 的 Ollama streaming byte／framing 邊界；只修改共用 streaming transport 的 opt-in strict decoder、Ollama native adapter 旗標與 deterministic provider／batch tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-055`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；Ollama native strict stream 遇到無效 UTF-8 或 EOF 未完成 byte sequence 必須在 parser／repair 前轉為不可重試的 `ollama_stream_invalid_encoding`，缺少 raw-byte reader 時以不可重試的 `ollama_stream_encoding_unavailable` fail-closed；有效跨 chunk UTF-8 必須保留，不得進 repair／retry 或寫 checkpoint；共用 transport 預設非 strict 行為、malformed NDJSON、provider error、timeout／取消不回歸。
+- 程式變更：`readStreamingJson()` 僅在 `streamOptions.strictEncoding` 下使用 fatal UTF-8 decoder，並於 EOF flush；decoder failure 建立指定 `invalidEncodingCode` 的 `AiProviderError`，無 `arrayBuffer()` 的 strict response 建立指定 `encodingUnavailableCode`，而 `arrayBuffer()` 讀取的 abort／timeout／transport rejection 交回既有 `requestAiJson()` 分類。Ollama native path 啟用 `strictEncoding=true`／`ollama_stream_invalid_encoding`／`ollama_stream_encoding_unavailable`；其他 provider 維持預設非 strict。
+- focused 驗證：`node --check lib/ai/openai-compatible.mjs`、`node --check lib/ai/providers.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-providers.mjs`、`node --check scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`git diff --check` 均 exit 0。測試覆蓋合法跨 chunk UTF-8、invalid byte、truncated final sequence、無 byte reader、fallback abort／timeout／transport rejection、既有 malformed／provider error 與 optimizer 不 repair／不 retry／不 checkpoint。
+- 完整驗證與獨立審查：focused、完整 `npm run check`、`git diff --check` 均已通過；round1 六面向獨立審查報告為 `docs/project-management/reviews/2026-10-29-bug-055-ollama-strict-utf8-next1-round1.md`，結論有條件通過，唯一 finding 為 08 治理欄位尚未完成，已由主要代理回填；`npm run docs:check:final` 於回填後執行。所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：尚無真實 Ollama raw response、不同模型／版本或 Windows evidence；非 strict provider 仍保留既有 decoder 相容行為，strict response 依 byte-level capability 缺失明確 fail-closed。
+
+## 2026-10-21 BUG-054 Ollama malformed NDJSON 串流 fail-closed
+
+- 稽核範圍：承接 BUG-053 的 Ollama streaming framing 風險；只修改共用 streaming transport 的 opt-in strict parse、Ollama native adapter 啟用旗標與 deterministic provider／batch tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-054`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；Ollama native 任一非空 malformed NDJSON record 必須在 parser／repair 前轉為不可重試的 `ollama_stream_invalid_json`，不得靜默丟棄、降成 `empty_content`、進 repair／retry 或寫 checkpoint；正常 stream、BUG-053 provider error、timeout／取消與其他 provider 行為不回歸。
+- 程式變更：`mergeStreamingRecords()`／`readStreamingJson()` 新增 opt-in `streamOptions.strictJson` 與可指定 error code；`requestAiJson()` 將 options 傳入 streaming reader；只有 `optimizeOllamaNative()` 啟用 `strictJson=true` 與 `ollama_stream_invalid_json`，共用 transport 預設仍為非 strict。
+- focused 驗證：`node --check lib/ai/openai-compatible.mjs`、`node --check lib/ai/providers.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-providers.mjs`、`node --check scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node --check lib/ai/subtitle-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs` 均 exit 0。測試覆蓋 malformed-only、合法片段前後 malformed、共用 transport 非 strict、正常 NDJSON、provider error、optimizer 不 repair／不 retry／不 checkpoint。
+- 完整驗證與獨立審查：開發 focused 已通過；完整 `npm run check`、`git diff --check` 與獨立六面向審查待完成，完成後再寫入本條目結案證據與 final gate。所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：真實 Ollama 可能使用不同 framing 或非 JSON transport 形狀；本輪只保護 Ollama native HTTP 200 NDJSON 的非空 malformed record，未驗證所有模型／版本與 Windows。
+
+## 2026-10-21 BUG-053 Ollama NDJSON 串流 provider error fail-closed
+
+- 稽核範圍：承接 BUG-052 後的 Ollama native streaming 邊界；只修改 Ollama adapter 的 HTTP 200 NDJSON `error` 分流與 deterministic provider／batch tests，不啟動真實 Ollama、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-053`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；單筆或部分 content 後的明確 stream error 必須保留為不可重試的 `ollama_stream_error`，不得誤分類為 `empty_content`、進 JSON repair、重試或寫入 checkpoint；正常多段串流仍須通過。
+- 程式變更：`optimizeOllamaNative()` 在 `requestAiJson(..., streamResponse: true)` 回傳後檢查 `error` 欄位，保留 provider detail（最多 500 字）並建立 `AiProviderError`；`retryable=false`，不改共用 parser、endpoint 或 request body。
+- focused 驗證：`node --check lib/ai/providers.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-providers.mjs`、`node --check scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ollama-batch-stream.mjs`、`node --check lib/ai/subtitle-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs` 均 exit 0。測試覆蓋單筆 error、部分 JSON 後 error、正常 NDJSON、optimizer 不 repair／不 retry／不 checkpoint。
+- 完整驗證與獨立審查：focused、完整 `npm run check`、`git diff --check`、round1／round2 六面向獨立審查與 `npm run docs:check:final` 均已通過；所有結果仍限 deterministic／fixture，不等同真實 Ollama endpoint、模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：真實 Ollama 可能使用未涵蓋的 error payload 形狀或在 HTTP／transport 層失敗；本輪只保護原生 NDJSON 明確 `error` 欄位，未驗證所有模型／版本與 Windows。
+
+## 2026-10-21 BUG-052 Ollama 空回應錯誤分類與一次性修復
+
+- 稽核範圍：承接 SYNC-030 留下的 `message.content` 空字串分類缺口；只修改 AI optimizer parser 的錯誤 code／Ollama repair 分流與 deterministic optimizer tests，不啟動真實 Ollama、LM Studio、模型下載、UI、封裝或發布。
+- 需求／控制：`BUG-052`、`FR-008`、`FR-010`、`FR-021`、`NFR-005`；空白／缺失內容須為 `empty_content`，Ollama 最多一次 repair，非 Ollama strict failure，repair 結果仍經 cue ID／數量／順序／文字驗證且失敗不得寫 checkpoint。
+- 程式變更：`parseCompletionContent()` 在沒有可解析內容時建立 `error.code=empty_content`；`canRepairLocalJson()` 僅對 `provider=ollama` 擴大接受此 code，LM Studio 仍維持既有 compatibility-only 的 `invalid_json`／`missing_cues` repair；repair prompt 明示上一回應可能未回傳內容。
+- focused 驗證：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ollama-batch-stream.mjs` 均 exit 0。optimizer test 覆蓋 Ollama 空白／缺失 `message.content`→一次 repair、repair 後仍空白→兩次後明確失敗且無 checkpoint、非 Ollama 空回應→只一次 strict failure。
+- 完整驗證與獨立審查：完整 `npm run check`、`git diff --check` 與 round1 六面向獨立審查均已通過其適用範圍；round1 唯一條件為 08 結案欄位與 final gate，已由主要代理補正。所有結果仍限 deterministic／fixture，不等同真實 Ollama 模型品質、斷網或 FR-021 完整驗收。
+- 遺留風險：真實 endpoint／模型仍可能產生空回應、malformed JSON 或 cue contract／語言／品質錯誤；本輪只改善分類與一次性 repair 邊界，不保證生成成功。
+
 ## 2026-10-21 SYNC-028／BUG-051 GitHub AI 校稿回應修正同步
 
 - 稽核範圍：目前 `0.52.0` 分支與 GitHub `origin/codex/ai-cues-response-repair@056d2ad71d8b3ea982be9ccbceba19b9e98760b3` 的 AI cue JSON parser／測試／功能設計差異；僅整合與本輪需求直接相關的 `d0aeddb`、`3f8df97` 內容與其必要設計／測試脈絡，未帶入遠端舊 `main` 歷史或無關治理變更。既有未追蹤 evidence 未修改；LM Studio 案例僅作 compatibility regression，Ollama 才是 active 本機 provider。

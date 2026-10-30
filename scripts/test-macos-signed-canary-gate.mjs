@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateEvidence } from './audit-macos-signed-canary-gate.mjs';
 import { evaluateFormalSignedCanaryReadiness } from './assert-macos-signed-canary-ready.mjs';
 import { summarizeCredentialPresence, summarizeNotarizationCredentialState, credentialPresenceKeys } from './audit-macos-signing-readiness.mjs';
 import { selectSignedCanaryArtifacts } from '../lib/macos-signed-canary-artifact-selection.mjs';
@@ -76,6 +77,61 @@ const keychainReady = evaluateFormalSignedCanaryReadiness({
 });
 assert.equal(keychainReady.ready, true);
 assert.equal(keychainReady.notarizationConsistent, true);
+
+const evidenceDir = path.join(path.resolve(fileURLToPath(new URL('..', import.meta.url))), 'docs/project-management/evidence');
+const gateEvidenceFile = fs.readdirSync(evidenceDir)
+  .filter((fileName) => /^2026-10-(?:29|30)-fr-021-signed-canary-gate-execution\d+\.json$/.test(fileName))
+  .sort((left, right) => {
+    const dateOrder = right.slice(0, 10).localeCompare(left.slice(0, 10));
+    return dateOrder || Number(right.match(/execution(\d+)\.json$/)[1]) - Number(left.match(/execution(\d+)\.json$/)[1]);
+  })[0];
+assert.ok(gateEvidenceFile, 'authoritative gate evidence must exist');
+assert.match(gateEvidenceFile, /^2026-10-30-/);
+const blockedEvidence = JSON.parse(fs.readFileSync(path.join(evidenceDir, gateEvidenceFile), 'utf8'));
+assert.doesNotThrow(() => validateEvidence(blockedEvidence));
+const readyEvidence = structuredClone(blockedEvidence);
+readyEvidence.startedAt = '2026-10-30T00:00:00.000Z';
+readyEvidence.completedAt = '2026-10-30T00:00:01.000Z';
+readyEvidence.gate = {
+  ...readyEvidence.gate,
+  ready: true,
+  reasons: [],
+  sourceConfigReady: true,
+  requiredToolchainReady: true,
+  identityReady: true,
+  notarizationReady: true,
+  notarizationStatus: 'complete',
+  notarizationConsistent: true,
+};
+readyEvidence.sourceConfig = { ...readyEvidence.sourceConfig, sourceConfigReady: true };
+readyEvidence.identity = {
+  ...readyEvidence.identity,
+  validIdentityCount: 1,
+  developerIdApplicationPresent: true,
+  formalIdentityAvailable: true,
+};
+readyEvidence.credentialPresence = {
+  ...readyEvidence.credentialPresence,
+  APPLE_KEYCHAIN_PROFILE: true,
+};
+readyEvidence.notarization = {
+  ...readyEvidence.notarization,
+  keychainProfileSetComplete: true,
+  completeSetCount: 1,
+  status: 'complete',
+  ready: true,
+};
+assert.doesNotThrow(() => validateEvidence(readyEvidence), 'formal gate evidence must accept ready path');
+assert.throws(() => validateEvidence({ ...readyEvidence, gate: { ...readyEvidence.gate, ready: true, reasons: ['unexpected'] } }), /GATE_EVIDENCE_RESULT_INVALID/);
+for (const field of ['sourceConfigReady', 'requiredToolchainReady', 'identityReady', 'notarizationReady', 'notarizationConsistent']) {
+  assert.throws(() => validateEvidence({ ...readyEvidence, gate: { ...readyEvidence.gate, [field]: false } }), /GATE_EVIDENCE_DERIVED_FIELDS_INVALID/);
+}
+assert.throws(() => validateEvidence({ ...readyEvidence, sourceConfig: { ...readyEvidence.sourceConfig, sourceConfigReady: false } }), /GATE_EVIDENCE_DERIVED_FIELDS_INVALID/);
+assert.throws(() => validateEvidence({ ...readyEvidence, startedAt: null }), /GATE_EVIDENCE_TIMESTAMP_INVALID/);
+assert.throws(() => validateEvidence({ ...readyEvidence, completedAt: 'not-a-timestamp' }), /GATE_EVIDENCE_TIMESTAMP_INVALID/);
+assert.throws(() => validateEvidence({ ...readyEvidence, completedAt: '2026-10-29T23:59:59.000Z' }), /GATE_EVIDENCE_TIMESTAMP_INVALID/);
+assert.throws(() => validateEvidence({ ...readyEvidence, execution: { ...readyEvidence.execution, builderStarted: true } }), /GATE_EVIDENCE_EXECUTION_NOT_FAIL_CLOSED/);
+
 assert.equal(summarizeCredentialPresence({ APPLE_ID: '   ', APPLE_TEAM_ID: 'team', APPLE_APP_SPECIFIC_PASSWORD: 'password' }).APPLE_ID, false);
 assert.equal(summarizeCredentialPresence({ APPLE_ID: 'id', APPLE_TEAM_ID: 'team', APPLE_APP_SPECIFIC_PASSWORD: 'password' }).APPLE_ID, true);
 

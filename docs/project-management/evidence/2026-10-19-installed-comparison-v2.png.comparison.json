@@ -1,0 +1,647 @@
+{
+  "mode": "installed-frontend-in-source-shell",
+  "installedVersion": "0.51.0",
+  "sourceVersion": "0.51.0",
+  "hashes": {
+    "index.html": {
+      "installed": "774704557ccec5b8a4c014e96a2542c608eeb3f2bd7c5ce33d6f9314e552aa03",
+      "source": "774704557ccec5b8a4c014e96a2542c608eeb3f2bd7c5ce33d6f9314e552aa03"
+    },
+    "review.html": {
+      "installed": "e7bdcf69193396f127602e86cdbb0be9482000af4afef7d8cdbc7b6102c80a78",
+      "source": "805cedeb1e3a4b0a251645cd8ef8b9b7825c0574797761808dea2e40ecf0c25b"
+    },
+    "styles.css": {
+      "installed": "a75c3284e181336c243e7317e945db9d46712ea10c0d7a92cc02192eff0a9bd3",
+      "source": "1ab4ced09ec7d44de9965c8fb1f7817a35e315e82e4838390dd292deeb67dc36"
+    },
+    "app.js": {
+      "installed": "c8cf4b4d737635e5b05e85eb0b8a80e66c5e448c446ab7e7bd0fbd000db80bc1",
+      "source": "31e2482fe5fea6c9fb2ecde7f8d1d0016c87585b20e2c1b1b69382f3fe5fd7b0"
+    },
+    "review.js": {
+      "installed": "bbb4c7b82aaa5ccd1f6a6543f80066a60fa4f29b039ad6671c9e65bac62baa6b",
+      "source": "7efbe0d1cca764e015af940323725b1c8b0bc09c46e31a2a2b437375ee79c0d3"
+    }
+  },
+  "views": [
+    {
+      "version": "source",
+      "page": "home",
+      "width": 1400,
+      "height": 900,
+      "bodyWidth": 1400,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-home-1400.png"
+    },
+    {
+      "version": "source",
+      "page": "home",
+      "width": 1280,
+      "height": 800,
+      "bodyWidth": 1265,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-home-1280.png"
+    },
+    {
+      "version": "source",
+      "page": "home",
+      "width": 1100,
+      "height": 700,
+      "bodyWidth": 1085,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-home-1100.png"
+    },
+    {
+      "version": "source",
+      "page": "review",
+      "width": 1400,
+      "height": 900,
+      "bodyWidth": 1400,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 927.734375,
+          "right": 1017.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 1026.734375,
+          "right": 1104.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 1113.734375,
+          "right": 1171.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 1180.734375,
+          "right": 1238.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openYoutubePublish",
+          "text": "上傳 YouTube",
+          "left": 1247.734375,
+          "right": 1376,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-review-1400.png"
+    },
+    {
+      "version": "source",
+      "page": "review",
+      "width": 1280,
+      "height": 800,
+      "bodyWidth": 1280,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 807.734375,
+          "right": 897.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 906.734375,
+          "right": 984.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 993.734375,
+          "right": 1051.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 1060.734375,
+          "right": 1118.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openYoutubePublish",
+          "text": "上傳 YouTube",
+          "left": 1127.734375,
+          "right": 1256,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-review-1280.png"
+    },
+    {
+      "version": "source",
+      "page": "review",
+      "width": 1100,
+      "height": 700,
+      "bodyWidth": 1189,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 627.734375,
+          "right": 717.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 726.734375,
+          "right": 804.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 813.734375,
+          "right": 871.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 880.734375,
+          "right": 938.734375,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openYoutubePublish",
+          "text": "上傳 YouTube",
+          "left": 947.734375,
+          "right": 1076,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.source-review-1100.png"
+    },
+    {
+      "version": "installed",
+      "page": "home",
+      "width": 1400,
+      "height": 900,
+      "bodyWidth": 1400,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-home-1400.png"
+    },
+    {
+      "version": "installed",
+      "page": "home",
+      "width": 1280,
+      "height": 800,
+      "bodyWidth": 1265,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-home-1280.png"
+    },
+    {
+      "version": "installed",
+      "page": "home",
+      "width": 1100,
+      "height": 700,
+      "bodyWidth": 1085,
+      "controls": [
+        {
+          "id": "navHome",
+          "text": "◆首頁",
+          "left": 16,
+          "right": 236,
+          "top": 157,
+          "bottom": 215
+        },
+        {
+          "id": "navProjects",
+          "text": "□專案",
+          "left": 16,
+          "right": 236,
+          "top": 225,
+          "bottom": 283
+        },
+        {
+          "id": "navProcessing",
+          "text": "◌處理中心",
+          "left": 16,
+          "right": 236,
+          "top": 293,
+          "bottom": 351
+        },
+        {
+          "id": "navModels",
+          "text": "◇模型管理",
+          "left": 16,
+          "right": 236,
+          "top": 361,
+          "bottom": 419
+        },
+        {
+          "id": "navSettings",
+          "text": "⚙設定",
+          "left": 16,
+          "right": 236,
+          "top": 429,
+          "bottom": 487
+        }
+      ],
+      "video": null,
+      "cueCount": 0,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-home-1100.png"
+    },
+    {
+      "version": "installed",
+      "page": "review",
+      "width": 1400,
+      "height": 900,
+      "bodyWidth": 1400,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 1065,
+          "right": 1155,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 1164,
+          "right": 1242,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 1251,
+          "right": 1309,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 1318,
+          "right": 1376,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-review-1400.png"
+    },
+    {
+      "version": "installed",
+      "page": "review",
+      "width": 1280,
+      "height": 800,
+      "bodyWidth": 1280,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 945,
+          "right": 1035,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 1044,
+          "right": 1122,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 1131,
+          "right": 1189,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 1198,
+          "right": 1256,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-review-1280.png"
+    },
+    {
+      "version": "installed",
+      "page": "review",
+      "width": 1100,
+      "height": 700,
+      "bodyWidth": 1201,
+      "controls": [
+        {
+          "id": "applyRules",
+          "text": "套用規則",
+          "left": 866,
+          "right": 956,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "openAiSettings",
+          "text": "AI 設定",
+          "left": 965,
+          "right": 1043,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "saveReviewPackage",
+          "text": "儲存",
+          "left": 1052,
+          "right": 1110,
+          "top": 21.5,
+          "bottom": 61.5
+        },
+        {
+          "id": "burnExport",
+          "text": "匯出",
+          "left": 1119,
+          "right": 1177,
+          "top": 21.5,
+          "bottom": 61.5
+        }
+      ],
+      "video": {
+        "duration": 3
+      },
+      "cueCount": 1,
+      "screenshot": "2026-10-19-installed-comparison-v2.png.installed-review-1100.png"
+    }
+  ],
+  "interceptionErrors": [],
+  "limitations": [
+    "Source Electron shell and fixture APIs shared by both frontends; not installed runtime acceptance.",
+    "Viewport emulation, not native resize or OS scaling.",
+    "Actual user reference version is unconfirmed."
+  ]
+}

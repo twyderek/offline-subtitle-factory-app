@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -9,6 +9,7 @@ import path from 'node:path';
 import { createTrustedDevToolsWebSocket, isLocalElectronPageUrl, selectTrustedElectronPageTarget } from '../lib/electron-devtools-target.mjs';
 import { cleanupProcessGroup } from '../lib/process-group-cleanup.mjs';
 import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
+import { projectReplayProvenance, projectRunnerProvenance } from '../lib/runner-provenance.mjs';
 import { startLocalAcceptanceDaemon, stopLocalAcceptanceDaemon } from './ollama-ui-local-daemon.mjs';
 
 const exePath = process.argv[2];
@@ -26,7 +27,7 @@ if (!exePath) throw new Error('Usage: node scripts/verify-electron-ollama-ui.mjs
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error(`Invalid DevTools port: ${port}`);
 if (!Number.isFinite(timeoutMs) || timeoutMs < 5000) throw new Error(`Invalid timeout: ${timeoutMs}`);
 if (!model) throw new Error('Ollama model is required');
-if (!['complete', 'cancel-resume'].includes(scenario)) throw new Error('Invalid Ollama UI scenario');
+if (!['complete', 'cancel-resume', 'cancel-resume-restart'].includes(scenario)) throw new Error('Invalid Ollama UI scenario');
 if (isolatedDaemon && (process.env.OSF_OLLAMA_UI_BASE_URL || process.env.OLLAMA_BASE_URL)) throw new Error('Isolated daemon cannot use a custom endpoint');
 if (fs.existsSync(outputPath)) throw new Error(`Refusing to overwrite existing Ollama UI evidence: ${outputPath}`);
 if (!isLoopbackAiUrl(ollamaBaseUrl)) throw new Error(`Ollama UI probe 只允許 loopback URL：${ollamaBaseUrl}`);
@@ -35,9 +36,18 @@ const shortSourceCues = [
   { id: 1, start: '00:00:00,000', end: '00:00:02,500', text: 'Hello，朋友。' },
   { id: 2, start: '00:00:02,500', end: '00:00:05,000', text: 'Thank you，大家。' },
 ];
-const sourceCues = scenario === 'cancel-resume'
+// Keep the cancellation checkpoint fixture intentionally simple so the
+// preinstalled 1B model exercises cancellation/resume rather than failing on
+// an unstable translation-quality response before the first checkpoint.
+const cancelResumeSourceCues = [
+  { text: '你好。' },
+  { text: '謝謝。' },
+];
+const isCancelResumeScenario = scenario === 'cancel-resume' || scenario === 'cancel-resume-restart';
+const requiresAppRestart = scenario === 'cancel-resume-restart';
+const sourceCues = isCancelResumeScenario
   ? Array.from({ length: 6 }, (_, index) => ({
-    ...shortSourceCues[index % shortSourceCues.length],
+    ...cancelResumeSourceCues[index % cancelResumeSourceCues.length],
     id: index + 1,
     start: `00:00:${String(index * 3).padStart(2, '0')},000`,
     end: `00:00:${String(index * 3 + 3).padStart(2, '0')},000`,
@@ -51,6 +61,51 @@ function sha256(value) {
 function sha256File(filePath) {
   if (!fs.existsSync(filePath)) return null;
   return sha256(fs.readFileSync(filePath));
+}
+
+const provenanceProjectRoot = process.cwd();
+const runnerSourcePath = path.resolve(provenanceProjectRoot, 'scripts/verify-electron-ollama-ui.mjs');
+const runnerProvenanceModulePath = path.resolve(provenanceProjectRoot, 'lib/runner-provenance.mjs');
+const packageManifestPath = path.resolve(provenanceProjectRoot, 'package.json');
+
+function safeSha256File(filePath) {
+  try {
+    return sha256File(filePath);
+  } catch {
+    return null;
+  }
+}
+
+function readGitOutput(args) {
+  try {
+    return execFileSync('git', ['-C', provenanceProjectRoot, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 3000,
+      maxBuffer: 16 * 1024 * 1024,
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function readSourceRevision() {
+  const headCommit = readGitOutput(['rev-parse', 'HEAD']);
+  const worktreeStatus = readGitOutput(['status', '--porcelain=v1', '--untracked-files=all']);
+  return {
+    headCommit,
+    worktreeDirty: typeof worktreeStatus === 'string' ? worktreeStatus.length > 0 : null,
+    worktreeStatusSha256: typeof worktreeStatus === 'string' ? sha256(worktreeStatus) : null,
+  };
+}
+
+function readPackageVersion() {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(packageManifestPath, 'utf8'));
+    return typeof manifest.version === 'string' ? manifest.version : null;
+  } catch {
+    return null;
+  }
 }
 
 function resolveFrameworkPath(executablePath) {
@@ -198,6 +253,20 @@ async function evaluate(client, expression, timeoutMs = 20000) {
   return evaluatedValue(response);
 }
 
+async function waitForHomeDashboard(client) {
+  const deadline = Date.now() + Math.min(timeoutMs, 10000);
+  while (Date.now() < deadline) {
+    try {
+      const home = await evaluate(client, '(() => ({ href: location.origin + location.pathname, title: document.title, hasHomeDashboard: Boolean(document.getElementById(\'homeDashboard\')), apiToken: new URL(location.href).searchParams.get(\'token\') || \'\' }))()');
+      if (home?.hasHomeDashboard === true) return home;
+    } catch {
+      // The renderer may still be navigating; keep the bounded startup wait.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('ELECTRON_HOME_DASHBOARD_TIMEOUT');
+}
+
 const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-subtitle-ollama-ui-electron-'));
 const childEnv = {
   PATH: process.env.PATH || '',
@@ -208,7 +277,10 @@ const childEnv = {
   SUBTITLE_AI_KEYS_JSON: '{}',
   ELECTRON_NO_ATTACH_CONSOLE: '1',
 };
-const executableArgs = [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`];
+const executableArgs = [
+  `--remote-debugging-port=${port}`,
+  `--user-data-dir=${userDataDir}`,
+];
 const childCommand = sandboxedTargetProcessTree ? '/usr/bin/sandbox-exec' : path.resolve(exePath);
 const childArgs = sandboxedTargetProcessTree
   ? ['-p', sandboxProfile, '/usr/bin/env', ...Object.entries(childEnv).map(([key, value]) => `${key}=${value}`), path.resolve(exePath), ...executableArgs]
@@ -233,15 +305,39 @@ try {
 } catch {
   // Framework identity is best-effort and must never prevent cleanup evidence.
 }
-const child = spawn(childCommand, childArgs, {
-  cwd: path.dirname(path.resolve(exePath)),
-  env: childEnv,
-  stdio: ['ignore', 'pipe', 'pipe'],
-  detached: process.platform !== 'win32',
-});
-let childSpawnError = null;
+const sourceRevision = readSourceRevision();
+const replayProvenanceInput = {
+  sourceHeadCommit: sourceRevision.headCommit,
+  worktreeDirty: sourceRevision.worktreeDirty,
+  worktreeStatusSha256: sourceRevision.worktreeStatusSha256,
+  runnerScriptSha256: safeSha256File(runnerSourcePath),
+  runnerProvenanceModuleSha256: safeSha256File(runnerProvenanceModulePath),
+  packageManifestSha256: safeSha256File(packageManifestPath),
+  packageVersion: readPackageVersion(),
+  command: 'node',
+  script: 'scripts/verify-electron-ollama-ui.mjs',
+  scenario,
+  model,
+  debugPort: port,
+  timeoutMs,
+  platform: process.platform,
+  arch: process.arch,
+  node: process.version,
+  osRelease: os.release(),
+  preLaunchExecutableSha256: candidateExecutableSha256,
+  preLaunchReviewScriptSha256: candidateReviewScriptSha256,
+  preLaunchFrameworkSha256: candidateFrameworkSha256,
+  loadedExecutableSha256: null,
+  loadedReviewScriptSha256: null,
+  loadedFrameworkSha256: null,
+};
+let replayProvenance = projectReplayProvenance(replayProvenanceInput);
 const childOutputCaptureLimitBytes = 16000;
 let childOutputBuffer = Buffer.alloc(0);
+let child = null;
+let childSpawnError = null;
+let appProcessGroupId = null;
+let childLaunchCount = 0;
 const captureChildOutput = (chunk) => {
   const chunkBuffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
   childOutputBuffer = Buffer.concat([childOutputBuffer, chunkBuffer]);
@@ -249,11 +345,28 @@ const captureChildOutput = (chunk) => {
     childOutputBuffer = childOutputBuffer.subarray(-childOutputCaptureLimitBytes);
   }
 };
-child.once('error', (error) => { childSpawnError = String(error?.code || 'SPAWN_ERROR'); });
-child.stdout.on('data', captureChildOutput);
-child.stderr.on('data', captureChildOutput);
-Object.defineProperty(child, 'spawnError', { get: () => childSpawnError });
-const appProcessGroupId = process.platform === 'win32' ? null : child.pid || null;
+function launchElectronChild() {
+  const nextChild = spawn(childCommand, childArgs, {
+    cwd: path.dirname(path.resolve(exePath)),
+    env: childEnv,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
+  });
+  let nextSpawnError = null;
+  nextChild.once('error', (error) => {
+    nextSpawnError = String(error?.code || 'SPAWN_ERROR');
+    if (child === nextChild) childSpawnError = nextSpawnError;
+  });
+  nextChild.stdout.on('data', captureChildOutput);
+  nextChild.stderr.on('data', captureChildOutput);
+  Object.defineProperty(nextChild, 'spawnError', { get: () => nextSpawnError });
+  child = nextChild;
+  childSpawnError = null;
+  appProcessGroupId = process.platform === 'win32' ? null : nextChild.pid || null;
+  childLaunchCount += 1;
+  return nextChild;
+}
+launchElectronChild();
 
 let client;
 let ownedDaemon = null;
@@ -261,7 +374,7 @@ let appServerPort = null;
 const startedAt = new Date().toISOString();
 const started = Date.now();
 let evidence = {
-  schema: 'offline-subtitle-factory.ollama-ui-live-acceptance.v4',
+  schema: 'offline-subtitle-factory.ollama-ui-live-acceptance.v5',
   scenario,
   artifact: {
     executableSha256: candidateExecutableSha256,
@@ -271,6 +384,23 @@ let evidence = {
     electronFrameworkRelativePath: 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework',
   },
   launch: launchSummary,
+  runnerProvenance: projectRunnerProvenance({
+    command: launchSummary.command,
+    argv: launchSummary.argv,
+    sandboxedTargetProcessTree,
+    outerSandboxProfileApplied: launchSummary.outerSandboxProfileApplied,
+    candidateExecutableSha256,
+    candidateReviewScriptSha256,
+    candidateFrameworkSha256,
+    candidateFrameworkPresent,
+    candidateFrameworkRelativePath: 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework',
+    childOutputSha256: null,
+    childOutputBytes: 0,
+    captureLimitBytes: childOutputCaptureLimitBytes,
+    startupDiagnosticCategories: [],
+    rawChildOutputPersisted: false,
+  }),
+  replayProvenance,
   diagnostics: {
     captureLimitBytes: childOutputCaptureLimitBytes,
     rawChildOutputPersisted: false,
@@ -304,10 +434,34 @@ let evidence = {
     electronProcessGroupForcedCleanup: false,
     appServerPortClosed: false,
     userDataRemoved: false,
+    appRestart: {
+      attempted: false,
+      firstElectronExited: false,
+      firstProcessGroupAbsentAfterCleanup: false,
+      firstProcessGroupClosedConfirmed: false,
+      firstProcessGroupForcedCleanup: false,
+      firstAppServerPortClosed: false,
+      userDataPreservedBetweenLaunches: false,
+      secondLaunchReady: false,
+      secondAppServerPortCaptured: false,
+      secondAppServerPortClosed: false,
+    },
   },
 };
+
+function refreshReplayProvenance() {
+  replayProvenance = projectReplayProvenance({
+    ...replayProvenanceInput,
+    loadedExecutableSha256: safeSha256File(exePath),
+    loadedReviewScriptSha256: safeSha256File(reviewScriptPath),
+    loadedFrameworkSha256: safeSha256File(frameworkPath),
+  });
+  evidence.replayProvenance = replayProvenance;
+}
+
 let uiTrace = {};
 let cancelledSessionId = null;
+let reviewNavigation = null;
 let currentStage = 'artifact_preflight';
 let lastTargetSummary = { pageCount: 0, localUiPageCount: 0, filePageCount: 0 };
 
@@ -354,7 +508,7 @@ async function isPortClosed(targetPort) {
 }
 
 async function waitForPortClosed(targetPort) {
-  if (!targetPort) return true;
+  if (!Number.isInteger(targetPort) || targetPort < 1024 || targetPort > 65535) return false;
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
     if (await isPortClosed(targetPort)) return true;
@@ -375,12 +529,16 @@ async function removeAndConfirm(target) {
 
 function failureCategory(error) {
   const message = String(error?.message || '');
-  if (safeStartupDiagnosticCategories().includes('CHROMIUM_CHILD_SANDBOX_INIT_FAILED')) return 'CHROMIUM_CHILD_SANDBOX_INIT_FAILED';
   if (message === 'CANDIDATE_ARTIFACT_READ_FAILED') return 'CANDIDATE_ARTIFACT_READ_FAILED';
+  if (/REPLAY_PROVENANCE_(?:UNAVAILABLE|INCOMPLETE)/.test(message)) return 'REPLAY_PROVENANCE_UNAVAILABLE';
   if (message === 'DEVTOOLS_TARGET_URL_REJECTED') return 'DEVTOOLS_TARGET_URL_REJECTED';
   if (message === 'ELECTRON_SPAWN_FAILED' || error?.code === 'ENOENT') return 'ELECTRON_SPAWN_FAILED';
   if (message === 'ELECTRON_EXITED_BEFORE_RENDERER') return 'ELECTRON_EARLY_EXIT';
   if (message === 'ELECTRON_RENDERER_TIMEOUT') return 'ELECTRON_RENDERER_TIMEOUT';
+  if (message === 'Failed to connect to Electron DevTools') return 'ELECTRON_DEVTOOLS_CONNECT_FAILED';
+  if (message === 'Timed out connecting to Electron DevTools') return 'ELECTRON_DEVTOOLS_CONNECT_TIMEOUT';
+  if (message === 'ELECTRON_HOME_DASHBOARD_TIMEOUT') return 'ELECTRON_HOME_DASHBOARD_TIMEOUT';
+  if (currentStage === 'electron_start' && safeStartupDiagnosticCategories().includes('CHROMIUM_CHILD_SANDBOX_INIT_FAILED')) return 'CHROMIUM_CHILD_SANDBOX_INIT_FAILED';
   if (/MODEL_RESPONSE_CONTRACT_REJECTED|AI 回傳內容不是有效 JSON|cue 順序不符|段落數量不符/.test(message)) return 'MODEL_RESPONSE_CONTRACT_REJECTED';
   if (/翻譯語言與輸出語言/.test(message)) return 'MODEL_OUTPUT_LANGUAGE_REJECTED';
   if (/翻譯內容過短|翻譯建議過短/.test(message)) return 'MODEL_TRANSLATION_INCOMPLETE';
@@ -449,13 +607,20 @@ try {
     artifactError.code = 'CANDIDATE_ARTIFACT_READ_FAILED';
     throw artifactError;
   }
+  if (!replayProvenance.sourceProvenanceComplete) {
+    const provenanceError = new Error('REPLAY_PROVENANCE_UNAVAILABLE');
+    provenanceError.code = 'REPLAY_PROVENANCE_UNAVAILABLE';
+    throw provenanceError;
+  }
   currentStage = 'electron_start';
   const target = await waitForTarget(child);
   client = await connectWebSocket(target.webSocketDebuggerUrl);
-  const homeNavigationUrl = await evaluate(client, 'location.href');
+  const home = await waitForHomeDashboard(client);
+  refreshReplayProvenance();
+  let homeNavigationUrl = home.href;
+  let navigationToken = typeof home.apiToken === 'string' ? home.apiToken : '';
+  const homeEvidence = { href: home.href, title: home.title, hasHomeDashboard: home.hasHomeDashboard };
   appServerPort = Number(new URL(homeNavigationUrl).port) || null;
-  const home = await evaluate(client, '(() => ({ href: location.origin + location.pathname, title: document.title, hasHomeDashboard: Boolean(document.getElementById(\'homeDashboard\')) }))()');
-  requireOk(home.hasHomeDashboard, '封裝版首頁未載入');
   if (isolatedDaemon) {
     currentStage = 'local_daemon_start';
     ownedDaemon = await startLocalAcceptanceDaemon({
@@ -518,9 +683,9 @@ try {
   const originalSrtHash = sha256(fs.readFileSync(originalSrtPath));
   evidence.source = { cueCount: setup.cueCount, timecodes: setup.timecodes, sourceSubtitleSha256: setup.sourceHash, originalSubtitleFileName: setup.subtitleFileName, originalSrtSha256Before: originalSrtHash };
 
-  const reviewUrl = new URL(`/review/${encodeURIComponent(setup.jobId)}`, homeNavigationUrl);
+  let reviewUrl = new URL(`/review/${encodeURIComponent(setup.jobId)}`, homeNavigationUrl);
   currentStage = 'review_navigation';
-  reviewUrl.searchParams.set('token', new URL(homeNavigationUrl).searchParams.get('token') || '');
+  reviewUrl.searchParams.set('token', navigationToken);
   await client.call('Page.navigate', { url: reviewUrl.toString() });
   const reviewLoaded = await evaluate(client, `(async () => {
     const deadline = Date.now() + 15000;
@@ -530,6 +695,12 @@ try {
     }
     return { ready: false, href: location.origin + location.pathname, title: document.title, cueCount: document.getElementById('cueCount')?.textContent.trim() || '' };
   })()`);
+  reviewNavigation = {
+    ready: reviewLoaded?.ready === true,
+    href: typeof reviewLoaded?.href === 'string' && /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:review|index|trim)(?:\/|$)/.test(reviewLoaded.href) ? reviewLoaded.href : '',
+    title: typeof reviewLoaded?.title === 'string' && reviewLoaded.title.length <= 128 ? reviewLoaded.title : '',
+    cueCount: typeof reviewLoaded?.cueCount === 'string' && /^\d{1,4}$/.test(reviewLoaded.cueCount) ? reviewLoaded.cueCount : '',
+  };
   requireOk(reviewLoaded.ready, `校閱頁未載入 ${sourceCues.length} 段字幕：${reviewLoaded.cueCount || 'unknown'}`);
   currentStage = 'ai_settings';
 
@@ -550,7 +721,7 @@ try {
     setValue('aiEnabled', true);
     setValue('aiBaseUrl', ${JSON.stringify(ollamaBaseUrl)});
     setValue('aiModel', ${JSON.stringify(model)});
-    setValue('aiBatchSize', ${scenario === 'cancel-resume' ? 1 : 2});
+    setValue('aiBatchSize', ${isCancelResumeScenario ? 1 : 2});
     setValue('aiApiKey', '');
     setValue('aiLanguage', 'en', 'change');
     setValue('aiTimeoutSeconds', 120);
@@ -593,9 +764,10 @@ try {
 
   await evaluate(client, `(() => {
     const originalFetch = window.fetch;
-    window.fetch = (input, init = {}) => {
+    window.fetch = async (input, init = {}) => {
       const requestUrl = new URL(typeof input === 'string' ? input : input.url, location.href);
-      if (requestUrl.pathname.endsWith('/ai-optimize') && String(init.method || 'GET').toUpperCase() === 'POST') {
+      const method = String(init.method || 'GET').toUpperCase();
+      if (requestUrl.pathname.endsWith('/ai-optimize') && method === 'POST') {
         try {
           const body = JSON.parse(String(init.body || '{}'));
           window.__osfOllamaUiRequestSummary = {
@@ -609,7 +781,17 @@ try {
           };
         } catch {}
       }
-      return originalFetch(input, init);
+      const response = await originalFetch(input, init);
+      if (requestUrl.pathname.endsWith('/cancel-ai-optimize') && method === 'POST') {
+        let result = null;
+        try { result = await response.clone().json(); } catch {}
+        window.__osfOllamaUiCancelResponse = {
+          status: response.status,
+          ok: response.ok && result?.ok === true,
+          cancelled: result?.cancelled === true,
+        };
+      }
+      return response;
     };
     return true;
   })()`);
@@ -630,7 +812,7 @@ try {
   console.log(JSON.stringify({ stage: currentStage, ...startFlow }));
   requireOk(startFlow.requestCaptured && startFlow.taskHttpStatus === 200 && ['running', 'completed'].includes(startFlow.taskStatus), 'UI did not start an AI task');
 
-  if (scenario === 'cancel-resume') {
+  if (isCancelResumeScenario) {
     currentStage = 'checkpoint_cancel';
     const cancellation = await evaluate(client, `(async () => {
       const endpoint = '/api/jobs/' + encodeURIComponent(${JSON.stringify(setup.jobId)});
@@ -662,6 +844,7 @@ try {
             suggestionsHidden: document.getElementById('aiSuggestionActions').hidden === true,
             sourceSubtitleSha256: [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join(''),
             requestSummary: window.__osfOllamaUiRequestSummary || null,
+            cancelResponse: window.__osfOllamaUiCancelResponse || null,
             pageTimeOrigin: performance.timeOrigin,
           };
         }
@@ -684,9 +867,13 @@ try {
       suggestionsHidden: cancellation.suggestionsHidden === true,
       sourceSubtitleUnchangedAfterCancel: cancellation.sourceSubtitleSha256 === setup.sourceHash,
       originalSrtUnchangedAfterCancel: sha256(fs.readFileSync(originalSrtPath)) === originalSrtHash,
+      cancelRequestHttpStatus: Number(cancellation.cancelResponse?.status || 0),
+      cancelRequestAccepted: cancellation.cancelResponse?.ok === true,
+      cancelRequestCancelled: cancellation.cancelResponse?.cancelled === true,
     };
     uiTrace.cancelResume = cancelResume;
     requireOk(cancelResume.cancelled && cancelResume.retryable && cancelResume.completedBatches > 0 && cancelResume.completedBatches < cancelResume.totalBatches, 'Checkpoint cancellation window not confirmed');
+    requireOk(cancelResume.cancelRequestHttpStatus === 200 && cancelResume.cancelRequestAccepted && cancelResume.cancelRequestCancelled, 'Cancel POST response was not observed as accepted');
     const checkpoint = JSON.parse(fs.readFileSync(path.join(syntheticJobRoot, 'ai-output', 'checkpoint.json'), 'utf8'));
     cancelResume.checkpointPersisted = checkpoint.checkpoint?.nextBatchIndex === cancelResume.completedBatches;
     cancelResume.checkpointSuggestionCount = checkpoint.checkpoint?.suggestions?.length || 0;
@@ -709,6 +896,63 @@ try {
     cancelResume.sessionUnchangedAfterReload = restored.sessionId === cancellation.sessionId;
     cancelResume.checkpointUnchangedAfterReload = restored.completedBatches === cancelResume.completedBatches && restored.status === 'cancelled' && restored.cancelHidden === true;
     requireOk(cancelResume.resumeVisibleAfterReload && cancelResume.sessionUnchangedAfterReload && cancelResume.checkpointUnchangedAfterReload, 'Reload did not restore cancelled checkpoint');
+    if (requiresAppRestart) {
+      currentStage = 'checkpoint_app_restart';
+      const firstAppServerPort = appServerPort;
+      const userDataPresentBeforeRestart = fs.existsSync(userDataDir) && fs.existsSync(syntheticJobRoot);
+      client?.close();
+      client = null;
+      const firstCleanup = await stopChild();
+      const firstAppServerPortClosed = await waitForPortClosed(firstAppServerPort);
+      evidence.cleanup.appRestart.attempted = true;
+      evidence.cleanup.appRestart.firstElectronExited = firstCleanup.electronExited;
+      evidence.cleanup.appRestart.firstProcessGroupAbsentAfterCleanup = firstCleanup.groupAbsentAfterCleanup;
+      evidence.cleanup.appRestart.firstProcessGroupClosedConfirmed = firstCleanup.groupClosedConfirmed;
+      evidence.cleanup.appRestart.firstProcessGroupForcedCleanup = firstCleanup.forcedCleanup;
+      evidence.cleanup.appRestart.firstAppServerPortClosed = firstAppServerPortClosed;
+      evidence.cleanup.appRestart.userDataPreservedBetweenLaunches = userDataPresentBeforeRestart;
+      requireOk(firstCleanup.electronExited && firstCleanup.groupAbsentAfterCleanup && firstCleanup.groupClosedConfirmed && !firstCleanup.forcedCleanup && firstAppServerPortClosed && userDataPresentBeforeRestart, 'First Electron launch did not close while preserving restart data');
+      appServerPort = null;
+      launchElectronChild();
+      const restartedTarget = await waitForTarget(child);
+      client = await connectWebSocket(restartedTarget.webSocketDebuggerUrl);
+      const restartedHome = await waitForHomeDashboard(client);
+      refreshReplayProvenance();
+      homeNavigationUrl = restartedHome.href;
+      navigationToken = typeof restartedHome.apiToken === 'string' ? restartedHome.apiToken : '';
+      appServerPort = Number(new URL(homeNavigationUrl).port) || null;
+      evidence.cleanup.appRestart.secondAppServerPortCaptured = Number.isInteger(appServerPort);
+      requireOk(evidence.cleanup.appRestart.secondAppServerPortCaptured, 'Second Electron launch did not expose a valid app server port');
+      reviewUrl = new URL(`/review/${encodeURIComponent(setup.jobId)}`, homeNavigationUrl);
+      reviewUrl.searchParams.set('token', navigationToken);
+      await client.call('Page.navigate', { url: reviewUrl.toString() });
+      const restoredAfterRestart = await evaluate(client, `(async () => {
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+          if (document.getElementById('cueCount')?.textContent.trim() === ${JSON.stringify(String(sourceCues.length))} && document.getElementById('resumeAiOptimize')?.hidden === false) {
+            const record = await fetch('/api/jobs/' + encodeURIComponent(${JSON.stringify(setup.jobId)}) + '/ai-optimize', { cache: 'no-store' }).then((response) => response.json());
+            return {
+              ready: true,
+              pageTimeOrigin: performance.timeOrigin,
+              sessionId: record.sessionId,
+              completedBatches: record.progress?.completedBatches,
+              status: record.status,
+              cancelHidden: document.getElementById('cancelAiOptimize').hidden === true,
+            };
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        return { ready: false, pageTimeOrigin: performance.timeOrigin };
+      })()`, 20000);
+      cancelResume.appRestartAttempted = true;
+      cancelResume.appRestarted = restoredAfterRestart.ready === true;
+      cancelResume.resumeVisibleAfterAppRestart = restoredAfterRestart.ready === true;
+      cancelResume.sessionUnchangedAfterAppRestart = restoredAfterRestart.sessionId === cancellation.sessionId;
+      cancelResume.checkpointUnchangedAfterAppRestart = restoredAfterRestart.completedBatches === cancelResume.completedBatches && restoredAfterRestart.status === 'cancelled' && restoredAfterRestart.cancelHidden === true;
+      cancelResume.pageTimeOriginChangedAfterAppRestart = restoredAfterRestart.pageTimeOrigin !== cancellation.pageTimeOrigin;
+      evidence.cleanup.appRestart.secondLaunchReady = restoredAfterRestart.ready === true;
+      requireOk(cancelResume.resumeVisibleAfterAppRestart && cancelResume.sessionUnchangedAfterAppRestart && cancelResume.checkpointUnchangedAfterAppRestart && cancelResume.pageTimeOriginChangedAfterAppRestart, 'App restart did not restore cancelled checkpoint/session');
+    }
     await evaluate(client, `(() => {
       window.__osfOllamaUiRequestSummary = ${JSON.stringify(requestSummary)};
       const originalFetch = window.fetch;
@@ -758,7 +1002,7 @@ try {
   requireOk(runFlow.status === 'completed', `Ollama UI AI 任務未完成：${runFlow.error || runFlow.status}`);
   requireOk(runFlow.suggestionCount === sourceCues.length, `Ollama UI 建議數量不符：${runFlow.suggestionCount}/${sourceCues.length}`);
   requireOk(runFlow.sessionId && !runFlow.suggestionActionsHidden && runFlow.toolbarExpanded, 'Ollama UI 未呈現可接受的 AI 建議與 Session');
-  if (scenario === 'cancel-resume') {
+  if (isCancelResumeScenario) {
     const trace = uiTrace.cancelResume;
     trace.resumeRequestAccepted = runFlow.resumeResponse?.ok === true;
     trace.resumedFromBatch = runFlow.resumedFromBatch;
@@ -835,13 +1079,14 @@ try {
   evidence.source.originalSrtSha256After = sha256(fs.readFileSync(originalSrtPath));
   evidence.source.originalSrtUnchanged = evidence.source.originalSrtSha256After === originalSrtHash;
   requireOk(evidence.source.originalSrtUnchanged, 'Original synthetic SRT changed');
-  if (scenario === 'cancel-resume') {
+  if (isCancelResumeScenario) {
     const trace = uiTrace.cancelResume;
     requireOk(trace.resumeVisibleBeforeReload && trace.runEnabledAfterCancel && trace.cancelHidden && trace.suggestionsHidden && trace.sourceSubtitleUnchangedAfterCancel && trace.originalSrtUnchangedAfterCancel, 'Cancellation UI or source invariants failed');
   }
 
+  requireOk(evidence.replayProvenance?.provenanceComplete === true, 'REPLAY_PROVENANCE_INCOMPLETE');
   evidence.status = 'pass';
-  evidence.home = home;
+  evidence.home = homeEvidence;
   evidence.appServerPort = appServerPort;
   evidence.job = { createStatus: setup.createStatus, startStatus: setup.startStatus, finalStatus: setup.finalStatus, cueCount: setup.cueCount };
   evidence.ui = {
@@ -862,6 +1107,7 @@ try {
     electronExitCode: Number.isInteger(child.exitCode) ? child.exitCode : null,
     electronExitSignal: /^SIG[A-Z0-9]+$/.test(String(child.signalCode || '')) ? child.signalCode : null,
     startupDiagnosticCategories: safeStartupDiagnosticCategories(),
+    reviewNavigation,
   };
   evidence.ui = safeUiTrace(uiTrace);
 } finally {
@@ -874,6 +1120,14 @@ try {
     childOutputBytes: childOutputBuffer.length,
     startupDiagnosticCategories: safeStartupDiagnosticCategories(),
   };
+  evidence.runnerProvenance = {
+    ...evidence.runnerProvenance,
+    childOutputSha256: evidence.diagnostics.childOutputSha256,
+    childOutputBytes: evidence.diagnostics.childOutputBytes,
+    captureLimitBytes: evidence.diagnostics.captureLimitBytes,
+    startupDiagnosticCategories: evidence.diagnostics.startupDiagnosticCategories,
+    rawChildOutputPersisted: evidence.diagnostics.rawChildOutputPersisted,
+  };
   client?.close();
   const childCleanup = await stopChild();
   evidence.cleanup.electronExited = childCleanup.electronExited;
@@ -882,6 +1136,7 @@ try {
   evidence.cleanup.electronProcessGroupClosedConfirmed = childCleanup.groupClosedConfirmed;
   evidence.cleanup.electronProcessGroupForcedCleanup = childCleanup.forcedCleanup;
   evidence.cleanup.appServerPortClosed = await waitForPortClosed(appServerPort);
+  if (evidence.cleanup.appRestart.attempted) evidence.cleanup.appRestart.secondAppServerPortClosed = evidence.cleanup.appServerPortClosed;
   evidence.cleanup.userDataRemoved = await removeAndConfirm(userDataDir);
   evidence.cleanup.ownedDaemon = await stopLocalAcceptanceDaemon(ownedDaemon);
   const daemonCleanup = evidence.cleanup.ownedDaemon;
@@ -894,7 +1149,7 @@ try {
   }
   try {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
   } catch {
     console.error('Ollama UI acceptance evidence could not be safely written.');
     evidence.status = 'fail';

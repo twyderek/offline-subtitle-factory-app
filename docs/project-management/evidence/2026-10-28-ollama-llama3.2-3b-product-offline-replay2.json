@@ -1,0 +1,69 @@
+{
+  "schema": "offline-subtitle-factory.ollama-product-offline-acceptance.v1",
+  "startedAt": "2026-10-28T03:08:20.510Z",
+  "completedAt": "2026-10-28T03:08:34.098Z",
+  "elapsedMs": 13588,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:3b",
+  "status": "pass",
+  "failureCode": null,
+  "failureStage": null,
+  "failureClass": null,
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": true,
+    "externalSocketError": "EPERM",
+    "targetProcesses": [
+      "isolated ollama serve",
+      "product probe and descendant app server"
+    ],
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "startedInSandbox": true,
+    "baseUrlLoopbackOnly": true,
+    "preinstalledModelFound": true,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "productFlow": {
+    "status": "pass",
+    "endpointPrivacy": "local",
+    "job": {
+      "created": true,
+      "aiStatus": "completed",
+      "suggestionCount": 2,
+      "totalRetries": 0
+    },
+    "session": {
+      "created": true,
+      "accepted": 2,
+      "undoChanges": 2,
+      "redoChanges": 2
+    },
+    "review": {
+      "saved": true,
+      "cueCount": 2,
+      "timecodesUnchanged": true,
+      "sourceSrtPreserved": true,
+      "sourceSrtBeforeSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+      "sourceSrtAfterSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+      "sourceSrtSha256": "9c445ec8160ce9a3c13d28b207ca872897b6d3dd16a528f2be39460c6210da3e",
+      "reviewSrtSha256": "5944c95d5b26b07a672477dbbd5c6b3bf02a2f52bfa6034d05cd00ce9970b831"
+    },
+    "networkSandboxInheritedByProductServer": true,
+    "failureCategory": null
+  },
+  "cleanup": {
+    "temporaryRootRemoved": true,
+    "daemonStopped": true,
+    "daemonPortClosed": true
+  }
+}

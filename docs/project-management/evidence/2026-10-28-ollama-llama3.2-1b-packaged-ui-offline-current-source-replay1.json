@@ -1,0 +1,163 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-offline-acceptance.v5",
+  "startedAt": "2026-10-28T04:41:52.187Z",
+  "completedAt": "2026-10-28T04:41:58.033Z",
+  "elapsedMs": 5846,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3",
+    "macOSProductVersion": "27.0.1",
+    "macOSBuildVersion": "26A434"
+  },
+  "candidate": {
+    "bundleInputKind": "app_bundle_directory",
+    "bundleVersion": "0.52.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executableName": "離線字幕工廠",
+    "executableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:1b",
+  "status": "fail",
+  "failureCode": "CHROMIUM_CHILD_SANDBOX_INIT_FAILED",
+  "failureStage": "electron_start",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": true,
+    "externalSocketError": "EPERM",
+    "daemonStartedInSandbox": true,
+    "electronAppStartedInSandbox": true,
+    "uiAutomationDriverSandboxed": false,
+    "networkSandboxInheritedByElectronAndServer": true,
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "preinstalledModelFound": true,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "ui": {
+    "status": "fail",
+    "homeDashboardLoaded": false,
+    "job": {
+      "createStatus": 0,
+      "startStatus": 0,
+      "finalStatus": "",
+      "cueCount": 0
+    },
+    "settings": {
+      "provider": "",
+      "model": "",
+      "language": "",
+      "saved": false,
+      "keyEmpty": false,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": false,
+      "consentDisabled": false
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewSha256": null
+    },
+    "source": {
+      "cueCount": 0,
+      "timecodes": [],
+      "sourceSubtitleSha256": null
+    },
+    "appServerPortClosed": true,
+    "electronExited": true,
+    "electronProcessGroupPresentAtCleanupStart": true,
+    "electronProcessGroupAbsentAfterCleanup": true,
+    "electronProcessGroupClosedConfirmed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "userDataRemoved": true,
+    "failureCategory": "CHROMIUM_CHILD_SANDBOX_INIT_FAILED",
+    "electronExitCode": null,
+    "electronExitSignal": "SIGTRAP",
+    "startupDiagnosticCategories": [
+      "CHROMIUM_CHILD_SANDBOX_INIT_FAILED",
+      "CHROMIUM_GPU_SANDBOX_UNAVAILABLE",
+      "OS_PERMISSION_DENIED"
+    ],
+    "runnerProvenance": {
+      "command": "sandbox-exec",
+      "argv": [
+        "-p",
+        "<outer-sandbox-profile>",
+        "/usr/bin/env",
+        "PATH=<redacted>",
+        "HOME=<redacted>",
+        "TMPDIR=<redacted>",
+        "LANG=<redacted>",
+        "SUBTITLE_AI_API_KEY=<redacted>",
+        "SUBTITLE_AI_KEYS_JSON=<redacted>",
+        "ELECTRON_NO_ATTACH_CONSOLE=<redacted>",
+        "--remote-debugging-port=57901",
+        "--user-data-dir=<temporary-user-data>"
+      ],
+      "argvRedactionValidated": false,
+      "argvDroppedCount": 1,
+      "argvInputCount": 13,
+      "sandboxedTargetProcessTree": true,
+      "outerSandboxProfileApplied": true,
+      "candidateExecutableSha256": "b3605c589459068f894a70896b8ed843be3832a839fcdd83aa898e9b16210de4",
+      "candidateReviewScriptSha256": "ac25c6639a282eb5807c903fd0bded2419a39ce304428efeb137ac4a19a2b04b",
+      "candidateFrameworkSha256": "416b6c8cf74c59188266d3ff7a3fc77b9f68bb52f7328d98b382d132580c8cee",
+      "candidateFrameworkPresent": true,
+      "candidateFrameworkRelativePath": "Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework",
+      "childOutputSha256": "e73cbaeaea796d450ffe9563163028f633c412b3e3099c7dddb320a87ebd8676",
+      "childOutputBytes": 3441,
+      "captureLimitBytes": 16000,
+      "startupDiagnosticCategories": [
+        "CHROMIUM_CHILD_SANDBOX_INIT_FAILED",
+        "CHROMIUM_GPU_SANDBOX_UNAVAILABLE",
+        "OS_PERMISSION_DENIED"
+      ],
+      "rawChildOutputPersisted": false
+    }
+  },
+  "cleanup": {
+    "uiRunnerExited": true,
+    "uiAutomationDriverGroupPresentAtCleanupStart": false,
+    "uiAutomationDriverGroupAbsentAfterCleanup": true,
+    "uiAutomationDriverGroupClosedConfirmed": true,
+    "uiAutomationDriverGroupForcedCleanup": false,
+    "daemonStopped": true,
+    "ollamaDaemonGroupPresentAtCleanupStart": false,
+    "ollamaDaemonGroupAbsentAfterCleanup": true,
+    "ollamaDaemonGroupClosedConfirmed": true,
+    "ollamaDaemonGroupForcedCleanup": false,
+    "daemonPortClosed": true,
+    "temporaryRootRemoved": true
+  },
+  "scope": {
+    "systemNetworkDisabled": false,
+    "apiKeySupplied": false,
+    "externalProviderUsed": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "windows": "deferred-by-request"
+  }
+}

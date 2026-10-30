@@ -1,0 +1,119 @@
+{
+  "schema": "offline-subtitle-factory.ollama-ui-offline-acceptance.v1",
+  "startedAt": "2026-09-30T01:57:08.859Z",
+  "completedAt": "2026-09-30T01:57:14.350Z",
+  "elapsedMs": 5491,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "candidate": {
+    "bundleVersion": "0.51.0",
+    "bundleIdentifier": "com.offline-subtitle-factory.app",
+    "executableName": "離線字幕工廠",
+    "executableSha256": "e872f406bfb64ced064cdf8efaf0ae329e0db82e3ac0d92a4b192da3963f80ec"
+  },
+  "provider": "ollama",
+  "model": "llama3.2:3b",
+  "status": "fail",
+  "failureCode": "UI_RUNNER_FAILED",
+  "failureStage": "electron_start",
+  "isolation": {
+    "mechanism": "macOS Seatbelt sandbox-exec",
+    "profileId": "deny-network-loopback-only-v1",
+    "loopbackAllowed": true,
+    "externalSocketDenied": true,
+    "externalSocketError": "EPERM",
+    "daemonStartedInSandbox": true,
+    "electronAppStartedInSandbox": true,
+    "uiAutomationDriverSandboxed": false,
+    "networkSandboxInheritedByElectronAndServer": true,
+    "systemNetworkDisabled": false
+  },
+  "daemon": {
+    "preinstalledModelFound": true,
+    "modelDownloadAttempted": false,
+    "stopped": true
+  },
+  "ui": {
+    "status": "fail",
+    "homeDashboardLoaded": false,
+    "job": {
+      "createStatus": 0,
+      "startStatus": 0,
+      "finalStatus": "",
+      "cueCount": 0
+    },
+    "settings": {
+      "provider": "",
+      "model": "",
+      "language": "",
+      "saved": false,
+      "keyEmpty": false,
+      "keyHasSavedValue": false,
+      "privacyIsLocal": false,
+      "consentDisabled": false
+    },
+    "optimize": {
+      "status": "",
+      "suggestionCount": 0,
+      "totalRetries": null,
+      "requestSummary": null
+    },
+    "accept": {
+      "accepted": 0,
+      "actionsHidden": false
+    },
+    "history": {
+      "undo": false,
+      "redo": false,
+      "undoEnabled": false,
+      "redoEnabled": false
+    },
+    "save": {
+      "saved": false,
+      "subtitleFileName": "",
+      "cueCount": 0,
+      "timecodesUnchanged": false,
+      "hasEnglishTranslation": false,
+      "reviewSha256": null
+    },
+    "source": {
+      "cueCount": 0,
+      "timecodes": [],
+      "sourceSubtitleSha256": null
+    },
+    "appServerPortClosed": true,
+    "electronExited": true,
+    "electronProcessGroupAbsentAtExit": false,
+    "electronProcessGroupClosed": true,
+    "electronProcessGroupForcedCleanup": false,
+    "userDataRemoved": true,
+    "failureCategory": "ELECTRON_EARLY_EXIT",
+    "electronExitCode": null,
+    "electronExitSignal": "SIGTRAP",
+    "startupDiagnosticCategories": [
+      "OS_PERMISSION_DENIED"
+    ]
+  },
+  "cleanup": {
+    "uiRunnerExited": true,
+    "uiRunnerProcessGroupAbsentAtExit": true,
+    "uiRunnerProcessGroupClosed": true,
+    "uiRunnerProcessGroupMemberCountAtExit": 0,
+    "uiRunnerProcessGroupCommandNamesAtExit": [],
+    "daemonStopped": true,
+    "daemonProcessGroupAbsentAtExit": true,
+    "daemonProcessGroupClosed": true,
+    "daemonPortClosed": true,
+    "temporaryRootRemoved": true
+  },
+  "scope": {
+    "systemNetworkDisabled": false,
+    "apiKeySupplied": false,
+    "externalProviderUsed": false,
+    "lmStudio": "not-run-by-explicit-scope-exception",
+    "windows": "deferred-by-request"
+  }
+}

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnManagedChild, stopManagedChild } from '../lib/ai/managed-child-process.mjs';
 import { cleanupProcessGroup } from '../lib/process-group-cleanup.mjs';
-import { sanitizeRunnerArgv } from '../lib/runner-provenance.mjs';
+import { projectRunnerProvenance } from '../lib/runner-provenance.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sandboxExec = '/usr/bin/sandbox-exec';
@@ -323,7 +323,6 @@ function projectUiEvidence(source) {
   const accept = source?.ui?.accept || {};
   const history = source?.ui?.history || {};
   const save = source?.ui?.save || {};
-  const runnerArgvProjection = sanitizeRunnerArgv(source?.launch?.argv);
   return {
     status: String(source?.status || 'unknown'),
     homeDashboardLoaded: source?.home?.hasHomeDashboard === true,
@@ -378,27 +377,22 @@ function projectUiEvidence(source) {
     startupDiagnosticCategories: Array.isArray(source?.error?.startupDiagnosticCategories)
       ? source.error.startupDiagnosticCategories.filter((item) => /^[A-Z0-9_]+$/.test(String(item))).slice(0, 8)
       : [],
-    runnerProvenance: {
-      command: /^[A-Za-z0-9._ -]+$/.test(String(source?.launch?.command || '')) ? source.launch.command : null,
-      argv: runnerArgvProjection.argv,
-      argvRedactionValidated: runnerArgvProjection.argvRedactionValidated,
-      argvDroppedCount: runnerArgvProjection.argvDroppedCount,
-      argvInputCount: runnerArgvProjection.argvInputCount,
+    runnerProvenance: projectRunnerProvenance({
+      command: source?.launch?.command,
+      argv: source?.launch?.argv,
       sandboxedTargetProcessTree: source?.launch?.sandboxedTargetProcessTree === true,
       outerSandboxProfileApplied: source?.launch?.outerSandboxProfileApplied === true,
-      candidateExecutableSha256: /^[a-f0-9]{64}$/i.test(String(source?.artifact?.executableSha256 || '')) ? source.artifact.executableSha256 : null,
-      candidateFrameworkSha256: /^[a-f0-9]{64}$/i.test(String(source?.artifact?.electronFrameworkSha256 || '')) ? source.artifact.electronFrameworkSha256 : null,
+      candidateExecutableSha256: source?.artifact?.executableSha256,
+      candidateReviewScriptSha256: source?.artifact?.reviewScriptSha256,
+      candidateFrameworkSha256: source?.artifact?.electronFrameworkSha256,
       candidateFrameworkPresent: source?.artifact?.electronFrameworkPresent === true,
-      candidateFrameworkRelativePath: source?.artifact?.electronFrameworkRelativePath === 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework'
-        ? source.artifact.electronFrameworkRelativePath : null,
-      childOutputSha256: /^[a-f0-9]{64}$/i.test(String(source?.diagnostics?.childOutputSha256 || '')) ? source.diagnostics.childOutputSha256 : null,
-      childOutputBytes: Number.isInteger(source?.diagnostics?.childOutputBytes) ? source.diagnostics.childOutputBytes : null,
-      captureLimitBytes: Number.isInteger(source?.diagnostics?.captureLimitBytes) ? source.diagnostics.captureLimitBytes : null,
-      startupDiagnosticCategories: Array.isArray(source?.diagnostics?.startupDiagnosticCategories)
-        ? source.diagnostics.startupDiagnosticCategories.filter((item) => /^[A-Z0-9_]+$/.test(String(item))).slice(0, 8)
-        : [],
+      candidateFrameworkRelativePath: source?.artifact?.electronFrameworkRelativePath,
+      childOutputSha256: source?.diagnostics?.childOutputSha256,
+      childOutputBytes: source?.diagnostics?.childOutputBytes,
+      captureLimitBytes: source?.diagnostics?.captureLimitBytes,
+      startupDiagnosticCategories: source?.diagnostics?.startupDiagnosticCategories,
       rawChildOutputPersisted: source?.diagnostics?.rawChildOutputPersisted === true,
-    },
+    }),
   };
 }
 
@@ -541,7 +535,7 @@ evidence.elapsedMs = Date.now() - started;
 
 try {
   fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
-  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
 } catch {
   console.error('Packaged Ollama UI offline acceptance evidence could not be safely written.');
   process.exitCode = 1;
