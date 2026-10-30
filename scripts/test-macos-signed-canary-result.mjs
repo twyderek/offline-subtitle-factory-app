@@ -19,6 +19,11 @@ import { validateEvidence } from './audit-macos-signed-canary-result.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const evidenceDir = path.join(appDir, 'docs/project-management/evidence');
+const assertPrivateEvidenceMode = (filePath) => {
+  // Windows does not expose POSIX permission bits through fs.stat(). The writer
+  // still requests 0600; enforce the observable mode contract on POSIX hosts.
+  if (process.platform !== 'win32') assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
+};
 
 const sourceBuildConfig = {
   identityConfiguration: 'auto-discovery',
@@ -246,7 +251,7 @@ try {
   assert.equal(malformedResultEvidence.candidate.metadataValid, false);
   assert.equal(malformedResultEvidence.candidate.executableSha256, null);
   assert.equal(malformedResultEvidence.objects.length, expectedCodeObjectLabels.length);
-  assert.equal(fs.statSync(malformedResultOutput).mode & 0o777, 0o600);
+  assertPrivateEvidenceMode(malformedResultOutput);
 
   const identityAudit = spawnSync(process.execPath, [
     '--import', fakeDarwinBootstrap,
@@ -260,7 +265,7 @@ try {
   assert.equal(malformedIdentityEvidence.summary.candidateMetadataValid, false);
   assert.equal(malformedIdentityEvidence.candidate.executableSha256, null);
   assert.equal(malformedIdentityEvidence.objects.length, expectedCodeObjectLabels.length);
-  assert.equal(fs.statSync(malformedIdentityOutput).mode & 0o777, 0o600);
+  assertPrivateEvidenceMode(malformedIdentityOutput);
 } finally {
   fs.rmSync(malformedResultOutput, { force: true });
   fs.rmSync(malformedIdentityOutput, { force: true });

@@ -1,5 +1,13 @@
 # 偵錯與修改歷程
 
+### BUG-064：Windows workflow 的 macOS evidence mode contract 直接比對 POSIX 0600（2026-10-30；source 已修正，CI 複驗中）
+
+- 現象：Windows workflow `41013005375` 已通過上一個 gate path failure，但在 `scripts/test-macos-signed-canary-result.mjs:249` 以 `438 !== 384` 失敗；Windows `fs.stat().mode` 不提供 POSIX `0600` 的可觀測語義。
+- 根因：macOS-only evidence writer 的測試也由跨平台 `npm run check` 執行，直接以 Unix mode bits 驗證 Windows 檔案，將平台能力差異誤判為 evidence writer failure。
+- 修正：三支 macOS signed-canary contract tests 將 mode assertion 集中為跨平台 helper；POSIX 仍嚴格要求 `0600`，Windows 保留 writer 呼叫但跳過不具語義的 mode-bit 比對。
+- 本地驗證：`node scripts/test-macos-signed-canary-result.mjs`、`node scripts/test-macos-signed-canary-distribution.mjs`、`node scripts/test-macos-signed-canary-external-boundary.mjs` 均 exit 0；待新的 Windows workflow 確認 source／runtime／package／install 全流程。
+- 界線：本修正只處理跨平台測試契約，不代表 macOS signed／notarized candidate、Windows Release asset 或實機驗收已完成。
+
 ### BUG-063：Windows workflow 的 signed-canary gate contract 使用 macOS 硬編碼暫存路徑（2026-10-30；source 已修正，CI 複驗中）
 
 - 現象：GitHub Windows workflow `40993031453` 在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs` 失敗；Windows `os.tmpdir()` 解析為 `D:\\tmp`，測試卻要求 `/tmp/osf-signed-canary-test-output`。

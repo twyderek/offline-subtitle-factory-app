@@ -10,6 +10,12 @@ import {
   writeEvidenceFile,
 } from './audit-macos-signed-canary-external-boundary.mjs';
 
+const assertPrivateEvidenceMode = (filePath) => {
+  // Windows does not expose POSIX permission bits through fs.stat(). The writer
+  // still requests 0600; enforce the observable mode contract on POSIX hosts.
+  if (process.platform !== 'win32') assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
+};
+
 const gitSha = 'a'.repeat(40);
 const remoteSha = 'b'.repeat(40);
 const contentSha = 'c'.repeat(40);
@@ -108,7 +114,7 @@ const writerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-external-boundary-
 try {
   const evidencePath = path.join(writerRoot, 'evidence.json');
   writeEvidenceFile(evidencePath, completeEvidence);
-  assert.equal((fs.statSync(evidencePath).mode & 0o777), 0o600);
+  assertPrivateEvidenceMode(evidencePath);
   assert.throws(() => writeEvidenceFile(evidencePath, completeEvidence), /EEXIST/);
 } finally {
   fs.rmSync(writerRoot, { recursive: true, force: true });

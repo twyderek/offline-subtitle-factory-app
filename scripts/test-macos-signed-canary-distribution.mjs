@@ -6,6 +6,12 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { inspectZipArchive, isBoundSubmittedDmg, isBoundSubmittedZip, readNotaryOutput, validateEvidence, writeEvidenceFile } from './audit-macos-signed-canary-distribution.mjs';
 
+const assertPrivateEvidenceMode = (filePath) => {
+  // Windows does not expose POSIX permission bits through fs.stat(). The writer
+  // still requests 0600; enforce the observable mode contract on POSIX hosts.
+  if (process.platform !== 'win32') assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
+};
+
 const hash = 'a'.repeat(64);
 const fixture = {
   schema: 'offline-subtitle-factory.macos-signed-canary-distribution-audit.v1',
@@ -194,7 +200,7 @@ if (process.platform === 'darwin' && process.arch === 'arm64') {
     assert.equal(auditEvidence.notarytoolZip.commandSucceeded, true);
     assert.equal(auditEvidence.zipArchive.status, 'valid');
     assert.equal(auditEvidence.staplerDmg.commandSucceeded, false);
-    assert.equal(fs.statSync(auditEvidencePath).mode & 0o777, 0o600);
+    assertPrivateEvidenceMode(auditEvidencePath);
   } finally {
     fs.rmSync(auditEvidencePath, { force: true });
     fs.rmSync(auditFixtureRoot, { recursive: true, force: true });
@@ -205,7 +211,7 @@ const writerFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-cana
 try {
   const evidencePath = path.join(writerFixtureRoot, 'evidence.json');
   writeEvidenceFile(evidencePath, fixture);
-  assert.equal((fs.statSync(evidencePath).mode & 0o777), 0o600);
+  assertPrivateEvidenceMode(evidencePath);
   assert.throws(() => writeEvidenceFile(evidencePath, fixture), /EEXIST/);
   const notaryDmgOutputPath = path.join(writerFixtureRoot, 'osf-signed-canary-notarytool-dmg-12345.json');
   const notaryZipOutputPath = path.join(writerFixtureRoot, 'osf-signed-canary-notarytool-zip-12345.json');

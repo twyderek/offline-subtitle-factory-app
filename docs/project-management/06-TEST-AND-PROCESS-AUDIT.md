@@ -1,5 +1,11 @@
 # 功能測試與流程稽核
 
+## 2026-10-30 Windows workflow POSIX mode-bit contract regression
+
+- Windows workflow run `41013005375`（HEAD `86d9133eda44480067e2a867445f1c4688b05470`）已通過 runtime 準備並在 `scripts/test-macos-signed-canary-result.mjs:249` 因 Windows mode `438` 與 POSIX `0600` 的預期 `384` 不同而停止。
+- 三支 signed-canary contract test 改以 `process.platform !== 'win32'` 條件驗證 `0600`；POSIX／macOS 仍保留嚴格 mode gate，Windows 不再把不可表達的 Unix mode bits 當成失敗。
+- 本地三支 focused tests 均 exit 0；修正推送後須重新驗證 Windows source／runtime、完整 regression、unsigned／signed package 路徑、renderer／install smoke、archive 與 SHA manifest。
+
 ## 2026-10-30 Windows workflow cross-platform contract regression
 
 - GitHub Windows workflow run `40993031453`（HEAD `4996a421de284569bc2e8660b2d6737a781e5fc1`）在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs:210` 失敗：實際 Windows temp path 為 `D:\\tmp\\osf-signed-canary-test-output`，fixture 卻要求 `/tmp/osf-signed-canary-test-output`。
