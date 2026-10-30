@@ -1,5 +1,11 @@
 # 功能測試與流程稽核
 
+## 2026-10-30 Windows workflow macOS ZIP fixture portability regression
+
+- Windows workflow run `41013228899` 在 `scripts/test-macos-signed-canary-distribution.mjs:136` 因 `/usr/bin/zip` 不存在停止；此前的 hard-coded temp path 與 POSIX mode-bit failures 已先由 `86d9133`／`02f795d` 修正。
+- archive integration fixture 現限定非 Windows 執行；Windows 保留 distribution schema／privacy／writer／notary projection／negative contract 測試，避免把 macOS-only CLI 工具缺失誤判為 Windows source regression。
+- 本地 distribution focused test 與完整 `npm run check` 均通過；修正推送後須重跑 Windows workflow，確認能進入 package／renderer／installation／archive／SHA stages。
+
 ## 2026-10-30 Windows workflow POSIX mode-bit contract regression
 
 - Windows workflow run `41013005375`（HEAD `86d9133eda44480067e2a867445f1c4688b05470`）已通過 runtime 準備並在 `scripts/test-macos-signed-canary-result.mjs:249` 因 Windows mode `438` 與 POSIX `0600` 的預期 `384` 不同而停止。

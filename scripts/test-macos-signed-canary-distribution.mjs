@@ -124,26 +124,28 @@ dirty.sourceRevision.workingTreeDirty = true;
 assert.doesNotThrow(() => validateEvidence(dirty));
 assert.equal(fs.existsSync('docs/project-management/evidence'), true);
 
-const zipFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-zip-archive-'));
-try {
-  const appName = '離線字幕工廠.app';
-  const executableName = '離線字幕工廠';
-  const executablePath = path.join(zipFixtureRoot, appName, 'Contents', 'MacOS', executableName);
-  fs.mkdirSync(path.dirname(executablePath), { recursive: true });
-  fs.writeFileSync(executablePath, 'embedded-app-executable-fixture');
-  const expectedExecutableHash = crypto.createHash('sha256').update(fs.readFileSync(executablePath)).digest('hex');
-  const zipPath = path.join(zipFixtureRoot, 'candidate.zip');
-  execFileSync('/usr/bin/zip', ['-q', '-r', zipPath, appName], { cwd: zipFixtureRoot });
-  const memberName = `${appName}/Contents/MacOS/${executableName}`;
-  const validZip = inspectZipArchive(zipPath, memberName, expectedExecutableHash);
-  assert.equal(validZip.commandSucceeded, true);
-  assert.equal(validZip.embeddedAppCommandSucceeded, true);
-  assert.equal(validZip.embeddedAppMatch, true);
-  assert.equal(validZip.status, 'valid');
-  assert.equal(inspectZipArchive(zipPath, memberName, 'b'.repeat(64)).embeddedAppMatch, false);
-  assert.equal(inspectZipArchive(zipPath, `${appName}/Contents/MacOS/missing`, expectedExecutableHash).status, 'invalid');
-} finally {
-  fs.rmSync(zipFixtureRoot, { recursive: true, force: true });
+if (process.platform !== 'win32') {
+  const zipFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-signed-canary-zip-archive-'));
+  try {
+    const appName = '離線字幕工廠.app';
+    const executableName = '離線字幕工廠';
+    const executablePath = path.join(zipFixtureRoot, appName, 'Contents', 'MacOS', executableName);
+    fs.mkdirSync(path.dirname(executablePath), { recursive: true });
+    fs.writeFileSync(executablePath, 'embedded-app-executable-fixture');
+    const expectedExecutableHash = crypto.createHash('sha256').update(fs.readFileSync(executablePath)).digest('hex');
+    const zipPath = path.join(zipFixtureRoot, 'candidate.zip');
+    execFileSync('/usr/bin/zip', ['-q', '-r', zipPath, appName], { cwd: zipFixtureRoot });
+    const memberName = `${appName}/Contents/MacOS/${executableName}`;
+    const validZip = inspectZipArchive(zipPath, memberName, expectedExecutableHash);
+    assert.equal(validZip.commandSucceeded, true);
+    assert.equal(validZip.embeddedAppCommandSucceeded, true);
+    assert.equal(validZip.embeddedAppMatch, true);
+    assert.equal(validZip.status, 'valid');
+    assert.equal(inspectZipArchive(zipPath, memberName, 'b'.repeat(64)).embeddedAppMatch, false);
+    assert.equal(inspectZipArchive(zipPath, `${appName}/Contents/MacOS/missing`, expectedExecutableHash).status, 'invalid');
+  } finally {
+    fs.rmSync(zipFixtureRoot, { recursive: true, force: true });
+  }
 }
 
 if (process.platform === 'darwin' && process.arch === 'arm64') {

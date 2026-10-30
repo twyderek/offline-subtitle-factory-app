@@ -1,5 +1,13 @@
 # 偵錯與修改歷程
 
+### BUG-065：Windows workflow 的 macOS ZIP fixture 依賴 `/usr/bin/zip`／`unzip`（2026-10-30；source 已修正，CI 複驗中）
+
+- 現象：Windows workflow `41013228899` 已通過前兩個跨平台 contract failure，但在 `scripts/test-macos-signed-canary-distribution.mjs:136` 因 `spawnSync /usr/bin/zip ENOENT` 停止。
+- 根因：macOS distribution integration fixture 無條件建立並檢查 ZIP；Windows runner 沒有 macOS 的 `/usr/bin/zip`／`unzip`，雖然該 fixture 並非 Windows package acceptance 的必要路徑。
+- 修正：將依賴 macOS ZIP／unzip 工具的 archive integration fixture 限定在非 Windows 執行；Windows 仍執行 distribution schema、privacy、writer、notary projection 與 fail-closed contract cases。
+- 本地驗證：`node scripts/test-macos-signed-canary-distribution.mjs` 與完整 `npm run check` 均 exit 0；待新的 Windows workflow 確認 package／renderer／installation／archive／SHA 路徑。
+- 界線：本修正只處理跨平台測試 fixture，不代表 macOS signed／notarized candidate、Windows Release asset 或實機驗收已完成。
+
 ### BUG-064：Windows workflow 的 macOS evidence mode contract 直接比對 POSIX 0600（2026-10-30；source 已修正，CI 複驗中）
 
 - 現象：Windows workflow `41013005375` 已通過上一個 gate path failure，但在 `scripts/test-macos-signed-canary-result.mjs:249` 以 `438 !== 384` 失敗；Windows `fs.stat().mode` 不提供 POSIX `0600` 的可觀測語義。
