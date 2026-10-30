@@ -1,5 +1,11 @@
 # 功能測試與流程稽核
 
+## 2026-10-30 Windows workflow cross-platform contract regression
+
+- GitHub Windows workflow run `40993031453`（HEAD `4996a421de284569bc2e8660b2d6737a781e5fc1`）在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs:210` 失敗：實際 Windows temp path 為 `D:\\tmp\\osf-signed-canary-test-output`，fixture 卻要求 `/tmp/osf-signed-canary-test-output`。
+- 修正測試改用 `os.tmpdir()`／`path.join()`；本地 `node scripts/test-macos-signed-canary-gate.mjs` 與完整 `npm run check` 均 exit 0。修正推送後須以新的 Windows workflow run 驗證 source check、runtime preparation、package build、renderer／installation smoke、archive與 SHA manifest。
+- 此項目前只結案 local source／test regression；Windows runner、unsigned／signed package、安裝生命週期與 Release asset 仍待 CI 複驗，不把 local pass 擴大成 Windows release acceptance。
+
 ## 2026-10-30 FR-021 signed-canary prerequisite revalidation review findings remediation
 
 - 修正後四支指定 source／test syntax、gate／readiness focused tests、`node scripts/test-project-docs-validator.mjs`、完整 `npm run check` 與 `git diff --check` 均 exit 0。

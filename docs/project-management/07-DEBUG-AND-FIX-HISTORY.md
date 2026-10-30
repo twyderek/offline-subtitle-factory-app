@@ -1,5 +1,13 @@
 # 偵錯與修改歷程
 
+### BUG-063：Windows workflow 的 signed-canary gate contract 使用 macOS 硬編碼暫存路徑（2026-10-30；source 已修正，CI 複驗中）
+
+- 現象：GitHub Windows workflow `40993031453` 在 `npm run check` 的 `scripts/test-macos-signed-canary-gate.mjs` 失敗；Windows `os.tmpdir()` 解析為 `D:\\tmp`，測試卻要求 `/tmp/osf-signed-canary-test-output`。
+- 根因：測試用固定 POSIX `/tmp` 字串驗證 signed-canary build config 的 isolated output，而該 contract 也會在 Windows runner 執行，造成跨平台測試本身 false failure。
+- 修正：改以 Node `os.tmpdir()` 與 `path.join()` 建立並驗證平台原生暫存路徑；保留 absolute path／source tree boundary 的既有 assertions。
+- 本地驗證：`node scripts/test-macos-signed-canary-gate.mjs` 與完整 `npm run check` 均 exit 0；待推送後由 Windows runner 重跑相同 workflow，確認後續封裝與安裝驗收沒有下一層問題。
+- 界線：本修正只處理 Windows CI contract failure，不代表 Windows 0.52.0 Release asset、Authenticode、實機安裝驗收或 Google／Apple 外部驗收已完成。
+
 ### FR-021-MACOS-SIGNED-CANARY-PREREQUISITES-REVALIDATION-20261030-NEXT2-REMEDIATION：formal gate／readiness evidence validator hardening（2026-10-30；待複審）
 
 - next2 round1 `TECH-GATE-N2-01` 發現 formal gate validator 只允許 `ready=false` 且 reasons 非空，真正 prerequisites 就緒時 main 會在 writer 前拒絕合法 ready evidence；另 `TECH-READINESS-N2-02` 指出 readiness timestamp 欄位只存在於 evidence，validator 未固定 schema。

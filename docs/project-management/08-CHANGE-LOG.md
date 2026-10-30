@@ -1,5 +1,17 @@
 # 改版與工作紀錄
 
+## 2026-10-30 — 0.52.0 unfinished release-scope completion audit（OSF-052-INCOMPLETE-RELEASE-CLOSEOUT-20261030）
+
+- 狀態：進行中
+- 執行者：Codex
+- 變更等級：發布（針對 0.52.0 發布說明列出的未完成驗收項目；不預設取得外部帳號、簽章憑證、Windows runner 或 GitHub 外部設定權限）
+- 需求來源：使用者要求「幫我完成尚未完成部分」。
+- 工作界線：逐項稽核並在目前環境安全可行的範圍完成 YouTube 真實驗收準備／本地測試、Windows 0.52.0 封裝準備、macOS Developer ID／公證前置條件與 packaged UI／長媒體驗收；需要真實 Google 帳號、Apple Developer ID／notarization credential、Windows 實機或外部 GitHub 設定的項目維持 fail-closed，不偽造驗收結果。
+- 目標與成功條件：以 current source、現有 release notes、workflow、evidence 與實際指令確認每一項未完成工作；完成可在本機完成的程式／測試／文件修正；對外部阻塞項目產生可追溯的 read-only readiness evidence；所有已實作變更通過完整測試、獨立審查與 `npm run docs:check:final`，再推送至目前 GitHub 分支。
+- 計畫：1. 已完成 full preflight 與固定治理路由閱讀。2. 建立本條目後盤點 0.52.0 未完成項目、現有 workflow／scripts／evidence 與外部前置條件。3. 先完成可在本機安全執行的最小修正與測試，保留外部能力缺口。4. 由獨立上下文依六面向審查；問題由主要代理修正並複審。5. 同步受影響的設計／測試／發布文件，執行完整 checks、final docs gate、commit／push 與 remote read-back。
+- 預計影響檔案／模組：依盤點結果可能涉及 YouTube／Windows／macOS signed-canary scripts、測試、release notes、目前狀態、測試稽核、debug history、evidence 與本條目；不修改 secrets、Keychain、GitHub Environment／reviewer／branch protection 或未授權外部服務。
+- 驗證計畫：逐項 read-only prerequisite probes、相關 focused tests、`npm run check`、`git diff --check`、`npm run docs:check:final`、獨立審查、GitHub branch SHA／tree／工作樹一致性核對。
+
 ## 2026-10-30 — GitHub full worktree synchronization and push（GITHUB-SYNC-20261030-ALL-UPDATES）
 
 - 狀態：完成
