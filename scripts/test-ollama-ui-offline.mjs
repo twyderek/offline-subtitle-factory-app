@@ -1,0 +1,463 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import http from 'node:http';
+import vm from 'node:vm';
+import { EventEmitter, once } from 'node:events';
+import { fileURLToPath } from 'node:url';
+import { createTrustedDevToolsWebSocket, isLocalElectronPageUrl, isTrustedDevToolsWebSocketUrl, selectTrustedElectronPageTarget } from '../lib/electron-devtools-target.mjs';
+import { cleanupProcessGroup, probeProcessGroup } from '../lib/process-group-cleanup.mjs';
+import { sanitizeRunnerArgv } from '../lib/runner-provenance.mjs';
+import { startLocalAcceptanceDaemon, stopLocalAcceptanceDaemon } from './ollama-ui-local-daemon.mjs';
+
+const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const wrapperPath = path.join(appDir, 'scripts/verify-electron-ollama-ui-offline.mjs');
+const uiProbePath = path.join(appDir, 'scripts/verify-electron-ollama-ui.mjs');
+const wrapperSource = fs.readFileSync(wrapperPath, 'utf8');
+const uiProbeSource = fs.readFileSync(uiProbePath, 'utf8');
+const packageManifest = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
+
+const splashTarget = { type: 'page', title: '離線字幕工廠', url: 'file:///app/electron/splash.html', webSocketDebuggerUrl: 'ws://127.0.0.1:9990/devtools/page/splash' };
+const uiTarget = { type: 'page', title: '離線字幕工廠', url: 'http://127.0.0.1:3000/', webSocketDebuggerUrl: 'ws://127.0.0.1:9990/devtools/page/ui' };
+assert.equal(selectTrustedElectronPageTarget([splashTarget], 9990), null, 'splash-only startup must wait without connecting to file://');
+assert.equal(selectTrustedElectronPageTarget([splashTarget, uiTarget], 9990), uiTarget, 'splash must not shadow the trusted local UI');
+assert.equal(selectTrustedElectronPageTarget([{ ...uiTarget, url: 'https://example.com/' }], 9990), null, 'remote page must never be selected');
+assert.throws(() => selectTrustedElectronPageTarget([{ ...uiTarget, webSocketDebuggerUrl: 'ws://127.0.0.1:9991/devtools/page/ui' }], 9990), /DEVTOOLS_TARGET_URL_REJECTED/, 'local page with untrusted socket must fail closed');
+
+const validArgvProjection = sanitizeRunnerArgv([
+  '-p',
+  '<outer-sandbox-profile>',
+  '/usr/bin/env',
+  'PATH=<redacted>',
+  'SUBTITLE_AI_API_KEY=<redacted>',
+  '<candidate-executable:Offline Subtitle Factory>',
+  '--remote-debugging-port=9990',
+  '--user-data-dir=<temporary-user-data>',
+]);
+assert.equal(validArgvProjection.argvRedactionValidated, true, 'known redacted argv must pass the projection contract');
+assert.equal(validArgvProjection.argvDroppedCount, 0);
+assert.deepEqual(validArgvProjection.argv, [
+  '-p',
+  '<outer-sandbox-profile>',
+  '/usr/bin/env',
+  'PATH=<redacted>',
+  'SUBTITLE_AI_API_KEY=<redacted>',
+  '<candidate-executable:Offline Subtitle Factory>',
+  '--remote-debugging-port=9990',
+  '--user-data-dir=<temporary-user-data>',
+]);
+
+const unsafeArgvProjection = sanitizeRunnerArgv([
+  '-p',
+  '/home/private/Library/Application Support/Offline Subtitle Factory',
+  'SUBTITLE_AI_API_KEY=sk-live-secret',
+  '--custom-flag=/tmp/user-data',
+]);
+assert.equal(unsafeArgvProjection.argvRedactionValidated, false, 'unknown argv must fail the projection contract');
+assert.equal(unsafeArgvProjection.argvDroppedCount, 3);
+assert.deepEqual(unsafeArgvProjection.argv, ['-p']);
+assert.equal(JSON.stringify(unsafeArgvProjection).includes('sk-live-secret'), false);
+assert.equal(JSON.stringify(unsafeArgvProjection).includes('/home/private'), false);
+assert.equal(sanitizeRunnerArgv(null).argvRedactionValidated, false, 'missing argv must fail closed');
+const truncatedArgvProjection = sanitizeRunnerArgv(Array.from({ length: 33 }, () => '-p'));
+assert.equal(truncatedArgvProjection.argv.length, 32);
+assert.equal(truncatedArgvProjection.argvDroppedCount, 1);
+assert.equal(truncatedArgvProjection.argvRedactionValidated, false, 'truncated argv must not claim complete validation');
+
+const projectUiEvidenceStart = wrapperSource.indexOf('function projectUiEvidence(source)');
+const projectUiEvidenceEnd = wrapperSource.indexOf('\nasync function portClosed', projectUiEvidenceStart);
+assert.ok(projectUiEvidenceStart >= 0 && projectUiEvidenceEnd > projectUiEvidenceStart, 'wrapper projection function must remain extractable for deterministic regression');
+const projectUiEvidence = vm.runInNewContext(
+  `${wrapperSource.slice(projectUiEvidenceStart, projectUiEvidenceEnd)}; projectUiEvidence`,
+  { sanitizeRunnerArgv },
+);
+const projectedEvidence = projectUiEvidence({
+  launch: {
+    command: 'offline-subtitle-factory',
+    argv: [
+      '-p',
+      '<outer-sandbox-profile>',
+      '/home/private/Library/Application Support/Offline Subtitle Factory',
+      'SUBTITLE_AI_API_KEY=sk-live-secret',
+      '--custom-flag=/tmp/user-data',
+      '--remote-debugging-port=9990',
+      '--user-data-dir=<temporary-user-data>',
+      ...Array.from({ length: 28 }, () => '-p'),
+    ],
+  },
+});
+assert.deepEqual(projectedEvidence.runnerProvenance.argv, [
+  '-p',
+  '<outer-sandbox-profile>',
+  '--remote-debugging-port=9990',
+  '--user-data-dir=<temporary-user-data>',
+  ...Array.from({ length: 28 }, () => '-p'),
+].slice(0, 32));
+assert.equal(projectedEvidence.runnerProvenance.argvRedactionValidated, false);
+assert.equal(projectedEvidence.runnerProvenance.argvDroppedCount, 3);
+assert.equal(projectedEvidence.runnerProvenance.argvInputCount, 35);
+assert.equal(JSON.stringify(projectedEvidence).includes('sk-live-secret'), false, 'wrapper projection must exclude raw secret-shaped argv');
+assert.equal(JSON.stringify(projectedEvidence).includes('/home/private'), false, 'wrapper projection must exclude private argv paths');
+
+// Execute the whole actual runner in memory, failing its artifact read after
+// spawn. The finally must still clean resources and persist sanitized failure.
+const runnerChild = new EventEmitter();
+runnerChild.stdout = new EventEmitter();
+runnerChild.stderr = new EventEmitter();
+runnerChild.pid = 424242;
+runnerChild.exitCode = null;
+runnerChild.signalCode = null;
+let runnerCleanupCalls = 0;
+let runnerTempRemovals = 0;
+let runnerFailureEvidence;
+const runnerContext = vm.createContext({
+  crypto, path, os, once, URL, Buffer, setTimeout, clearTimeout, http: {}, net: {},
+  console: { log: () => {}, error: () => {} },
+  fs: {
+    existsSync: (target) => target === '/fixture/executable',
+    mkdtempSync: () => '/fixture/owned-temp', mkdirSync: () => {},
+    readFileSync: () => { throw Object.assign(new Error('PRIVATE_ARTIFACT_PATH_CANARY'), { code: 'EACCES' }); },
+    rmSync: () => { runnerTempRemovals += 1; },
+    lstatSync: () => { throw Object.assign(new Error('not found'), { code: 'ENOENT' }); },
+    writeFileSync: (_target, body) => { runnerFailureEvidence = JSON.parse(body); },
+  },
+  spawn: () => runnerChild,
+  process: { argv: ['node', 'runner', '/fixture/executable', '9993', '5000', '/fixture/evidence.json'], env: {}, platform: 'darwin', arch: 'arm64', version: 'v22' },
+  isLoopbackAiUrl: () => true, aiEndpointPrivacy: () => 'local',
+  cleanupProcessGroup: async () => {
+    runnerCleanupCalls += 1;
+    runnerChild.exitCode = 0;
+    return { groupPresentAtCleanupStart: true, groupAbsentAfterCleanup: true, groupClosedConfirmed: true, forcedCleanup: false };
+  },
+  stopLocalAcceptanceDaemon: async () => ({ stopped: true, processGroupAbsent: true, forcedCleanup: false, portClosed: true, temporaryRootRemoved: true }),
+});
+await vm.runInContext(`(async () => {\n${uiProbeSource.replace(/^import .*;\r?\n/gm, '')}\n})()`, runnerContext);
+assert.equal(runnerCleanupCalls, 1, 'artifact read failure must clean the spawned app process group');
+assert.equal(runnerTempRemovals, 1);
+assert.equal(runnerFailureEvidence.status, 'fail');
+assert.equal(runnerFailureEvidence.error.stage, 'artifact_preflight');
+assert.equal(runnerFailureEvidence.error.code, 'CANDIDATE_ARTIFACT_READ_FAILED');
+assert.equal(runnerFailureEvidence.error.category, 'CANDIDATE_ARTIFACT_READ_FAILED');
+assert.equal(runnerFailureEvidence.cleanup.userDataRemoved, true);
+assert.equal(JSON.stringify(runnerFailureEvidence).includes('PRIVATE_ARTIFACT_PATH_CANARY'), false);
+
+// A continuously trickling response must not extend the absolute startup
+// deadline. Only this local HTTP fixture is real; daemon/fs are controlled.
+let oversizedTagsBody = null;
+const trickleServer = http.createServer((_request, response) => {
+  if (oversizedTagsBody) { response.end(oversizedTagsBody); return; }
+  response.writeHead(200);
+  response.flushHeaders();
+  const interval = setInterval(() => response.write(' '), 10);
+  const completion = setTimeout(() => response.end(JSON.stringify({ models: [{ name: 'fixture-model' }] })), 250);
+  response.once('close', () => { clearInterval(interval); clearTimeout(completion); });
+});
+await new Promise((resolve) => trickleServer.listen(0, '127.0.0.1', resolve));
+try {
+  const port = trickleServer.address().port;
+  const stream = new EventEmitter();
+  const source = fs.readFileSync(new URL('./ollama-ui-local-daemon.mjs', import.meta.url), 'utf8').replace(/^import .*;\r?\n/gm, '').replace(/export /g, '');
+  const context = vm.createContext({
+    path, http, os, setTimeout, clearTimeout, Date, Buffer,
+    process: { platform: 'darwin', env: {} },
+    fs: { constants: { X_OK: 1 }, accessSync: () => {}, statSync: () => ({ isDirectory: () => true }), mkdtempSync: () => '/fixture/root' },
+    net: { createServer: () => ({ once: () => {}, listen: (_port, _host, callback) => callback(), address: () => ({ port }), close: (callback) => callback() }) },
+    spawnManagedChild: () => ({ child: { stdout: stream, stderr: stream }, spawnError: null, closeInfo: null }),
+  });
+  vm.runInContext(source, context);
+  const result = await context.startLocalAcceptanceDaemon({ model: 'fixture-model', binary: '/fixture/bin', modelsDirectory: '/fixture/models', timeoutMs: 50 });
+  assert.equal(result.failureCode, 'LOCAL_DAEMON_START_TIMEOUT', 'trickle body must not be accepted after the startup deadline');
+  assert.equal(result.preinstalledModelFound, false);
+  for (const text of ['a'.repeat(1_100_000), '界'.repeat(400_000)]) {
+    oversizedTagsBody = JSON.stringify({ models: [], padding: text });
+    assert.ok(Buffer.byteLength(oversizedTagsBody) > 1024 * 1024);
+    await assert.rejects(context.readTags(port, 1000), /TAGS_RESPONSE_TOO_LARGE/, 'ASCII and multi-byte UTF-8 tags bodies must obey the byte cap');
+  }
+} finally {
+  await new Promise((resolve) => trickleServer.close(resolve));
+}
+
+const missingDaemon = await startLocalAcceptanceDaemon({ model: 'missing-test-model', binary: '/nonexistent-osf-local-daemon', modelsDirectory: os.tmpdir() });
+assert.ok(missingDaemon.failureCode, 'missing daemon binary must fail preflight without throwing out of cleanup');
+assert.equal(missingDaemon.process, null);
+assert.equal(missingDaemon.root, null);
+assert.deepEqual(await stopLocalAcceptanceDaemon(missingDaemon), { stopped: true, processGroupAbsent: true, forcedCleanup: false, portClosed: true, temporaryRootRemoved: true });
+assert.deepEqual(await stopLocalAcceptanceDaemon(null), { stopped: true, processGroupAbsent: true, forcedCleanup: false, portClosed: true, temporaryRootRemoved: true });
+
+const localOllamaBinary = '/Applications/Ollama.app/Contents/Resources/ollama';
+if (process.platform === 'darwin' && fs.existsSync(localOllamaBinary)) {
+  const emptyStore = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-empty-model-store-'));
+  let missingModelDaemon;
+  try {
+    missingModelDaemon = await startLocalAcceptanceDaemon({ model: 'missing-test-model', binary: localOllamaBinary, modelsDirectory: emptyStore });
+    assert.equal(missingModelDaemon.failureCode, 'MODEL_NOT_PREINSTALLED', 'empty store must not trigger a model download');
+    assert.equal(missingModelDaemon.preinstalledModelFound, false);
+    const cleanup = await stopLocalAcceptanceDaemon(missingModelDaemon);
+    assert.deepEqual(cleanup, { stopped: true, processGroupAbsent: true, forcedCleanup: false, portClosed: true, temporaryRootRemoved: true });
+    assert.equal(fs.existsSync(path.join(emptyStore, 'blobs')) && fs.readdirSync(path.join(emptyStore, 'blobs')).length > 0, false, 'model gate must not create/download model blobs');
+  } finally {
+    await stopLocalAcceptanceDaemon(missingModelDaemon);
+    fs.rmSync(emptyStore, { recursive: true, force: true });
+  }
+  console.log('Ollama local UI daemon missing-model integration passed (no download; owned process/port/temp cleaned)');
+}
+
+assert.match(wrapperSource, /\(deny network-outbound\)/, 'offline UI runner must deny external outbound network in Seatbelt');
+assert.match(wrapperSource, /\(deny network-inbound\)/, 'offline UI runner must deny external inbound network in Seatbelt');
+assert.match(wrapperSource, /\(deny network-bind\)/, 'offline UI runner must deny external network binds in Seatbelt');
+assert.match(wrapperSource, /network-bind \(local ip "localhost:\*"\)/, 'offline UI runner must permit loopback bind only');
+assert.match(wrapperSource, /network-inbound \(local ip "localhost:\*"\)/, 'offline UI runner must permit loopback inbound only');
+assert.match(wrapperSource, /network-outbound \(remote ip "localhost:\*"\)/, 'offline UI runner must permit loopback outbound only');
+assert.match(wrapperSource, /externalSocketError = parsed\.externalError/, 'offline UI runner must record the OS external-socket denial');
+assert.match(wrapperSource, /parsed\?\.externalError !== 'EPERM'/, 'offline UI runner must fail closed unless the OS returns EPERM');
+assert.match(wrapperSource, /CUSTOM_OLLAMA_URL_NOT_ALLOWED/, 'offline UI runner must reject custom endpoints');
+assert.match(wrapperSource, /MODEL_NOT_PREINSTALLED/, 'offline UI runner must refuse to proceed without an exact preinstalled model');
+assert.match(wrapperSource, /modelDownloadAttempted: false/, 'offline UI evidence must not imply a model download');
+assert.match(wrapperSource, /OSF_TEST_ONLY_OLLAMA_UI_RUNNER_COMMAND/, 'UI spawn injection must be available only to test mode');
+assert.match(wrapperSource, /networkSandboxInheritedByElectronAndServer/, 'offline UI evidence must identify the sandboxed app/server process tree');
+assert.match(wrapperSource, /flag: 'wx'/, 'offline UI evidence must use exclusive create');
+assert.match(wrapperSource, /systemNetworkDisabled: false/, 'offline UI evidence must not claim whole-machine disconnection');
+assert.match(wrapperSource, /macOSProductVersion: null, macOSBuildVersion: null/, 'offline UI evidence must reserve sanitized macOS version and build fields');
+assert.match(wrapperSource, /bundleInputKind, bundleVersion: null/, 'offline UI evidence must record the sanitized bundle argument kind');
+assert.match(wrapperSource, /offline-subtitle-factory\.ollama-ui-offline-acceptance\.v5/, 'offline UI evidence schema must identify runner provenance fields');
+assert.match(wrapperSource, /uiAutomationDriverGroupAbsentAfterCleanup/, 'offline UI runner must verify automation-driver group absence after cleanup');
+assert.match(wrapperSource, /ollamaDaemonGroupAbsentAfterCleanup/, 'offline UI runner must verify daemon group absence after cleanup');
+assert.match(wrapperSource, /daemonPortClosed/, 'offline UI runner must verify daemon port cleanup');
+assert.match(wrapperSource, /temporaryRootRemoved/, 'offline UI runner must verify temporary-root cleanup');
+assert.doesNotMatch(wrapperSource, /OLLAMA_BASE_URL=.*https?:\/\//, 'offline UI runner must not embed a remote Ollama endpoint');
+
+assert.match(uiProbeSource, /Page\.navigate/, 'packaged UI probe must navigate to the review page');
+assert.match(uiProbeSource, /getElementById\('runAiOptimize'\)\.click/, 'packaged UI probe must start optimization through the UI');
+assert.match(uiProbeSource, /getElementById\('acceptAllAiSuggestions'\)\.click/, 'packaged UI probe must accept suggestions through the UI');
+assert.match(uiProbeSource, /clickAndWait\('undoAiSession'/, 'packaged UI probe must verify UI undo');
+assert.match(uiProbeSource, /clickAndWait\('redoAiSession'/, 'packaged UI probe must verify UI redo');
+assert.match(uiProbeSource, /const save = document\.getElementById\('saveSrt'\)/, 'packaged UI probe must save the reviewed SRT through the UI');
+assert.match(uiProbeSource, /appServerPortClosed/, 'packaged UI probe must verify its app server port is closed');
+assert.match(uiProbeSource, /sandboxedTargetProcessTree/, 'offline UI probe must launch the packaged app and descendants under Seatbelt');
+assert.match(uiProbeSource, /CHROMIUM_CHILD_SANDBOX_INIT_FAILED/, 'offline UI evidence must classify nested Chromium sandbox initialization failures');
+assert.match(uiProbeSource, /electronProcessGroupPresentAtCleanupStart/, 'offline UI evidence must distinguish initial process-group state');
+assert.match(uiProbeSource, /electronProcessGroupAbsentAfterCleanup/, 'offline UI evidence must verify final process-group absence');
+assert.match(uiProbeSource, /userDataRemoved/, 'packaged UI probe must verify isolated userData removal');
+assert.doesNotMatch(`${wrapperSource}\n${uiProbeSource}`, /--no-sandbox/, 'offline UI acceptance must not disable Chromium process sandboxing');
+assert.doesNotMatch(uiProbeSource, /childLogTail|childLogs/, 'packaged UI evidence must not preserve raw child logs');
+assert.doesNotMatch(uiProbeSource, /error: \{ message:/, 'packaged UI evidence must not preserve raw exception text');
+assert.doesNotMatch(`${wrapperSource}\n${uiProbeSource}`, /OSF_DEBUG_UI_STARTUP|redactedStartupDiagnosticLines|redactedStartupLines/, 'offline UI runner must not emit raw or redacted startup output');
+assert.match(uiProbeSource, /outerSandboxProfileApplied/, 'packaged UI evidence must record whether the outer sandbox profile was applied');
+assert.match(uiProbeSource, /CANDIDATE_ARTIFACT_READ_FAILED/, 'packaged UI artifact-read failures must use a stable evidence code');
+assert.match(uiProbeSource, /electronFrameworkSha256/, 'packaged UI evidence must record the candidate Electron Framework pre-launch hash');
+assert.ok(uiProbeSource.indexOf('const frameworkPath = resolveFrameworkPath') < uiProbeSource.indexOf('const child = spawn'), 'candidate Framework identity must be captured before the Electron child is spawned');
+assert.ok(uiProbeSource.indexOf('let candidateExecutableSha256') < uiProbeSource.indexOf('const child = spawn'), 'candidate executable identity must be captured before the Electron child is spawned');
+assert.match(uiProbeSource, /childOutputSha256/, 'packaged UI evidence must record a bounded child-output fingerprint');
+assert.match(uiProbeSource, /childOutputCaptureLimitBytes = 16000/, 'packaged UI child-output capture must use an explicit byte cap');
+assert.match(uiProbeSource, /childOutputBuffer\.length/, 'packaged UI child-output evidence must measure bytes, not UTF-16 characters');
+assert.match(uiProbeSource, /rawChildOutputPersisted: false/, 'packaged UI evidence must explicitly exclude raw child output');
+assert.match(wrapperSource, /runnerProvenance/, 'offline UI evidence must project sanitized runner provenance');
+assert.match(wrapperSource, /argvRedactionValidated/, 'offline UI evidence must expose argv projection validation');
+assert.match(wrapperSource, /argvDroppedCount/, 'offline UI evidence must expose dropped argv count');
+assert.match(wrapperSource, /candidateFrameworkSha256/, 'offline UI evidence must project the candidate Framework hash');
+assert.match(wrapperSource, /source\?\.diagnostics\?\.startupDiagnosticCategories/, 'offline UI evidence must project live runner diagnostic categories');
+assert.equal(packageManifest.scripts['acceptance:ollama:ui:offline'], 'node scripts/verify-electron-ollama-ui-offline.mjs', 'packaged Ollama offline UI acceptance must have a repeatable npm script');
+assert.ok(packageManifest.scripts.check.includes('node --check scripts/verify-electron-ollama-ui-offline.mjs'), 'full check must syntax-check the offline UI runner');
+assert.ok(packageManifest.scripts.check.includes('node --check lib/electron-devtools-target.mjs'), 'full check must syntax-check the DevTools target guard');
+assert.ok(packageManifest.scripts.check.includes('node --check lib/process-group-cleanup.mjs'), 'full check must syntax-check process-group cleanup');
+assert.ok(packageManifest.scripts.test.includes('node scripts/test-ollama-ui-offline.mjs'), 'full check must execute focused offline UI tests');
+
+const devtoolsPort = 9990;
+const trustedSocketUrl = `ws://127.0.0.1:${devtoolsPort}/devtools/page/abc123`;
+assert.equal(isTrustedDevToolsWebSocketUrl(trustedSocketUrl, devtoolsPort), true);
+assert.equal(isLocalElectronPageUrl('http://127.0.0.1:12345/?token=local'), true);
+for (const invalidUrl of [
+  `wss://127.0.0.1:${devtoolsPort}/devtools/page/abc123`,
+  `ws://localhost:${devtoolsPort}/devtools/page/abc123`,
+  `ws://192.0.2.1:${devtoolsPort}/devtools/page/abc123`,
+  `ws://attacker.example:${devtoolsPort}/devtools/page/abc123`,
+  `ws://127.0.0.1:${devtoolsPort + 1}/devtools/page/abc123`,
+  `ws://user@127.0.0.1:${devtoolsPort}/devtools/page/abc123`,
+  `ws://127.0.0.1:${devtoolsPort}/json`,
+]) {
+  assert.equal(isTrustedDevToolsWebSocketUrl(invalidUrl, devtoolsPort), false, `untrusted DevTools target rejected: ${invalidUrl}`);
+}
+for (const invalidUrl of ['https://127.0.0.1:12345/', 'http://localhost:12345/', 'http://192.0.2.1:12345/']) {
+  assert.equal(isLocalElectronPageUrl(invalidUrl), false, `non-loopback Electron page rejected: ${invalidUrl}`);
+}
+let webSocketConstructionCount = 0;
+class CountingWebSocket {
+  constructor() { webSocketConstructionCount += 1; }
+}
+assert.throws(() => createTrustedDevToolsWebSocket(`ws://192.0.2.1:${devtoolsPort}/devtools/page/fake`, devtoolsPort, CountingWebSocket), /DEVTOOLS_TARGET_URL_REJECTED/);
+assert.throws(() => createTrustedDevToolsWebSocket(`ws://127.0.0.1:${devtoolsPort + 1}/devtools/page/fake`, devtoolsPort, CountingWebSocket), /DEVTOOLS_TARGET_URL_REJECTED/);
+assert.equal(webSocketConstructionCount, 0, 'rejected WebSocket targets must not instantiate a connection');
+
+if (process.platform !== 'win32') {
+  assert.equal(probeProcessGroup(1), null, 'invalid process-group IDs must fail closed without probing a broadcast target');
+  let invalidGroupSignalCount = 0;
+  const invalidGroupCleanup = await cleanupProcessGroup(1, { signal: () => { invalidGroupSignalCount += 1; } });
+  assert.equal(invalidGroupCleanup.groupClosedConfirmed, false);
+  assert.equal(invalidGroupSignalCount, 0, 'invalid process-group IDs must never be signalled');
+
+  async function launchProcess(script) {
+    const child = spawn(process.execPath, ['-e', script], { detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    await new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.stdout.on('data', (chunk) => {
+        if (String(chunk).includes('READY')) resolve();
+      });
+    });
+    return child;
+  }
+  async function waitForClose(child) {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    await new Promise((resolve) => child.once('close', resolve));
+  }
+
+  const gracefulChild = await launchProcess('process.on("SIGTERM", () => process.exit(0)); process.stdout.write("READY"); setInterval(() => {}, 1000)');
+  const gracefulCleanup = await cleanupProcessGroup(gracefulChild.pid, { gracefulMs: 1500, forceMs: 1000 });
+  await waitForClose(gracefulChild);
+  assert.equal(gracefulCleanup.groupPresentAtCleanupStart, true);
+  assert.equal(gracefulCleanup.groupAbsentAfterCleanup, true);
+  assert.equal(gracefulCleanup.groupClosedConfirmed, true);
+  assert.equal(gracefulCleanup.forcedCleanup, false);
+
+  const forcedChild = await launchProcess('process.on("SIGTERM", () => {}); process.stdout.write("READY"); setInterval(() => {}, 1000)');
+  const forcedCleanup = await cleanupProcessGroup(forcedChild.pid, { gracefulMs: 100, forceMs: 1500 });
+  await waitForClose(forcedChild);
+  assert.equal(forcedCleanup.groupPresentAtCleanupStart, true);
+  assert.equal(forcedCleanup.groupAbsentAfterCleanup, true);
+  assert.equal(forcedCleanup.groupClosedConfirmed, true);
+  assert.equal(forcedCleanup.forcedCleanup, true, 'SIGKILL escalation must be reported');
+
+  const unconfirmedSignals = [];
+  const unconfirmedCleanup = await cleanupProcessGroup(12345, {
+    gracefulMs: 0,
+    forceMs: 0,
+    probe: () => true,
+    signal: (_groupId, signal) => unconfirmedSignals.push(signal),
+  });
+  assert.deepEqual(unconfirmedSignals, ['SIGTERM', 'SIGKILL']);
+  assert.equal(unconfirmedCleanup.groupAbsentAfterCleanup, false);
+  assert.equal(unconfirmedCleanup.groupClosedConfirmed, false);
+  assert.equal(unconfirmedCleanup.forcedCleanup, true);
+}
+
+const appBundle = path.join(appDir, '../dist/release-0.51.0-macos-53956cc/mac-arm64/離線字幕工廠.app');
+const macOSCandidateAvailable = process.platform === 'darwin' && process.arch === 'arm64'
+  && fs.existsSync('/usr/bin/sandbox-exec') && fs.existsSync(appBundle);
+
+if (macOSCandidateAvailable) {
+  const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-ollama-ui-preflight-test-'));
+  const missingOllamaBinary = path.join(testRoot, 'intentionally-missing-ollama');
+  try {
+    assert.equal(fs.existsSync(missingOllamaBinary), false, 'preflight guard binary must not exist');
+    const executableNameResult = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleExecutable', path.join(appBundle, 'Contents', 'Info.plist')], {
+      encoding: 'utf8', timeout: 5000, maxBuffer: 1024,
+    });
+    assert.equal(executableNameResult.status, 0, 'packaged candidate must expose its executable name');
+    const executableInsteadOfBundle = path.join(appBundle, 'Contents', 'MacOS', String(executableNameResult.stdout || '').trim());
+    const cases = [
+      { name: 'executable', input: executableInsteadOfBundle, kind: 'app_executable_path', code: 'APP_BUNDLE_INVALID', stage: 'app_bundle_preflight' },
+      { name: 'bundle', input: appBundle, kind: 'app_bundle_directory', code: 'OLLAMA_EXECUTABLE_NOT_ACCESSIBLE', stage: 'ollama_binary_preflight' },
+      { name: 'bundle-trailing-separator', input: `${appBundle}${path.sep}`, kind: 'app_bundle_directory', code: 'OLLAMA_EXECUTABLE_NOT_ACCESSIBLE', stage: 'ollama_binary_preflight' },
+    ];
+    for (const testCase of cases) {
+      const evidencePath = path.join(testRoot, `${testCase.name}.json`);
+      const result = spawnSync(process.execPath, [wrapperPath, testCase.input, evidencePath, 'llama3.2:3b'], {
+        cwd: appDir, encoding: 'utf8', timeout: 15000, maxBuffer: 4096,
+        env: {
+          PATH: process.env.PATH || '',
+          HOME: process.env.HOME || os.homedir(),
+          OLLAMA_BIN: missingOllamaBinary,
+          NODE_ENV: 'test',
+          OSF_TEST_ONLY_OLLAMA_UI_DAEMON_COMMAND: missingOllamaBinary,
+          OSF_TEST_ONLY_OLLAMA_UI_RUNNER_COMMAND: missingOllamaBinary,
+        },
+      });
+      assert.equal(result.error, undefined, `${testCase.name} preflight wrapper must spawn: ${result.error?.code || ''}`);
+      assert.equal(result.status, 1, `${testCase.name} must fail before any network probe or daemon`);
+      const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+      assert.equal(evidence.schema, 'offline-subtitle-factory.ollama-ui-offline-acceptance.v5');
+      assert.equal(evidence.failureCode, testCase.code);
+      assert.equal(evidence.failureStage, testCase.stage);
+      assert.equal(evidence.candidate.bundleInputKind, testCase.kind);
+      assert.match(evidence.environment.macOSProductVersion, /^\d+\.\d+(?:\.\d+)?$/);
+      assert.match(evidence.environment.macOSBuildVersion, /^[A-Za-z0-9]+$/);
+      assert.equal(evidence.ui, null);
+      assert.equal(evidence.isolation.loopbackAllowed, false, 'preflight case must fail before network probe');
+      assert.equal(evidence.isolation.externalSocketDenied, false);
+      assert.equal(evidence.isolation.daemonStartedInSandbox, false);
+      assert.equal(evidence.isolation.electronAppStartedInSandbox, false);
+      assert.equal(evidence.cleanup.ollamaDaemonGroupPresentAtCleanupStart, false);
+      assert.equal(evidence.cleanup.uiAutomationDriverGroupPresentAtCleanupStart, false);
+      for (const privatePath of [testCase.input, path.resolve(testCase.input), testRoot]) {
+        assert.equal(JSON.stringify(evidence).includes(privatePath), false, 'evidence must not expose supplied paths');
+      }
+    }
+    console.log('Ollama offline UI bundle preflight integration test passed (3 cases; no Ollama/model required)');
+  } finally {
+    fs.rmSync(testRoot, { recursive: true, force: true });
+  }
+} else {
+  console.log('Ollama offline UI bundle preflight integration test skipped: macOS arm64 candidate or Seatbelt unavailable');
+}
+
+const ollamaPath = process.env.OLLAMA_BIN || process.env.PATH?.split(path.delimiter).map((directory) => path.join(directory, 'ollama')).find((candidate) => {
+  try { fs.accessSync(candidate, fs.constants.X_OK); return true; } catch { return false; }
+});
+const modelDirectory = path.resolve(process.env.OLLAMA_MODELS || path.join(os.homedir(), '.ollama', 'models'));
+let installedModelAvailable = false;
+if (ollamaPath && fs.existsSync(modelDirectory)) {
+  const list = spawnSync(ollamaPath, ['list'], { encoding: 'utf8', timeout: 10000, env: { PATH: process.env.PATH || '', OLLAMA_MODELS: modelDirectory } });
+  installedModelAvailable = list.status === 0 && /^llama3\.2:3b\s/m.test(String(list.stdout || ''));
+}
+
+if (macOSCandidateAvailable && ollamaPath && installedModelAvailable) {
+  const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'osf-ollama-ui-offline-test-'));
+  const evidencePath = path.join(testRoot, 'spawn-failure.json');
+  const missingUiRunner = path.join(testRoot, 'intentionally-missing-ui-runner');
+  try {
+    assert.equal(fs.existsSync(missingUiRunner), false, 'fault-injection runner must not exist');
+    const result = spawnSync(process.execPath, [wrapperPath, appBundle, evidencePath, 'llama3.2:3b'], {
+      cwd: appDir,
+      encoding: 'utf8',
+      timeout: 120000,
+      maxBuffer: 4096,
+      env: {
+        PATH: process.env.PATH || '',
+        HOME: process.env.HOME || os.homedir(),
+        OLLAMA_BIN: ollamaPath,
+        OLLAMA_MODELS: modelDirectory,
+        NODE_ENV: 'test',
+        OSF_TEST_ONLY_OLLAMA_UI_RUNNER_COMMAND: missingUiRunner,
+      },
+    });
+    assert.equal(result.error, undefined, `offline UI runner test process must not fail to spawn: ${result.error?.code || ''}`);
+    assert.equal(result.status, 1, 'offline UI runner must fail on injected ENOENT');
+    const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+    assert.equal(evidence.status, 'fail');
+    assert.equal(evidence.failureCode, 'UI_RUNNER_SPAWN_FAILED');
+    assert.equal(evidence.failureStage, 'electron_start');
+    assert.equal(evidence.isolation.externalSocketDenied, true);
+    assert.equal(evidence.isolation.externalSocketError, 'EPERM');
+    assert.equal(evidence.isolation.daemonStartedInSandbox, true);
+    assert.equal(evidence.daemon.preinstalledModelFound, true);
+    assert.equal(evidence.daemon.modelDownloadAttempted, false);
+    assert.equal(evidence.cleanup.uiRunnerExited, true);
+    assert.equal(evidence.cleanup.uiAutomationDriverGroupAbsentAfterCleanup, true);
+    assert.equal(evidence.cleanup.uiAutomationDriverGroupClosedConfirmed, true);
+    assert.equal(evidence.cleanup.daemonStopped, true);
+    assert.equal(evidence.cleanup.ollamaDaemonGroupAbsentAfterCleanup, true);
+    assert.equal(evidence.cleanup.ollamaDaemonGroupClosedConfirmed, true);
+    assert.equal(evidence.cleanup.daemonPortClosed, true);
+    assert.equal(evidence.cleanup.temporaryRootRemoved, true);
+    assert.equal(JSON.stringify(evidence).includes(testRoot), false, 'evidence must not expose test temp paths');
+  } finally {
+    fs.rmSync(testRoot, { recursive: true, force: true });
+  }
+} else {
+  console.log('Ollama offline UI spawn-error integration test skipped: packaged macOS candidate, Seatbelt, Ollama, or preinstalled 3B model unavailable');
+}
+
+console.log('Ollama offline packaged UI contract test passed');

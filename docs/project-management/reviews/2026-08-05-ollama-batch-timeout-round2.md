@@ -28,7 +28,7 @@
 ## 5. 測試覆蓋
 
 - 判定：部分通過
-- 證據：2026-08-05 11:17 +08:00 重新執行 `node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs` 與受控權限 `npm run check`，全部通過；完整 check 包含核心 HTTP 回歸、所有既有測試、文件與語法檢查。實際 baseline `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 仍為 `provider=ollama`、`model=llama3.2:3b`、`status=failed`、`error=AI 請求逾時`、`completedBatches=2/55`、`activeBatch=3`、`retryable=true`、`nextBatchIndex=2`、2 suggestions，吻合原始缺陷並證明 checkpoint 可用。兩 ZIP `unzip -t` 均無壓縮錯誤；Small 487,601,967 bytes、SHA-256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b`，兩平台 manifest／`inspectWhisperModels` 均 `installed:true, valid:true, reason:"ok"`，Base 均 `reason:"missing"`。本機 Ollama 未啟動，無真模型 response／續跑紀錄。
+- 證據：2026-08-05 11:17 +08:00 重新執行 `node scripts/test-ollama-batch-stream.mjs`、`node scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs` 與受控權限 `npm run check`，全部通過；完整 check 包含核心 HTTP 回歸、所有既有測試、文件與語法檢查。實際 baseline `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 仍為 `provider=ollama`、`model=llama3.2:3b`、`status=failed`、`error=AI 請求逾時`、`completedBatches=2/55`、`activeBatch=3`、`retryable=true`、`nextBatchIndex=2`、2 suggestions，吻合原始缺陷並證明 checkpoint 可用。兩 ZIP `unzip -t` 均無壓縮錯誤；Small 487,601,967 bytes、SHA-256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b`，兩平台 manifest／`inspectWhisperModels` 均 `installed:true, valid:true, reason:"ok"`，Base 均 `reason:"missing"`。本機 Ollama 未啟動，無真模型 response／續跑紀錄。
 
 ## 6. 實際運行結果
 

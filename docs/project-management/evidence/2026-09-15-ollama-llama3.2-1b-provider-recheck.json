@@ -1,0 +1,22 @@
+{
+  "schema": "offline-subtitle-factory.provider-live-acceptance.v1",
+  "startedAt": "2026-09-15T04:03:43.796Z",
+  "completedAt": "2026-09-15T04:03:46.276Z",
+  "elapsedMs": 2475,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.22.3"
+  },
+  "provider": "ollama",
+  "baseUrl": "http://127.0.0.1:11434/v1",
+  "model": "llama3.2:1b",
+  "deployment": null,
+  "apiVersion": null,
+  "status": "fail",
+  "error": {
+    "message": "provider 回應 cues 數量不是 1",
+    "code": "",
+    "status": 0
+  }
+}

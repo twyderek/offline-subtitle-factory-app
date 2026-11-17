@@ -28,4 +28,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('project-open', callback);
   },
   isElectron: true,
+  youtubePublish: (action, jobId, input) => ipcRenderer.invoke('youtube-publish', action, jobId, input),
 });

@@ -1,10 +1,369 @@
 # 偵錯與修改歷程
 
+### BUG-050：YouTube safeStorage 權限測試誤用 Unix mode bits 阻擋 Windows CI（2026-10-20；已修正，待 Windows CI 複驗）
+
+- 現象／基準：Windows exact-source CI run `39308587730` 在 `npm run test:youtube` 的 `scripts/test-youtube.mjs:93` 失敗；`fs.stat(...).mode & 0o777` 實際為 438（`0666`），測試硬編碼預期 384（`0600`）。同一 source SHA `80a46a203dbfca34f26dc7c9545f9d9dac138e93` 的 Windows `docs:check` 與 `npm test` 中其餘 test scripts 均通過；此 failure 發生於 YouTube suite，workflow 後續 package／artifact 步驟 skipped。
+- 近因／根因：測試將 POSIX `0600` mode 位元斷言無條件套用到 Windows。Windows `fs.stat().mode` 不提供等價的 POSIX ACL 判斷，`0666` 回報不能直接推論 Windows ACL 是否向其他使用者開放；不能據此將安全功能缺陷或安全通過下結論。產品程式 `lib/youtube/publisher.mjs:68-76` 仍先以 Electron `safeStorage.encryptString` 取得資料，再寫入含 `mode: 0o600` 的臨時檔並原子 rename。
+- 修正：commit `1c045e7fff77049ff084126e3dc59e602fc60918` 僅修改 `scripts/test-youtube.mjs`：fake safeStorage 以不透明 fixture token map 供解密 round-trip；所有平台確認檔案是 opaque ciphertext、不包含 secret marker；僅 POSIX platform 精確驗證 `0600`，Windows 不把 `stat().mode` 誤當 POSIX ACL。產品 runtime 未改。
+- 本機驗證：`node --check scripts/test-youtube.mjs`、`node scripts/test-youtube.mjs`、`npm run test:youtube` 及完整 `npm run check` 均 exit 0；完整回歸包含四組 YouTube posttest suites。Windows-specific branch 尚未由 Windows runner 執行。修正提交尚未推送，尚無同 SHA CI run／artifact；需獨立複審後推送驗證。
+
+### BUG-049：1100×700校閱工作區子欄溢出／遮擋（2026-10-19；source修正，獨立審查見最新08）
+
+- 本輪修正：workspace可收縮fr欄／窄工具列換行；主grid與sidebar/viewer/stage高度及獨立捲動；viewer rows改max-content，避免影片蓋住下一列播放鍵；長字幕focus不捲走header。
+- 本輪驗證：source原生outer1100×700（content1100×668），editor.right1088，22控制可達及hit-test；另8尺寸、AI展開／長文字、root scrollY0通過。最終v10 evidence及06最新條目留證，僅source缺陷修復，不代表真實YT或安裝包驗收。
+
+- 下列為修正前診斷基準，保留原始失敗及歸因界線：
+
+- 重現：`verify-youtube-ui.mjs <新截圖路徑> --compare-installed --validate-usability`；以本機已安裝0.51.0前端與source，同source殼/API fixture與viewport。v3 comparison.json及source／installed-review-1100.png留證。
+- 觀察：source editor.right1189、cueList.right1187超出1100；viewer/editor.bottom771超出700，左側video還覆蓋右側部分內容。已安裝前端同場editor.right同為1189，不能描述成YT新增獨有回歸。
+- 近因：workspace兩欄最小寬度、viewer/video最小尺寸與可用寬度不相容；頂列grid可收縮不等於children可收縮。未獨立窮盡所有media query與原生resize，根因範圍以當前CSS及量測為限。
+- 處置：本輪只診斷，未改產品。建議後續先保留現有外觀，針對窄視窗降低欄位min-width／切換單欄，新增全workspace與關鍵控制可視性驗收；未取得修正要求前不實作。BUG-048只代表頂列修正，BUG-049另列未完成。
+
+## 2026-10-19 BUG-046／047／048 source 修正
+
+- BUG-046：沿用現行 review-button；dialog 改固定 header／footer、獨立捲動 body，主要操作不再位於長表單最下方。支援尺寸、Tab／Escape／焦點／Enter 已由隔離 Electron 驗證。
+- BUG-047：錯誤與進度分離，不隨 poll 清除；generation／revision 拒絕過時結果；受控 IPC 與缺 OAuth 錯誤跨 poll 保留。
+- BUG-048：兩處 body min-width1180 改1100；main 明確 minmax(0,1fr) column，避免 workspace implicit min-content 撐大頂列。1100寬入口right1076；不能把原始缺陷單獨歸因 YouTube。
+- 驗證證據：06 本日條目與 fixed-v7 PNG／JSON。下方2026-10-16「未修正」是歷史診斷，非本日狀態；source修正不代表安裝包或真實Google驗收。
+
+### BUG-046：YouTube modal 介面一致性與主要操作可發現性（2026-10-16；未修正）
+
+- 可用性 audit v2：既有匯出按鈕為 14px／700／8px 圓角，新 modal 為 16px／一般字重／0px 圓角。`youtube-publish.mjs` 未沿用 review-button／既有 dialog 視覺樣式；本機 v0.51.0 bundle 與 source styles.css hash 相同，review.html 僅新增入口／module。
+- 1400／1280／1100×800 下 modal clientHeight=678、scrollHeight=1098，初始 primary top=1007.83、關閉 top=1090.83，須捲動才可見。不是按鈕不能點，而是初次使用缺少持續可見的主要操作與關閉入口。
+- 建議：沿用既有 modal／button styles，精簡或摺疊開發者設定說明，固定 header／footer；本輪只診斷，產品未改。
+
+### BUG-047：YouTube 操作錯誤被輪詢覆蓋（2026-10-16；未修正）
+
+- 在未匯入 OAuth 的隔離 profile 點連結，main 拒絕且不開瀏覽器／不送 Google；UI 先顯示通用錯誤，1.9 秒後顯示「準備上傳。」。根因為 refresh 無條件覆寫 progress，無獨立保留操作錯誤狀態。
+- 證據：`evidence/2026-10-16-youtube-usability-audit-v2.png.json` 的 errorImmediately／errorAfterPolling。建議以固定錯誤分類及持續錯誤狀態呈現，直到下一次使用者操作／實際狀態改變；本輪未修正。
+
+### BUG-048：最小視窗寬度下校閱頂列溢出（2026-10-16；歸因未定／未修正）
+
+- Electron minWidth=1100；audit 在1100下測得YT入口right=1177，超出視窗77px。測試同一DOM暫隱藏YT入口後舊匯出right仍1177，故不能歸因為新增YT按鈕的獨有回歸；1024亦測但低於支援最小寬度，僅壓力證據。
+- 建議後續比對同一viewport的正式版實際畫面並修正既有頂列responsive，不把本輪量測誇稱為完整安裝版對照；本輪不修改舊版介面。
+- 歸因限制：隱藏YT仍溢出只證明不是YT入口的獨有問題；未同場啟動正式bundle重播，不能斷言使用者現行版本也必然有相同溢出。量測採CDP renderer viewport模擬，非原生BrowserWindow resize／OS縮放驗收。
+
+2026-10-16：本輪 BUG-043／044／045 已由 `reviews/2026-10-16-fr-027-youtube-private-upload-round2.md` 六面向複審確認原阻擋解除，final docs gate 通過；結論限 source MVP 與本地驗證，不代表真實 Google／Keychain／封裝／Windows 驗收。
+
+### BUG-043：FR-027 上傳與專案刪除生命週期未協調（2026-10-16）
+
+- 現象／基準：round1 獨立報告 B1 重現影片回應等待期間移除 job，原 persist 的 recursive mkdir 重建已刪目錄。
+- 根因：publisher 屬 Electron main，server deleteJob 僅管理 server 內的工作；跨行程沒有共同 lease，且 persist 具建立根目錄副作用。
+- 修正：main 透過具 token 的 API 取得／釋放 server lease，server DELETE active job 回 409；persist 不 mkdir job，config 層發布 history 保留遠端 ID／未知結果。初次紀錄 exclusive-create；強制外部刪除後不續傳字幕、不重建目錄。
+- 回歸：`scripts/test-youtube-lifecycle.mjs` 真實隔離 server HTTP 測試 acquire／重複 acquire／錯誤 release／DELETE 409／完成 release 後 DELETE 200；另受控外部刪除確認 root 不復活、字幕呼叫不增加、history 留下 videoId。與完整 `npm run check` 通過；不代表真實 Google 驗收。
+
+### BUG-044：FR-027 SDK multipart 未轉送來源 stream error（2026-10-16）
+
+- 現象／基準：round1 B2 以實際 SDK＋不存在 snapshot 重現 Node unhandled error／exit 1；不是已實測的 Electron crash。
+- 根因：官方 multipart 使用 pipe，來源 ReadStream error 不會自動 reject 外層請求；原實作未自行接管來源錯誤。
+- 修正：requestWithMedia 先註冊 source error／abort，錯誤時中止請求，等待 source 關閉並有界觀察 transport rejection，去除原始錯誤；已取得影片 ID 保留為 partial，不建立新影片。
+- 回歸：`scripts/test-youtube-streams.mjs` 以實際 SDK 本地 transport 測影片／字幕 ENOENT 與 mid-read 四案，確認無未處理事件且 source／transport 關閉；lifecycle suite 驗證 partial／videoId／解鎖／字幕重試。
+
+### BUG-045：FR-027 缺少影片 ID／字幕狀態直接呈現（2026-10-16）
+
+- 基準：round1 B3 指出工作 completed 無法區分 insert 回應 syncing／serving，且沒有直接顯示 videoId。
+- 修正／驗證：新增 textContent identifiers，顯示 videoId、captionId、captionStatus；隔離 Electron UI verifier 實測 completed＋syncing 與 partial＋failed，並改用 owned dynamic debugger。v3 screenshot 與本輪獨立複審追蹤於 08。
+
+### BUG-037：deny-network 外層 Seatbelt 阻斷 Chromium 子 profile 載入（2026-10-01；驗收環境相容性）
+
+- 現象與證據：既有 packaged UI offline replay11 在 Electron 啟動階段以 `CHROMIUM_CHILD_SANDBOX_INIT_FAILED` 失敗。`scripts/accept-macos-seatbelt-nested-profile-canary.mjs` 將 parent／child profile 與 argv 明列，replay3 四案通過：strict／strict exit 0；strict parent 拒絕 network-service-shape child（71／EPERM）；加明示 TCP／UDP 的窄 parent 仍拒絕（71／EPERM）；`allow default` parent 接受（0）。replay2 窄 parent 預期成功但實際拒絕的原始 fail evidence 保留。
+- 根因判定邊界：canary 只執行 `/usr/bin/true`，並非 Chromium exact generated profile。2026-10-02 追加核對以 replay11 executable SHA-256、稽核所記的 v0.51.0 候選 source commit 及該 commit lockfile，將候選版本鏈結至 Electron 43.3.0／Chromium 150.0.7871.212；round3 確認此為依候選稽核紀錄建立的靜態版本關聯，不是 replay11 JSON 內含的 source commit 或可驗證 binary provenance。同版 Chromium `network.sb` 的 remote TCP／UDP policy fragment 與 synthetic child shape 相符。2026-10-12 在保留 bundle 中找到與 replay11 executable SHA 完全相同的主程式，並量得同 bundle Electron Framework 43.3.0 binary SHA-256 `a6763870b706a065d621935435d82ea206747192b3948c8b17b7f5e2930c758a`；因 replay11 未保存 bundle path／framework SHA，這仍非 replay-time framework provenance。未保存整份 generated profile 及動態參數，故 source／policy 關聯與目前 framework hash 都不足以證明唯一根因；不代表 UI acceptance。本條是 acceptance isolation compatibility，不是已確認產品 runtime defect。
+- 修正／處置：只新增可重播診斷腳本／證據與 Apple／Electron／Chromium source links；不改產品程式或 OS policy。允許 parent `(allow default)` 的 canary case 僅執行不連網 `/usr/bin/true`，不能用於 packaged UI 外連封鎖驗收；停用 Chromium sandbox 不接受。
+- 來源引用邊界：canary script 的 Chromium `network.sb` reference 已固定到 `150.0.7871.212` versioned tag；mutable `HEAD` 只存在於既有歷史 evidence，保留原件但不再作新 evidence source。固定 source reference 不等於 replay-time binary provenance，也不改變 synthetic profile 非 exact generated profile 的判定。
+- 驗證與後續：canary `node --check`、replay3、主代理完整 `npm run check` 通過；round2 reviewer 親自執行 canary `node --check`（2026-10-01 09:21:22 UTC，exit 0），未重跑 tests／canary／app。2026-10-02 06:10 UTC 只讀核驗候選 commit lockfile、replay11 failure identity 與 Chromium versioned source；Chromium tag `150.0.7871.212` 固定至 commit `69bf1c67cb894365d151bd020bb0171fd583633a6`，`network.sb` blob SHA-1 `58477d8d17902258b3f361d72751a32c034e0645`。2026-10-12 靜態 bundle identity evidence `docs/project-management/evidence/2026-10-12-fr-021-replay11-electron-framework-identity.json` 記錄目前 executable-hash-matching bundle 內 framework hash、version、mtime 與 codesign 驗證；未證明 replay-time framework identity。round3 獨立報告 `docs/project-management/reviews/2026-10-12-fr-021-macos-packaged-electron-ui-deny-network-sandbox-boundary-diagnostic-round3.md` 第 37 行有條件通過，範圍限靜態版本／policy fragment 關聯，並確認 replay11 JSON 未含 build provenance；round3 未執行 app、canary、Ollama 或 OS network probes。Apple `NEFilterDataProvider`／Xcode docs 將 system content filter 列為需 Network Extensions／Content Filter capability 的途徑；本輪未配置該 capability／filter。source pin 不解除 exact generated profile／實際 egress UI acceptance 阻擋，本輪 static bundle identity 補記已完成。若要真實 UI egress 驗收，須另行取得 per-app egress control 與 rollback 的明確授權；`FR-021` 仍未完成。
+
+### BUG-038：macOS Seatbelt canary 無參數時延後至 evidence write 才失敗（2026-10-14；診斷工具可維運性）
+
+- 現象與證據：canary 未提供輸出路徑時預設使用既有 `2026-10-01-macos-seatbelt-nested-profile-canary-replay2.json`；2026-10-14 基準執行仍先完成 sandbox case，最後因 exclusive-create 回報 `Evidence file already exists; refusing to overwrite.`、exit 2。
+- 根因：輸出路徑 fallback 指向歷史 evidence，路徑／檔案存在檢查位於四案執行之後；無參數呼叫沒有先明確拒絕。
+- 最小修正：移除歷史 replay2 fallback，要求呼叫者提供新的 `.json` 路徑；在任何 macOS／sandbox／case 檢查或執行前，缺少路徑即固定錯誤訊息並 exit 2。明確路徑仍經 evidence directory／`.json` 檢查，寫入仍採 exclusive-create。
+- 防回歸：無參數命令應在不新增 evidence、不中止／啟動任何 sandbox case 前 exit 2；明確新路徑 replay4／後續 replay 維持四案結果、pinned source references 與 scope flags。此項只修診斷工具，不是產品 runtime 或 FR-021 acceptance 修正。
+
+### BUG-039：replay11 未保存 Chromium exact generated profile（2026-10-14；證據完整性／驗收環境）
+
+- 現象與證據：唯讀 audit `docs/project-management/evidence/2026-10-14-fr-021-replay11-exact-profile-feasibility-audit.json` 核對 replay11、offline／packaged UI runner source 與既有 static bundle identity。replay11 有 startup failure／cleanup／candidate executable hash／outer profile ID，但沒有 serialized Chromium child policy、generated child argv、Framework hash、source commit 或 build provenance。
+- 判定邊界：runner source 只建立外層 Seatbelt profile 與 synthetic launch argument；既有 replay3／replay4／replay5 的 profile strings 是 `/usr/bin/true` synthetic canary，pinned Chromium `network.sb` 只是來源對照，均不能當作 replay11 的 exact generated profile。目前 hash-matching bundle 的 Framework 測量也不能倒推 replay-time bytes。
+- 處置：不修改產品 runtime、Electron、Chromium、OS policy 或既有 evidence；新增非敏感 audit evidence，將「在 audited artifacts 中不存在且不可重建」固定為 FR-021 packaged UI offline acceptance 的 evidence blocker。這不是已確認產品 runtime defect 修正，也不代表唯一 root cause 已確定。
+- 防誤判：本 audit 沒有啟動 packaged Electron／Ollama、沒有 network probe、沒有使用 `--no-sandbox`、沒有修改 OS network；後續若要取得 exact profile／replay-time provenance，需另行授權 instrumented packaged run 或等價的保存 trace。
+
+### BUG-040：instrumented packaged-run evidence contract 尚未具備（2026-10-14；驗收工具／證據準備度）
+
+- 現象與證據：`docs/project-management/evidence/2026-10-14-fr-021-instrumented-packaged-run-readiness-audit.json` 唯讀核對兩支 UI runner、`electron/main.mjs`、package metadata 與 replay11。packaged runner 只在記憶體建立 outer sandbox／launch argv，child stdout／stderr 暫存後只轉成固定 diagnostic categories；offline wrapper 也未保存 raw UI runner output。replay11／既有 static identity 沒有 outer argv、Framework hash／build provenance 或 exact generated profile。
+- 近因與根因邊界：目前可增加的是 runner-level candidate identity、redacted argv、bounded diagnostics 與 evidence schema；Chromium runtime-generated child profile 不在目前 app-level capture contract 內，不能由現有 source／evidence 推導。這是驗收證據準備度缺口，不是已確認產品 runtime defect。
+- 處置：不修改產品 runtime、Electron、runner、Chromium 或 OS policy；新增 readiness audit evidence，列出未來若取得授權所需的 fixed candidate、Framework／build provenance、redacted argv／diagnostics、exact profile or equivalent trace、exclusive evidence、cleanup 與 rollback 條件。
+- 防誤判：本輪未啟動 packaged Electron／Ollama、未重跑 canary、未建立 network probe、未使用 `--no-sandbox`、未修改 OS network；readiness `partial` 不代表 packaged UI offline acceptance 或 FR-021 結案。
+
+### BUG-041：acceptance runner 缺少可持久化 outer provenance fingerprint（2026-10-14；驗收工具）
+
+- 現象與證據：BUG-040 readiness audit 顯示 runner 僅在記憶體建立 outer command／argv，保存 executable hash，child stdout／stderr 只降為固定類別，沒有把 runner-level provenance 以 evidence schema 欄位保存。
+- 最小修正：live runner evidence 升為 v4，加入去敏 `launch` summary、outer sandbox 套用旗標、candidate Electron Framework pre-launch SHA-256，以及 capped child-output SHA-256／byte length／固定 categories；offline wrapper 加入格式白名單後的 `runnerProvenance` projection。raw child output、secret-shaped env、使用者／暫存路徑均不保存，且不加入 `--no-sandbox`。
+- 判定邊界：這只補 runner-level pre-launch／bounded diagnostic trace，不能倒推出 replay-time loaded bytes、Chromium exact generated profile、build provenance、唯一 root cause 或 packaged UI acceptance；既有 replay／evidence 不覆寫。
+- 防回歸與驗證：source-contract assertions 覆蓋 schema v4、Framework／diagnostic／sandbox 欄位、raw output exclusion 與 wrapper projection；三支相關 MJS `node --check`、focused offline UI test、完整 `npm run check`、`git diff --check` 與 final docs gate 應全部通過。本輪不啟動 packaged Electron／Ollama acceptance、不建立 network probe、不修改 OS policy。
+- round1／round2 複審修正：candidate artifact read failure 不再把 `EACCES` 等底層可變 code 當成 evidence 契約，固定以 `CANDIDATE_ARTIFACT_READ_FAILED` 同時作為 `error.code`／`failureCategory`；VM regression 改驗證固定值，cleanup 與 raw-path 不洩漏邊界維持。
+
+### BUG-042：offline wrapper argv projection 未在保存邊界重新驗證去敏格式（2026-10-14；驗收證據契約）
+
+- 現象與風險：BUG-041 完成後，offline wrapper 對 live runner `launch.argv` 只做字串型別／長度／數量限制；若未來 runner argv 組成改變，使用者／暫存路徑或 secret-shaped value 可能在 projection 邊界重新進入 evidence。
+- 最小修正：新增 `lib/runner-provenance.mjs` 純函式 allowlist re-sanitizer，offline evidence schema 升為 v5；只保存固定去敏旗標、受限 debug port、已知環境名稱的 `<redacted>` token 與受限 candidate basename。未知 item、超長 item 與超過 32 項的尾端只增加 `argvDroppedCount`，不保存原值；`argvRedactionValidated` 只有所有輸入都通過且未截斷時為 true。
+- 防回歸與界線：focused test 直接驗證合法投影、private path、secret-shaped value、未知 flag、缺少 argv 與不洩漏 raw value；source contract 驗證 schema v5 與欄位存在。這只強化 wrapper 保存邊界，不代表 live runner replay-time argv、exact Chromium generated profile、binary provenance 或 packaged UI acceptance；本輪不啟動 packaged Electron／Ollama／network probe、不修改 OS policy。
+
+### BUG-036：UI acceptance artifact 讀取逃逸清理與 daemon 啟動總期限缺口（2026-10-01）
+
+- 獨立重現：round1 reviewer 的 actual runner VM 在 spawn／temp 後令 artifact read 拋 EACCES，觀察 cleanupCalls=0；local HTTP trickle fixture（20ms 傳一段）令 timeoutMs=50 的 daemon gate 在 259ms 成功，超過總期限。
+- 修正：artifact hash 讀取移入主 try/finally，固定 artifact_preflight stage，失敗仍保存去敏 evidence、停止 group、刪除並確認 temp；tags 使用剩餘 startup deadline 的 absolute timer、不因 body 流量延長，成功後再核對期限，body 限 1 MiB。
+- 防回歸：`test-ollama-ui-offline.mjs` 在記憶體執行完整 actual runner，斷言 artifact EACCES 仍清理 app／temp、保存 fail 與 stage／code、不保存 path canary；actual helper 搭 local HTTP trickle fixture，斷言 deadline fail closed。原始 round1 報告及所有 replay 不改寫。
+
+### BUG-035：AI 取消後 checkpoint 恢復按鈕可能被舊輪詢回應隱藏（2026-10-01）
+
+- 重現：`node scripts/test-review-ui.mjs` 的實際 UI 函式 VM 回歸先安排 GET in-flight，再完成 cancel POST，最後釋出舊 `running` 回應；修補前 assert `resumeAiOptimize.hidden === false` 失敗（actual true）。這是受控競速重現，不宣稱每次實機取消都會發生。
+- 根因：成功取消只呼叫 `setAiRunning(false)`，使舊 poll 在收到 stale running 後退出；原 cancel handler 未重新讀取終態／retryable，因此恢復按鈕可能保留啟動時的 hidden。
+- 最小修正：成功取消後以既有 `restoreAiOptimizationStatus({ silent: true })` 確認伺服器 checkpoint／retryable 控制，不依賴舊 poll 終態分支；不修改 server、checkpoint 結構、模型驗證或來源字幕。
+- 防回歸：實際執行 `setAiRunning`、poll、restore、cancel 四函式，涵蓋可續跑 checkpoint、零 checkpoint 與 cancel HTTP 拒絕；拒絕取消不停止現有輪詢、不隱藏 cancel。另建立當前 dirty worktree 的隔離 macOS 目錄候選進行真實 Ollama UI 驗收，與舊 `53956cc` candidate 證據分開。
+- round1 延伸修正：reviewer 重現成功 resume 後才抵達的 stale cancelled 會停止新 poll；新增 `aiPollingGeneration`，每次 running 狀態切換使旧 token 失效，poll 在等待前後核對 generation，旧終態不得覆寫新任務。持久 VM regression 另測 stale cancelled／failed／completed，確認新 polling／cancel 控制保持 running，並可完成新 Session；既有三案保留。
+- round2 延伸修正：restore GET 成功與失敗均核對 generation；superseded cancel 跳過舊訊息。Actual UI regression 在 cancel restore pending 時從真實 `runAiOptimize` 啟動新任務，晚到成功／失敗 restore 不影響控制、訊息及既有 Session，釋出新 poll 後新 Session 正常 completed。另重現 stale GET rejection 並補 guard；對 superseded start rejection 與目前任務 start／poll failure 分別測試，保留現任務錯誤回報。
+
+### BUG-034：Ollama UI acceptance 誤選啟動畫面及缺少 socket validator binding（2026-10-01）
+
+- 現象與證據：`2026-10-01-ollama-ui-cancel-resume-replay1.json` 在 UI flow 前以 `DEVTOOLS_TARGET_URL_REJECTED` 失敗，完整 cleanup 成功；packaged app 的 file:// splash 與首頁均含「字幕」標題，原 runner 先按標題選擇而命中 splash。另程式檢視發現 runner 使用 `isTrustedDevToolsWebSocketUrl` 卻未 import，真正首頁路徑會 ReferenceError 並被啟動重試 catch 吞掉。
+- 最小修正：共用 `selectTrustedElectronPageTarget()` 只選取符合既有 `127.0.0.1` HTTP policy 的 app page，再驗證 exact-port loopback WebSocket；file://／remote pages 不會連線，沒有 main page 時繼續有界等待；不放寬 URL 或 socket whitelist。
+- 防回歸：實際執行 selector，涵蓋 splash-only、splash 在首頁前、remote page 與錯誤 WebSocket port；保留原 connection-construction 拒絕測試，並以唯一 replay2 重做實機流程。此項為 acceptance tooling 缺陷，不是產品 UI 缺陷。
+
+### BUG-033：Ollama 離線 acceptance daemon spawn error 未進入清理流程（2026-09-29）
+
+- 日期／版本：2026-09-29／0.51.0 開發中。
+- 現象與影響：round1 獨立審查指出，sandbox daemon child 的非同步 `error` event 未受控時，Node 可能在 wrapper cleanup／evidence 寫入前終止；屬 acceptance tooling 的啟動失敗邊界，沒有修改或證實產品 Ollama runtime 故障。
+- 根因：`spawn()` 回傳後若 executable 啟動失敗，錯誤透過 ChildProcess `error` event 非同步發出；原 wrapper 只等待 `/api/tags`，沒有共用的 spawn／close lifecycle observer。
+- 最小修正：新增 `lib/ai/managed-child-process.mjs`，保存 `spawn`、固定化 `error.code` 與 `close` 狀態；`stopManagedChild` 對 spawn failure 等待 close，正常啟動則有界 SIGTERM／SIGKILL 並等待 close。offline acceptance wrapper 使用該 helper，spawn failure 進入既有 failure／evidence／finally cleanup。
+- 防回歸與驗證：`scripts/test-ollama-offline-process.mjs` 先使用確定不存在的 executable 驗證 helper 的 `started=false`、`ENOENT`、close 與 cleanup；再在 macOS 且 Seatbelt／Ollama／模型 store 可用時，以僅限 `NODE_ENV=test` 的 spawn-command seam 執行完整 wrapper subprocess，斷言 `SANDBOXED_OLLAMA_SPAWN_FAILED`、`ollama_start`、exit 1、daemon 未啟動與 evidence／port／temp cleanup。focused test、provider source-contract test、三項相關 `node --check`、完整 `npm run check` 與 `git diff --check` 均通過。post-fix 3B sandbox product replay 通過；post-fix 1B replay8／9 因輸出契約失敗，但兩案 sandbox 與完整 cleanup 均確認。
+- 剩餘風險：fault injection 使用 test-only missing executable，不模擬真實 sandbox-exec 的 EACCES／Seatbelt policy launch failure；跨平台 runner 無 macOS prerequisites 時會保留 helper regression 並略過 wrapper integration 部分。本項只修 acceptance wrapper，不代表 FR-021 整體、全機斷網、Electron UI、cancel／resume、Windows 實機或模型品質已驗收。
+
+### BUG-032：Windows CRLF 造成 Breeze 效能提示契約測試誤判（2026-09-23）
+
+- 現象：GitHub Windows preview 的 `npm run check` 在 `scripts/test-breeze-asr.mjs:176` 失敗，錯誤為「應存在可測試的 Breeze 效能提示更新函式」；同一來源在 macOS LF checkout 可找到 `updateBreezePerformanceNotice` 並通過。
+- 重現基準：`public/app.js` 的函式本身存在；現行 regex 結尾要求 `}\n\nfunction updateAsrEngineUi`。將相同 source 轉為 CRLF 後，`}\r\n\r\nfunction` 無法符合該 regex，造成 `noticeFunction` 為 `undefined`。這是測試讀取格式問題，不是產品函式缺失。
+- 根因：source-contract test 直接以 LF-only regex 解析 checkout 的 `public/app.js`；Windows Git checkout 的 CRLF 行尾使函式邊界比對失敗。
+- 最小修正：`scripts/test-breeze-asr.mjs` 讀取 `public/app.js` 後先將 CRLF 正規化為 LF，再執行既有函式擷取與 UI 行為 assertions；另以 LF→CRLF→LF fixture assertion 固定跨平台等價性。不改 `public/app.js`、產品 runtime 或 Breeze 行為。
+- 開發驗證：現行 regex 的 CRLF 重放明確由 `lfMatch=true` 變為 `crlfMatch=false`；修正後 `node scripts/test-breeze-asr.mjs`、完整 `npm run check` 與 `git diff --check` 均通過。Windows preview run `35804611051` 於修正 commit `e8ccee8` 成功完成 source／FFmpeg regression、preview package、renderer／install lifecycle、archive／SHA-256 與 artifact upload。
+- 防回歸：保留 CRLF fixture 重放，並以共用 `extractNoticeFunction` 直接驗證正規化後 CRLF source 可擷取 Breeze 函式；Breeze focused test、完整回歸與 Windows runner 均通過。Windows runner 成功不等同 Windows 實機驗收。
+- 剩餘風險：本輪不執行 Windows 實機驗收、不驗證 Breeze 真實 runtime／模型品質；修正只涵蓋 source-contract 測試的換行可攜性。
+
+### FR-020／NFR-006：長音訊來源完整性 probe 缺少輸入影片 hash 與故障注入（2026-09-23）
+
+- 缺口：既有 evidence v3 只保存輸入影片 before hash，來源 SRT 雖有 before／after hash，卻沒有對 hash mismatch 或來源檔消失做故障注入。
+- 最小修正：新增串流 snapshot helper；evidence v4 記錄影片與可選來源 SRT before／after SHA-256 及大小，將內容變更／after missing 與 hash check failure 分別列為失敗，保留不寫字幕內容的契約。
+- 防回歸：`node scripts/test-whisper-long-media-integrity.mjs` 對 input-video／source-subtitles 各驗證 unchanged、同大小 hash mismatch、missing-after；`npm run acceptance:whisper:integrity-fault-injection` 再於實際 probe 邊界注入影片與 SRT 的修改／消失並核對 failure code、scope flags 與 temp cleanup。短合成 MP4 已重播 bundled probe v4 正常路徑，不重跑原始長片。evidence 分別見 `docs/project-management/evidence/2026-09-23-whisper-long-media-integrity-fault-injection.json`、`docs/project-management/evidence/2026-09-23-whisper-long-media-integrity-short-replay.json`。
+- 剩餘風險：before／after hash 仍不能偵測期間發生後又恢復原內容的瞬態改寫；hash 相同也不代表來源字幕／Whisper 文字正確。長音訊語意品質、人工校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows 與 Release 不由本項結案。
+
+### FR-020／NFR-006：probe stderr evidence 隱私邊界補強（2026-09-23）
+
+- 觸發觀察：round1 報告指出舊版保存 Whisper stderr tail 原文，缺少測試證明錯誤路徑不會把字幕內容寫入 evidence；報告同時明載其非獨立上下文且未重跑測試，因此僅作為待驗證的邊界觀察，不代表已證實實際 stderr 含字幕。
+- 修正：新增 `whisper-long-media-evidence.mjs`，將 stderr 降為行數／診斷行數摘要，將 FFprobe／FFmpeg／Whisper process 啟動失敗及 exit 結果轉成不含原始錯誤文字的固定化 outcome；probe evidence schema 升為 v5，移除 `stderrTail` 欄位及子程序失敗時直接輸出原始 stderr／Whisper error 的路徑。
+- 防回歸：`test-whisper-long-media-evidence.mjs` 把 transcript-like canary 放入 stderr 與 Error，驗證摘要及安全結果 JSON 不包含原字串；v5 bundled Tiny replay 與四案 probe-level fault injection 作為正常／失敗路徑驗證。
+- 後續處理：round2 發現外層 catch 路徑與 cleanup fail-closed 缺口，已在下節補強固定化錯誤及刪除確認；round3 獨立複審與 final docs gate 仍待完成。
+
+### FR-020／NFR-006：round2 發現自訂路徑洩漏與 cleanup fail-closed 缺口（2026-09-23）
+
+- 獨立發現：round2 報告指出 catch 仍持久化 `error.message`，對 `/Volumes/...` 等自訂來源 SRT 路徑遮罩不完整；另 `tempRootRemoved=false` 未改成失敗狀態。報告把此列為可達風險，未宣稱已端到端重現。
+- 修正：probe catch 改寫固定化 `PROBE_FAILED` 訊息，不再序列化 exception message／code；暫存移除後以 `lstat` 確認只有 `ENOENT` 才代表成功，其他狀態均令 evidence fail 並以 `TEMP_ROOT_CLEANUP_FAILED`／`FINALIZATION_FAILED` 回報。
+- 防回歸：helper 測試注入 transcript-like custom path、`rmSync` throw、路徑仍存在及 `lstat` 權限錯誤；當時 probe-level harness 為 v8 五案，後續 basename／cleanup probe-level 補強詳見下節。
+- 剩餘風險：驗收只能證明模擬 filesystem cleanup 結果與自訂路徑 fixture；不代表所有 OS 檔案系統故障皆可重現，也不涵蓋字幕品質、Windows 實機、真實 Metal fallback 或長片重播。
+
+### FR-020／NFR-006：round3 隱私／cleanup 複審建議補強（2026-09-24）
+
+- round3 結論：有條件通過；round2 兩項程式阻擋已修正。剩餘建議為來源 SRT basename 仍寫入 evidence，且 cleanup helper 未由 probe 子程序端到端 fault-inject。
+- 修正：來源 SRT evidence 一律使用固定標籤 `source.srt`，不保存指定 basename；probe acceptance 增加 basename canary 與 Node preload cleanup failure 案。preload 先實際移除合成 temp root，再讓 lstat 回 EACCES，驗證 probe evidence／exit fail closed 且不殘留測試資料。
+- 驗證：2026-09-24 v9 七案包含媒體／SRT 四種 integrity failure、自訂路徑 canary、basename canary、cleanup-unverifiable；各案及完整 `npm run check`、`git diff --check` 通過。round4 獨立審查代理未產出報告而停止，最新差異的複審與 final docs gate 尚未完成。
+- round4 複審：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round4.md` 判定有條件通過；條件是舊 preload 先刪除 temp root 再模擬錯誤，尚未驗證實際刪除失敗且目錄殘留的 probe 行為。
+- round4 條件補強：harness preload 現在於刪除前讓 `rmSync` 真正拋出 EACCES，保留真實目錄供父 harness 以原生 `lstat` 驗證；確認後才清理並斷言 ENOENT。新 v10 evidence 記錄七案通過，cleanup 案為 evidence fail、`tempRootRemoved=false`、`TEMP_ROOT_CLEANUP_FAILED`、probe exit 1，並確認父 harness 已移除故障注入留下的目錄。兩個 focused tests、完整 `npm run check`、`git diff --check` 通過；新一輪獨立複審待完成。
+- round5 複審：`docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round5.md` 為有條件通過，指出 marker prefix 判斷不夠精確且 marker 無效／缺失時 harness 不一定能回收 temp root。
+- round5 條件補強：移除 marker，將 probe temp-root 預先固定為隔離 cleanup case 的直接子目錄；preload 只攔截 `path.resolve(target) === path.resolve(OSF_CLEANUP_TARGET_ROOT)`，父 finally 直接清除確切目標並核對 ENOENT。v11 repo 外 replay 與持久 evidence replay 都七案通過，實際 root 在父清理前存在，probe failure evidence／exit 1 如預期；兩個 focused tests、完整 `npm run check`、`git diff --check` 通過。round6 原件因 final validator 格式錯誤保留；round7 獨立複審 `docs/project-management/reviews/2026-09-29-fr-020-long-media-integrity-fault-injection-round7.md` 有條件通過，重跑 focused tests、repo 外七案與文件檢查。工作紀錄已加入 round7 原句引用，`npm run docs:check:final` 通過並確認最新紀錄結案。未驗的原片品質、原生 OS 權限、Windows 實機、真實 Metal fallback 與 Release 仍不在本修正範圍。
+- 剩餘風險：本輪只驗證受控 Node/macOS temp-root EACCES 注入，不涵蓋所有 OS／檔案系統故障模式；未重跑 5,416 秒原片、Windows 實機、真實 Metal fallback 或 Release。
+
+### FR-020／NFR-006：bundled Whisper 長音訊來源 SRT hash 完整性補強（2026-09-21）
+
+- 缺口：長音訊 evidence 原先以 `originalSrtModified=false` 宣告來源 SRT 未修改，但沒有保存 before／after hash，無法提供完整的檔案完整性比對。
+- 最小修正：`verify-whisper-long-media.mjs` 接受明確來源 SRT 路徑，未提供時只在相鄰 `.edited.srt` 存在時採用；schema 升為 v3，保存來源 SRT basename／大小／before／after SHA-256 與檢查旗標，hash 不一致或檔案消失時回報 `SOURCE_SRT_MODIFIED`。
+- 實測：短音訊與完整 `<user-home>/Downloads/20260909.mp4` replay 均 exit 0；完整 evidence 記錄來源 SRT before／after 均為 `4d5f5a53bb4eea7f5de5b428caefb38871771655166b12fccc613f3600f16482`、`sourceSrtHashChecked=true`、`originalSrtModified=false`，2,509 segments、非空 SRT／JSON、temp cleanup 通過。
+- 剩餘風險：hash 完整性不代表字幕語意品質或 Whisper 與來源 SRT 的正確性；中文音訊品質、人工校閱、confidence／no-speech、真實 Metal crash→CPU fallback、Windows、乾淨安裝與發布仍未驗收。
+
+### FR-020／BUG-WHISPER-METAL-139：bundled Whisper 長音訊 probe 摘要與隱私修正（2026-09-21）
+
+- 現象：首版長音訊 probe 將 bundled Whisper JSON 假設為 `segments` 陣列，實際輸出使用 `transcription`，導致完整成功 replay 被誤判為沒有 segment；同版 evidence 也保存了 stdout 最後一段字幕文字，超出「只保存非敏感摘要」的設計範圍。
+- 根因：probe 摘要器未兼容 bundled Whisper.cpp 的 JSON 形狀，且把為診斷保留的 stdout tail 原樣寫入 evidence。
+- 最小修正：摘要器同時支援 `segments`／`transcription`，以 offsets／tokens 計算 segment、文字 code point、時間範圍與 token probability 統計；evidence schema 升為 v2，stdout 改保存 line count、timestamped transcript line count 與 `contentStored=false`，不保存字幕文字。
+- 重播與驗證：`2026-09-21-whisper-long-media-small-redacted.json` 在 macOS arm64 受控權限完整跑完 5,416.349667 秒影片，exit 0、2,509 segments、非空 SRT／JSON、temp cleanup 通過；原 v1 含字幕尾端的中間 evidence 已移除。Node syntax、14 項 evidence assertions、完整 `npm run check`、`git diff --check`、獨立 round1 審查與 `npm run docs:check:final` 均完成。
+- 剩餘風險：這是 runtime／輸出完整性基線，不代表中文品質、人工影音校閱、長音訊效能、confidence／no-speech metadata、真實 Metal crash→CPU fallback、Windows、乾淨安裝或發布驗收；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：production probe 啟動失敗診斷可觀測性（2026-09-21）
+
+- 症狀：前輪預設 sandbox 的 bundled production server 在 ready 前 exit 0，原 probe 因 `stdio: ignore` 只留下 exit code，無法從 evidence 判斷 loopback 權限或其他啟動原因。
+- 根因／範圍：問題位於 acceptance probe 的子程序輸出收集，不是產品 server fallback；本輪不修改 `server.mjs`、fallback policy、bundled runtime／模型。
+- 最小修正：`verify-whisper-real-fallback.mjs` 改收集 child stdout／stderr，保存 PID、ready phase、exit code／signal 與固定長度遮罩尾端；API key／token／secret／Authorization／Bearer／Basic 與使用者／暫存路徑均先遮罩，schema 升為 v2。
+- 重播結果：round2 預設 sandbox evidence `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-default.json` 明確記錄 `listen EPERM`、ready=false、job 未建立；受控本機權限 evidence `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-diagnostics-round2-escalated.json` 仍完成 `ready-review`、Metal、無 fallback，且 token／credential／`/tmp/` leakage assertions 通過。round1 evidence 保留作為修正前對照。
+- 防回歸／剩餘風險：Node syntax、兩側 replay、evidence assertions 與完整回歸需持續通過；診斷摘要仍不是完整 log，也不會產生真實 bundled Metal crash→CPU fallback 證據。中文品質、長音訊、Windows、乾淨安裝與發布仍未驗收；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：bundled production server Metal failure 邊界重播（2026-09-21）
+
+- 現象：需確認前輪受控 wrapper→bundled CPU 取消之外，真實 bundled `whisper-cli` 在同一次 production server 中是否能重現 Metal failure 並自動 fallback。
+- 重播條件：同一 macOS arm64 bundled `whisper-cli`／Tiny、同一 1 秒 16 kHz mono 合成 WAV、同一 `scripts/verify-whisper-real-fallback.mjs`；分別以預設 sandbox 與受控本機權限啟動 production server。
+- 結果：預設 sandbox server 在 ready 前 exit 0，未建立 job，證據為 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-default.json`；受控本機權限完成 `ready-review`、`whisperDevice=metal`、`fallbackObserved=false`，證據為 `docs/project-management/evidence/2026-09-21-whisper-real-server-fallback-escalated.json`。
+- 根因／邊界判定：本次只能確認預設執行環境的 server loopback 啟動邊界與受控權限下 bundled Metal 正常路徑，沒有觀察到真實 bundled Metal exit／signal，因此不能宣稱 crash→CPU fallback；不修改產品程式。
+- 剩餘風險：仍需在能穩定重現 bundled Metal crash 的同一 production server 環境取得 CPU fallback evidence；長音訊、中文品質、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139／BUG-026：production-mode bundled CPU retry 取消補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗缺口：deterministic child 已覆蓋 retry 期間取消，上一輪 hybrid 則只驗證真實 bundled CPU 正常完成；尚缺真實 CPU child 已啟動後經產品 API 取消與清理的證據。
+- 探針設計：新增 `--cancel-bundled-cpu` 模式，使用 60 秒本機合成 WAV；CPU wrapper 在真實 child spawn 後寫 ready marker，API 取消時轉送 SIGTERM 並記錄 child close／forcedKill。probe 明確注入固定 partial SRT／JSON、quality metadata 與 edit plan 哨兵，以精確檔案不存在／保留斷言驗證清理；未修改 `server.mjs` 或 bundled CLI。
+- round1 審查發現：正常取消雖通過，但取消 API 不可用時 probe 只停 server 並刪 temp，未確認 wrapper／CPU child close；這是驗收工具的失敗收尾缺陷，不是已觀察到的產品取消失敗。修正為獨立 process group 有界終止／確認消失後才清 temp；`kill(-pgid, 0)` 受權限邊界回 EPERM 時，以 `/bin/ps` 只讀核對該 PGID，無法確認則保留診斷 temp 並回報 failure。故障注入 `--simulate-cancel-api-loss` 在 CPU spawn 後跳過 API，記錄 `expectedFaultSafelyHandled`。
+- 實測與防回歸：正常取消在最新 probe 下仍 `cancelled`，取消中先維持 `running/cancelling`，CPU child `signal=SIGTERM` 且無 forced kill，invocation 僅 `metal`／`cpu`，ASR 哨兵與暫存 WAV 清理、edit plan 保留；新 evidence 為 `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-final.json`。API loss 注入預期 exit 1，但 wrapper／CPU close、groupGone 與 tempRootRemoved 均為 true，evidence 為 `docs/project-management/evidence/2026-09-18-whisper-bundled-cpu-cancel-api-loss-final.json`。前輪 hybrid 完成與舊 controlled probe 在收尾改動後仍通過。
+- 剩餘風險：Metal failure 仍由 wrapper 注入，partial 哨兵非真實 CLI 輸出，server 透過 wrapper 而非直接向 CLI 發訊號；真實 bundled Metal crash、長音訊品質／效能、中文語音、Windows、乾淨安裝與發布未驗收。round2 獨立複審通過；LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：production-mode 受控 Metal failure 後 bundled CPU retry 補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗缺口：既有同次 production server fallback 由 deterministic fixture 提供 CPU 輸出；另一 bundled server probe 只觀察到 Metal 正常完成，尚未驗證控制流交給真實 bundled CPU 時是否完成。
+- 最小探針：在既有隔離 production acceptance 增加 `--bundled-cpu` 模式；wrapper 只注入首次 Metal exit 139／partial outputs，CPU 分支記錄 invocation、檢查 stale partial、直接 spawn 固定 bundled binary 並記錄其退出結果。沒有修改產品 `server.mjs` 或 bundled CLI。
+- 實測：macOS arm64 受控權限 hybrid probe exit 0；同次任務 `metal`／`cpu` 兩次 invocation、CPU binary exit 0、`completed/ready-review`、`whisperDevice=cpu`、draft／SRT／JSON 齊全且無暫存 WAV／stale partial。round1 審查指出原始 evidence 缺少工作紀錄要求的重播命令；保留原檔後重新產生 `docs/project-management/evidence/2026-09-18-whisper-hybrid-fallback-replay.json`，包含 command、working directory 與環境前提。舊 controlled probe 與完整 `npm run check` 亦通過。
+- 剩餘風險：首次 failure 並非 bundled Metal 真實崩潰，故同次真實 crash→CPU 門檻仍未完成；短靜音不驗證中文品質、長音訊、取消真實 CPU child、Windows、乾淨安裝或發布。LM Studio 依需求方決策未執行。
+
 ## 紀錄格式
 
 每個缺陷記錄：`BUG-ID`、日期／版本、現象、影響、重現、根因、修正、驗證、防回歸、剩餘風險。
 
 ## 重要既有缺陷
+
+### BUG-WHISPER-METAL-139：CPU fallback 再失敗殘留 partial outputs
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 現象／影響：macOS arm64 首次 Metal failure 進入 `--no-gpu` CPU retry 後，若 CPU child 也非零退出且曾寫入 partial SRT／JSON，任務會正確標記 failed，但固定輸出仍留在 working 目錄；後續診斷或重跑可能誤把失敗產物視為可用輸出。
+- 修正前重現：deterministic fixture 依序執行 Metal exit 139、CPU exit 7，兩次都寫入 partial outputs；核心測試確認只有兩次 invocation 且任務已 failed，但 `whisper-cpp-output.srt` 實際仍存在，於清理斷言 exit 1。
+- 根因：`runWhisperCpp` 的 Metal→CPU fallback 與取消分支會清理固定輸出，不再 retry 的 process failure 分支直接 reject，沒有套用相同清理契約。
+- 修正：fallback 前與終止性 process failure 前共用 `removeWhisperPartialOutputs(workingDir, [outputBase])`；CPU retry 仍只執行一次，失敗 reason 原樣傳至 job message／log，清理只限固定 SRT／JSON 與 quality metadata。
+- 驗證／防回歸：核心 child fixture 斷言 final status／stage 為 failed、metrics 為 CPU、message 含 exit 7、Metal fallback marker 保留、invocation 僅 `metal`／`cpu`，且 stale marker、partial SRT／JSON、draft 均不存在；focused core 與完整 `npm run check` 通過。證據為 `docs/project-management/evidence/2026-09-18-whisper-cpu-retry-failure.json`。
+- 剩餘風險：尚未以真實 bundled runtime 重現 Metal crash 後 CPU 也失敗；取消與 retry 交界、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139／BUG-026：Metal→CPU retry 取消交界補驗
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 待驗風險：既有 BUG-026 已驗證一般 Whisper.cpp child 取消，Metal→CPU retry 後仍缺少 child 已執行時的取消整合證據；可能出現提早標記 cancelled、漏清 partial 輸出或取消後再啟動 child。
+- 基準重播：fixture 首次 Metal exit 139，第二次 CPU child 寫 partial SRT／JSON 並安裝 SIGTERM handler 後寫 ready marker；測試等 marker 才透過 API 取消。現有產品程式三次核心重播均通過，未重現上述缺陷，故未修改 `server.mjs`。
+- 驗證／防回歸：`scripts/test-core.mjs` 斷言 `running/cancelling`→child close→`cancelled`，精確兩次 invocation、CPU metrics、Metal fallback marker、SIGTERM／close marker、暫存音訊／partial／quality metadata 清理、無 draft 與非 ASR `edit-plan.json` 保留；完整 `npm run check` 通過。證據：`docs/project-management/evidence/2026-09-18-whisper-retry-cancellation.json`。
+- 剩餘風險：本輪只補 deterministic CPU child 就緒後取消；真實 bundled runtime、Metal close callback 內不可插入窗口、Windows taskkill、長音訊、中文品質、乾淨安裝與發布未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-031：歷史 AI profile 秘密仍殘留一般設定檔
+
+- 日期／版本：2026-09-16／0.51.0 開發中。
+- 現象：BUG-029 已讓新保存路徑以 allowlist 排除 profile 秘密，但啟動載入只在 runtime 正規化；若既有 `settings.json` 已含 AI 根層 `apiKey`／Authorization／token／secret 或 profile 內秘密／未知 provider，磁碟明文不會被清除。
+- 影響：API 與 runtime 雖不回傳這些欄位，歷史秘密仍可能留在一般設定檔、備份或支援診斷資料中，違反 NFR-002 的秘密隔離邊界。
+- 重現：核心啟動 fixture 預置 AI 根層與 Anthropic profile 秘密；修正前在受控權限執行 `node scripts/test-core.mjs`，於「啟動遷移必須從一般設定檔移除 AI 根層歷史秘密」斷言失敗，實際磁碟字串仍存在。
+- 根因：`loadSettings()` 只回傳 `normalizeSettings()` 結果，沒有把已正規化的 profile 或根層秘密清理結果持久化回原設定檔。
+- 修正：啟動時建立窄範圍持久化遷移，刪除 AI 根層固定 secret-shaped 鍵名，以既有 profile allowlist 取代歷史 profiles 並移除未知 provider；只在內容改變時以同目錄 sanitized 暫存檔原子置換。非敏感未知 AI 根層欄位、合法 profile 與獨立 `ai-secrets.json` 保留，歷史明文不自動匯入 secrets；寫入失敗只記錄不含秘密內容的權限警告，runtime 仍採正規化值。
+- 驗證：核心 fixture 驗證根層多種大小寫／分隔形式秘密、profile 秘密與未知 provider 從磁碟消失，合法 Base URL／model／batch／timeout、非敏感未知根層欄位及既有獨立 secrets 保留，且無 migration temp 殘留；Node 語法、核心整合、provider contract、差異格式與完整 `npm run check` 均通過。round1 因未完成獨立讀取而有條件通過，新的 round2 獨立上下文完成六面向靜態核對後判定通過，無阻擋問題。
+- 防回歸：啟動 fixture 直接讀回遷移後 `settings.json` 與 `ai-secrets.json`，不只檢查 API 回應；後續新增合法 profile 欄位時必須同步 allowlist、遷移與測試。
+- 剩餘風險：無法寫入一般設定檔時磁碟明文仍會保留，需依不含秘密值的警告修正檔案／目錄權限後重啟；本輪不掃描歷史備份、log、其他使用者目錄或 OS 安全儲存，也不驗證 Windows 真實檔案鎖定情境。
+
+### BUG-WHISPER-METAL-139：SIGSEGV signal fallback 可觀測性缺口
+
+- 日期／版本：2026-09-18／0.51.0 開發中。
+- 現象／影響：Node child process 若被 `SIGSEGV` 終止，`close` callback 會收到 `code=null`、`signal=SIGSEGV`；既有 server 只把 code 寫成 `Metal exit null`，真實 acceptance probe 又只辨識 `Metal exit 139`，可能讓實際已發生並成功完成的 signal fallback 被 evidence 誤記為未觀察到。
+- 根因：fallback policy 以 `exitCode !== 0` 隱含接受 null／字串等值，server 沒有接收 `close` 的 signal 參數，probe 將產品策略過度收窄成單一 139 marker；policy、日誌與 acceptance 判定不是同一份明確契約。
+- 修正：抽出型別嚴格的 process failure contract；明確非零整數 exit 或非空 signal 才算失敗。macOS arm64 首次 Metal 嘗試會清理 partial outputs 並 CPU retry 一次，log 分別寫 `Metal exit <code>` 或 `Metal signal <name>`；exit 0、null 且無 signal、非數字 exit、已在 CPU retry 與其他平台／架構不 fallback。真實 probe 共用 parser，接受任一明確 Metal failure marker＋CPU fallback。
+- 驗證：policy／log marker 矩陣 exit 0；核心整合以真實自我 `SIGSEGV` child 取得 `Metal signal SIGSEGV`，清理 partial SRT／JSON 後以 CPU 完成 `ready-review`，既有 exit 139 案例亦通過。production controlled exit 139 replay 與 bundled Metal normal-path replay 均 exit 0；證據為 `docs/project-management/evidence/2026-09-18-whisper-signal-aware-fallback.json`。
+- 防回歸：`scripts/test-whisper-fallback-policy.mjs` 固定 exit／signal／invalid value／平台矩陣與 parser 假陽性；`scripts/test-core.mjs` 同時覆蓋 exit 139 與 signal SIGSEGV 的 partial 清理、CPU metrics、可觀測 logs 與最終 draft。
+- 剩餘風險：本輪沒有在真實 bundled production server run 重現 crash→CPU fallback，deterministic signal／exit 案例仍不代表 runtime 實機；取消中的 retry、CPU retry 失敗、長音訊、中文品質、其他 macOS 架構、Windows、乾淨安裝與發布仍未驗收。LM Studio 依需求方決策未執行。
+
+### BUG-WHISPER-METAL-139：child-process exit 139 fallback 整合回歸
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：既有策略單元測試只驗證 fallback 判斷矩陣，未直接覆蓋 `runWhisperCpp` 的 child 非零退出、partial 輸出清理與 CPU retry，容易讓控制流回歸未被核心 API 測試捕捉。
+- 修正：新增 macOS arm64 專用 deterministic runner marker；首次非 `--no-gpu` 執行回傳 exit 139 並寫入 partial SRT／JSON，第二次 `--no-gpu` 執行成功；若 server 未先清理 partial output，fixture 會留下明確 stale marker 使測試失敗。未改真實 Whisper.cpp CLI 或 production fallback 策略。
+- 驗證／防回歸：`scripts/test-core.mjs` 建立 fallback 任務並斷言 `ready-review`、`metrics.whisperDevice=cpu`、首次 139 marker、無 stale partial marker 與最終 draft SRT；macOS arm64 受控核心回歸已通過，既有 fallback policy／quality focused 測試亦通過。
+- 剩餘風險：fixture 不代表 bundled Whisper.cpp 真實 Metal／CPU 行為；長音訊、取消中的 retry、Windows／其他 macOS 架構、乾淨安裝與模型品質仍未驗收。
+
+### BUG-WHISPER-METAL-139：產品 server 真實 bundled path probe
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：直接 bundled CLI 對照可在目前 macOS arm64 收到 Metal allocation failure／`SIGSEGV`，但需要確認 production-mode server 的 child-process 控制流、輸出清理與正常完成狀態。
+- 重現／探針：`npm run acceptance:whisper:fallback -- docs/project-management/evidence/2026-09-17-whisper-real-server-fallback.json`；probe 使用隔離 localhost server、非測試環境、本機生成 WAV 與 bundled Tiny，不使用使用者媒體或外部 endpoint。
+- 實際結果：server 任務完成 `ready-review`，metrics 為 `whisperDevice=metal`，產生 draft／SRT／JSON 並清除暫存 WAV；status logs 沒有 `Metal exit 139`／`CPU fallback`，故本次沒有重現 crash→CPU fallback。
+- 修正／防回歸：新增 production-mode acceptance probe；若當次 status logs 同時出現 `Metal exit 139` 與 `CPU fallback`，probe 會強制斷言最終 `whisperDevice=cpu`、輸出完整與暫存清理，否則只記錄正常 Metal path，不放寬為 fallback 通過。
+- 剩餘風險：真正 server 內的 bundled Metal crash→CPU fallback 尚未在同一次實機 run 重現；deterministic fixture 仍是 fallback 控制流的主要回歸證據，長音訊、取消中的 retry、跨平台與乾淨安裝仍待驗收。
+
+### BUG-WHISPER-METAL-139：production-mode controlled fallback acceptance
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／影響：真實 bundled server run 未重現 Metal crash，但仍需確認 production-mode（非 `NODE_ENV=test`）不會因 test runner 關閉而跳過 child-process fallback 控制流。
+- 重現／探針：`npm run acceptance:whisper:production-fallback -- docs/project-management/evidence/2026-09-17-whisper-production-fallback.json`；隔離 tools tree 的 wrapper 首次注入 exit 139／partial SRT／JSON，第二次只在 `--no-gpu` 下呼叫既有 deterministic fixture，底層 model 使用 bundled Tiny symlink。
+- 實際結果：production-mode server status logs 記錄 `Metal exit 139`／`CPU fallback`，最終 metrics 為 `whisperDevice=cpu`，任務完成 `ready-review`，輸出完整、stale partial 清單為空、暫存 WAV 清理；evidence 明確標示 `bundledRuntimeUsed=false`。
+- 修正／防回歸：新增獨立 production-mode controlled acceptance，不改 `server.mjs` fallback 策略；若 test runner gating、partial 清理、CPU retry 或輸出驗證回歸，probe 會失敗。既有 `scripts/test-core.mjs` 維持 deterministic server fixture 回歸。
+- 剩餘風險：這是 production-mode 控制流證據，不是 bundled `whisper-cli` 實機 Metal crash→CPU fallback；仍需在同一次真實 bundled server run 重現 crash 才能關閉該實機門檻，並另行驗收長音訊、取消中的 retry、CPU retry 失敗、跨平台與乾淨安裝。
+
+### BUG-WHISPER-METAL-139：Metal 139 執行權限邊界釐清
+
+- 日期／版本：2026-09-17／0.51.0 開發中。
+- 現象／疑點：前一輪 default sandbox direct bundled CLI 對 FFmpeg 正規化短 WAV 收到 Metal `SIGSEGV`，但 production server bundled path 以 Metal 完成，需區分 runtime 問題與驗證環境限制。
+- 重播條件：使用同一 `whisper-cli`／Tiny、同一 1 秒 16 kHz mono silence WAV、同一產品 flags；分別在 default sandbox 與 `require_escalated` local process 執行 direct Metal，並以 `npm run acceptance:whisper:fallback -- /private/tmp/20260917-whisper-real-server-fallback-replay.json` 重播 `NODE_ENV=production` server。
+- 根因／環境因素判定：升級權限 direct replay exit `0` 並產生 SRT／JSON，production server replay 亦 exit `0`、`whisperDevice=metal`；因此先前 139 已確認為 sandbox 執行邊界差異，不能歸因為 bundled runtime 在本機正常權限下必然失敗。完整對照保存於 `docs/project-management/evidence/2026-09-17-whisper-metal-permission-boundary.json`。
+- 修正／防回歸：不修改產品 fallback 策略；後續 direct runtime／server acceptance 必須記錄執行權限邊界，sandbox crash 只能作環境限制證據，不能要求產品因未在同一權限邊界失敗而觸發 fallback。production-mode deterministic wrapper 與 child-process fixture 仍覆蓋真正 fallback 控制流。
+- 本次判定：真實 bundled server crash→CPU fallback 仍未觀察到，故不關閉該實機驗收門檻；已解除「sandbox direct 139 與正常 server Metal success」的診斷矛盾。中文品質、長音訊、取消中的 retry、CPU retry 失敗、跨平台與乾淨安裝仍待驗收，LM Studio 依需求方決策未執行。
+
+### BUG-030：Ollama 合法 JSON 未包裝 cues 陣列
+
+- 日期／版本：2026-09-15／0.51.0 開發中。
+- 現象：Ollama `llama3.2:1b` 的 provider raw response 可回傳合法 JSON，但形狀是單一 `{id,text,reason}` cue object，而不是既有 optimizer 要求的 `{"cues":[...]}`；產品流程因此回報「AI 回傳缺少 cues 陣列」。
+- 影響：本機小模型即使已產生一個可辨識的字幕建議，仍會在 strict cue validation 前直接失敗，無法完成翻譯／校對批次。
+- 重現：`OSF_ACCEPT_EXTERNAL=1 OSF_PROVIDER=ollama OSF_BASE_URL=http://127.0.0.1:11434/v1 OSF_MODEL=llama3.2:1b node scripts/probe-provider-live.mjs --output docs/project-management/evidence/2026-09-15-ollama-llama3.2-1b-provider-recheck.json` 保存 raw provider contract 失敗；以同一本機設定直接呼叫 `optimizeSubtitleCues()`，修正前同樣回報 `AI 回傳缺少 cues 陣列`。
+- 根因：`parseCompletionContent()` 對合法 object 會回傳 `parsed.cues`，而 `canRepairOllamaJson()` 只辨識 malformed JSON，沒有把「缺少 wrapper」視為可安全一次修復的本機模型格式偏差。
+- 修正：僅對 `provider=ollama` 且錯誤為無效 JSON／缺少 `cues` 陣列時送出一次明確 wrapper repair prompt；修復回應仍必須通過原有 ID、數量、順序、文字長度、語系與內容驗證，非 Ollama provider 不改變。
+- 驗證：`node --check lib/ai/subtitle-optimizer.mjs`、`node --check scripts/test-ai-optimizer.mjs`、`node --check scripts/probe-ollama-live.mjs`、`node --check scripts/test-ai-providers.mjs`、`node scripts/test-ai-optimizer.mjs`、`node scripts/test-ai-providers.mjs` 均 exit 0；實際 Ollama `llama3.2:1b` probe 亦通過 capability、native single-cue 與 optimizer product path，證據為 `docs/project-management/evidence/2026-09-15-ollama-llama3.2-1b-optimizer-recheck.json`。
+- 防回歸：新增 deterministic 測試確認未包裝 cue object 只觸發一次 repair，第二次 wrapper response 才可通過；live probe 記錄 `cue-object`→`cues-array` 回應形狀與固定 `LIVE-OPT-1` cue contract。
+- 剩餘風險：模型可能在 repair 後仍產生語意、標點或語系品質不足，流程會安全拒絕但不保證生成成功；目前只驗證一個 Ollama 模型，LM Studio、真正斷網、取消／人工接受、跨平台與多批次真實模型仍待另行驗收。
+
+### DEV-027：Anthropic Messages API 與既有 optimizer contract 不同
+
+- 日期／版本：2026-08-26／0.51.0 開發中。
+- 現象：Anthropic 使用 `/v1/messages`、`x-api-key`、必要的 `max_tokens` 與 content blocks，不能直接沿用 OpenAI `/chat/completions` 的 body／回應格式；直接共用會造成認證失敗、system prompt 被當成 user，或 optimizer 找不到 `choices[].message.content`。
+- 影響：使用者選取 Anthropic 後無法載入模型、測試連線或安全套用字幕建議。
+- 根因：供應商傳輸契約與既有 OpenAI-compatible adapter 不同。
+- 修正：新增 `lib/ai/anthropic.mjs`，正規化 Base URL、移除 `/v1` 重複路徑、將 system／developer prompt 分離、合併連續 user／assistant 訊息、映射 `max_completion_tokens`→`max_tokens`、剔除 OpenAI 專用欄位，並把 Anthropic text content blocks 正規化為既有 choices contract；provider registry、UI、設定 profile 與金鑰隔離同步加入 `anthropic`。
+- 防回歸：`scripts/test-ai-providers.mjs` 驗證 endpoint、headers、body 清理與 response mapping；`scripts/test-core.mjs` 驗證 provider list／profile／runtime key；`scripts/test-review-ui.mjs` 驗證選項與白名單。
+- 剩餘風險：未使用真實 Claude API Key；外部模型品質、計費、速率限制、proxy 相容性與平台封裝仍需另行驗收。
+
+### BUG-027：Anthropic 新模型拒絕非預設取樣參數
+
+- 日期／版本：2026-09-14／0.51.0 開發中。
+- 現象：共用 optimizer body 可包含 `temperature`、`top_p`、`top_k`，Anthropic adapter 會原樣轉成 `/v1/messages` body；真實 provider probe 亦固定帶入 `temperature: 0`。Anthropic 官方已說明 Claude Opus 4.7 之後對非預設取樣參數回覆 HTTP 400。
+- 影響：使用者可成功載入模型清單，但在最新 Claude 模型開始字幕優化時直接遭遇 400；既有 mock 因未模擬參數拒絕而可能假綠。
+- 根因：初版 adapter 依舊版 Messages API 支援範圍轉送通用取樣欄位，未把供應商模型相容性變更納入 request allowlist。
+- 修正：`lib/ai/anthropic.mjs` 的明確 body allowlist 移除 `temperature`／`top_p`／`top_k`；共用 `scripts/probe-provider-live.mjs` 維持既有 `temperature: 0`，由 Anthropic adapter 局部過濾。model、`max_tokens`、system、messages 與 stop sequences 維持原契約，其他 provider 不變。
+- 驗證：新增三個負向 contract assertion；修正前 focused 測試因實際 `temperature: 0` 外送而 exit 1，修正後 `node scripts/test-ai-providers.mjs` 與完整 `npm run check` 均 exit 0。
+- 防回歸：即使上游共用 optimizer body 再次帶入任一取樣欄位，Anthropic adapter 測試仍要求最終 request body 的三欄皆為 `undefined`；另斷言 `stop_sequences` 保留及共用 live probe 仍提供 `temperature: 0`，不得依易過時的模型名稱白名單決定是否轉送。
+- 剩餘風險：本輪不使用付費 API Key，無法證明特定 Claude 模型、proxy、計費或速率限制的真實端點結果。
+
+### BUG-028：Anthropic 後頁模型被誤判為不可用
+
+- 日期／版本：2026-09-14／0.51.0 開發中。
+- 現象：Anthropic Models API 回應 `has_more=true` 且設定模型位於第二頁以後時，連線測試只檢查第一頁，回傳 `modelAvailable=false` 與不完整 `modelCount`。
+- 影響：擁有超過單頁數量模型或使用分頁 proxy 的使用者可能無法通過指定模型檢查，即使該模型實際可用。
+- 重現：deterministic mock 第一頁只含 `newer-model` 並回傳 `last_id`，第二頁才含 `test-model`；修正前 provider contract 測試實際得到 `false`，未發出第二頁 GET。
+- 根因：初版 `listAnthropicModels()` 只取一次 `result.data`，未實作官方 Models API 的 `has_more`／`last_id`／`after_id` cursor pagination。
+- 修正：每頁以 `limit=1000` 請求，`has_more=true` 時將 opaque `last_id` 原始字串經 `URLSearchParams` 安全編碼為下一頁 `after_id`，依序合併資料；trim 僅用來拒絕全空白游標，不修改傳遞與去重值；缺失 pagination flag、空白／重複游標或超過 100 頁時明確失敗。
+- 驗證：修正前 focused test exit 1；修正後 Node 語法、provider contract、`git diff --check` 與完整 `npm run check` 均 exit 0，涵蓋兩頁成功、游標編碼、空清單、缺模型、異常游標與頁數上限。
+- 防回歸：連線測試與 `listModels()` 共用同一分頁函式；不得以第一頁缺少指定 ID 判定不可用，也不得在無法前進的 cursor response 上重複請求。
+- 剩餘風險：未以真實 API Key 或超過 20 筆的 Anthropic 帳號模型清單驗證；自訂 proxy、外部速率限制、網路中斷與跨平台封裝後行為仍待外部驗收。
+
+### BUG-029：provider profile 可夾帶秘密欄位寫入一般設定
+
+- 日期／版本：2026-09-15／0.51.0 開發中。
+- 現象：`/api/ai/settings` 保存流程原樣合併 payload 的 `profiles`；巢狀 profile 若包含 `apiKey`、`authorization`、`secret` 或其他未知欄位，會被寫入一般 `settings.json`，雖然頂層 API Key 已另存 secrets。
+- 影響：provider 金鑰或自訂秘密可能落入一般設定檔，違反 API Key 與秘密不得進入一般設定的安全契約；profile API 也可能回傳不應保存的欄位。
+- 重現：核心測試送出 `profiles.anthropic.apiKey`、`authorization` 與 `secret`，修正前 `scripts/test-core.mjs` 以一般設定檔包含秘密字串而失敗。
+- 根因：`normalizeAiSettings()` 的 profile 欄位直接保留原物件，`/api/ai/settings` 又以未正規化的 `payload.profiles` 合併保存；初版 allowlist 另因常數宣告晚於模組啟動時的 `loadSettings()`，使含非空 profile 的既有設定觸發 TDZ 後靜默回退預設值。
+- 修正：新增 provider profile allowlist，只保存 `baseUrl`、`model`、`deployment`、`apiVersion`、`batchSize` 與 `timeoutSeconds`；只接受支援的 provider 物件，字串與數值欄位各自正規化，保存流程改用正規化後的 profiles；並將 allowlist 常數移至 `loadSettings()` 首次執行前。
+- 驗證：核心 API 測試確認巢狀秘密不在 `settings.json`、`/api/ai/profile` 回應或合法 profile，啟動時預置的非空 profile 可保留且未知欄位不進 runtime；`node --check server.mjs`、`node --check scripts/test-core.mjs`、`node scripts/test-core.mjs`、provider contract、review UI 與 `git diff --check` 通過。
+- 防回歸：測試持續送出巢狀 API Key、Authorization、secret 及合法模型欄位；allowlist 以 provider ID 過濾未知 profile，避免未來直接合併原始 payload 再次繞過正規化。
+- 剩餘風險：本輪未改變既有 secrets 加密／OS 金鑰儲存機制；已存在於使用者設定檔的歷史秘密需由後續設定載入／遷移流程另行清理或驗收，本輪只保證新保存路徑不再寫入。
 
 ### BUG-001：portable Python／Whisper 綁定開發機路徑
 
@@ -98,6 +457,8 @@
 - 修正狀態：0.48.x 穩定化已在 `runWhisperCpp` 加入 Metal 非零退出後的 `--no-gpu` CPU retry；CPU 仍失敗時維持 failed，不把 crash 當成功。
 - 防回歸／後續：完整回歸與 CPU 對照證據通過；需在 macOS 實機長音訊與乾淨安裝環境持續驗證 retry 耗時、取消與 quality metadata 清理。
 - 剩餘風險：未在乾淨 macOS 使用者環境、Windows 或長音訊驗證；目前產品路徑仍可能在 Metal crash 時失敗。
+- 2026-09-17 重驗：目前 bundled `whisper-cli`／Tiny／生成 1 秒靜音 WAV 的預設 Metal 路徑實際 exit 139，stderr 出現 `ggml_metal_buffer_init` allocation failure 且沒有 SRT／JSON；同一輸入加 `--no-gpu` exit 0 並產生 SRT／JSON。CPU JSON 的 transcription segment 只有 offsets／timestamps／tokens，仍沒有 segment-level confidence／no-speech，證據保存於 `docs/project-management/evidence/2026-09-17-whisper-bundled-runtime-recheck.json`。
+- 本次判定：已重新確認目前主機 bundled runtime 的 crash／CPU workaround 與 quality metadata 缺失，並未宣稱產品 server 已以真實 CLI 完成自動 fallback；產品 fallback 由前一輪 deterministic child-process fixture 覆蓋，真實長音訊、取消中的 retry 與跨平台實機仍待驗收。
 # BUG-012 — OpenAI-compatible 顯示 Gemini 舊設定
 
 - 發現版本：0.45.2（2026-07-22）
@@ -132,7 +493,7 @@
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：載入校閱時回報「字幕第 703 段時間碼無效」。
 - 影響：Whisper.cpp Small 已完成轉錄但無法進入字幕校閱；同一輸出另有第 704、707 段零長度時間碼。
-- 重現：讀取本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt`，第 703 段為 `00:23:53,560 --> 00:23:53,560`，第 704 段相同，第 707 段為 `00:23:54,160 --> 00:23:54,160`；`public/bilingual-subtitles.mjs` 的 `normalizeBilingualCue` 對 `end <= start` 拋出載入錯誤。
+- 重現：讀取本機 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt`，第 703 段為 `00:23:53,560 --> 00:23:53,560`，第 704 段相同，第 707 段為 `00:23:54,160 --> 00:23:54,160`；`public/bilingual-subtitles.mjs` 的 `normalizeBilingualCue` 對 `end <= start` 拋出載入錯誤。
 - 根因：Whisper.cpp 原始 SRT 可產生開始與結束相同的零長度 cue；`runWhisperCpp` 直接把原始檔複製成 `draft.srt`，未在寫入前套用與校閱解析器一致的嚴格時間碼驗證。
 - 修正：新增純函式 SRT 清理器，嚴格解析時間碼、捨棄格式錯誤或 `end <= start` 的 cue、保留有效 cue 並重新編號；Whisper／Whisper.cpp 寫入 `draft.srt` 前套用，既有任務進入校閱資料 API 時也以同一清理器相容載入，全部無效時以可採取行動的錯誤結束；保留原始 Whisper 輸出供診斷。
 - 驗證：focused 清理器與實際 job 703／704／707 回歸、`parseSrtBilingual` 載入、完整 `npm run check`、兩平台封裝與 ZIP 完整性、獨立審查及文件結案檢查。
@@ -144,7 +505,7 @@
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：使用 Ollama 進行多筆 AI 優化時回報「AI 優化失敗：AI 請求逾時」。
 - 影響：已完成的批次仍保存於 checkpoint，但整個 AI 任務在單一批次逾時後變成 failed；使用者需要手動恢復，且容易誤以為所有批次遺失。
-- 重現：本機 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；provider=`ollama`、model=`llama3.2:3b`、55 cues、55 batches、`timeoutSeconds=120`、`maxRetries=1`；第 1／2 批完成後第 3 批逾時，記錄 `progress.completedBatches=2`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`、`retryable=true`。
+- 重現：本機 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；provider=`ollama`、model=`llama3.2:3b`、55 cues、55 batches、`timeoutSeconds=120`、`maxRetries=1`；第 1／2 批完成後第 3 批逾時，記錄 `progress.completedBatches=2`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`、`retryable=true`。
 - 根因初判：Ollama 原生 `/api/chat` 請求使用 `stream:false` 並套用單次絕對 fetch timeout；本機低資源模型對特定 cue 可能超過 timeout，既有批次雖有 checkpoint，但 timeout 錯誤沒有提供更細緻的本機長生成處理與恢復提示。
 - 修正：Ollama 原生 `/api/chat` 改用 `stream:true`；新增 NDJSON fragment 組裝，並將 timeout 重設為每片段的 idle timeout；保留 strict JSON／cue 驗證與 checkpoint，timeout 且已有完成批次時明確提示可恢復，不以無限延長 timeout 或靜默接受部分結果取代修正。
 - 驗證：`test-ai-providers.mjs`、`test-ai-optimizer.mjs`、`test-ollama-batch-stream.mjs` 與完整 `npm run check` 通過；deterministic 三批次 streaming 在 100ms idle timeout 下完成，timeout checkpoint 續跑只送未完成批次；本機 Ollama `127.0.0.1:11434` 未啟動，真實模型 smoke 待外部驗收。
@@ -155,7 +516,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：BUG-016 的 streaming 修正封裝於第 3 批仍顯示「受限或失敗，第 1 次重試，等待 2 秒」，重試後再次回報「AI 優化失敗：AI 請求逾時」。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 更新至 2026-08-05 11:27；`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`activeBatch=3`、`retryAttempt=1`、`retryable=true`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`。本機 Ollama `127.0.0.1:11434` 目前連線拒絕，無法取得同一 cue 的真模型 response。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 更新至 2026-08-05 11:27；`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`activeBatch=3`、`retryAttempt=1`、`retryable=true`、`checkpoint.nextBatchIndex=2`、`error=AI 請求逾時`。本機 Ollama `127.0.0.1:11434` 目前連線拒絕，無法取得同一 cue 的真模型 response。
 - 症狀與根因區分：症狀是串流重試仍逾時；已確認原 transport 在 `fetch` 收到 response headers 後沒有重新開始 body idle timeout，若 Ollama 在 headers 後才產生第一個 NDJSON chunk，仍會沿用 request 起始計時器；此外 timeout 重試沿用相同 120 秒上限，沒有為低資源模型增加可控的第二次等待窗口。
 - 修正：`requestAiJson` 在 `fetch` 完成後重新 arm timeout；Ollama native request 增加 `num_predict=512`、`keep_alive=10m`，避免無界生成與每批重新載入；optimizer 對 Ollama timeout 的下一次 retry 自動將 timeout 加倍（120→240 秒，最高 600 秒），並把延長值寫入 retry progress；UI 重試訊息顯示本次 timeout 上限；checkpoint／strict cue validation 保持不變。
 - 驗證：`test-ai-providers.mjs` 覆蓋 Ollama streaming、chunk idle reset、headers 後延遲第一 chunk、`num_predict`／`keep_alive` contract；`test-ai-optimizer.mjs` 覆蓋 Ollama timeout retry 延長至 240 秒與進度 telemetry、既有 checkpoint resume；`test-ollama-batch-stream.mjs` 三批次 streaming 通過。完整回歸、兩平台封裝與真實 Ollama smoke 待本輪結案補記。
@@ -166,7 +527,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：Ollama 第 3 批不再 timeout，但回報「AI 優化失敗：AI 回傳內容不是有效 JSON」。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`nextBatchIndex=2`、`suggestions=2`、`mode=proofread`、`language=ja`；本機 Ollama `127.0.0.1:11434` 連線拒絕，未保存 raw model response。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json` 於 2026-08-05 12:10 為 `status=failed`、`provider=ollama`、`model=llama3.2:3b`、`completedBatches=2/55`、`nextBatchIndex=2`、`suggestions=2`、`mode=proofread`、`language=ja`；本機 Ollama `127.0.0.1:11434` 連線拒絕，未保存 raw model response。
 - 根因判定：`parseCompletionContent` 原先只接受完整 JSON 或單純 code fence，沒有安全處理模型在 JSON 前後附加說明；對真正 malformed／截斷 JSON 也沒有 Ollama 專用一次性 repair，因此 strict parser 直接讓批次失敗。無 raw response 時不能把本次錯誤進一步歸因為 wrapper、截斷或模型 schema 失守其中一項。
 - 修正：解析前保留 strict JSON 契約，但可從前後包裝文字中擷取完整 `{...}`／`[...]` JSON 再驗證；Ollama malformed JSON 只觸發一次簡化 repair prompt，第二次仍無效則拒絕，不接受原文或不完整 cue；UI 顯示「正在要求 Ollama 重新輸出 JSON」；既有 checkpoint／cue ID／數量／順序驗證不變。
 - 驗證：`test-ai-optimizer.mjs` 覆蓋 wrapper extraction、Ollama proofread malformed→repair、repair 第二次仍 malformed 的拒絕與最多兩次請求；既有 provider／timeout／stream tests 與完整受控權限 `npm run check` 通過；兩平台 ZIP `unzip -t`、source markers／Small manifest 核對通過；真實 Ollama raw response／同一 job 修正後重跑與 Windows 實機仍待外部驗收。
@@ -177,7 +538,7 @@
 
 - 日期／版本：2026-08-05／0.48.0 測試版
 - 現象：Ollama AI 優化在 cue 344 回報「AI 文字長度異常」；該批未完成，既有 checkpoint 仍可續跑。
-- 重現：job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue 344 原文為「如果老師選擇Excel的話」，本機未保存 raw model response，Ollama 目前連線拒絕。
+- 重現：job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805024615-2af944/ai-output/checkpoint.json`；`provider=ollama`、`model=llama3.2:3b`、`progress.completedBatches=4/55`、`checkpoint.nextBatchIndex=4`、`mode=proofread`、`language=ja`；cue 344 原文為「如果老師選擇Excel的話」，本機未保存 raw model response，Ollama 目前連線拒絕。
 - 根因判定：strict validator 對 cue 文字使用 `Math.max(500, original.length * 6)` 上限；本次模型回應已超過安全上限，可能含解說、重複內容或無界生成。因沒有 raw response，不能把具體內容形式宣稱為已證實的單一原因；放寬上限或截斷都會讓錯誤內容進入字幕。
 - 修正：抽出一致的 cue 長度上限計算；原始 prompt 明確列出每個 cue 的字元上限並禁止解說／重複／Markdown；Ollama 遇到 length validation failure 只執行一次專用 JSON repair，repair 仍超長即拒絕；UI 顯示「回應文字過長，正在要求 Ollama 重新輸出」；ID／數量／順序／strict validation／checkpoint 保持不變。
 - 驗證：`test-ai-optimizer.mjs` 覆蓋 cue 344 過長→一次 repair 成功、第二次仍過長拒絕、`validationRepairReason=length` telemetry，以及非 Ollama provider 仍嚴格拒絕；provider／stream 回歸與完整 `npm run check`、兩平台測試包與 ZIP 完整性待本輪結案補記。
@@ -254,3 +615,27 @@
 - 驗證：`scripts/test-breeze-asr.mjs` 新增 UI 文字與首次選擇 source assertions；完整回歸與獨立審查待本輪結案補記。
 - 效能依據：需求方 MacBook Air `Mac15,12`／Apple M3／8 GB／8 cores／macOS `26.5.2`（Build `25F84`）處理 1:46:00 影片約需 6 小時（約 `3.4×`）；單一本機觀察，不代表品質或跨平台效能驗收。
 - 剩餘風險：模型約 2.88 GiB 且 runtime 不隨包提供；低資源 CPU 可能長時間執行，仍需真實 profiler、長音訊、品質、Windows／macOS 乾淨安裝驗收。
+
+# BUG-025 — macOS 乾淨 profile 首次啟動卡在不必要 Keychain 查詢
+
+- 日期／版本：2026-08-20／0.50.0 macOS 測試候選
+- 現象：commit `2c9612e` 的封裝可完成 DMG／ZIP、codesign 與靜態內容核對，但隔離 userData 的 packaged renderer smoke 只啟動 DevTools browser，60 秒內沒有主視窗 target；主程序未啟動 server／renderer。
+- 診斷：對停滯主程序執行 1 秒 `sample`，主執行緒持續停在 Security framework 的 `SecItemCopyMatching`／Keychain 解密路徑；乾淨 userData 不含 `config/ai-keys.safe`，但 `readSecureAiKeys()` 原先先呼叫 `safeStorage.isEncryptionAvailable()`，之後才檢查檔案是否存在。
+- 根因判定：不存在安全金鑰檔時仍先觸發 OS 安全儲存能力檢查；在自動化／乾淨 profile 環境可能等待 Keychain 互動，阻止 `app.whenReady()` 後續 server 與主視窗流程。
+- 修正：`readSecureAiKeys()` 先解析單一 `securePath` 並檢查檔案存在；只有檔案存在時才呼叫 `safeStorage.isEncryptionAvailable()` 與 decrypt。既有金鑰檔的安全儲存語意不變。
+- 防回歸：`scripts/test-electron-main.mjs` 驗證檔案存在檢查嚴格位於 safeStorage 能力檢查之前，且解密沿用同一已檢查路徑；測試納入 `npm test`。
+- 驗證：focused syntax／新測試、完整 `npm run check` 通過；修正版 packaged renderer smoke 以隔離 userData 實際通過首頁、設定、Breeze 首次選擇 modal、上傳／完成、SRT、AI 校閱與資料夾事件。最終資產須在 Release notes 同步後重建並重新核對。
+- 剩餘風險：尚未以既有真實加密 AI 金鑰檔重放跨版本 decrypt／Keychain 權限提示，也不等同乾淨使用者帳號 Gatekeeper 或公證驗收。
+
+# BUG-024 — Whisper Small 輸出過長字幕 cue
+
+- 日期／版本：2026-08-20／0.50.0 開發分支
+- 現象：使用 Whisper Small 語言包時，單一 SRT cue 可能包含完整長句或超長單行文字，校閱與播放時可讀性差；原有「過長」品質篩選只標記問題，不會改善輸出。
+- 重現：以 deterministic SRT `00:00:10,000 --> 00:00:16,000` 搭配超過 40 個中英文混合字元的長句呼叫 `sanitizeWhisperSrt(input, { splitLongCues: true })`；基準未啟用選項時維持單一長 cue。
+- 影響：Small 的原始辨識文字雖未遺失，但超長 cue 需要人工重排；若直接截斷會造成字幕內容損失，若任意拆分又可能產生零長度／重疊時間碼或錯誤品質指標對應。
+- 根因判定：Whisper SRT 清理器原先只驗證時間碼與重編號，沒有 Small 專用的顯示長度政策，也沒有在拆分後重新分配時間；品質模組的 `字幕過長` 是篩選訊號，不是輸出修正器。
+- 修正：`lib/whisper-srt.mjs` 新增 opt-in `splitLongCues`；Small 輸出最多兩行、每行最多 20 字元，超過 40 字元優先依標點／空白拆成多個連續 cue，再按字數比例分配原始時段；保留完整文字，時間不足時不強拆。`server.mjs` 的 Python Whisper／Whisper.cpp Small 路徑一致啟用，Tiny／Base／Breeze 不變。
+- 品質 metadata：Small cue 拆分來源以同長度陣列的 `null` 項標記，避免一個 segment 被誤當成多個新 cue；未拆分 cue 仍保存可取得的 confidence／no-speech 指標，拆分 cue 改由校閱頁既有 rule-score 重新評估。
+- 驗證：`node --check lib/whisper-srt.mjs`、`node --check server.mjs`、`node scripts/test-whisper-srt.mjs`、`node scripts/test-whisper-quality.mjs`、`node scripts/test-whisper-models.mjs`、完整 `npm run check`、`npm run docs:check`、`npm run docs:check:final` 與獨立 round1／round2／round3 審查通過；測試覆蓋未啟用相容性、文字無損、正常時最多兩行／每行 20 字元、連續時間碼、零長度防護、超過 40 字元純中文 1 ms fallback 不新增空格與 partial quality metadata 邊界。
+- 防回歸：後續不得以截斷、摘要或假的 quality metadata 解決長 cue；若修改字元門檻、拆分邊界或時間分配，必須同步 focused 測試、功能設計、需求／稽核與 Release notes。
+- 剩餘風險：尚未以真實 Whisper Small 權重與 1:46 長音訊驗證中文斷句、閱讀速度、模型品質、品質 metadata 及 macOS／Windows 封裝後行為；過短原始 cue 會保留長文字並交由人工校閱。

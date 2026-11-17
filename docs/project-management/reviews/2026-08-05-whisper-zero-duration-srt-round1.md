@@ -33,7 +33,7 @@
 ## 6. 實際運行結果
 
 - 判定：有條件通過
-- 證據：實際 job `/Users/nycu/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt` 的原始第 703、704 段均為 `00:23:53,560 --> 00:23:53,560`，第 707 段為 `00:23:54,160 --> 00:23:54,160`；原始檔解析確實失敗，清理後解析成功並保留 2,296 段。兩個最新測試 ZIP 的目前 SHA-256 為 macOS `6f9aeddc8252906e75eba8002c27a8104426a61bb468fec8c29a90422112a18a`、Windows `5f81fd213717578e8c818e2f325a62ebecfb96c766f46ffd1f334fefcd6d45d5`；兩平台封裝內均含更新後的 `server.mjs`／`lib/whisper-srt.mjs` 與 Tiny／Small，manifest／檔案大小／SHA 一致。現有 job 是缺陷重現原始輸出，尚未取得透過新版 server 實際重跑後的 `job-status`／`draft.srt` 證據；另缺 Windows 實機與 packaged ASR 執行證據。
+- 證據：實際 job `<user-home>/Library/Application Support/offline-subtitle-factory/jobs/20260805011912-3fca91/working/draft.srt` 的原始第 703、704 段均為 `00:23:53,560 --> 00:23:53,560`，第 707 段為 `00:23:54,160 --> 00:23:54,160`；原始檔解析確實失敗，清理後解析成功並保留 2,296 段。兩個最新測試 ZIP 的目前 SHA-256 為 macOS `6f9aeddc8252906e75eba8002c27a8104426a61bb468fec8c29a90422112a18a`、Windows `5f81fd213717578e8c818e2f325a62ebecfb96c766f46ffd1f334fefcd6d45d5`；兩平台封裝內均含更新後的 `server.mjs`／`lib/whisper-srt.mjs` 與 Tiny／Small，manifest／檔案大小／SHA 一致。現有 job 是缺陷重現原始輸出，尚未取得透過新版 server 實際重跑後的 `job-status`／`draft.srt` 證據；另缺 Windows 實機與 packaged ASR 執行證據。
 
 ## 綜合判定
 

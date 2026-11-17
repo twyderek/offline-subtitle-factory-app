@@ -97,6 +97,7 @@ npm run probe:breeze -- --json
 
 - 環境：MacBook Air `Mac15,12`、Apple M3、8 GB RAM、8 cores、macOS `26.5.2`（Build `25F84`）。
 - Breeze ASR 25 對約 1 小時 46 分鐘影片耗時約 6 小時，約為影片長度的 `3.4×`；這是單一低資源 Mac Air 的 CPU／runtime 觀察，不是跨機型保證。
+- 0.50.0 起，`/api/breeze-asr` 的 `model.performanceReference` 與任務表單的獨立效能提示共用上述固定數值；提示不會改變效能 preset，也不會把 Breeze 選項名稱加上 experimental 字樣。
 - 未保存 profiler、原始音訊或完整逐段 telemetry，因此不能據此推導品質、溫度、記憶體峰值或其他硬體效能。需要較快結果時，請改用內建 Whisper.cpp；Breeze 的「快速」模式僅是參數選擇，不保證達到即時或固定倍率。
 
 ## 官方來源

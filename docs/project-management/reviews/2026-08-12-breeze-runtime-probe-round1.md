@@ -20,7 +20,7 @@
 ### P2 — JSON 報告未做敏感資訊／路徑最小化
 
 - scripts/probe-breeze-asr.mjs:24-35 直接輸出 python、modelDirectory、model path、以及 runBreezeRuntimeProbe() 收集的 stdout/stderr 尾段（lib/breeze-runtime-probe.mjs:36 最多各 4000 字元）。
-- 2026-08-12 15:42:03 以自訂 runtime stderr SECRET_MARKER=do-not-share /Users/example/private 實測，JSON 原樣包含該內容；目前不會把 report 寫入檔案，也沒有 secret/path redaction 或 --json 與人類輸出之差異（scripts/probe-breeze-asr.mjs:34 兩者相同）。
+- 2026-08-12 15:42:03 以自訂 runtime stderr SECRET_MARKER=do-not-share <user-home>/private 實測，JSON 原樣包含該內容；目前不會把 report 寫入檔案，也沒有 secret/path redaction 或 --json 與人類輸出之差異（scripts/probe-breeze-asr.mjs:34 兩者相同）。
 - 探針本身未顯式把 API key 放進 payload，且正式 server 不把結果寫入設定；但 raw external stderr／絕對路徑可洩漏使用者名稱、工作區或 runtime 自行輸出的 token。應在文件中明示輸出可能含敏感診斷資訊，或採路徑遮罩／敏感模式並建立測試。
 
 ## 1. 需求完整性

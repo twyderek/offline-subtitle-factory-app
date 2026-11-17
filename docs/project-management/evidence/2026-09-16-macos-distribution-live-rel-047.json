@@ -1,0 +1,74 @@
+{
+  "evidenceVersion": 1,
+  "recordedAt": "2026-09-16T07:55:40+08:00",
+  "workItem": "REL-047",
+  "scope": "macOS arm64 0.51.0 DMG／ZIP 分發檔內 packaged app 啟動驗收",
+  "platform": {
+    "os": "darwin",
+    "arch": "arm64",
+    "systemNetworkDisabled": false,
+    "userDataIsolation": true
+  },
+  "source": {
+    "directory": "../dist/test-build-0.51.0-macos-88da220",
+    "dmg": "offline-subtitle-factory-0.51.0-macos-arm64.dmg",
+    "dmgSha256": "e92faacc9f0e371d0c562a7adb89304c1f84f963681099e20bbe609b0ca0f1e1",
+    "zip": "offline-subtitle-factory-0.51.0-macos-arm64.zip",
+    "zipSha256": "1d5f8ffc156abad3762f823a7e065d61ab0c711af7350107f25d7c409fb297b2",
+    "sha256ManifestMatched": true,
+    "dmgHdiutilVerify": "VALID",
+    "zipIntegrity": "OK"
+  },
+  "flows": [
+    {
+      "distribution": "dmg-readonly-mounted",
+      "appPathShape": "/Volumes/<readonly-volume>/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+      "mountedReadOnly": true,
+      "mountDetached": true,
+      "rendererSmoke": {
+        "homeAndBridge": true,
+        "settingsModal": true,
+        "breezeSelectionOpenedAndCancelled": true,
+        "manualSubtitleJob": "completed",
+        "trimFlow": "completed",
+        "postTrimSubtitleJob": "completed",
+        "trimmedMediaUsed": true,
+        "shiftedSubtitleTime": true,
+        "aiReviewAssets": true,
+        "providerDefinitions": 8,
+        "isolatedUserDataCleaned": true
+      }
+    },
+    {
+      "distribution": "zip-extracted",
+      "appPathShape": "/private/tmp/<zip-smoke>/離線字幕工廠.app/Contents/MacOS/離線字幕工廠",
+      "extractedToIsolatedTemp": true,
+      "tempDirectoryCleaned": true,
+      "rendererSmoke": {
+        "homeAndBridge": true,
+        "settingsModal": true,
+        "breezeSelectionOpenedAndCancelled": true,
+        "manualSubtitleJob": "completed",
+        "trimFlow": "completed",
+        "postTrimSubtitleJob": "completed",
+        "trimmedMediaUsed": true,
+        "shiftedSubtitleTime": true,
+        "aiReviewAssets": true,
+        "providerDefinitions": 8,
+        "isolatedUserDataCleaned": true
+      }
+    }
+  ],
+  "externalServices": {
+    "anthropic": false,
+    "ollama": false,
+    "lmStudio": false,
+    "cloudApi": false
+  },
+  "result": "pass",
+  "limitations": [
+    "不代表 macOS 乾淨帳號、Gatekeeper、Developer ID／公證或 Applications 安裝後驗收",
+    "不代表 Windows、真正斷網、真實 Anthropic API、模型品質或公開 Release 完成",
+    "未執行 LM Studio；需求方已確認本機服務刪除"
+  ]
+}

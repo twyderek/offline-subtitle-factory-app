@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createProvider, listProviderDefinitions } from '../lib/ai/providers.mjs';
 import { aiEndpointPrivacy, isLoopbackAiUrl } from '../lib/ai/local-ai.mjs';
 import { inspectModelCapabilities, modelContextLength, parseCapabilityProbe } from '../lib/ai/model-capabilities.mjs';
@@ -6,18 +7,45 @@ import { glossaryToCsv, normalizeProjectAiSettings, parseGlossaryCsv } from '../
 
 const originalFetch = globalThis.fetch;
 const requests = [];
+let anthropicModelListMode = 'normal';
 const providerMockFetch = async (url, options = {}) => {
   requests.push({ url: String(url), options });
-  const body = options.method === 'POST'
-    ? { choices: [{ message: { content: '{"cues":[]}' } }] }
-    : { data: [{ id: 'test-model' }] };
+  const isAnthropicModels = String(url).includes('api.anthropic.com/v1/models');
+  const anthropicAfterId = isAnthropicModels ? new URL(url).searchParams.get('after_id') : '';
+  let body;
+  if (isAnthropicModels) {
+    if (anthropicModelListMode === 'paginated') {
+      body = anthropicAfterId === '  page 1/+?  '
+        ? { data: [{ id: 'test-model' }], has_more: false, last_id: 'test-model' }
+        : { data: [{ id: 'newer-model' }], has_more: true, last_id: '  page 1/+?  ' };
+    } else if (anthropicModelListMode === 'empty') {
+      body = { data: [], has_more: false, last_id: null };
+    } else if (anthropicModelListMode === 'missing-has-more') {
+      body = { data: [{ id: 'test-model' }] };
+    } else if (anthropicModelListMode === 'missing-cursor') {
+      body = { data: [{ id: 'test-model' }], has_more: true, last_id: null };
+    } else if (anthropicModelListMode === 'repeated-cursor') {
+      body = { data: [{ id: 'test-model' }], has_more: true, last_id: 'same-cursor' };
+    } else if (anthropicModelListMode === 'endless-pages') {
+      const currentPage = Number(String(anthropicAfterId || '').replace('page-', '')) || 0;
+      body = { data: [{ id: `model-${currentPage}` }], has_more: true, last_id: `page-${currentPage + 1}` };
+    } else {
+      body = { data: [{ id: 'test-model' }], has_more: false, last_id: 'test-model' };
+    }
+  } else if (String(url).includes('/v1/messages')) {
+    body = { id: 'msg_test', model: 'claude-test', content: [{ type: 'text', text: '{"cues":[]}' }], stop_reason: 'end_turn' };
+  } else if (options.method === 'POST') {
+    body = { choices: [{ message: { content: '{"cues":[]}' } }] };
+  } else {
+    body = { data: [{ id: 'test-model' }] };
+  }
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 globalThis.fetch = providerMockFetch;
 
 try {
   const definitions = listProviderDefinitions();
-  assert.deepEqual(definitions.map((item) => item.id).sort(), ['azure', 'gemini', 'groq', 'lm-studio', 'ollama', 'openai', 'openai-compatible']);
+  assert.deepEqual(definitions.map((item) => item.id).sort(), ['anthropic', 'azure', 'gemini', 'groq', 'lm-studio', 'ollama', 'openai', 'openai-compatible']);
 
   for (const provider of ['openai', 'openai-compatible', 'groq']) {
     const adapter = createProvider({ provider, baseUrl: 'https://example.test/v1', apiKey: `key-${provider}`, model: 'test-model' });
@@ -205,6 +233,154 @@ try {
   assert.equal(geminiOptimizeRequest.options.headers['x-goog-api-key'], undefined);
   const geminiBody = JSON.parse(geminiOptimizeRequest.options.body);
   assert.ok(Array.isArray(geminiBody.messages));
+
+  const anthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com/v1/', apiKey: 'anthropic-key', model: 'test-model' });
+  const anthropicConnection = await anthropic.test();
+  assert.equal(anthropicConnection.ok, true);
+  assert.equal(anthropicConnection.modelAvailable, true);
+  assert.equal(anthropicConnection.modelCount, 1);
+  const anthropicTestRequest = requests.at(-1);
+  assert.equal(new URL(anthropicTestRequest.url).pathname, '/v1/models');
+  assert.equal(new URL(anthropicTestRequest.url).searchParams.get('limit'), '1000');
+  assert.equal(anthropicTestRequest.url.includes('anthropic-key'), false, 'Anthropic API Key 不得進入 URL');
+  assert.equal(anthropicTestRequest.options.headers['x-api-key'], 'anthropic-key');
+  assert.equal(anthropicTestRequest.options.headers['anthropic-version'], '2023-06-01');
+  assert.equal(anthropicTestRequest.options.headers.Authorization, undefined);
+  assert.equal(anthropicTestRequest.options.method, 'GET');
+  assert.equal(anthropicTestRequest.options.body, undefined, '連線測試不得送出生成 body');
+  const anthropicModels = await anthropic.listModels();
+  assert.deepEqual(anthropicModels, [{ id: 'test-model' }]);
+  const anthropicModelsRequest = requests.at(-1);
+  assert.equal(new URL(anthropicModelsRequest.url).pathname, '/v1/models');
+  assert.equal(new URL(anthropicModelsRequest.url).searchParams.get('limit'), '1000');
+  assert.equal(anthropicModelsRequest.options.headers['x-api-key'], 'anthropic-key');
+
+  anthropicModelListMode = 'paginated';
+  const paginatedAnthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'anthropic-key', model: 'test-model' });
+  const paginatedConnection = await paginatedAnthropic.test();
+  assert.equal(paginatedConnection.modelAvailable, true, '第二頁指定模型不得被誤判為不可用');
+  assert.equal(paginatedConnection.modelCount, 2, 'Anthropic 模型數量必須包含所有頁面');
+  const paginatedRequests = requests.filter((request) => request.url.includes('api.anthropic.com/v1/models')).slice(-2);
+  assert.equal(paginatedRequests.length, 2, 'has_more=true 時必須讀取下一頁');
+  assert.equal(new URL(paginatedRequests[0].url).searchParams.get('limit'), '1000');
+  assert.equal(new URL(paginatedRequests[0].url).searchParams.get('after_id'), null);
+  assert.equal(new URL(paginatedRequests[1].url).searchParams.get('limit'), '1000');
+  assert.equal(new URL(paginatedRequests[1].url).searchParams.get('after_id'), '  page 1/+?  ', 'opaque cursor 必須安全編碼後原值傳遞');
+
+  anthropicModelListMode = 'missing-has-more';
+  await assert.rejects(() => paginatedAnthropic.listModels(), /缺少 has_more/);
+  anthropicModelListMode = 'missing-cursor';
+  await assert.rejects(() => paginatedAnthropic.listModels(), /缺少 last_id/);
+  anthropicModelListMode = 'repeated-cursor';
+  await assert.rejects(() => paginatedAnthropic.listModels(), /游標重複/);
+  anthropicModelListMode = 'endless-pages';
+  await assert.rejects(() => paginatedAnthropic.listModels(), /超過 100 頁安全上限/);
+  anthropicModelListMode = 'normal';
+
+  const anthropicResult = await anthropic.optimize({
+    model: 'claude-test',
+    operation: 'proofread',
+    output_language: 'zh-TW',
+    subtitle_cue_count: 1,
+    subtitle_cue_ids: ['C1'],
+    max_completion_tokens: 256,
+    temperature: 0,
+    top_p: 0.8,
+    top_k: 20,
+    stop_sequences: ['END'],
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: 'You are a subtitle editor.' },
+      { role: 'user', content: '[{"id":"C1","text":"測試"}]' },
+    ],
+  });
+  const anthropicRequest = requests.at(-1);
+  assert.match(anthropicRequest.url, /api\.anthropic\.com\/v1\/messages$/);
+  const anthropicBody = JSON.parse(anthropicRequest.options.body);
+  assert.equal(anthropicBody.system, 'You are a subtitle editor.');
+  assert.equal(anthropicBody.max_tokens, 256);
+  assert.equal(anthropicBody.max_completion_tokens, undefined);
+  assert.equal(anthropicBody.temperature, undefined, 'Anthropic 不得外送新模型會拒絕的 temperature');
+  assert.equal(anthropicBody.top_p, undefined, 'Anthropic 不得外送新模型會拒絕的 top_p');
+  assert.equal(anthropicBody.top_k, undefined, 'Anthropic 不得外送新模型會拒絕的 top_k');
+  assert.deepEqual(anthropicBody.stop_sequences, ['END'], 'Anthropic 必須保留支援的 stop_sequences');
+  assert.equal(anthropicBody.response_format, undefined);
+  assert.equal(anthropicBody.operation, undefined);
+  assert.equal(anthropicBody.output_language, undefined);
+  assert.deepEqual(anthropicBody.messages, [{ role: 'user', content: '[{"id":"C1","text":"測試"}]' }]);
+  assert.equal(anthropicResult.choices[0].message.content, '{"cues":[]}');
+
+  const unavailableAnthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'anthropic-key', model: 'missing-model' });
+  const unavailableConnection = await unavailableAnthropic.test();
+  assert.equal(unavailableConnection.ok, true);
+  assert.equal(unavailableConnection.modelAvailable, false, '模型清單未包含指定模型時不可誤判可用');
+  anthropicModelListMode = 'empty';
+  const emptyAnthropic = createProvider({ provider: 'anthropic', baseUrl: 'https://api.anthropic.com', apiKey: 'anthropic-key', model: 'test-model' });
+  const emptyConnection = await emptyAnthropic.test();
+  assert.equal(emptyConnection.ok, true);
+  assert.equal(emptyConnection.modelAvailable, false, '空模型清單不可把指定模型誤判可用');
+  assert.equal(emptyConnection.modelCount, 0);
+  anthropicModelListMode = 'normal';
+
+  const liveProbeSource = fs.readFileSync(new URL('./probe-provider-live.mjs', import.meta.url), 'utf8');
+  assert.match(liveProbeSource, /temperature:\s*0/, '共用 live provider probe 必須維持既有 temperature: 0，由 Anthropic adapter 局部過濾');
+  const liveOllamaProbeSource = fs.readFileSync(new URL('./probe-ollama-live.mjs', import.meta.url), 'utf8');
+  assert.match(liveOllamaProbeSource, /optimizeSubtitleCues/, 'Ollama live probe 必須驗證實際 optimizer product path');
+  assert.match(liveOllamaProbeSource, /LIVE-OPT-1/, 'Ollama optimizer probe 必須保留固定 cue contract');
+  const productOllamaProbeSource = fs.readFileSync(new URL('./probe-ollama-product-live.mjs', import.meta.url), 'utf8');
+  const offlineOllamaProbeSource = fs.readFileSync(new URL('./probe-ollama-product-offline.mjs', import.meta.url), 'utf8');
+  const managedChildSource = fs.readFileSync(new URL('../lib/ai/managed-child-process.mjs', import.meta.url), 'utf8');
+  const uiOllamaProbeSource = fs.readFileSync(new URL('./verify-electron-ollama-ui.mjs', import.meta.url), 'utf8');
+  assert.match(productOllamaProbeSource, /OFFLINE_SUBTITLE_DATA_DIR/, 'Ollama product probe 必須隔離暫存資料目錄');
+  assert.match(productOllamaProbeSource, /OFFLINE_SUBTITLE_TOOLS_DIR: toolDataDir/, 'Ollama product probe 必須隔離 server tools 目錄');
+  assert.match(productOllamaProbeSource, /SUBTITLE_AI_API_KEY: ''/, 'Ollama product probe child server 不得繼承 AI API Key');
+  assert.match(productOllamaProbeSource, /SUBTITLE_AI_KEYS_JSON: '\{\}'/, 'Ollama product probe child server 不得繼承 AI keys JSON');
+  assert.match(productOllamaProbeSource, /if \(!isLoopbackAiUrl\(ollamaBaseUrl\)\)/, 'Ollama product probe 必須在啟動前拒絕遠端 URL');
+  assert.match(productOllamaProbeSource, /if \(fs\.existsSync\(outputPath\)\) throw/, 'Ollama product probe 必須在啟動前拒絕既有 evidence');
+  assert.match(productOllamaProbeSource, /systemNetworkDisabled: false/, 'Ollama product probe 不得誤宣稱已關閉系統網路');
+  assert.match(productOllamaProbeSource, /loopbackOnlyConfiguration: isLoopbackAiUrl\(ollamaBaseUrl\)/, 'Ollama product probe 必須由 loopback 判定限制配置');
+  assert.match(productOllamaProbeSource, /timecodesUnchanged: true/, 'Ollama product probe 必須驗證時間碼未變');
+  assert.match(productOllamaProbeSource, /sourceSrtPreserved: true/, 'Ollama product probe 必須驗證原始 SRT 未覆蓋');
+  assert.match(productOllamaProbeSource, /sourceSrtBeforeSha256/, 'Ollama product probe 必須保存保存前原始 SRT hash');
+  assert.match(productOllamaProbeSource, /sourceSrtAfterSha256/, 'Ollama product probe 必須保存保存後原始 SRT hash');
+  assert.match(productOllamaProbeSource, /flag: 'wx'/, 'Ollama product probe 必須以 exclusive create 防止 evidence 競態覆寫');
+  assert.match(offlineOllamaProbeSource, /\(deny network\*\)/, '離線 Ollama acceptance 必須由 Seatbelt 明確拒絕所有網路操作');
+  assert.match(offlineOllamaProbeSource, /network-bind \(local ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback bind');
+  assert.match(offlineOllamaProbeSource, /network-inbound \(local ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback inbound');
+  assert.match(offlineOllamaProbeSource, /network-outbound \(remote ip "localhost:\*"\)/, '離線 Ollama acceptance 只允許 loopback outbound');
+  assert.match(offlineOllamaProbeSource, /externalError !== 'EPERM'/, '離線 Ollama acceptance 必須先以 OS EPERM 證明外連被拒');
+  assert.match(offlineOllamaProbeSource, /MODEL_NOT_PREINSTALLED/, '缺少本機模型時必須停止，避免觸發下載');
+  assert.match(offlineOllamaProbeSource, /if \(configuredOllamaBaseUrl\) fail\('CUSTOM_OLLAMA_URL_NOT_ALLOWED'\)/, '離線 acceptance 必須拒絕任何呼叫端自訂 endpoint');
+  assert.match(offlineOllamaProbeSource, /preinstalledModelFound: false/, 'offline evidence 預設不得宣稱已找到預裝模型');
+  assert.match(offlineOllamaProbeSource, /daemonSpawnCommand = testDaemonSpawnCommand \? path\.resolve\(testDaemonSpawnCommand\) : sandboxExec/, 'daemon 預設必須由 Seatbelt 啟動');
+  assert.match(offlineOllamaProbeSource, /spawnManagedChild\(daemonSpawnCommand, \['-p', sandboxProfile/, 'Ollama daemon spawn 必須使用錯誤事件受控 helper');
+  assert.match(offlineOllamaProbeSource, /process\.env\.NODE_ENV === 'test'[\s\S]*OSF_TEST_ONLY_OLLAMA_SPAWN_COMMAND/, 'daemon spawn fault injection 必須只在 test environment 生效');
+  assert.match(offlineOllamaProbeSource, /currentStage = 'ollama_start';[\s\S]*SANDBOXED_OLLAMA_SPAWN_FAILED/, 'daemon spawn failure 必須留下明確 stage 與 failure code');
+  assert.match(offlineOllamaProbeSource, /SANDBOXED_OLLAMA_SPAWN_FAILED/, 'Ollama daemon 非同步 spawn error 必須進入 fail-closed evidence 流程');
+  assert.match(offlineOllamaProbeSource, /stopManagedChild\(ollamaProcess\)/, 'Ollama daemon cleanup 必須使用 managed-child close tracking');
+  assert.match(managedChildSource, /child\.once\('error'/, 'managed child 必須接收 spawn error event');
+  assert.match(managedChildSource, /child\.once\('close'/, 'managed child 必須追蹤 close event');
+  assert.match(offlineOllamaProbeSource, /runChild\(sandboxExec, \['-p', sandboxProfile/, 'product probe 必須由 Seatbelt 沙箱啟動');
+  assert.match(offlineOllamaProbeSource, /networkSandboxInheritedByProductServer: true/, 'offline evidence 必須界定 app server 子程序在 sandbox 中');
+  assert.match(offlineOllamaProbeSource, /temporaryRootRemoved: true/, '離線探針必須以暫存清理狀態 fail closed');
+  assert.match(offlineOllamaProbeSource, /startedInSandbox: false/, 'offline evidence 預設不得預先宣稱 daemon 已在沙箱內');
+  assert.match(offlineOllamaProbeSource, /flag: 'wx'/, 'offline evidence 必須 exclusive create 且不可覆寫');
+  assert.match(offlineOllamaProbeSource, /systemNetworkDisabled: false/, 'offline probe 不得誤稱整台系統已斷網');
+  assert.match(uiOllamaProbeSource, /Page\.navigate/, 'Ollama UI probe 必須實際導覽封裝版校閱頁');
+  assert.match(uiOllamaProbeSource, /getElementById\('openAiSettings'\)\.click/, 'Ollama UI probe 必須從畫面開啟 AI 設定');
+  assert.match(uiOllamaProbeSource, /getElementById\('runAiOptimize'\)\.click/, 'Ollama UI probe 必須由畫面按下 AI 優化');
+  assert.match(uiOllamaProbeSource, /getElementById\('acceptAllAiSuggestions'\)\.click/, 'Ollama UI probe 必須由畫面接受全部建議');
+  assert.match(uiOllamaProbeSource, /clickAndWait\('undoAiSession'/, 'Ollama UI probe 必須驗證畫面 undo');
+  assert.match(uiOllamaProbeSource, /clickAndWait\('redoAiSession'/, 'Ollama UI probe 必須驗證畫面 redo');
+  assert.match(uiOllamaProbeSource, /const save = document\.getElementById\('saveSrt'\)/, 'Ollama UI probe 必須由畫面另存 SRT');
+  assert.match(uiOllamaProbeSource, /if \(!isLoopbackAiUrl\(ollamaBaseUrl\)\)/, 'Ollama UI probe 必須在啟動前拒絕遠端 URL');
+  assert.match(uiOllamaProbeSource, /SUBTITLE_AI_API_KEY: ''/, 'Ollama UI probe 不得繼承 AI API Key');
+  assert.match(uiOllamaProbeSource, /systemNetworkDisabled: false/, 'Ollama UI probe 不得誤宣稱已關閉系統網路');
+  assert.match(uiOllamaProbeSource, /flag: 'wx'/, 'Ollama UI probe 必須以 exclusive create 防止 evidence 覆寫');
+  const packageManifest = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(packageManifest.scripts['acceptance:ollama:product'], 'node scripts/probe-ollama-product-live.mjs', 'Ollama product probe 必須有可重放 npm script');
+  assert.equal(packageManifest.scripts['acceptance:ollama:offline'], 'node scripts/probe-ollama-product-offline.mjs', 'Ollama offline acceptance 必須有可重播 npm script');
+  assert.equal(packageManifest.scripts['acceptance:ollama:ui'], 'node scripts/verify-electron-ollama-ui.mjs', 'Ollama UI probe 必須有可重放 npm script');
 
   const csv = 'source,target,caseSensitive,doNotTranslate,note\nOpen AI,OpenAI,true,false,brand\nWhisper,,false,true,keep';
   const glossary = parseGlossaryCsv(csv);

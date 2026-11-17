@@ -3,7 +3,8 @@
 ## 支援環境
 
 - Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。
-- 0.49.1 已鎖定 Electron 43.3.0／electron-builder 26.15.7 並正式公開；依賴或版本更新後必須重跑完整 audit、雙平台封裝與 packaged renderer smoke。既有公開 `v0.49.0` 資產保留為歷史版本，不得覆寫。
+- 0.51.0 公開版使用 Electron 43.3.0／electron-builder 26.15.7。0.52.0 source `b2b942eb6d941e61f1a5a27e065e51dd8c31e26f` 使用 Electron 43.8.0／electron-builder 26.17.0；round15 確認該 SHA 的完整 source check／production audit、macOS arm64 candidate package／runtime／checksum／signature／UI smoke、exact-source Windows CI run `39380574427`／artifact `12244799752` 與 73/73 shared app hashes 通過各自聲明範圍。Windows artifact 僅讀取 500,000-byte ZIP tail range，未下載完整 archive，無 whole-archive integrity claim；smoke 合成影片沒有有效播放／完整轉錄證明。round14 發現的額外 Windows user-profile 路徑已以中性佔位符去識別；round12 報告中的單一路徑為需求方明確核准且在 README／Release notes 揭露的唯一例外。round15 整體判 BLOCK，原因是 `00`／`05`／`06`／`08` 未同步 b2b942e 的實際證據；新工作項目已立項同步文件，文件新 SHA 須重新通過完整 check、macOS arm64 candidate、exact-source Windows CI／73-file hash gate 與 round16 無阻擋複審。依 `workflows/06-BUILD-RELEASE.md`／`workflows/07-DOCUMENT-CLOSEOUT.md`，`docs:check:final` 在發布及資產核對後執行。此版不含 Windows assets；`GHSA-hp3w-g68c-fv3c`、ad-hoc／未公證與 Google 流程未驗收仍須揭露。GitHub Latest 仍 0.51.0；不得覆寫既有 tag／Release。
+- 0.50.0 開發分支目前只變更 Breeze 效能參考 payload、選取後提醒與版本識別；尚未建立 tag／Release。若進入發布流程，需以 `v0.50.0` 重新建置並重新核對雙平台資產。
 - Windows 10/11 x64；封裝由 `windows-2022` runner 執行。
 - Apple Silicon macOS 12 以上。
 
