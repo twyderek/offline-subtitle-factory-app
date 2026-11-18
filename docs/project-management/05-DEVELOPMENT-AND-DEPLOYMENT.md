@@ -1,5 +1,12 @@
 # 軟體開發與部署
 
+## 2026-10-22 更新：目前公開發行與分支狀態
+
+- GitHub 的最新 Release 為 `v0.52.0`（2026-10-20，macOS arm64-only）。下方 2026-10-20 的「尚未公開」「Latest 0.51.0」屬**發版前歷史快照**，不得當成今日狀態。
+- `main` 仍為 0.49.1 原始碼加 MIT 授權提交，與已發行 v0.52.0 tag 未同步；OSS 準備草稿 PR #15 提供同步候選，不能在尚未執行新 PR HEAD 的回歸與審查前直接合併。
+- 新增 `.github/workflows/oss-pr-check.yml` 的文檔與授權檢查、production npm audit 和 Windows source regression。必須查閱 GitHub Actions run 結果；僅建立 workflow 不能宣稱通過。
+- 此次文件作業不觸及安裝檔、簽章、macOS 公證或真實 YouTube OAuth 測試。第三方 binary／模型各自授權，詳見 `THIRD-PARTY-NOTICES.md`。
+
 ## 支援環境
 
 - Node.js 22.12.0 以上；CI 目前使用 Node.js 22。Electron 43 的安裝工具鏈不再支援 Node 20。

@@ -1,0 +1,49 @@
+name: "Bug report / 錯誤回報"
+description: "回報可重現的功能問題（請先移除敏感資訊）"
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝回報！公開 Issue 不可包含 API Key、OAuth 憑證、私人影音或可被利用的安全漏洞細節。
+        敏感漏洞請先閱讀 [SECURITY.md](../../SECURITY.md)。
+  - type: input
+    id: release
+    attributes:
+      label: "版本 / Release"
+      placeholder: "e.g. v0.52.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: "作業系統與架構 / OS and architecture"
+      placeholder: "e.g. macOS arm64 / Windows x64"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "重現步驟 / Steps to reproduce"
+      description: "使用合成或已去識別化範例"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "實際結果 / Actual result"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "預期結果 / Expected result"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: "去識別化資訊 / Sanitized diagnostics"
+      description: "可提供不含 token、密鑰、檔案私人路徑與真實媒體的錯誤訊息"
+    validations:
+      required: false

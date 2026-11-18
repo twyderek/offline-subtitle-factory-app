@@ -1,4 +1,25 @@
-# 離線字幕工廠
+# 離線字幕工廠（Offline Subtitle Factory）
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Latest Release](https://img.shields.io/badge/Release-v0.52.0-informational.svg)](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)
+
+**離線優先、重視隱私的桌面字幕製作與校閱工具。** 使用 Whisper.cpp、FFmpeg 與 Electron，協助教育工作者、影音創作者及有資料保護需求的使用者，在自己的電腦完成語音轉錄、字幕編輯、雙語字幕及影片輸出。預設流程不必將原始影音上傳到雲端。
+
+**A local-first subtitle production and review tool.** It supports on-device transcription, subtitle editing, bilingual workflows, and video exports. Optional cloud AI features require user configuration; optional YouTube publishing sends selected files only after explicit consent.
+
+## 快速導覽 / Quick links
+
+- **最新公開版本**：[v0.52.0 (2026-10-20)](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.52.0)，**僅發行 macOS Apple Silicon (arm64)** 的 DMG／ZIP。這版尚未發布 Windows 安裝檔；Windows 使用者請查看[歷史發行版本](https://github.com/twyderek/offline-subtitle-factory-app/releases)及各版驗收限制。
+- **取得安裝檔與校驗碼**：[GitHub Releases](https://github.com/twyderek/offline-subtitle-factory-app/releases)；請留意未完成程式碼簽章／Apple 公證的警告，並核對檔案的 SHA-256。
+- **核心功能**：離線 Whisper.cpp 語音辨識、SRT 匯入及校閱、雙語字幕、影片修剪及匯出；可選用本機 LLM 與雲端文字優化。YouTube 私人影片／字幕上傳屬 **v0.52.0 的實驗性選用功能**，尚未完成真實 Google 帳號端到端驗收。
+- **開發及回報問題**：閱讀 [CONTRIBUTING.md](CONTRIBUTING.md)；問題可至 [Issues](https://github.com/twyderek/offline-subtitle-factory-app/issues) 提報。
+- **開源授權**：本專案可授權的原創程式碼採用 [MIT License](LICENSE)；Electron、FFmpeg、whisper.cpp、模型及其他第三方元件各自適用其授權，詳見 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- **安全回報**：敏感問題請閱讀 [SECURITY.md](SECURITY.md)，不要把憑證或私人資料貼到公開 Issue。
+- **OSS 申請證據**：詳見 [公開專案核查與送件證據](docs/OSS-APPLICATION-READINESS.md)，明確區分可查證的維護事實、真實使用量與仍待完成的審查工作。
+
+> **資料與隱私提醒：** 預設離線字幕流程不會上傳原始影音。只有當使用者主動啟用並設定雲端文字處理時，選取的字幕文字才可能傳送至該供應商；選用 YouTube 上傳時，獲同意的影片和字幕會傳送至 Google／YouTube。請參閱版本文件的已知限制，不要將自動化測試視為跨平台實機驗收。
+
+---
 
 ## 0.52.0：YouTube 私人影片與字幕上傳
 
@@ -35,6 +56,10 @@ Whisper Small 的超長字幕 cue 會在輸出前保留完整文字並依標點�
 
 - 開發說明：[RELEASE-NOTES-0.50.0.md](RELEASE-NOTES-0.50.0.md)
 - 開發期間的公開基線為：[v0.49.1](https://github.com/twyderek/offline-subtitle-factory-app/releases/tag/v0.49.1)；後續正式版本見上方 0.51.0 與 0.52.0。
+
+## 歷史版本（發行時說明）
+
+以下 0.49.0 及更早版本的「目前」「最新版」「正式版本」等字樣，僅反映**該版本發布時**的歷史說明。**現在的最新公開 Release 是 v0.52.0（macOS arm64）**，請以上方連結及對應 Release notes 為準。
 
 ## 0.49.0 Breeze 第一版正式發布
 
